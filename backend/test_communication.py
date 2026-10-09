@@ -52,13 +52,19 @@ class CommunicationTests(unittest.TestCase):
     def tearDown(self): self.mock.stop()
 
     def test_default_cards_have_sentence_metadata(self):
-        required = {'meaning', 'part_of_speech', 'has_batchim', 'sentence_role'}
+        required = {'meaning', 'part_of_speech', 'has_batchim', 'sentence_role',
+                    'semantic_group', 'safety_relevant'}
         self.assertTrue(all(required <= card.keys() for card in CARDS))
         cards = {card['id']: card for card in CARDS}
         self.assertTrue(cards['water']['has_batchim'])
         self.assertFalse(cards['apple']['has_batchim'])
         self.assertEqual(cards['me']['sentence_role'], 'subject')
         self.assertEqual(cards['go']['part_of_speech'], 'verb')
+        self.assertIsNone(cards['stop']['image_index'])
+        self.assertEqual(cards['happy']['semantic_group'], 'emotion')
+        self.assertEqual(cards['hurt']['semantic_group'], 'physical_state')
+        self.assertEqual(cards['no']['semantic_group'], 'rejection')
+        self.assertEqual(cards['yes']['semantic_group'], 'affirmation')
 
     def test_particles_follow_batchim_and_sentence_role(self):
         cards = {card['id']: card for card in CARDS}
@@ -76,6 +82,8 @@ class CommunicationTests(unittest.TestCase):
         self.assertEqual(sentence(['water', 'apple', 'eat']), '물과 사과를 먹고 싶어요.')
         self.assertEqual(sentence(['me', 'home', 'go']), '저는 집에 가고 싶어요.')
         self.assertEqual(sentence(['water', 'no']), '물이 싫어요.')
+        self.assertEqual(sentence(['head', 'here_hurts']), '머리가 아파요.')
+        self.assertEqual(sentence(['stop']), '그만해 주세요.')
 
     def test_rule_sentence_naturalizes_repeated_negation_and_actions(self):
         self.assertEqual(sentence(['no', 'eat', 'drink', 'no', 'no']),
@@ -236,20 +244,22 @@ class CommunicationTests(unittest.TestCase):
         self.assertEqual(statistics('demo', days=30, now=now)['sessions'], 1)
         self.assertEqual(statistics('demo', now=now)['sessions'], 2)
 
-    def test_guardian_summary_contains_daily_and_attention_data(self):
+    def test_guardian_summary_uses_observed_emotion_state_and_safety_expressions(self):
         now = datetime(2026, 9, 8, 12, tzinfo=timezone.utc)
         self.collection.documents = {
-            'today': {'_id': 'today', 'user_id': 'demo', 'cards': ['hurt', 'help'],
+            'today': {'_id': 'today', 'user_id': 'demo', 'cards': ['hurt', 'help', 'no'],
                       'sentence': '아파요 · 도와주세요', 'created_at': now - timedelta(hours=1)},
             'yesterday': {'_id': 'yesterday', 'user_id': 'demo', 'cards': ['happy'],
                           'sentence': '좋아요', 'created_at': now - timedelta(days=1)},
         }
         result = statistics('demo', now=now)
         self.assertEqual(result['today_sessions'], 1)
-        self.assertEqual(result['today_selections'], 2)
+        self.assertEqual(result['today_selections'], 3)
         self.assertEqual(len(result['daily_activity']), 7)
-        self.assertEqual({item['id'] for item in result['attention']}, {'hurt', 'help'})
-        self.assertEqual(result['primary_emotion']['id'], 'hurt')
+        self.assertEqual({item['id'] for item in result['recent_safety_expressions']},
+                         {'hurt', 'help', 'no'})
+        self.assertEqual(result['frequent_emotion_state']['id'], 'hurt')
+        self.assertNotEqual(result['frequent_emotion_state']['id'], 'no')
 
     def test_demo_history_is_seeded_once(self):
         ensure_demo_history('demo')

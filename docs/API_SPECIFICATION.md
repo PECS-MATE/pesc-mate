@@ -132,6 +132,8 @@ Authorization: Bearer {access_token}
 | `part_of_speech` | string | 예 | `noun`, `pronoun`, `verb`, `adjective`, `interjection` 등 품사 |
 | `has_batchim` | boolean | 예 | 카드명의 마지막 한글 음절 받침 여부 |
 | `sentence_role` | string | 예 | `subject`, `object`, `destination`, `predicate`, `response` 등 문장 역할 |
+| `semantic_group` | string 또는 null | 아니요 | `emotion`, `physical_state`, `sensory_state`, `rejection`, `affirmation` 등 의미 분류 |
+| `safety_relevant` | boolean | 아니요 | 보호자가 최근 사용을 확인할 안전 관련 표현 여부 |
 | `count` | integer | 아니요 | 추천·통계 응답의 사용자 사용 횟수 |
 | `reason` | string | 아니요 | 추천 응답에 표시할 추천 근거 |
 
@@ -740,10 +742,10 @@ Authorization: Bearer {access_token}
 | `period_days` | integer 또는 null | 적용된 기간. 전체 기간이면 `null` |
 | `today_sessions` | integer | 오늘 생성한 문장 수 |
 | `today_selections` | integer | 오늘 선택한 카드 수 |
-| `primary_emotion` | Card 또는 null | 선택 기간에 가장 많이 사용한 감정 카드 |
+| `frequent_emotion_state` | Card 또는 null | 선택 기간에 자주 사용한 감정·신체·감각 상태 표현. 진단이나 추론이 아닌 선택 횟수 기준 |
 | `last_activity` | ISO 8601 또는 null | 가장 최근 의사소통 시각 |
 | `daily_activity` | object[] | 최근 7일 날짜별 문장 수 |
-| `attention` | Card[] | `아파요`, `도와주세요`, `싫어요` 사용 횟수와 최근 시각 |
+| `recent_safety_expressions` | Card[] | 최근 사용한 안전 관련 표현의 횟수와 최근 시각. 위험 자동 판정이 아닌 관찰 기록 |
 
 ```json
 {

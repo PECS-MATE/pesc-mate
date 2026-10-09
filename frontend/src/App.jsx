@@ -32,7 +32,10 @@ const CARD_META = Object.fromEntries([
   ['me', '나'], ['mom', '엄마'], ['water', '물'], ['rice', '밥'], ['apple', '사과'], ['milk', '우유'],
   ['drink', '마시다'], ['eat', '먹다'], ['go', '가다'], ['rest', '쉬다'], ['play', '놀다'], ['help', '도와주세요'],
   ['toilet', '화장실'], ['home', '집'], ['happy', '좋아요'], ['hurt', '아파요'], ['no', '싫어요'], ['yes', '네'],
-].map(([id, label], image_index) => [id, { id, label, image_index }]));
+  ['stop', '그만'], ['more', '더'], ['again', '다시'], ['wait', '기다려 주세요'], ['unknown', '모르겠어요'], ['other', '다른 것'],
+  ['head', '머리'], ['stomach', '배'], ['hand', '손'], ['leg', '다리'], ['here_hurts', '여기가 아파요'],
+  ['uncomfortable', '불편해요'], ['scared', '무서워요'], ['noisy', '시끄러워요'],
+].map(([id, label], image_index) => [id, { id, label, image_index: image_index < 18 ? image_index : null }]));
 
 const TTS_PRESETS = {
   child: { label: '어린이 느낌', rate: 0.9, pitch: 1.25 },
@@ -462,7 +465,8 @@ function App() {
     return <span className="card-speaker" role="button" tabIndex="0" aria-label={`${card.label} 단어 듣기`} onClick={play} onKeyDown={event => { if (['Enter', ' '].includes(event.key)) play(event); }}>🔊</span>;
   }
   function cardPicture(card, className = 'mini-card') {
-    return <span key={card.id} className={className} title={card.label} aria-label={card.label} role="img" style={artStyle(card)} />;
+    const hasImage = Boolean(card.image_src) || Number.isInteger(card.image_index);
+    return <span key={card.id} className={`${className}${hasImage ? '' : ' image-fallback'}`} title={card.label} aria-label={card.label} role="img" style={hasImage ? artStyle(card) : undefined}>{!hasImage && <small>{card.label}</small>}</span>;
   }
   function tile(card) {
     const speakOnTap = outputMode === 'word';
@@ -634,9 +638,9 @@ function App() {
       {stats && <div className={statsBusy ? 'stats-content loading' : 'stats-content'}>
         {user.role === 'caregiver' && <><div className="guardian-summary">
           <div><span>오늘 문장</span><strong>{stats.today_sessions}개</strong></div><div><span>오늘 사용 카드</span><strong>{stats.today_selections}장</strong></div>
-          <div><span>주요 감정</span><strong>{stats.primary_emotion?.label || '기록 없음'}</strong></div><div><span>마지막 표현</span><strong>{stats.last_activity ? new Date(stats.last_activity).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '기록 없음'}</strong></div>
+          <div><span>자주 사용한 감정·상태 표현</span><strong>{stats.frequent_emotion_state?.label || '기록 없음'}</strong></div><div><span>마지막 표현</span><strong>{stats.last_activity ? new Date(stats.last_activity).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '기록 없음'}</strong></div>
         </div><div className="guardian-grid"><article className="activity-panel"><h3>최근 7일 의사소통</h3><div className="activity-chart">{stats.daily_activity.map(day => { const max = Math.max(...stats.daily_activity.map(item => item.sessions), 1); return <div key={day.date}><span className="activity-value">{day.sessions}</span><i style={{ height: `${Math.max((day.sessions / max) * 100, 4)}%` }}></i><time>{new Date(`${day.date}T00:00:00`).toLocaleDateString('ko-KR', { weekday: 'short' })}</time></div>; })}</div></article>
-          <article className="attention-panel"><h3>확인이 필요한 표현</h3>{stats.attention.length ? stats.attention.map(item => <div className="attention-item" key={item.id}>{cardPicture(item)}<span><strong>{item.label} · {item.count}회</strong><small>최근 {new Date(item.last_used_at).toLocaleString('ko-KR')}</small></span></div>) : <p className="muted">선택한 기간에 확인이 필요한 표현이 없어요.</p>}</article>
+          <article className="attention-panel"><h3>최근 안전 관련 표현</h3><p className="safety-note">위험을 자동 판단하는 항목이 아니며, 최근 의사표현을 확인하기 위한 기록입니다.</p>{stats.recent_safety_expressions.length ? stats.recent_safety_expressions.map(item => <div className="attention-item" key={item.id}>{cardPicture(item)}<span><strong>{item.label} · {item.count}회</strong><small>최근 {new Date(item.last_used_at).toLocaleString('ko-KR')}</small></span></div>) : <p className="muted">선택한 기간에 안전 관련 표현 기록이 없어요.</p>}</article>
         </div></>}
         <div className="metrics"><div>저장한 문장<strong>{stats.sessions}개</strong></div><div>사용한 카드<strong>{stats.selections}장</strong></div></div>
         <h3>카테고리별 사용</h3>{Object.entries(stats.categories).map(([name, count]) => <div className="bar" key={name}><span>{name}</span><meter min="0" max={Math.max(stats.selections, 1)} value={count} /> {count}회</div>)}

@@ -113,6 +113,7 @@ small { font-family: "Malgun Gothic", sans-serif; font-size: .75rem; color: #9a8
 .attention-item { display: flex; align-items: center; gap: 11px; padding: 10px; margin-bottom: 8px; border-radius: 15px; background: #fff4f1; }
 .attention-item span:not(.mini-card), .attention-item small { display: block; }
 .attention-item small { margin-top: 4px; }
+.safety-note { margin: -7px 0 12px; color: #7b8791; font-size: .78rem; line-height: 1.45; }
 .mini-card { display: inline-block; flex: 0 0 54px; width: 54px; aspect-ratio: 1; border-radius: 10px; background-size: 600% 300%; background-repeat: no-repeat; box-shadow: 0 2px 7px #65778526; }
 .history-cards { display: flex; gap: 5px; flex: 1 0 100%; }
 .history-cards .mini-card { flex-basis: 46px; width: 46px; }

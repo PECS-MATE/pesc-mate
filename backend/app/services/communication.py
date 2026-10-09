@@ -16,7 +16,8 @@ logger = logging.getLogger('uvicorn.error')
 
 CARDS = [with_inferred_metadata(dict(id=key, label=label, symbol=symbol, category=category,
                                       meaning=meaning, part_of_speech=part_of_speech,
-                                      sentence_role=sentence_role, image_index=index))
+                                      sentence_role=sentence_role,
+                                      image_index=index if index < 18 else None))
          for index, (key, label, symbol, category, meaning, part_of_speech, sentence_role) in enumerate([
     ('me', '나', '🙋', '사람', '말하는 사용자 자신', 'pronoun', 'subject'),
     ('mom', '엄마', '👩', '사람', '사용자의 어머니', 'noun', 'subject'),
@@ -36,7 +37,36 @@ CARDS = [with_inferred_metadata(dict(id=key, label=label, symbol=symbol, categor
     ('hurt', '아파요', '🤕', '감정', '몸이 아픈 상태', 'adjective', 'predicate'),
     ('no', '싫어요', '🙅', '감정', '원하지 않거나 거절하는 표현', 'adjective', 'predicate'),
     ('yes', '네', '👍', '감정', '동의하거나 긍정하는 표현', 'interjection', 'response'),
+    ('stop', '그만', '✋', '행동', '현재 행동이나 상황을 중단해 달라는 표현', 'interjection', 'response'),
+    ('more', '더', '➕', '행동', '원하는 것을 더 요청하는 표현', 'adverb', 'predicate'),
+    ('again', '다시', '🔁', '행동', '같은 행동을 다시 요청하는 표현', 'adverb', 'predicate'),
+    ('wait', '기다려 주세요', '⏳', '행동', '잠시 기다려 달라는 요청', 'verb', 'predicate'),
+    ('unknown', '모르겠어요', '❓', '감정', '알지 못하거나 선택하기 어려운 상태', 'adjective', 'predicate'),
+    ('other', '다른 것', '🔀', '행동', '현재 선택과 다른 대상을 요청하는 표현', 'noun', 'object'),
+    ('head', '머리', '🧑', '사람', '머리 신체 부위', 'noun', 'object'),
+    ('stomach', '배', '🫃', '사람', '배 신체 부위', 'noun', 'object'),
+    ('hand', '손', '✋', '사람', '손 신체 부위', 'noun', 'object'),
+    ('leg', '다리', '🦵', '사람', '다리 신체 부위', 'noun', 'object'),
+    ('here_hurts', '여기가 아파요', '🩹', '감정', '가리키는 신체 부위가 아픈 상태', 'adjective', 'predicate'),
+    ('uncomfortable', '불편해요', '😣', '감정', '몸이나 상황이 편하지 않은 상태', 'adjective', 'predicate'),
+    ('scared', '무서워요', '😨', '감정', '두렵거나 무서운 감정', 'adjective', 'predicate'),
+    ('noisy', '시끄러워요', '🔊', '감정', '소리가 크거나 시끄러워 힘든 감각 상태', 'adjective', 'predicate'),
 ])]
+
+SEMANTIC_GROUPS = {
+    'happy': 'emotion', 'scared': 'emotion',
+    'hurt': 'physical_state', 'here_hurts': 'physical_state', 'uncomfortable': 'physical_state',
+    'noisy': 'sensory_state', 'no': 'rejection', 'yes': 'affirmation',
+    'head': 'body_part', 'stomach': 'body_part', 'hand': 'body_part', 'leg': 'body_part',
+    'stop': 'core', 'more': 'core', 'again': 'core', 'wait': 'core',
+    'unknown': 'uncertainty', 'other': 'core',
+}
+SAFETY_RELEVANT_IDS = {
+    'hurt', 'here_hurts', 'uncomfortable', 'scared', 'noisy', 'help', 'toilet', 'no', 'stop',
+}
+for card in CARDS:
+    card['semantic_group'] = SEMANTIC_GROUPS.get(card['id'])
+    card['safety_relevant'] = card['id'] in SAFETY_RELEVANT_IDS
 INDEX = {card['id']: card for card in CARDS}
 
 PARTICLES = {
@@ -57,6 +87,16 @@ PREDICATE_PHRASES = {
     'hurt': '아파요.',
     'no': '싫어요.',
     'yes': '네.',
+    'stop': '그만해 주세요.',
+    'more': '더 주세요.',
+    'again': '다시 해 주세요.',
+    'wait': '기다려 주세요.',
+    'unknown': '모르겠어요.',
+    'other': '다른 것을 원해요.',
+    'here_hurts': '여기가 아파요.',
+    'uncomfortable': '불편해요.',
+    'scared': '무서워요.',
+    'noisy': '시끄러워요.',
 }
 
 NEGATIVE_ACTIONS = {
@@ -135,6 +175,10 @@ def sentence(ids, card_index=None):
     negative_sentence = _negative_sentence(selected)
     if negative_sentence:
         return negative_sentence
+    if selected and selected[-1]['id'] == 'here_hurts':
+        body_parts = selected[:-1]
+        if body_parts and all(card.get('semantic_group') == 'body_part' for card in body_parts):
+            return f"{_format_group(body_parts, 'subject')} 아파요."
     if selected and selected[-1]['sentence_role'] in {'predicate', 'response'}:
         predicate = selected[-1]
         arguments = selected[:-1]
@@ -187,7 +231,8 @@ def save_session(request, user_id, custom_cards=None, regeneration_of=None, gene
                 raise HTTPException(409, '같은 요청 번호에 다른 카드가 전달되었습니다.')
             return _public(existing)
         snapshots = {key: {field: card_index[key].get(field) for field in (
-            'id', 'label', 'symbol', 'category', 'meaning', 'part_of_speech', 'has_batchim', 'sentence_role')}
+            'id', 'label', 'symbol', 'category', 'meaning', 'part_of_speech', 'has_batchim',
+            'sentence_role', 'semantic_group', 'safety_relevant')}
                      for key in card_ids if key in custom_index}
         versions = policy_versions()
         generation = {
@@ -283,23 +328,30 @@ def statistics(user_id, days=None, now=None):
          'sessions': daily_counts[(today - timedelta(days=offset)).isoformat()]}
         for offset in range(6, -1, -1)
     ]
-    primary_emotion_key = next((key for key, _ in counts.most_common() if key in {'happy', 'hurt', 'no', 'yes'}), None)
-    primary_emotion = INDEX[primary_emotion_key] if primary_emotion_key else None
-    attention = []
-    for key in ('hurt', 'help', 'no'):
+    emotion_state_groups = {'emotion', 'physical_state', 'sensory_state'}
+    frequent_expression_key = next((key for key, _ in counts.most_common()
+                                    if card_index.get(key, {}).get('semantic_group') in emotion_state_groups), None)
+    frequent_emotion_state = card_index[frequent_expression_key] if frequent_expression_key else None
+    recent_safety_expressions = []
+    for key, card in card_index.items():
+        if not card.get('safety_relevant'):
+            continue
         matching = [row for row in rows if key in row['cards']]
         if matching:
-            attention.append(INDEX[key] | {'count': sum(row['cards'].count(key) for row in matching),
-                                           'last_used_at': matching[0]['created_at']})
+            recent_safety_expressions.append(card | {
+                'count': sum(row['cards'].count(key) for row in matching),
+                'last_used_at': matching[0]['created_at'],
+            })
+    recent_safety_expressions.sort(key=lambda item: item['last_used_at'], reverse=True)
     return dict(sessions=len(rows), selections=sum(counts.values()),
                 top_cards=[card_index[key] | {'count': count} for key, count in counts.most_common() if key in card_index],
                 categories=dict(categories), recent=rows[:10], period_days=days,
                 today_sessions=len(today_rows),
                 today_selections=sum(len(row['cards']) for row in today_rows),
-                primary_emotion=primary_emotion,
+                frequent_emotion_state=frequent_emotion_state,
                 last_activity=rows[0]['created_at'] if rows else None,
                 daily_activity=daily_activity,
-                attention=attention)
+                recent_safety_expressions=recent_safety_expressions)
 
 
 def ensure_demo_history(user_id):

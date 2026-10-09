@@ -129,6 +129,8 @@ class CardResponse(BaseModel):
     part_of_speech: str | None = None
     has_batchim: bool | None = None
     sentence_role: str | None = None
+    semantic_group: str | None = None
+    safety_relevant: bool | None = None
     image_url: str | None = None
     custom: bool | None = None
     count: int | None = None
@@ -200,7 +202,7 @@ class DailyActivityResponse(BaseModel):
     sessions: int
 
 
-class AttentionResponse(CardResponse):
+class SafetyExpressionResponse(CardResponse):
     count: int
     last_used_at: datetime
 
@@ -214,10 +216,10 @@ class DashboardResponse(BaseModel):
     period_days: int | None
     today_sessions: int
     today_selections: int
-    primary_emotion: CardResponse | None
+    frequent_emotion_state: CardResponse | None
     last_activity: datetime | None
     daily_activity: list[DailyActivityResponse]
-    attention: list[AttentionResponse]
+    recent_safety_expressions: list[SafetyExpressionResponse]
 
 
 def require_communicator(user):
