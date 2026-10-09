@@ -62,7 +62,7 @@ function App() {
   const [cardCategories, setCardCategories] = useState([]);
   const [recommended, setRecommended] = useState([]);
   const [board, setBoard] = useState([]);
-  const [cardTapMode, setCardTapMode] = useState('select');
+  const [outputMode, setOutputMode] = useState('natural');
   const [category, setCategory] = useState('전체');
   const [search, setSearch] = useState('');
   const [selectedCard, setSelectedCard] = useState(null);
@@ -292,6 +292,7 @@ function App() {
     if (speakBeforeTracking) speechEvent.started = startTracking();
   }
   function speak() { speakText(text); }
+  function speakSelection() { speakText(board.map(card => card.label).join(' '), 'sentence'); }
   function pauseSpeech() {
     if (speechState.status !== 'playing') return;
     window.speechSynthesis.pause();
@@ -462,7 +463,7 @@ function App() {
     return <span key={card.id} className={className} title={card.label} aria-label={card.label} role="img" style={artStyle(card)} />;
   }
   function tile(card) {
-    const speakOnTap = cardTapMode === 'speak';
+    const speakOnTap = outputMode === 'word';
     return <button className={`card${speakOnTap ? ' speak-on-tap' : ''}`} key={card.id} disabled={busy} aria-label={`${card.label} ${speakOnTap ? '바로 말하기' : '문장에 담기'}`} onClick={() => speakOnTap ? speakText(card.label, 'card') : add(card)}>
       {cardArt(card)}
       <strong>{card.label}</strong>{card.reason && <small>{card.reason}</small>}{cardSpeaker(card)}
@@ -543,7 +544,7 @@ function App() {
       </section> : tab === 'cards' && user.role !== 'caregiver' ? <div className="communication-layout">
       <section className="recommend-panel"><div className="stage-title"><span className="stage-back" aria-hidden="true">‹‹</span><div><strong>오늘의 추천 카드</strong><i aria-hidden="true"><b></b><b></b><b></b></i><p>자주 쓰는 카드를 골라 문장을 시작해요</p></div><span className="stage-helper" aria-hidden="true">🌱</span></div><div className="cards recommendations">{recommended.map(tile)}</div><div className="stage-ground" aria-hidden="true">▲　▲　　▲　　　▲　▲</div></section>
       <div className="workspace"><section><div className="section-title"><h2>무엇을 말하고 싶나요?</h2><input aria-label="카드 검색" placeholder="카드 이름 검색" value={search} onChange={e => setSearch(e.target.value)} /></div>
-        <div className="card-tap-mode" role="group" aria-label="카드 누르기 동작"><span>카드를 누르면</span><button aria-pressed={cardTapMode === 'select'} className={cardTapMode === 'select' ? 'active' : ''} onClick={() => setCardTapMode('select')}>문장에 담기</button><button aria-pressed={cardTapMode === 'speak'} className={cardTapMode === 'speak' ? 'active' : ''} onClick={() => setCardTapMode('speak')}>🔊 바로 말하기</button></div>
+        <div className="output-mode" role="group" aria-label="출력 방식"><span>출력 방식</span><button aria-pressed={outputMode === 'word'} className={outputMode === 'word' ? 'active' : ''} onClick={() => setOutputMode('word')}>🔊 단어 즉시 발화</button><button aria-pressed={outputMode === 'selection'} className={outputMode === 'selection' ? 'active' : ''} onClick={() => setOutputMode('selection')}>선택 카드 그대로</button><button aria-pressed={outputMode === 'natural'} className={outputMode === 'natural' ? 'active' : ''} onClick={() => setOutputMode('natural')}>자연스러운 문장</button></div>
         <div className="categories" aria-label="카테고리">{['전체', ...cardCategories.map(item => item.name)].map(c => <button key={c} aria-pressed={category === c} className={category === c ? 'active' : ''} onClick={() => setCategory(c)}>{c}</button>)}</div>
         <div className="cards">{visibleCards.map(tile)}</div>
         {loaded && !visibleCards.length && <EmptyState>검색 결과가 없어요.</EmptyState>}
@@ -551,7 +552,7 @@ function App() {
       <section className="board"><div className="section-title"><h2>나의 문장 <small>{board.length}/12</small></h2><button disabled={!board.length || busy} onClick={() => { if (window.confirm('선택한 카드를 모두 지울까요?')) updateBoard([]); }}>비우기</button></div>
         {!board.length && <EmptyState>왼쪽 카드를 눌러 보세요.<br />나 → 물 → 마시다</EmptyState>}
         <ol>{board.map((c, i) => <li key={`${c.id}-${i}`}><span>{c.symbol} {c.label}</span><div><button aria-label={`${i + 1}번째 카드 앞으로`} disabled={i === 0 || busy} onClick={() => move(i, -1)}>←</button><button aria-label={`${i + 1}번째 카드 뒤로`} disabled={i === board.length - 1 || busy} onClick={() => move(i, 1)}>→</button><button aria-label={`${i + 1}번째 카드 삭제`} disabled={busy} onClick={() => updateBoard(board.filter((_, n) => n !== i))}>×</button></div></li>)}</ol>
-        <button className="primary full" disabled={!board.length || busy} onClick={generate}>{busy ? '문장을 만드는 중…' : '문장 만들기 · 저장'}</button>
+        {outputMode === 'word' ? <p className="mode-guide">카드 본체를 누르면 단어를 바로 말해요.</p> : outputMode === 'selection' ? <button className="primary full" disabled={!board.length || busy} onClick={speakSelection}>🔊 선택 카드 그대로 말하기</button> : <button className="primary full" disabled={!board.length || busy} onClick={generate}>{busy ? '문장을 만드는 중…' : '자연스러운 문장 만들기 · 저장'}</button>}
         <div className="sentence" aria-live="polite">{text || '만든 문장이 여기에 표시돼요.'}{text && <small className={`source-badge ${generationSource}`}>{generationSource === 'ollama' ? 'Qwen · Ollama 생성' : '규칙 기반 생성'}{generationAttempt > 1 ? ` · 재생성 ${generationAttempt - 1}회` : ''}</small>}</div>
         <div className="actions"><button className="primary" disabled={!text || busy || speechActive} onClick={speak}>🔊 읽어주기</button><button disabled={!generatedSessionId || busy || speechActive} onClick={regenerate}>{busy ? '만드는 중…' : '↻ 다시 만들기'}</button>{speechState.status === 'playing' && <button onClick={pauseSpeech}>일시 정지</button>}{speechState.status === 'paused' && <button onClick={resumeSpeech}>재개</button>}<button disabled={!speechActive} onClick={stopSpeech}>중지</button></div>
         <details className="tts-settings">

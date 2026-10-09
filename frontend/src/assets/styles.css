@@ -207,9 +207,10 @@ button.primary:hover:not(:disabled), button.active:hover:not(:disabled) { backgr
 .workspace section:first-child { background: linear-gradient(150deg, #fff, #f5f1ff); }
 .board { background: linear-gradient(155deg, #fff, #eaf9f4) !important; }
 .card { border-color: #e0eaf0; box-shadow: 0 4px 0 #dce8ed; }
-.card-tap-mode { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; padding: 10px 12px; border: 1px solid #d9e4ed; border-radius: 14px; background: #f7fbff; }
-.card-tap-mode > span { margin-right: 4px; color: #596878; font-weight: 800; }
-.card-tap-mode button { min-height: 44px; padding: 8px 14px; }
+.output-mode { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; padding: 10px 12px; border: 1px solid #d9e4ed; border-radius: 14px; background: #f7fbff; }
+.output-mode > span { margin-right: 4px; color: #596878; font-weight: 800; }
+.output-mode button { min-height: 44px; padding: 8px 14px; }
+.mode-guide { min-height: 52px; display: grid; place-items: center; margin: 0; padding: 10px; border: 2px dashed #9bd1e8; border-radius: 14px; color: #47758b; background: #effaff; font-weight: 700; text-align: center; }
 .card.speak-on-tap { border-color: #69b7df; box-shadow: 0 4px 0 #a9d9ef, 0 0 0 3px #dff5ff inset; }
 .card.speak-on-tap::after { content: "눌러서 말하기"; position: absolute; z-index: 3; top: 7px; left: 7px; padding: 4px 7px; border-radius: 999px; color: #24627e; background: #e5f7ffed; font-size: .66rem; font-weight: 800; }
 .card:nth-child(4n+1) { background: #fff0f5; }
