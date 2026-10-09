@@ -32,6 +32,11 @@ h1 { margin: 0; color: #77551b; font-size: clamp(1.8rem, 4vw, 2.6rem); letter-sp
 h2 { margin: 0 0 10px; font-size: 1.35rem; color: #76501b; }
 h3 { margin-top: 28px; color: #e97718; }
 .status { display: inline-flex; align-items: center; padding: 8px 13px; border-radius: 999px; background: #fff; border: 2px solid #f5d97d; font-size: .85rem; }
+.quick-speech { display: flex; align-items: center; gap: 9px; padding: 12px 14px; overflow-x: auto; border: 3px solid #ffd2dc; background: linear-gradient(135deg, #fff7f9, #fff); box-shadow: 0 8px 20px #9f50631f; }
+.quick-speech > div { flex: 0 0 auto; display: grid; min-width: 105px; color: #98405b; }
+.quick-speech > div small { margin-top: 2px; color: #a16c7c; }
+.quick-speech button { flex: 1 0 auto; min-width: 112px; min-height: 52px; padding: 8px 13px; border-color: #f2a9bb; color: #7d3048; background: #fff; box-shadow: 0 3px 0 #efbdc9; }
+.quick-speech button span { margin-right: 6px; font-size: 1.2rem; }
 
 nav { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
 nav button { display: flex; align-items: center; gap: 8px; background: #fff; }
@@ -152,6 +157,9 @@ footer { text-align: center; padding: 12px; }
   .metrics { flex-direction: column; }
   .guardian-summary { grid-template-columns: 1fr 1fr; }
   .card-art { border-radius: 10px; }
+  .quick-speech { margin-inline: -4px; padding: 10px; }
+  .quick-speech > div { min-width: 92px; }
+  .quick-speech button { min-width: 104px; }
 }
 
 /* Main stage: layout adapted from docs/reference/image2.png */

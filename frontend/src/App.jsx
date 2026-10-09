@@ -40,6 +40,14 @@ const TTS_PRESETS = {
   man: { label: '남성 느낌', rate: 0.85, pitch: 0.8 },
 };
 
+const QUICK_EXPRESSIONS = [
+  { id: 'hurt', label: '아파요', symbol: '🤕' },
+  { id: 'no', label: '싫어요', symbol: '🙅' },
+  { id: 'help', label: '도와주세요', symbol: '🤝' },
+  { id: 'toilet', label: '화장실', symbol: '🚻' },
+  { id: 'stop', label: '그만', symbol: '✋' },
+];
+
 function App() {
   const [user, setUser] = useState(null);
   const [showProfile, setShowProfile] = useState(false);
@@ -242,18 +250,20 @@ function App() {
     if (errorCode === 'unsupported') return '이 브라우저에서는 음성 재생을 지원하지 않습니다. 최신 Chrome 또는 Edge에서 다시 열어 주세요.';
     return '기기의 한국어 음성 설정과 음량을 확인한 뒤 다시 재생해 주세요.';
   }
-  function speakText(content, contentType = 'sentence') {
+  function speakText(content, contentType = 'sentence', speakBeforeTracking = false) {
     finishSpeechEvent(speechEventRef.current, 'cancelled', 'replaced');
     const speechEvent = {
       id: crypto.randomUUID(), finished: false,
       started: null,
     };
-    speechEvent.started = request('/tts/events', { method: 'POST', body: JSON.stringify({
+    const startTracking = () => request('/tts/events', { method: 'POST', body: JSON.stringify({
       request_id: speechEvent.id, content_type: contentType, char_count: content.length,
     }) }).then(() => true).catch(e => { setError(e.message); return false; });
+    speechEvent.started = speakBeforeTracking ? Promise.resolve(false) : startTracking();
     speechEventRef.current = speechEvent;
     setSpeechFailure(null);
     if (!window.speechSynthesis) {
+      if (speakBeforeTracking) speechEvent.started = startTracking();
       finishSpeechEvent(speechEvent, 'failed', 'unsupported');
       setSpeechFailure({ content, contentType, errorCode: 'unsupported', retryable: false });
       return;
@@ -279,6 +289,7 @@ function App() {
       if (!['canceled', 'interrupted'].includes(errorEvent.error)) setSpeechFailure({ content, contentType, errorCode: errorEvent.error || 'unknown', retryable: true });
     };
     setSpeechState({ status: 'starting', content }); window.speechSynthesis.speak(utterance);
+    if (speakBeforeTracking) speechEvent.started = startTracking();
   }
   function speak() { speakText(text); }
   function pauseSpeech() {
@@ -508,6 +519,7 @@ function App() {
     <div className="app-content">
       {profileNotice && <p role="status">{profileNotice}</p>}
       <header className="topbar"><div><p className="eyebrow">오늘은 {todayLabel}</p><h1>{pageTitle}</h1></div><div className="topbar-statuses"><span className="status"><b className={loaded ? 'online' : ''}></b>{loaded ? '서비스 연결됨' : '연결 대기'}</span>{speechActive && <div className={`speech-player ${speechState.status}`} role="status" aria-live="polite"><span><b aria-hidden="true">🔊</b><strong>{speechStatusLabel}</strong><small title={speechState.content}>{speechState.content}</small></span>{speechState.status === 'playing' && <button type="button" onClick={pauseSpeech}>일시 정지</button>}{speechState.status === 'paused' && <button type="button" onClick={resumeSpeech}>재개</button>}<button type="button" onClick={stopSpeech}>중지</button></div>}</div></header>
+      {user.role === 'user' && <section className="quick-speech" aria-labelledby="quick-speech-title"><div><strong id="quick-speech-title">빠른 표현</strong><small>누르면 바로 말해요</small></div>{QUICK_EXPRESSIONS.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 바로 말하기`} onClick={() => speakText(item.label, 'card', true)}><span aria-hidden="true">{item.symbol}</span>{item.label}</button>)}</section>}
       {error && <div role="alert" className="error">{error} <button disabled={busy} onClick={() => load(user)}>다시 연결</button></div>}
       {speechFailure && <div role="alert" className="speech-error"><span aria-hidden="true">🔇</span><div><strong>음성을 재생하지 못했어요.</strong><p>{speechFailureMessage(speechFailure.errorCode)} 선택한 카드와 문장은 그대로 유지됩니다.</p></div><div className="speech-error-actions">{speechFailure.retryable && <button className="primary" onClick={() => speakText(speechFailure.content, speechFailure.contentType)}>다시 재생</button>}<button onClick={() => setSpeechFailure(null)}>닫기</button></div></div>}
       {!loaded && !error && <p role="status">카드를 불러오는 중입니다…</p>}
