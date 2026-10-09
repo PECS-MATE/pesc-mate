@@ -82,6 +82,12 @@ ol li { display: flex; justify-content: space-between; align-items: center; gap:
 ol li button { min-height: 34px; padding: 5px 9px; margin-left: 3px; border-width: 1px; }
 .full { width: 100%; }
 .sentence { background: #dcf7f2; border: 3px solid #b7eadf; border-radius: 18px; padding: 18px; margin: 16px 0; min-height: 80px; font-size: 1.12rem; overflow-wrap: anywhere; }
+.original-order { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px dashed #8ccfc2; }
+.original-order > small { display: block; margin-bottom: 7px; color: #527d74; font-weight: 800; }
+.original-order > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.original-order span { padding: 5px 8px; border-radius: 9px; color: #446b63; background: #fff; font-size: .8rem; font-weight: 700; }
+.generation-fallback { display: grid; gap: 5px; margin-top: 12px; padding: 14px; border: 2px solid #efc46d; border-radius: 14px; color: #79591c; background: #fff9df; }
+.generation-fallback > div { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .source-badge { display: block; width: max-content; margin-top: 12px; padding: 5px 9px; border-radius: 999px; background: #edf0f3; color: #697985; }
 .source-badge.ollama { background: #dff4e8; color: #33745a; }
 .empty { color: #9a8257; text-align: center; padding: 28px 8px; line-height: 1.8; }
