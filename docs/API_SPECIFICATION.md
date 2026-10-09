@@ -87,6 +87,7 @@ Authorization: Bearer {access_token}
 | 개인정보 | GET | `/api/privacy/audit` | 사용자 | 연결·해제·삭제 변경 이력 조회 |
 | 개인정보 | GET | `/api/privacy/export` | 사용자 | 본인 데이터 JSON 내보내기 |
 | 개인정보 | DELETE | `/api/privacy/data` | 사용자 | 사용자 생성 데이터 삭제 |
+| 오프라인 | POST | `/api/offline/events/sync` | 사용자 | 오프라인 최소 발화 이력 동기화 |
 | 보호자 | GET | `/api/care/linked-users` | 필요 | 보호자에게 연결된 사용자 조회 |
 | 보호자 | PUT | `/api/care/notes/{session_id}` | 필요 | 의사소통 기록의 보호자 메모 저장·수정 |
 | 보호자 | DELETE | `/api/care/notes/{session_id}` | 필요 | 보호자 메모 삭제 |
@@ -117,6 +118,7 @@ Authorization: Bearer {access_token}
 | `username` | string | 예 | 로그인 아이디 |
 | `name` | string | 예 | 화면 표시 이름 |
 | `role` | string | 예 | 사용자 역할. `user` 또는 `caregiver` |
+| `session_expires_at` | datetime 또는 null | 아니요 | 현재 사용자 조회 시 오프라인 저장본에도 적용할 세션 만료 시각 |
 
 ```json
 {
@@ -483,6 +485,29 @@ Content-Type: application/json
 ```
 
 삭제하면 개인 카드와 그 감사 이력, 문장·음성 기록, 보호자 메모·연결, 프로필 이미지, 음성·접근 설정이 제거된다. 로그인 계정은 사용자가 삭제 완료 상태를 확인할 수 있도록 유지하고 `deletion_status=completed` 및 완료 시각을 영수증으로 보존한다.
+
+## 6.12 오프라인 최소 이력 동기화
+
+```http
+POST /api/offline/events/sync
+Authorization: Bearer {access_token}
+Content-Type: application/json
+```
+
+```json
+{
+  "events": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "event_type": "immediate_speech",
+      "card_ids": ["help"],
+      "occurred_at": "2026-10-09T05:30:00Z"
+    }
+  ]
+}
+```
+
+동의한 사용자가 오프라인에서 실행한 즉시 발화 또는 선택 카드 그대로 발화의 UUID, 유형, 카드 ID와 기기 시각만 저장한다. 발화 원문은 전송하지 않는다. 서버는 UUID를 `_id`로 upsert하므로 같은 묶음을 재전송해도 중복 이력이 생기지 않는다. 응답의 `accepted_ids`를 받은 뒤에만 기기 대기열에서 제거한다. 한 요청은 최대 100건, 카드 ID는 이벤트당 1~12개다.
 
 # 7. 카드 API
 
