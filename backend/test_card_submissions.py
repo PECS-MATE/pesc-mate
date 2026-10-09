@@ -77,6 +77,10 @@ class CardSubmissionTests(unittest.TestCase):
         with self.assertRaises(HTTPException) as visibility_error:
             create_submission('demo', '연필', '뜻', '학습', 'public', 'x.png', 'image/png', b'x')
         self.assertEqual(visibility_error.exception.status_code, 422)
+        with self.assertRaises(HTTPException) as category_error:
+            create_submission('demo', '연필', '뜻', '임의 분류', 'private',
+                              'x.png', 'image/png', self.image)
+        self.assertEqual(category_error.exception.status_code, 422)
 
     def test_admin_approval_exposes_card_without_removing_defaults(self):
         saved = create_submission('demo', '연필', '글을 쓰는 도구', '학습', 'private',

@@ -14,6 +14,7 @@ from app.services.card_submissions import (
     review_submission, submissions_for, submissions_for_review, submit_draft,
     update_submission,
 )
+from app.services.categories import active_categories
 
 api_router = APIRouter()
 
@@ -130,6 +131,13 @@ class CardResponse(BaseModel):
     custom: bool | None = None
     count: int | None = None
     reason: str | None = None
+
+
+class CategoryResponse(BaseModel):
+    id: str
+    name: str
+    display_order: int
+    active: bool
 
 
 class CardSubmissionResponse(BaseModel):
@@ -294,6 +302,12 @@ def complete_tts_event(request_id: UUID, request: TtsEventResultRequest, user=De
 def cards(user=Depends(current_user)):
     require_communicator(user)
     return CARDS + approved_cards_for(user['id'])
+
+
+@api_router.get('/categories', response_model=list[CategoryResponse], tags=['카드'])
+def categories(user=Depends(current_user)):
+    require_communicator(user)
+    return active_categories()
 
 
 @api_router.get('/cards/submissions', response_model=list[CardSubmissionResponse], tags=['카드'])

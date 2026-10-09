@@ -83,6 +83,7 @@ Authorization: Bearer {access_token}
 | 보호자 | PUT | `/api/care/notes/{session_id}` | 필요 | 의사소통 기록의 보호자 메모 저장·수정 |
 | 보호자 | DELETE | `/api/care/notes/{session_id}` | 필요 | 보호자 메모 삭제 |
 | 카드 | GET | `/api/cards` | 필요 | 전체 카드 조회 |
+| 카드 | GET | `/api/categories` | 필요 | 활성 카드 카테고리 조회 |
 | 카드 | GET | `/api/cards/submissions` | 필요 | 본인 카드 등록 요청 조회 |
 | 카드 | POST | `/api/cards/submissions` | 필요 | 카드 승인 요청 저장 |
 | 카드 | POST | `/api/cards/submissions/{id}/submit` | 필요 | 임시 저장 카드를 승인 대기로 제출 |
@@ -122,7 +123,7 @@ Authorization: Bearer {access_token}
 | `id` | string | 예 | 카드 식별자 |
 | `label` | string | 예 | 한글 카드 이름 |
 | `symbol` | string | 예 | 카드 그림 기호 |
-| `category` | string | 예 | `사람`, `음식`, `행동`, `장소`, `감정` 중 하나 |
+| `category` | string | 예 | 활성 카테고리의 표시 이름 |
 | `image_index` | integer | 예 | 카드 이미지 스프라이트 위치 인덱스(0~17) |
 | `meaning` | string | 예 | 문장 생성에 사용하는 카드의 정규화된 의미 |
 | `part_of_speech` | string | 예 | `noun`, `pronoun`, `verb`, `adjective`, `interjection` 등 품사 |
@@ -146,7 +147,18 @@ Authorization: Bearer {access_token}
 }
 ```
 
-## 4.3 CommunicationSession
+## 4.3 Category
+
+| 필드 | 형식 | 필수 | 설명 |
+|---|---|---|---|
+| `id` | string | 예 | 영문 카테고리 식별자 |
+| `name` | string | 예 | 화면에 표시할 카테고리 이름 |
+| `display_order` | integer | 예 | 카테고리 표시 순서 |
+| `active` | boolean | 예 | 사용자 화면 노출 여부 |
+
+기본 카테고리는 사람, 음식, 행동, 장소, 감정, 가구, 생활용품, 학습, 사용자 카드 순서다.
+
+## 4.4 CommunicationSession
 
 | 필드 | 형식 | 필수 | 설명 |
 |---|---|---|---|
@@ -453,7 +465,28 @@ Authorization: Bearer {access_token}
 
 - `401`: 인증 실패
 
-## 7.2 카드 등록 요청
+## 7.2 활성 카테고리 조회
+
+```http
+GET /api/categories
+Authorization: Bearer {access_token}
+```
+
+카드 탐색과 카드 등록 폼에서 공통으로 사용할 활성 카테고리를 `display_order`
+순서로 반환한다. 현재는 기본 5개 분류와 가구, 생활용품, 학습, 사용자 카드까지
+총 9개를 제공한다.
+
+### 성공 응답: 200 OK
+
+```json
+[
+  {"id": "people", "name": "사람", "display_order": 1, "active": true},
+  {"id": "furniture", "name": "가구", "display_order": 6, "active": true},
+  {"id": "user-cards", "name": "사용자 카드", "display_order": 9, "active": true}
+]
+```
+
+## 7.3 카드 등록 요청
 
 ```http
 POST /api/cards/submissions
@@ -489,7 +522,7 @@ Content-Type: multipart/form-data
 외부 공급자는 `IMAGE_SAFETY_API_URL`에 JSON POST로 호출되며
 `{"safe": true|false, "provider": "...", "reasons": []}` 응답을 사용한다.
 
-## 7.3 본인 카드 등록 요청 조회
+## 7.4 본인 카드 등록 요청 조회
 
 ```http
 GET /api/cards/submissions
@@ -501,7 +534,7 @@ Authorization: Bearer {access_token}
 카드명, 뜻, 카테고리, 공개 범위를 수정할 수 있다. 반려 카드를 수정하면
 작성 중 상태로 전환되며, 승인 대기로 다시 제출해야 한다.
 
-## 7.4 카드 승인·반려
+## 7.5 카드 승인·반려
 
 ```http
 GET /api/admin/card-submissions

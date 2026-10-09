@@ -12,6 +12,7 @@ from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from app.services.card_metadata import with_inferred_metadata
 from app.services.database import database, log_crud
+from app.services.categories import active_category_names
 from app.services.image_safety import check_image_safety
 from app.services.language_review import review_language
 
@@ -125,6 +126,8 @@ def create_submission(owner_id, label, meaning, category, visibility,
     category = category.strip()
     if not label or not meaning or not category:
         raise HTTPException(422, '카드명과 뜻, 카테고리를 모두 입력해 주세요.')
+    if category not in active_category_names():
+        raise HTTPException(422, '사용할 수 없는 카드 카테고리입니다.')
     _validate_text(label, meaning)
     if visibility not in {'private', 'shared'}:
         raise HTTPException(422, '공개 범위가 올바르지 않습니다.')
@@ -265,6 +268,8 @@ def update_submission(submission_id, owner_id, label, meaning, category, visibil
     category = category.strip()
     if not label or not meaning or not category:
         raise HTTPException(422, '카드명과 뜻, 카테고리를 모두 입력해 주세요.')
+    if category not in active_category_names():
+        raise HTTPException(422, '사용할 수 없는 카드 카테고리입니다.')
     _validate_text(label, meaning)
     if visibility not in {'private', 'shared'}:
         raise HTTPException(422, '공개 범위가 올바르지 않습니다.')
