@@ -50,8 +50,13 @@ class CardSubmissionTests(unittest.TestCase):
         self.audit_collection = Collection()
         self.mock = patch('app.services.card_submissions._collection', return_value=self.collection)
         self.audit_mock = patch('app.services.card_submissions._audit_collection', return_value=self.audit_collection)
+        self.category_mock = patch(
+            'app.services.card_submissions.active_category_names',
+            return_value={'사람', '음식', '행동', '장소', '감정', '가구', '생활용품', '학습', '사용자 카드'},
+        )
         self.mock.start()
         self.audit_mock.start()
+        self.category_mock.start()
         output = BytesIO()
         Image.new('RGB', (256, 256), '#ffffff').save(output, format='PNG')
         self.image = output.getvalue()
@@ -59,6 +64,7 @@ class CardSubmissionTests(unittest.TestCase):
     def tearDown(self):
         self.mock.stop()
         self.audit_mock.stop()
+        self.category_mock.stop()
 
     def test_submission_is_pending_and_scoped_to_owner(self):
         saved = create_submission(
