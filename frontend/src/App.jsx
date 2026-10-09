@@ -54,6 +54,7 @@ function App() {
   const [cardCategories, setCardCategories] = useState([]);
   const [recommended, setRecommended] = useState([]);
   const [board, setBoard] = useState([]);
+  const [cardTapMode, setCardTapMode] = useState('select');
   const [category, setCategory] = useState('전체');
   const [search, setSearch] = useState('');
   const [selectedCard, setSelectedCard] = useState(null);
@@ -450,7 +451,8 @@ function App() {
     return <span key={card.id} className={className} title={card.label} aria-label={card.label} role="img" style={artStyle(card)} />;
   }
   function tile(card) {
-    return <button className="card" key={card.id} disabled={busy} onClick={() => add(card)}>
+    const speakOnTap = cardTapMode === 'speak';
+    return <button className={`card${speakOnTap ? ' speak-on-tap' : ''}`} key={card.id} disabled={busy} aria-label={`${card.label} ${speakOnTap ? '바로 말하기' : '문장에 담기'}`} onClick={() => speakOnTap ? speakText(card.label, 'card') : add(card)}>
       {cardArt(card)}
       <strong>{card.label}</strong>{card.reason && <small>{card.reason}</small>}{cardSpeaker(card)}
     </button>;
@@ -529,6 +531,7 @@ function App() {
       </section> : tab === 'cards' && user.role !== 'caregiver' ? <div className="communication-layout">
       <section className="recommend-panel"><div className="stage-title"><span className="stage-back" aria-hidden="true">‹‹</span><div><strong>오늘의 추천 카드</strong><i aria-hidden="true"><b></b><b></b><b></b></i><p>자주 쓰는 카드를 골라 문장을 시작해요</p></div><span className="stage-helper" aria-hidden="true">🌱</span></div><div className="cards recommendations">{recommended.map(tile)}</div><div className="stage-ground" aria-hidden="true">▲　▲　　▲　　　▲　▲</div></section>
       <div className="workspace"><section><div className="section-title"><h2>무엇을 말하고 싶나요?</h2><input aria-label="카드 검색" placeholder="카드 이름 검색" value={search} onChange={e => setSearch(e.target.value)} /></div>
+        <div className="card-tap-mode" role="group" aria-label="카드 누르기 동작"><span>카드를 누르면</span><button aria-pressed={cardTapMode === 'select'} className={cardTapMode === 'select' ? 'active' : ''} onClick={() => setCardTapMode('select')}>문장에 담기</button><button aria-pressed={cardTapMode === 'speak'} className={cardTapMode === 'speak' ? 'active' : ''} onClick={() => setCardTapMode('speak')}>🔊 바로 말하기</button></div>
         <div className="categories" aria-label="카테고리">{['전체', ...cardCategories.map(item => item.name)].map(c => <button key={c} aria-pressed={category === c} className={category === c ? 'active' : ''} onClick={() => setCategory(c)}>{c}</button>)}</div>
         <div className="cards">{visibleCards.map(tile)}</div>
         {loaded && !visibleCards.length && <EmptyState>검색 결과가 없어요.</EmptyState>}
