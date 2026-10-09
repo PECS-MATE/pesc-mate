@@ -222,7 +222,7 @@ class DashboardResponse(BaseModel):
 
 def require_communicator(user):
     if user['role'] != 'user':
-        raise HTTPException(403, 'PECS 사용자만 카드 기능을 이용할 수 있습니다.')
+        raise HTTPException(403, 'AAC 사용자만 카드 기능을 이용할 수 있습니다.')
     return user
 
 
