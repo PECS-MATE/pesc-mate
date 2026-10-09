@@ -1,0 +1,9 @@
+{
+  "name": "PESC MATE",
+  "short_name": "PESC MATE",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f42c7e",
+  "lang": "ko-KR"
+}

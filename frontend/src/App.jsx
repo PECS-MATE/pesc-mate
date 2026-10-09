@@ -4,6 +4,10 @@ import { useEffect, useRef, useState } from "react";
 
 import { hasToken, request, requestBlob, setToken } from "./services/api";
 import { clearBoard, loadBoard, saveBoard } from "./services/boardStorage";
+import {
+  cacheAccount, cachedAccount, cacheSnapshot, cachedSnapshot, clearCachedAccount,
+  clearOfflineUserData, pendingOfflineEvents, queueOfflineEvent, removeOfflineEvents,
+} from "./services/offlineStore";
 import cardSprite from "./assets/cards/pecs-card-sprite.png";
 
 const CARD_IMAGE_MODULES = import.meta.glob('./assets/cards/*.png', {
@@ -126,6 +130,8 @@ function App() {
   const [privacyAudit, setPrivacyAudit] = useState([]);
   const [privacyBusy, setPrivacyBusy] = useState('');
   const [caregiverUsername, setCaregiverUsername] = useState('');
+  const [offline, setOffline] = useState(!navigator.onLine);
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
 
   const dashboardPath = (value = period, target = selectedUser) => {
     const params = new URLSearchParams();
@@ -135,8 +141,59 @@ function App() {
     return `/dashboard${query ? `?${query}` : ''}`;
   };
 
+  function cacheableCards(items) {
+    return items.map(({ image_src: _temporaryUrl, ...item }) => item);
+  }
+
+  function restoreCachedCards(items = []) {
+    return items.map(item => item.image_blob
+      ? { ...item, image_src: URL.createObjectURL(item.image_blob) }
+      : item);
+  }
+
+  async function applyOfflineSnapshot(account, snapshot) {
+    if (!snapshot) return false;
+    const all = restoreCachedCards(snapshot.cards);
+    const rec = restoreCachedCards(snapshot.recommended);
+    setCards(all); setCardCategories(snapshot.categories || []); setRecommended(rec);
+    setStats(snapshot.dashboard || null); setCardSubmissions(snapshot.submissions || []);
+    setBoard(loadBoard(account.id, all)); setTtsSettings(snapshot.tts_settings);
+    setAccessibility(snapshot.accessibility); setAccessibilitySaved(true);
+    setPrivacy(snapshot.privacy); setPrivacyCaregivers(snapshot.caregivers || []);
+    setPrivacyAudit(snapshot.privacy_audit || []); setTtsSettingsSaved(true);
+    setLoaded(true); setOffline(true);
+    if (!snapshot.privacy?.guardian_consent) setTab('privacy');
+    setPendingSyncCount((await pendingOfflineEvents(account.id).catch(() => [])).length);
+    return true;
+  }
+
+  async function syncPendingEvents(account = user) {
+    if (!account || account.role !== 'user' || !navigator.onLine) return;
+    const events = await pendingOfflineEvents(account.id).catch(() => []);
+    setPendingSyncCount(events.length);
+    if (!events.length) return;
+    try {
+      const result = await request('/offline/events/sync', {
+        method: 'POST', body: JSON.stringify({ events: events.map(({ user_id: _userId, ...event }) => event) }),
+      });
+      await removeOfflineEvents(result.accepted_ids);
+      setPendingSyncCount(Math.max(0, events.length - result.accepted_ids.length));
+    } catch { /* Retry with the same UUIDs on the next online event. */ }
+  }
+
+  function primeOfflineAssets() {
+    if (!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.ready.then(registration => registration.active?.postMessage({
+      type: 'CACHE_ASSETS', urls: [cardSprite, ...Object.values(CARD_IMAGE_MODULES)],
+    })).catch(() => {});
+  }
+
   async function load(account = user) {
     setError('');
+    if (account?.role === 'user' && !navigator.onLine) {
+      const snapshot = await cachedSnapshot(account.id).catch(() => null);
+      if (await applyOfflineSnapshot(account, snapshot)) return;
+    }
     try {
       if (account?.role === 'admin') {
         const [submissions, categories] = await Promise.all([
@@ -162,20 +219,46 @@ function App() {
       setAccessibility(accessibilitySettings); setAccessibilitySaved(true);
       setPrivacy(privacySettings); setPrivacyCaregivers(caregivers); setPrivacyAudit(privacyHistory);
       if (!privacySettings.guardian_consent) setTab('privacy');
-      setTtsSettingsSaved(true); setLoaded(true);
+      setTtsSettingsSaved(true); setLoaded(true); setOffline(false);
+      cacheSnapshot(account.id, {
+        cards: cacheableCards(all), categories: rawCategories,
+        recommended: cacheableCards(rec), dashboard, submissions,
+        tts_settings: { preset: voiceSettings.preset, voiceName: voiceSettings.voice_name, rate: voiceSettings.rate, pitch: voiceSettings.pitch },
+        accessibility: accessibilitySettings, privacy: privacySettings,
+        caregivers, privacy_audit: privacyHistory,
+      }).catch(() => {});
+      primeOfflineAssets();
+      syncPendingEvents(account);
     } catch (e) {
       if (e.status === 401) { setToken(null); setUser(null); setLoaded(false); setError('로그인이 만료되었습니다. 다시 로그인해 주세요.'); }
-      else setError(e.message || '서버에 연결하지 못했습니다.');
+      else if (account?.role === 'user' && await applyOfflineSnapshot(account, await cachedSnapshot(account.id).catch(() => null))) {
+        setError('');
+      } else setError(e.message || '서버에 연결하지 못했습니다.');
     }
   }
   useEffect(() => {
     async function restoreLogin() {
       if (!hasToken()) { setAuthReady(true); return; }
+      if (!navigator.onLine) {
+        const account = await cachedAccount().catch(() => null);
+        if (account) { setUser(account); await load(account); }
+        else setToken(null);
+        setAuthReady(true);
+        return;
+      }
       try {
         const account = await request('/auth/me');
         setUser(account);
+        cacheAccount(account, account.session_expires_at).catch(() => {});
         await load(account);
-      } catch { setToken(null); }
+      } catch (error) {
+        if (error.status === 401) { setToken(null); await clearCachedAccount().catch(() => {}); }
+        else {
+          const account = await cachedAccount().catch(() => null);
+          if (account) { setUser(account); await load(account); }
+          else setToken(null);
+        }
+      }
       finally { setAuthReady(true); }
     }
     restoreLogin();
@@ -195,6 +278,13 @@ function App() {
     setCardPage(0);
   }, [category, search, accessibility.cards_per_page, tab, cards.length]);
 
+  useEffect(() => {
+    const online = () => { setOffline(false); syncPendingEvents(user); if (user) load(user); };
+    const offlineNow = () => setOffline(true);
+    window.addEventListener('online', online); window.addEventListener('offline', offlineNow);
+    return () => { window.removeEventListener('online', online); window.removeEventListener('offline', offlineNow); };
+  }, [user]);
+
   async function handleLogin(event) {
     event.preventDefault();
     if (authMode === 'register' && password !== passwordConfirm) { setError('비밀번호가 일치하지 않습니다.'); return; }
@@ -204,6 +294,7 @@ function App() {
       const body = authMode === 'register' ? { username, password, name, guardian_consent: registrationConsent } : { username, password };
       const result = await request(path, { method: 'POST', body: JSON.stringify(body) });
       setToken(result.access_token); setUser(result.user); setShowProfile(false); setProfileNotice('');
+      cacheAccount(result.user, result.expires_at).catch(() => {});
       await load(result.user);
     } catch (e) { setError(e.message); }
     finally { setBusy(false); setAuthReady(true); }
@@ -214,6 +305,8 @@ function App() {
     await stopSpeech();
     try { await request('/auth/logout', { method: 'POST' }); } catch { /* local logout still applies */ }
     clearBoard(user?.id);
+    await clearCachedAccount().catch(() => {});
+    if (user?.id) await clearOfflineUserData(user.id).catch(() => {});
     setToken(null); setUser(null); setLoaded(false); setShowProfile(false); setProfileNotice('');
     [...cards, ...recommended, ...adminSubmissions].forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); });
     setCards([]); setCardCategories([]); setRecommended([]); setStats(null); setBoard([]); setCardSubmissions([]); setAdminSubmissions([]); setAdminCategories([]); setCategoryEdits({}); setCategoryError(''); setLinkedUsers([]); setSelectedUser(null); setText(''); setGeneratedSessionId(''); setGenerationAttempt(1); setSentenceConfirmed(false); setGenerationFailed(false); setError(''); setTab('home');
@@ -281,7 +374,7 @@ function App() {
     if (errorCode === 'unsupported') return '이 브라우저에서는 음성 재생을 지원하지 않습니다. 최신 Chrome 또는 Edge에서 다시 열어 주세요.';
     return '기기의 한국어 음성 설정과 음량을 확인한 뒤 다시 재생해 주세요.';
   }
-  function speakText(content, contentType = 'sentence', speakBeforeTracking = false) {
+  function speakText(content, contentType = 'sentence', speakBeforeTracking = false, cardIds = []) {
     finishSpeechEvent(speechEventRef.current, 'cancelled', 'replaced');
     const speechEvent = {
       id: crypto.randomUUID(), finished: false,
@@ -289,7 +382,18 @@ function App() {
     };
     const startTracking = () => request('/tts/events', { method: 'POST', body: JSON.stringify({
       request_id: speechEvent.id, content_type: contentType, char_count: content.length,
-    }) }).then(() => true).catch(e => { setError(e.message); return false; });
+    }) }).then(() => true).catch(async e => {
+      if (!e.status && cardIds.length && user?.id && privacy.guardian_consent) {
+        await queueOfflineEvent({
+          id: speechEvent.id, user_id: user.id,
+          event_type: contentType === 'card' ? 'immediate_speech' : 'selection_speech',
+          card_ids: cardIds, occurred_at: new Date().toISOString(),
+        }).catch(() => {});
+        setPendingSyncCount((await pendingOfflineEvents(user.id).catch(() => [])).length);
+        setOffline(true);
+      } else if (e.status) setError(e.message);
+      return false;
+    });
     speechEvent.started = speakBeforeTracking ? Promise.resolve(false) : startTracking();
     speechEventRef.current = speechEvent;
     setSpeechFailure(null);
@@ -322,8 +426,8 @@ function App() {
     setSpeechState({ status: 'starting', content }); window.speechSynthesis.speak(utterance);
     if (speakBeforeTracking) speechEvent.started = startTracking();
   }
-  function speak() { if (sentenceConfirmed) speakText(text); }
-  function speakSelection() { speakText(board.map(card => card.label).join(' '), 'sentence'); }
+  function speak() { if (sentenceConfirmed) speakText(text, 'sentence', false, board.map(card => card.id)); }
+  function speakSelection() { speakText(board.map(card => card.label).join(' '), 'sentence', false, board.map(card => card.id)); }
   function pauseSpeech() {
     if (speechState.status !== 'playing') return;
     window.speechSynthesis.pause();
@@ -359,6 +463,7 @@ function App() {
       }) });
       setTtsSettings({ preset: saved.preset, voiceName: saved.voice_name, rate: saved.rate, pitch: saved.pitch });
       setTtsSettingsSaved(true);
+      await load(user);
     } catch (e) { setError(e.message); }
     finally { setTtsSettingsBusy(false); }
   }
@@ -373,6 +478,7 @@ function App() {
         method: 'PUT', body: JSON.stringify(accessibility),
       }));
       setAccessibilitySaved(true);
+      await load(user);
     } catch (e) { setError(e.message); }
     finally { setAccessibilityBusy(false); }
   }
@@ -419,6 +525,7 @@ function App() {
           retention_days: Number(privacy.retention_days),
         }),
       }));
+      await load(user);
     } catch (e) { setError(e.message); }
     finally { setPrivacyBusy(''); }
   }
@@ -459,7 +566,7 @@ function App() {
     setPrivacyBusy('delete'); setError('');
     try {
       const receipt = await request('/privacy/data', { method: 'DELETE', body: JSON.stringify({ confirmation: 'DELETE' }) });
-      clearBoard(user.id); setBoard([]); setPrivacy(receipt); setPrivacyCaregivers([]); setPrivacyAudit(await request('/privacy/audit'));
+      clearBoard(user.id); await clearOfflineUserData(user.id).catch(() => {}); setBoard([]); setPrivacy(receipt); setPrivacyCaregivers([]); setPrivacyAudit(await request('/privacy/audit'));
       await load(user); setTab('privacy');
     } catch (e) { setError(e.message); }
     finally { setPrivacyBusy(''); }
@@ -498,7 +605,7 @@ function App() {
   async function hydrateImages(items) {
     return Promise.all(items.map(async item => {
       if (!item.image_url) return item;
-      try { return { ...item, image_src: URL.createObjectURL(await requestBlob(item.image_url)) }; }
+      try { const imageBlob = await requestBlob(item.image_url); return { ...item, image_blob: imageBlob, image_src: URL.createObjectURL(imageBlob) }; }
       catch { return { ...item, image_failed: true }; }
     }));
   }
@@ -556,7 +663,7 @@ function App() {
   function cardSpeaker(card) {
     function play(event) {
       event.preventDefault(); event.stopPropagation();
-      if (!busy) speakText(card.label, 'card');
+      if (!busy) speakText(card.label, 'card', false, [card.id]);
     }
     return <span className="card-speaker" role="button" tabIndex="0" aria-label={`${card.label} 단어 듣기`} onClick={play} onKeyDown={event => { if (['Enter', ' '].includes(event.key)) play(event); }}>🔊</span>;
   }
@@ -566,7 +673,7 @@ function App() {
   }
   function tile(card) {
     const speakOnTap = outputMode === 'word';
-    return <button className={`card${speakOnTap ? ' speak-on-tap' : ''}`} key={card.id} disabled={busy} aria-label={`${card.label} ${speakOnTap ? '바로 말하기' : '문장에 담기'}`} onClick={() => speakOnTap ? speakText(card.label, 'card') : add(card)}>
+    return <button className={`card${speakOnTap ? ' speak-on-tap' : ''}`} key={card.id} disabled={busy} aria-label={`${card.label} ${speakOnTap ? '바로 말하기' : '문장에 담기'}`} onClick={() => speakOnTap ? speakText(card.label, 'card', false, [card.id]) : add(card)}>
       {cardArt(card)}
       <strong>{card.label}</strong>{card.reason && <small>{card.reason}</small>}{cardSpeaker(card)}
     </button>;
@@ -588,6 +695,7 @@ function App() {
     month: '2-digit', day: '2-digit', weekday: 'long',
   }).format(new Date());
   const speechActive = speechState.status !== 'idle';
+  const localKoreanVoices = ttsVoices.filter(voice => voice.localService !== false);
   const speechStatusLabel = ({ starting: '음성 준비 중', playing: '음성 재생 중', paused: '음성 일시 정지' })[speechState.status];
   const pageTitle = user?.role === 'admin'
     ? '카드 등록 요청을 검토해요.'
@@ -618,7 +726,7 @@ function App() {
     {authMode === 'login' && <p className="demo-account">사용자: <code>demo</code> / <code>demo1234</code><br />보호자: <code>caregiver</code> / <code>caregiver1234</code><br />관리자: <code>admin</code> / <code>admin1234</code></p>}
   </section></main>;
   if (!user.profile || showProfile) return <main className="login-page"><ProfileEditor key={user.id} user={user}
-    onSaved={account => { setUser(account); setShowProfile(false); setProfileNotice('프로필을 저장했습니다.'); }}
+    onSaved={account => { setUser(account); cacheAccount(account).catch(() => {}); setShowProfile(false); setProfileNotice('프로필을 저장했습니다.'); }}
     onCancel={user.profile ? () => setShowProfile(false) : handleLogout} /></main>;
   return <main className={`app display-${accessibility.display_mode} card-size-${accessibility.card_size} text-size-${accessibility.text_size}${accessibility.reduced_motion ? ' reduced-motion' : ''}${accessibility.high_contrast ? ' high-contrast' : ''}`}>
     <a className="skip-link" href="#main-content">본문 바로가기</a>
@@ -642,8 +750,9 @@ function App() {
     </aside>
     <div className="app-content" id="main-content" tabIndex="-1">
       {profileNotice && <p role="status">{profileNotice}</p>}
-      <header className="topbar"><div><p className="eyebrow">오늘은 {todayLabel}</p><h1>{pageTitle}</h1></div><div className="topbar-statuses"><span className="status"><b className={loaded ? 'online' : ''}></b>{loaded ? '서비스 연결됨' : '연결 대기'}</span>{speechActive && <div className={`speech-player ${speechState.status}`} role="status" aria-live="polite"><span><b aria-hidden="true">🔊</b><strong>{speechStatusLabel}</strong><small title={speechState.content}>{speechState.content}</small></span>{speechState.status === 'playing' && <button type="button" onClick={pauseSpeech}>일시 정지</button>}{speechState.status === 'paused' && <button type="button" onClick={resumeSpeech}>재개</button>}<button type="button" onClick={stopSpeech}>중지</button></div>}</div></header>
-      {user.role === 'user' && <section className="quick-speech" aria-labelledby="quick-speech-title" data-scan-group="quick-speech"><div><strong id="quick-speech-title">빠른 표현</strong><small>누르면 바로 말해요</small></div>{QUICK_EXPRESSIONS.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 바로 말하기`} onClick={() => speakText(item.label, 'card', true)}><span aria-hidden="true">{item.symbol}</span>{item.label}</button>)}</section>}
+      <header className="topbar"><div><p className="eyebrow">오늘은 {todayLabel}</p><h1>{pageTitle}</h1></div><div className="topbar-statuses"><span className={`status${offline ? ' offline' : ''}`}><b className={!offline && loaded ? 'online' : ''}></b>{offline ? '오프라인 사용 중' : loaded ? '서비스 연결됨' : '연결 대기'}</span>{speechActive && <div className={`speech-player ${speechState.status}`} role="status" aria-live="polite"><span><b aria-hidden="true">🔊</b><strong>{speechStatusLabel}</strong><small title={speechState.content}>{speechState.content}</small></span>{speechState.status === 'playing' && <button type="button" onClick={pauseSpeech}>일시 정지</button>}{speechState.status === 'paused' && <button type="button" onClick={resumeSpeech}>재개</button>}<button type="button" onClick={stopSpeech}>중지</button></div>}</div></header>
+      {offline && <p className="offline-notice" role="status">인터넷 연결 없이 저장된 카드를 사용 중입니다. 즉시 발화와 선택 카드 그대로 발화는 계속 사용할 수 있습니다.{localKoreanVoices.length ? ` 기기에 저장된 한국어 음성 ${localKoreanVoices.length}개를 확인했습니다.` : ' 한국어 음성이 재생되지 않으면 기기 설정에서 음성 데이터를 설치해 주세요.'}{pendingSyncCount ? ` 재연결 후 동기화할 이력 ${pendingSyncCount}건이 있습니다.` : ''}</p>}
+      {user.role === 'user' && <section className="quick-speech" aria-labelledby="quick-speech-title" data-scan-group="quick-speech"><div><strong id="quick-speech-title">빠른 표현</strong><small>누르면 바로 말해요</small></div>{QUICK_EXPRESSIONS.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 바로 말하기`} onClick={() => speakText(item.label, 'card', true, [item.id])}><span aria-hidden="true">{item.symbol}</span>{item.label}</button>)}</section>}
       {error && <div role="alert" className="error">{error} <button disabled={busy} onClick={() => load(user)}>다시 연결</button></div>}
       {speechFailure && <div role="alert" className="speech-error"><span aria-hidden="true">🔇</span><div><strong>음성을 재생하지 못했어요.</strong><p>{speechFailureMessage(speechFailure.errorCode)} 선택한 카드와 문장은 그대로 유지됩니다.</p></div><div className="speech-error-actions">{speechFailure.retryable && <button className="primary" onClick={() => speakText(speechFailure.content, speechFailure.contentType)}>다시 재생</button>}<button onClick={() => setSpeechFailure(null)}>닫기</button></div></div>}
       {!loaded && !error && <p role="status">카드를 불러오는 중입니다…</p>}
@@ -676,7 +785,7 @@ function App() {
       <section className="board"><div className="section-title"><h2>나의 문장 <small>{board.length}/12</small></h2><button disabled={!board.length || busy} onClick={() => { if (window.confirm('선택한 카드를 모두 지울까요?')) updateBoard([]); }}>비우기</button></div>
         {!board.length && <EmptyState>왼쪽 카드를 눌러 보세요.<br />나 → 물 → 마시다</EmptyState>}
         <ol>{board.map((c, i) => <li key={`${c.id}-${i}`}><span>{c.symbol} {c.label}</span><div><button aria-label={`${i + 1}번째 카드 앞으로`} disabled={i === 0 || busy} onClick={() => move(i, -1)}>←</button><button aria-label={`${i + 1}번째 카드 뒤로`} disabled={i === board.length - 1 || busy} onClick={() => move(i, 1)}>→</button><button aria-label={`${i + 1}번째 카드 삭제`} disabled={busy} onClick={() => updateBoard(board.filter((_, n) => n !== i))}>×</button></div></li>)}</ol>
-        {outputMode === 'word' ? <p className="mode-guide">카드 본체를 누르면 단어를 바로 말해요.</p> : outputMode === 'selection' ? <button className="primary full" disabled={!board.length || busy} onClick={speakSelection}>🔊 선택 카드 그대로 말하기</button> : <button className="primary full" disabled={!board.length || busy} onClick={generate}>{busy ? '문장을 만드는 중…' : '자연스러운 문장 만들기 · 저장'}</button>}
+        {outputMode === 'word' ? <p className="mode-guide">카드 본체를 누르면 단어를 바로 말해요.</p> : outputMode === 'selection' ? <button className="primary full" disabled={!board.length || busy} onClick={speakSelection}>🔊 선택 카드 그대로 말하기</button> : <button className="primary full" disabled={!board.length || busy || offline} onClick={generate}>{offline ? '온라인 연결 후 문장 만들기' : busy ? '문장을 만드는 중…' : '자연스러운 문장 만들기 · 저장'}</button>}
         {generationFailed && <div className="generation-fallback" role="status"><strong>문장 생성 없이도 말할 수 있어요.</strong><span>선택한 카드는 그대로 유지됐습니다.</span><div><button className="primary" disabled={!board.length} onClick={speakSelection}>🔊 선택 카드 그대로 말하기</button><button onClick={() => setOutputMode('word')}>단어 즉시 발화로 전환</button></div></div>}
         <div className="sentence" aria-live="polite">{text ? <><div className="original-order"><small>선택한 카드 순서</small><div>{board.map((card, index) => <span key={`${card.id}-${index}`}>{card.symbol} {card.label}</span>)}</div></div><strong>{text}</strong><small className={`source-badge ${generationSource}`}>{generationSource === 'ollama' ? 'Qwen · Ollama 생성' : '규칙 기반 생성'}{generationAttempt > 1 ? ` · 재생성 ${generationAttempt - 1}회` : ''}</small></> : '만든 문장이 여기에 표시돼요.'}</div>
         <div className="actions">{text && !sentenceConfirmed ? <button className="primary" disabled={busy} onClick={() => setSentenceConfirmed(true)}>✓ 문장을 확인했어요</button> : <button className="primary" disabled={!text || busy || speechActive} onClick={speak}>🔊 확인한 문장 읽기</button>}<button disabled={!generatedSessionId || busy || speechActive} onClick={regenerate}>{busy ? '만드는 중…' : '↻ 다시 만들기'}</button>{speechState.status === 'playing' && <button onClick={pauseSpeech}>일시 정지</button>}{speechState.status === 'paused' && <button onClick={resumeSpeech}>재개</button>}<button disabled={!speechActive} onClick={stopSpeech}>중지</button></div>
@@ -688,7 +797,7 @@ function App() {
             <label>속도 <output>{ttsSettings.rate.toFixed(2)}배</output><input type="range" min="0.5" max="1.5" step="0.05" value={ttsSettings.rate} onChange={event => updateTtsSettings({ rate: Number(event.target.value) })} /></label>
             <label>음높이 <output>{ttsSettings.pitch.toFixed(2)}</output><input type="range" min="0.5" max="1.5" step="0.05" value={ttsSettings.pitch} onChange={event => updateTtsSettings({ pitch: Number(event.target.value) })} /></label>
           </div>
-          <div className="tts-preview"><small role="status">{ttsSettingsSaved ? '이 계정에 저장된 설정입니다.' : ttsVoices.length ? `한국어 음성 ${ttsVoices.length}개를 사용할 수 있어요.` : '기기의 기본 음성으로 재생합니다.'}</small><span><button type="button" disabled={busy || ttsSettingsBusy} onClick={() => speakText('안녕하세요. 목소리를 확인해 보세요.', 'preview')}>미리 듣기</button><button type="button" className="primary" disabled={ttsSettingsBusy || ttsSettingsSaved} onClick={saveTtsSettings}>{ttsSettingsBusy ? '저장 중…' : '설정 저장'}</button></span></div>
+          <div className="tts-preview"><small role="status">{localKoreanVoices.length ? `기기에 저장된 한국어 음성 ${localKoreanVoices.length}개를 확인했습니다.` : ttsVoices.length ? `한국어 음성 ${ttsVoices.length}개가 있지만 오프라인 사용 여부는 비행기 모드에서 확인해 주세요.` : '한국어 음성이 없으면 기기 설정에서 음성 데이터를 설치해 주세요.'}</small><span><button type="button" disabled={busy || ttsSettingsBusy} onClick={() => speakText('안녕하세요. 목소리를 확인해 보세요.', 'preview')}>미리 듣기</button><button type="button" className="primary" disabled={ttsSettingsBusy || ttsSettingsSaved} onClick={saveTtsSettings}>{ttsSettingsBusy ? '저장 중…' : '설정 저장'}</button></span></div>
         </details>
         <p className="muted">Ollama Qwen으로 문장을 만들며, 모델을 사용할 수 없으면 규칙 기반 문장으로 자동 전환합니다.</p>
       </section></div>
@@ -705,7 +814,7 @@ function App() {
         </button>)}</div>
         {cardPagination()}
         <aside className="card-detail" aria-live="polite">
-          {selectedCard ? <>{cardArt(selectedCard, 'detail-art')}<span className="detail-category">{selectedCard.category}</span><h3>{selectedCard.label}</h3><p>{selectedCard.label}을(를) 표현하는 PECS 카드예요.</p><div className="detail-actions"><button aria-label={`${selectedCard.label} 단어 듣기`} onClick={() => speakText(selectedCard.label, 'card')}>🔊 단어 듣기</button><button className="primary" onClick={() => { add(selectedCard); setTab('cards'); }}>문장에 사용하기</button></div></> : <div className="detail-empty"><Mascot /><strong>카드를 선택해 주세요</strong><p>선택한 카드의 그림과 뜻이 여기에 보여요.</p></div>}
+          {selectedCard ? <>{cardArt(selectedCard, 'detail-art')}<span className="detail-category">{selectedCard.category}</span><h3>{selectedCard.label}</h3><p>{selectedCard.label}을(를) 표현하는 PECS 카드예요.</p><div className="detail-actions"><button aria-label={`${selectedCard.label} 단어 듣기`} onClick={() => speakText(selectedCard.label, 'card', false, [selectedCard.id])}>🔊 단어 듣기</button><button className="primary" onClick={() => { add(selectedCard); setTab('cards'); }}>문장에 사용하기</button></div></> : <div className="detail-empty"><Mascot /><strong>카드를 선택해 주세요</strong><p>선택한 카드의 그림과 뜻이 여기에 보여요.</p></div>}
         </aside>
       </div>
       <div className="submission-list"><h3>나의 카드</h3>{cardSubmissions.length ? <ul>{cardSubmissions.map(item => <li key={item.id}><span><strong>{item.label}</strong><small>{item.category} · {item.sharing_notice || (item.visibility === 'private' ? '나만 사용' : '공개 요청')}</small></span><div className="submission-actions"><b className={`submission-status ${item.status}`}>{item.visibility === 'private' && item.status === 'approved' ? '나만 사용 중' : ({ draft: '작성 중', pending: '승인 대기', approved: '공개 승인', rejected: '반려', inactive: '비활성' })[item.status] || item.status}</b>{['draft', 'rejected'].includes(item.status) && <button disabled={reviewBusy === item.id} onClick={() => { setEditingSubmission(item); setCardFormError(''); setShowCardForm(true); }}>수정</button>}{item.status === 'draft' && <button className="primary" disabled={reviewBusy === item.id} onClick={() => submitDraft(item)}>{item.visibility === 'private' ? '나만 사용 시작' : '공개 승인 요청'}</button>}</div></li>)}</ul> : <p className="muted">아직 등록한 카드가 없어요.</p>}</div>

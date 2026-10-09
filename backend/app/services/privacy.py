@@ -58,6 +58,7 @@ def save_privacy(user_id, guardian_consent, retention_days):
         cutoff = now - timedelta(days=retention_days)
         database.communication_sessions.delete_many({'user_id': user_id, 'created_at': {'$lt': cutoff}})
         database.tts_events.delete_many({'user_id': user_id, 'requested_at': {'$lt': cutoff}})
+        database.offline_events.delete_many({'user_id': user_id, 'occurred_at': {'$lt': cutoff}})
         database.caregiver_notes.delete_many({'user_id': user_id, 'updated_at': {'$lt': cutoff}})
         log_crud('UPDATE', 'privacy_settings', '동의 및 보존 기간 저장')
         return settings
@@ -152,6 +153,7 @@ def export_for(user_id):
             'caregiver_access': caregiver_access_for(user_id),
             'communication_sessions': list(database.communication_sessions.find({'user_id': user_id})),
             'tts_events': list(database.tts_events.find({'user_id': user_id})),
+            'offline_events': list(database.offline_events.find({'user_id': user_id})),
             'cards': [{key: row.get(key) for key in
                        ('_id', 'label', 'meaning', 'category', 'visibility', 'status', 'created_at')}
                       for row in cards],
@@ -171,6 +173,7 @@ def delete_personal_data(user_id):
         for collection, query in (
             (database.communication_sessions, {'user_id': user_id}),
             (database.tts_events, {'user_id': user_id}),
+            (database.offline_events, {'user_id': user_id}),
             (database.tts_settings, {'_id': user_id}),
             (database.accessibility_settings, {'_id': user_id}),
             (database.caregiver_notes, {'user_id': user_id}),

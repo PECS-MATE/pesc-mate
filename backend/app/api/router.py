@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
 from pydantic import BaseModel, Field
 from uuid import UUID
@@ -12,6 +12,7 @@ from app.services.privacy import (
     disconnect_caregiver, export_for, privacy_for, save_privacy,
 )
 from app.services.model import status as model_status
+from app.services.offline_events import sync_events
 from app.services.caregiver_notes import delete_note, notes_for, save_note
 from app.services.tts_settings import save_settings, settings_for
 from app.services.tts_events import finish_event, start_event
@@ -87,6 +88,7 @@ class UserResponse(BaseModel):
     name: str
     role: str
     profile: ProfileResponse | None = None
+    session_expires_at: datetime | None = None
 
 
 class TtsSettingsRequest(BaseModel):
@@ -147,6 +149,21 @@ class PrivacyAuditResponse(BaseModel):
 
 class PrivacyDeleteRequest(BaseModel):
     confirmation: Literal['DELETE']
+
+
+class OfflineEventRequest(BaseModel):
+    id: UUID
+    event_type: Literal['immediate_speech', 'selection_speech']
+    card_ids: list[Annotated[str, Field(min_length=1, max_length=100)]] = Field(min_length=1, max_length=12)
+    occurred_at: datetime
+
+
+class OfflineSyncRequest(BaseModel):
+    events: list[OfflineEventRequest] = Field(min_length=1, max_length=100)
+
+
+class OfflineSyncResponse(BaseModel):
+    accepted_ids: list[UUID]
 
 
 class TtsEventRequest(BaseModel):
@@ -394,6 +411,13 @@ def get_privacy_export(user=Depends(current_user)):
 def delete_privacy_data(request: PrivacyDeleteRequest, user=Depends(current_user)):
     require_communicator(user)
     return delete_personal_data(user['id'])
+
+
+@api_router.post('/offline/events/sync', response_model=OfflineSyncResponse, tags=['오프라인'])
+def sync_offline_events(request: OfflineSyncRequest, user=Depends(current_user)):
+    require_communicator(user)
+    require_guardian_consent(user)
+    return sync_events(user['id'], [event.model_dump() for event in request.events])
 
 
 @api_router.post('/auth/logout', status_code=204, tags=['인증'])

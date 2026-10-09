@@ -139,7 +139,7 @@ def current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
         log_crud('READ', 'users', '인증 사용자 조회')
         if not user:
             raise HTTPException(401, '사용자 계정을 찾을 수 없습니다.')
-        return _public_user(user)
+        return _public_user(user) | {'session_expires_at': expires_at}
     except HTTPException:
         raise
     except PyMongoError as exc:
