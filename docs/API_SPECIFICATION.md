@@ -81,6 +81,12 @@ Authorization: Bearer {access_token}
 | 음성 | PATCH | `/api/tts/events/{request_id}` | 필요 | TTS 성공·실패·중지 결과 저장 |
 | 접근성 | GET | `/api/accessibility/settings` | 필요 | 현재 사용자의 접근 설정 조회 |
 | 접근성 | PUT | `/api/accessibility/settings` | 필요 | 현재 사용자의 접근 설정 저장 |
+| 개인정보 | GET/PUT | `/api/privacy/settings` | 사용자 | 동의·보존 기간 및 삭제 상태 조회·저장 |
+| 개인정보 | GET/POST | `/api/privacy/caregivers` | 사용자 | 기록 열람 보호자 조회·연결 |
+| 개인정보 | DELETE | `/api/privacy/caregivers/{caregiver_id}` | 사용자 | 보호자 연결 해제 |
+| 개인정보 | GET | `/api/privacy/audit` | 사용자 | 연결·해제·삭제 변경 이력 조회 |
+| 개인정보 | GET | `/api/privacy/export` | 사용자 | 본인 데이터 JSON 내보내기 |
+| 개인정보 | DELETE | `/api/privacy/data` | 사용자 | 사용자 생성 데이터 삭제 |
 | 보호자 | GET | `/api/care/linked-users` | 필요 | 보호자에게 연결된 사용자 조회 |
 | 보호자 | PUT | `/api/care/notes/{session_id}` | 필요 | 의사소통 기록의 보호자 메모 저장·수정 |
 | 보호자 | DELETE | `/api/care/notes/{session_id}` | 필요 | 보호자 메모 삭제 |
@@ -325,7 +331,9 @@ Content-Type: application/json
 ```
 
 영문, 숫자, `_`, `-`로 구성된 4~32자 아이디와 8자 이상 비밀번호,
-1~30자 이름으로 일반 사용자 계정을 만든다. 성공하면 로그인과 같은 세션 정보를 반환한다.
+1~30자 이름으로 일반 사용자 계정을 만든다. `guardian_consent`는 법정대리인의
+개인정보 수집·이용 및 기본 1년 보존 동의를 확인한 `true`여야 한다. 성공하면
+로그인과 같은 세션 정보를 반환하고 동의 정책 버전과 시각을 저장한다.
 
 ### 성공 응답: 201 Created
 
@@ -458,6 +466,24 @@ Content-Type: application/json
 
 일반 사용자 본인의 카드 표시 방식, 한 페이지 카드 수, 카드·글자 크기, 애니메이션·장식 감소 및 고대비 설정을 조회하거나 저장한다. `display_mode`는 `image`, `image_text`, `text`, 크기는 `small`, `medium`, `large` 중 하나다. 카드 수는 6~30개이며 저장된 설정이 없으면 위 기본값을 반환한다.
 
+## 6.11 개인정보 동의·열람자·내보내기·삭제
+
+`GET/PUT /api/privacy/settings`는 법정대리인 동의 확인, 동의 정책 버전, 기록 보존 기간(30·90·365·1095일)과 최근 삭제 상태를 관리한다. 보존 기간을 저장하면 기간이 지난 문장 및 음성 이력을 즉시 정리한다.
+
+`GET/POST /api/privacy/caregivers`와 `DELETE /api/privacy/caregivers/{caregiver_id}`는 AAC 사용자가 본인의 기록 열람자를 직접 확인·연결·해제하게 한다. 연결 범위는 현황, 의사소통 기록, 프로필 이미지와 보호자 메모이며 변경은 `/api/privacy/audit`에 남는다.
+
+`GET /api/privacy/export`는 비밀번호, 프로필·카드 이미지 원본을 제외한 계정 정보, 의사소통·음성 이력, 개인 카드 메타데이터와 현재 열람자를 JSON으로 반환한다.
+
+```http
+DELETE /api/privacy/data
+Authorization: Bearer {access_token}
+Content-Type: application/json
+
+{"confirmation":"DELETE"}
+```
+
+삭제하면 개인 카드와 그 감사 이력, 문장·음성 기록, 보호자 메모·연결, 프로필 이미지, 음성·접근 설정이 제거된다. 로그인 계정은 사용자가 삭제 완료 상태를 확인할 수 있도록 유지하고 `deletion_status=completed` 및 완료 시각을 영수증으로 보존한다.
+
 # 7. 카드 API
 
 ## 7.1 카드 목록 조회
@@ -533,13 +559,14 @@ Content-Type: multipart/form-data
 | `submission_mode` | string | `draft` 또는 `submit`. 기본값 `submit` |
 
 인증된 일반 사용자만 요청할 수 있다. 소유자는 인증 정보로
-설정되며 `draft`는 작성 중, `submit`은 승인 대기 상태로 저장된다.
-성공 시 `201 Created`를 반환한다. 작성 중 카드는 소유자만 조회할 수 있고
-`POST /api/cards/submissions/{id}/submit`으로 관리자에게 제출한다.
+설정되며 `draft`는 작성 중으로 저장된다. `submit`인 개인 카드는 본인에게 즉시
+활성화되고 관리자에게 공유되지 않으며, 공개 카드는 승인 대기로 저장된다.
+성공 시 `201 Created`를 반환한다. 작성 중 개인 카드는
+`POST /api/cards/submissions/{id}/submit`으로 즉시 활성화하고 공개 카드는 관리자에게 제출한다.
 서버는 실제 이미지 형식과 선언된 MIME을 비교하고, 디코딩과 해상도 검증 후
 메타데이터와 부가 데이터를 제거한 WebP로 재인코딩해 저장한다.
 카드명은 한글·영문·숫자와 공백만, 뜻은 일반적인 문장부호를 추가로 허용한다.
-금칙어는 Unicode 정규화 후 공백과 특수문자를 제거해 변형 표현까지 검사한다.
+공개 카드의 금칙어는 Unicode 정규화 후 공백과 특수문자를 제거해 변형 표현까지 검사한다. 개인 카드의 욕설·위기 표현은 의사표현을 막지 않기 위해 이 공개 제한을 적용하지 않는다.
 기본 카드와 동일하거나 승인 대기·승인 요청에 동일한 카드명이 있으면
 `409 Conflict`를 반환한다.
 약어·은어·신조어 후보는 내부 검토 사전과 영문 약어 형식 검사를 거쳐
