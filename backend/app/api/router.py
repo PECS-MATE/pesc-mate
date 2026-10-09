@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Respon
 from pydantic import BaseModel, Field
 from uuid import UUID
 from app.services.communication import CARDS, regenerate_session, save_session, statistics
+from app.services.accessibility_settings import save_settings as save_accessibility_settings
+from app.services.accessibility_settings import settings_for as accessibility_settings_for
 from app.services.authentication import current_user, dashboard_user, linked_users, login, logout, register, security
 from app.services.model import status as model_status
 from app.services.caregiver_notes import delete_note, notes_for, save_note
@@ -90,6 +92,19 @@ class TtsSettingsRequest(BaseModel):
 
 
 class TtsSettingsResponse(TtsSettingsRequest):
+    pass
+
+
+class AccessibilitySettingsRequest(BaseModel):
+    display_mode: Literal['image', 'image_text', 'text']
+    cards_per_page: int = Field(ge=6, le=30)
+    card_size: Literal['small', 'medium', 'large']
+    text_size: Literal['small', 'medium', 'large']
+    reduced_motion: bool
+    high_contrast: bool
+
+
+class AccessibilitySettingsResponse(AccessibilitySettingsRequest):
     pass
 
 
@@ -297,6 +312,18 @@ def get_tts_settings(user=Depends(current_user)):
 def put_tts_settings(request: TtsSettingsRequest, user=Depends(current_user)):
     require_communicator(user)
     return save_settings(user['id'], request.preset, request.voice_name.strip(), request.rate, request.pitch)
+
+
+@api_router.get('/accessibility/settings', response_model=AccessibilitySettingsResponse, tags=['접근성'])
+def get_accessibility_settings(user=Depends(current_user)):
+    require_communicator(user)
+    return accessibility_settings_for(user['id'])
+
+
+@api_router.put('/accessibility/settings', response_model=AccessibilitySettingsResponse, tags=['접근성'])
+def put_accessibility_settings(request: AccessibilitySettingsRequest, user=Depends(current_user)):
+    require_communicator(user)
+    return save_accessibility_settings(user['id'], request.model_dump())
 
 
 @api_router.post('/tts/events', response_model=TtsEventResponse, status_code=201, tags=['음성'])

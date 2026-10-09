@@ -79,6 +79,8 @@ Authorization: Bearer {access_token}
 | 음성 | PUT | `/api/tts/settings` | 필요 | 현재 사용자의 TTS 설정 저장 |
 | 음성 | POST | `/api/tts/events` | 필요 | TTS 재생 요청 이력 생성 |
 | 음성 | PATCH | `/api/tts/events/{request_id}` | 필요 | TTS 성공·실패·중지 결과 저장 |
+| 접근성 | GET | `/api/accessibility/settings` | 필요 | 현재 사용자의 접근 설정 조회 |
+| 접근성 | PUT | `/api/accessibility/settings` | 필요 | 현재 사용자의 접근 설정 저장 |
 | 보호자 | GET | `/api/care/linked-users` | 필요 | 보호자에게 연결된 사용자 조회 |
 | 보호자 | PUT | `/api/care/notes/{session_id}` | 필요 | 의사소통 기록의 보호자 메모 저장·수정 |
 | 보호자 | DELETE | `/api/care/notes/{session_id}` | 필요 | 보호자 메모 삭제 |
@@ -433,6 +435,28 @@ Content-Type: application/json
 ```
 
 재생을 요청할 때 UUID, 콘텐츠 종류(`card`, `sentence`, `preview`)와 글자 수를 저장한다. 재생이 끝나면 같은 UUID에 `succeeded`, `failed`, `cancelled` 결과와 오류 코드를 기록한다. 발화 원문은 개인정보 노출을 줄이기 위해 저장하지 않는다.
+
+## 6.10 사용자 접근 설정 조회 및 저장
+
+```http
+GET /api/accessibility/settings
+PUT /api/accessibility/settings
+Authorization: Bearer {access_token}
+Content-Type: application/json
+```
+
+```json
+{
+  "display_mode": "image_text",
+  "cards_per_page": 12,
+  "card_size": "medium",
+  "text_size": "medium",
+  "reduced_motion": false,
+  "high_contrast": false
+}
+```
+
+일반 사용자 본인의 카드 표시 방식, 한 페이지 카드 수, 카드·글자 크기, 애니메이션·장식 감소 및 고대비 설정을 조회하거나 저장한다. `display_mode`는 `image`, `image_text`, `text`, 크기는 `small`, `medium`, `large` 중 하나다. 카드 수는 6~30개이며 저장된 설정이 없으면 위 기본값을 반환한다.
 
 # 7. 카드 API
 

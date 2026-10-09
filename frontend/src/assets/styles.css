@@ -288,7 +288,7 @@ body::before, body::after { display: none; }
 .profile strong, .profile small { display: block; }
 .profile strong { color: #252a33; }
 .profile small { margin-top: 4px; color: #a0a5af; }
-.sidebar nav { display: grid; gap: 7px; margin: 0; }
+.sidebar nav { display: grid; gap: 8px; margin: 0; }
 .sidebar nav button {
   position: relative;
   width: 100%;
@@ -615,3 +615,44 @@ footer { color: #9aa0aa; }
 .mascot-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .mascot-empty p { margin: 0; }
 .detail-empty .mascot { margin: 0 auto 12px; }
+
+/* Per-user AAC accessibility preferences. */
+.skip-link { position: fixed; z-index: 100; left: 16px; top: 10px; padding: 10px 14px; border-radius: 8px; color: #fff; background: #17202a; transform: translateY(-150%); }
+.skip-link:focus { transform: translateY(0); }
+.accessibility-settings { margin-top: 10px; border: 1px solid #dbe5ec; border-radius: 12px; background: #f8fbfd; }
+.accessibility-settings summary { min-height: 44px; display: flex; align-items: center; padding: 9px 11px; color: #526474; font-weight: 800; cursor: pointer; }
+.accessibility-settings > div { display: grid; gap: 10px; padding: 0 10px 12px; }
+.accessibility-settings label { display: grid; gap: 5px; color: #637381; font-size: .78rem; font-weight: 700; }
+.accessibility-settings select { width: 100%; min-height: 44px; padding: 7px; border: 1px solid #cbd9e2; border-radius: 8px; background: #fff; }
+.accessibility-settings .check-setting { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+.accessibility-settings .check-setting input { width: 22px; height: 22px; margin: 0; }
+.card-pagination { align-items: center; justify-content: center; gap: 12px; margin: 16px 0 0; }
+.card-pagination span { min-width: 58px; text-align: center; font-weight: 800; }
+
+.card-size-small .workspace .cards, .card-size-small .catalog-grid { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); }
+.card-size-medium .workspace .cards, .card-size-medium .catalog-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+.card-size-large .workspace .cards, .card-size-large .catalog-grid { grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); }
+.text-size-small .card > strong, .text-size-small .catalog-card strong { font-size: .82rem; }
+.text-size-medium .card > strong, .text-size-medium .catalog-card strong { font-size: 1rem; }
+.text-size-large .card > strong, .text-size-large .catalog-card strong { font-size: 1.28rem; }
+.display-image .workspace .card > strong, .display-image .catalog-card > span:not(.card-art) { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.display-text .workspace .card-art, .display-text .catalog-card > .card-art { display: none; }
+.display-text .workspace .card, .display-text .catalog-card { min-height: 88px; justify-content: center; }
+.display-text .workspace .card-speaker, .display-text .catalog-card .card-speaker { top: 6px; right: 6px; }
+
+.high-contrast { color: #000; background: #fff !important; }
+.high-contrast .sidebar, .high-contrast .app-content, .high-contrast section { color: #000; background: #fff !important; }
+.high-contrast button { color: #000; border-color: #000; background: #fff; box-shadow: none; }
+.high-contrast button.active, .high-contrast button.primary { color: #fff; background: #000; }
+.high-contrast :focus-visible { outline-color: #005fcc; outline-width: 5px; }
+.high-contrast .muted, .high-contrast small { color: #222; }
+
+.reduced-motion::after, .reduced-motion .mascot-help { display: none; }
+.reduced-motion *, .reduced-motion *::before, .reduced-motion *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
+.reduced-motion button:hover:not(:disabled), .reduced-motion .panel-heading > span { transform: none !important; }
+button { min-width: 44px; min-height: 44px !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
+  button:hover:not(:disabled), .panel-heading > span { transform: none !important; }
+}

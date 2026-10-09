@@ -51,6 +51,11 @@ const QUICK_EXPRESSIONS = [
   { id: 'stop', label: '그만', symbol: '✋' },
 ];
 
+const DEFAULT_ACCESSIBILITY = {
+  display_mode: 'image_text', cards_per_page: 12, card_size: 'medium', text_size: 'medium',
+  reduced_motion: false, high_contrast: false,
+};
+
 function App() {
   const [user, setUser] = useState(null);
   const [showProfile, setShowProfile] = useState(false);
@@ -65,6 +70,7 @@ function App() {
   const [cardCategories, setCardCategories] = useState([]);
   const [recommended, setRecommended] = useState([]);
   const [board, setBoard] = useState([]);
+  const [cardPage, setCardPage] = useState(0);
   const [outputMode, setOutputMode] = useState('natural');
   const [category, setCategory] = useState('전체');
   const [search, setSearch] = useState('');
@@ -102,6 +108,9 @@ function App() {
   const [ttsSettings, setTtsSettings] = useState({ preset: 'child', voiceName: '', rate: 0.9, pitch: 1.25 });
   const [ttsSettingsBusy, setTtsSettingsBusy] = useState(false);
   const [ttsSettingsSaved, setTtsSettingsSaved] = useState(false);
+  const [accessibility, setAccessibility] = useState(DEFAULT_ACCESSIBILITY);
+  const [accessibilityBusy, setAccessibilityBusy] = useState(false);
+  const [accessibilitySaved, setAccessibilitySaved] = useState(true);
   const [requestId, setRequestId] = useState(() => crypto.randomUUID());
   const [linkedUsers, setLinkedUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -136,10 +145,11 @@ function App() {
         setStats(target ? await request(dashboardPath(period, target)) : null); setLoaded(true);
         return;
       }
-      const [rawCards, rawCategories, rawRecommended, dashboard, submissions, voiceSettings] = await Promise.all([request('/cards'), request('/categories'), request('/recommendations'), request(dashboardPath()), request('/cards/submissions'), request('/tts/settings')]);
+      const [rawCards, rawCategories, rawRecommended, dashboard, submissions, voiceSettings, accessibilitySettings] = await Promise.all([request('/cards'), request('/categories'), request('/recommendations'), request(dashboardPath()), request('/cards/submissions'), request('/tts/settings'), request('/accessibility/settings')]);
       const [all, rec] = await Promise.all([hydrateImages(rawCards), hydrateImages(rawRecommended)]);
       setCards(all); setCardCategories(rawCategories); setRecommended(rec); setStats(dashboard); setCardSubmissions(submissions); setBoard(loadBoard(account?.id, all));
       setTtsSettings({ preset: voiceSettings.preset, voiceName: voiceSettings.voice_name, rate: voiceSettings.rate, pitch: voiceSettings.pitch });
+      setAccessibility(accessibilitySettings); setAccessibilitySaved(true);
       setTtsSettingsSaved(true); setLoaded(true);
     } catch (e) {
       if (e.status === 401) { setToken(null); setUser(null); setLoaded(false); setError('로그인이 만료되었습니다. 다시 로그인해 주세요.'); }
@@ -169,6 +179,10 @@ function App() {
     return () => synthesis.removeEventListener('voiceschanged', updateVoices);
   }, []);
 
+  useEffect(() => {
+    setCardPage(0);
+  }, [category, search, accessibility.cards_per_page, tab, cards.length]);
+
   async function handleLogin(event) {
     event.preventDefault();
     if (authMode === 'register' && password !== passwordConfirm) { setError('비밀번호가 일치하지 않습니다.'); return; }
@@ -191,7 +205,7 @@ function App() {
     setToken(null); setUser(null); setLoaded(false); setShowProfile(false); setProfileNotice('');
     [...cards, ...recommended, ...adminSubmissions].forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); });
     setCards([]); setCardCategories([]); setRecommended([]); setStats(null); setBoard([]); setCardSubmissions([]); setAdminSubmissions([]); setAdminCategories([]); setCategoryEdits({}); setCategoryError(''); setLinkedUsers([]); setSelectedUser(null); setText(''); setGeneratedSessionId(''); setGenerationAttempt(1); setSentenceConfirmed(false); setGenerationFailed(false); setError(''); setTab('home');
-    setTtsSettings({ preset: 'child', voiceName: '', rate: 0.9, pitch: 1.25 }); setTtsSettingsSaved(false); setSpeechFailure(null); setBusy(false);
+    setTtsSettings({ preset: 'child', voiceName: '', rate: 0.9, pitch: 1.25 }); setTtsSettingsSaved(false); setAccessibility(DEFAULT_ACCESSIBILITY); setAccessibilitySaved(true); setSpeechFailure(null); setBusy(false);
   }
 
   function updateBoard(next) {
@@ -336,6 +350,20 @@ function App() {
     } catch (e) { setError(e.message); }
     finally { setTtsSettingsBusy(false); }
   }
+  function updateAccessibility(changes) {
+    setAccessibility(current => ({ ...current, ...changes }));
+    setAccessibilitySaved(false);
+  }
+  async function saveAccessibility() {
+    setAccessibilityBusy(true); setError('');
+    try {
+      setAccessibility(await request('/accessibility/settings', {
+        method: 'PUT', body: JSON.stringify(accessibility),
+      }));
+      setAccessibilitySaved(true);
+    } catch (e) { setError(e.message); }
+    finally { setAccessibilityBusy(false); }
+  }
   async function changePeriod(value) {
     setPeriod(value); setStatsBusy(true); setError('');
     try { setStats(await request(dashboardPath(value))); }
@@ -475,10 +503,19 @@ function App() {
       <strong>{card.label}</strong>{card.reason && <small>{card.reason}</small>}{cardSpeaker(card)}
     </button>;
   }
-  const visibleCards = cards.filter(card =>
+  const filteredCards = cards.filter(card =>
     (category === '전체' || card.category === category)
     && card.label.includes(search.trim())
   );
+  const cardPageCount = Math.max(1, Math.ceil(filteredCards.length / accessibility.cards_per_page));
+  const visibleCards = filteredCards.slice(
+    cardPage * accessibility.cards_per_page,
+    (cardPage + 1) * accessibility.cards_per_page,
+  );
+  function cardPagination() {
+    if (cardPageCount <= 1) return null;
+    return <nav className="card-pagination" aria-label="카드 페이지"><button disabled={cardPage === 0} onClick={() => setCardPage(page => page - 1)}>이전</button><span>{cardPage + 1} / {cardPageCount}</span><button disabled={cardPage >= cardPageCount - 1} onClick={() => setCardPage(page => page + 1)}>다음</button></nav>;
+  }
   const todayLabel = new Intl.DateTimeFormat('ko-KR', {
     month: '2-digit', day: '2-digit', weekday: 'long',
   }).format(new Date());
@@ -513,20 +550,30 @@ function App() {
   if (!user.profile || showProfile) return <main className="login-page"><ProfileEditor key={user.id} user={user}
     onSaved={account => { setUser(account); setShowProfile(false); setProfileNotice('프로필을 저장했습니다.'); }}
     onCancel={user.profile ? () => setShowProfile(false) : handleLogout} /></main>;
-  return <main className="app">
+  return <main className={`app display-${accessibility.display_mode} card-size-${accessibility.card_size} text-size-${accessibility.text_size}${accessibility.reduced_motion ? ' reduced-motion' : ''}${accessibility.high_contrast ? ' high-contrast' : ''}`}>
+    <a className="skip-link" href="#main-content">본문 바로가기</a>
     <aside className="sidebar">
       <div className="sidebar-brand"><Mascot className="mascot-brand" /><strong>PESC<br />MATE</strong></div>
       <div className="profile"><Avatar user={user} /><div><strong>{user.name}</strong><small>{user.role === 'admin' ? '컨텐츠 관리자' : user.role === 'caregiver' ? '보호자 계정' : 'AAC 사용자'}</small></div></div>
       <nav aria-label="주 메뉴">{user.role === 'admin' ? <button className="active" onClick={() => setTab('admin')}><span aria-hidden="true">☑</span>카드 승인<i aria-label={`승인 대기 ${adminSubmissions.filter(item => item.status === 'pending').length}개`}>{adminSubmissions.filter(item => item.status === 'pending').length}</i></button> : <>{user.role !== 'caregiver' && <><button className={tab === 'home' ? 'active' : ''} onClick={() => setTab('home')}><span aria-hidden="true">⌂</span>홈</button><button className={tab === 'cards' ? 'active' : ''} onClick={() => setTab('cards')}><span aria-hidden="true">▦</span>그림으로 말하기<i aria-label={`추천 카드 ${recommended.length}개`}>{recommended.length}</i></button><button className={tab === 'catalog' ? 'active' : ''} onClick={() => setTab('catalog')}><span aria-hidden="true">▤</span>카드</button></>}<button className={tab === 'dashboard' ? 'active' : ''} onClick={() => setTab('dashboard')}><span aria-hidden="true">▥</span>{user.role === 'caregiver' ? '보호자 현황' : '나의 이용 기록'}</button></>}</nav>
       <button type="button" onClick={() => { stopSpeech(); setShowProfile(true); setProfileNotice(''); }}>프로필 설정</button>
+      {user.role === 'user' && <details className="accessibility-settings"><summary>♿ 접근 설정</summary><div>
+        <label>카드 표시<select value={accessibility.display_mode} onChange={event => updateAccessibility({ display_mode: event.target.value })}><option value="image">그림 중심</option><option value="image_text">그림 + 글자</option><option value="text">글자 중심</option></select></label>
+        <label>한 페이지 카드 수<select value={accessibility.cards_per_page} onChange={event => updateAccessibility({ cards_per_page: Number(event.target.value) })}>{[6, 12, 18, 24, 30].map(value => <option key={value} value={value}>{value}개</option>)}</select></label>
+        <label>카드 크기<select value={accessibility.card_size} onChange={event => updateAccessibility({ card_size: event.target.value })}><option value="small">작게</option><option value="medium">보통</option><option value="large">크게</option></select></label>
+        <label>글자 크기<select value={accessibility.text_size} onChange={event => updateAccessibility({ text_size: event.target.value })}><option value="small">작게</option><option value="medium">보통</option><option value="large">크게</option></select></label>
+        <label className="check-setting"><input type="checkbox" checked={accessibility.reduced_motion} onChange={event => updateAccessibility({ reduced_motion: event.target.checked })} />애니메이션·장식 줄이기</label>
+        <label className="check-setting"><input type="checkbox" checked={accessibility.high_contrast} onChange={event => updateAccessibility({ high_contrast: event.target.checked })} />고대비 표시</label>
+        <button className="primary" disabled={accessibilityBusy || accessibilitySaved} onClick={saveAccessibility}>{accessibilityBusy ? '저장 중…' : accessibilitySaved ? '저장됨' : '설정 저장'}</button>
+      </div></details>}
       <div className="sidebar-summary"><small>오늘의 의사소통</small><strong>{stats?.today_sessions || 0}개 문장</strong><span>{stats?.today_selections || 0}장의 카드를 사용했어요</span></div>
       <div className="sidebar-tip"><Mascot className="mascot-help" /><div><small>도움말</small><strong>그림을 차례대로 눌러<br />마음을 표현해 보세요.</strong></div></div>
       <button className="logout" onClick={handleLogout} disabled={busy}>로그아웃</button>
     </aside>
-    <div className="app-content">
+    <div className="app-content" id="main-content" tabIndex="-1">
       {profileNotice && <p role="status">{profileNotice}</p>}
       <header className="topbar"><div><p className="eyebrow">오늘은 {todayLabel}</p><h1>{pageTitle}</h1></div><div className="topbar-statuses"><span className="status"><b className={loaded ? 'online' : ''}></b>{loaded ? '서비스 연결됨' : '연결 대기'}</span>{speechActive && <div className={`speech-player ${speechState.status}`} role="status" aria-live="polite"><span><b aria-hidden="true">🔊</b><strong>{speechStatusLabel}</strong><small title={speechState.content}>{speechState.content}</small></span>{speechState.status === 'playing' && <button type="button" onClick={pauseSpeech}>일시 정지</button>}{speechState.status === 'paused' && <button type="button" onClick={resumeSpeech}>재개</button>}<button type="button" onClick={stopSpeech}>중지</button></div>}</div></header>
-      {user.role === 'user' && <section className="quick-speech" aria-labelledby="quick-speech-title"><div><strong id="quick-speech-title">빠른 표현</strong><small>누르면 바로 말해요</small></div>{QUICK_EXPRESSIONS.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 바로 말하기`} onClick={() => speakText(item.label, 'card', true)}><span aria-hidden="true">{item.symbol}</span>{item.label}</button>)}</section>}
+      {user.role === 'user' && <section className="quick-speech" aria-labelledby="quick-speech-title" data-scan-group="quick-speech"><div><strong id="quick-speech-title">빠른 표현</strong><small>누르면 바로 말해요</small></div>{QUICK_EXPRESSIONS.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 바로 말하기`} onClick={() => speakText(item.label, 'card', true)}><span aria-hidden="true">{item.symbol}</span>{item.label}</button>)}</section>}
       {error && <div role="alert" className="error">{error} <button disabled={busy} onClick={() => load(user)}>다시 연결</button></div>}
       {speechFailure && <div role="alert" className="speech-error"><span aria-hidden="true">🔇</span><div><strong>음성을 재생하지 못했어요.</strong><p>{speechFailureMessage(speechFailure.errorCode)} 선택한 카드와 문장은 그대로 유지됩니다.</p></div><div className="speech-error-actions">{speechFailure.retryable && <button className="primary" onClick={() => speakText(speechFailure.content, speechFailure.contentType)}>다시 재생</button>}<button onClick={() => setSpeechFailure(null)}>닫기</button></div></div>}
       {!loaded && !error && <p role="status">카드를 불러오는 중입니다…</p>}
@@ -550,10 +597,11 @@ function App() {
       </section> : tab === 'cards' && user.role !== 'caregiver' ? <div className="communication-layout">
       <section className="recommend-panel"><div className="stage-title"><span className="stage-back" aria-hidden="true">‹‹</span><div><strong>오늘의 추천 카드</strong><i aria-hidden="true"><b></b><b></b><b></b></i><p>자주 쓰는 카드를 골라 문장을 시작해요</p></div><span className="stage-helper" aria-hidden="true">🌱</span></div><div className="cards recommendations">{recommended.map(tile)}</div><div className="stage-ground" aria-hidden="true">▲　▲　　▲　　　▲　▲</div></section>
       <div className="workspace"><section><div className="section-title"><h2>무엇을 말하고 싶나요?</h2><input aria-label="카드 검색" placeholder="카드 이름 검색" value={search} onChange={e => setSearch(e.target.value)} /></div>
-        <div className="output-mode" role="group" aria-label="출력 방식"><span>출력 방식</span><button aria-pressed={outputMode === 'word'} className={outputMode === 'word' ? 'active' : ''} onClick={() => setOutputMode('word')}>🔊 단어 즉시 발화</button><button aria-pressed={outputMode === 'selection'} className={outputMode === 'selection' ? 'active' : ''} onClick={() => setOutputMode('selection')}>선택 카드 그대로</button><button aria-pressed={outputMode === 'natural'} className={outputMode === 'natural' ? 'active' : ''} onClick={() => setOutputMode('natural')}>자연스러운 문장</button></div>
-        <div className="categories" aria-label="카테고리">{['전체', ...cardCategories.map(item => item.name)].map(c => <button key={c} aria-pressed={category === c} className={category === c ? 'active' : ''} onClick={() => setCategory(c)}>{c}</button>)}</div>
-        <div className="cards">{visibleCards.map(tile)}</div>
-        {loaded && !visibleCards.length && <EmptyState>검색 결과가 없어요.</EmptyState>}
+        <div className="output-mode" role="group" aria-label="출력 방식" data-scan-group="output-mode"><span>출력 방식</span><button aria-pressed={outputMode === 'word'} className={outputMode === 'word' ? 'active' : ''} onClick={() => setOutputMode('word')}>🔊 단어 즉시 발화</button><button aria-pressed={outputMode === 'selection'} className={outputMode === 'selection' ? 'active' : ''} onClick={() => setOutputMode('selection')}>선택 카드 그대로</button><button aria-pressed={outputMode === 'natural'} className={outputMode === 'natural' ? 'active' : ''} onClick={() => setOutputMode('natural')}>자연스러운 문장</button></div>
+        <div className="categories" aria-label="카테고리" data-scan-group="categories">{['전체', ...cardCategories.map(item => item.name)].map(c => <button key={c} aria-pressed={category === c} className={category === c ? 'active' : ''} onClick={() => setCategory(c)}>{c}</button>)}</div>
+        <div className="cards" data-scan-group="cards">{visibleCards.map(tile)}</div>
+        {cardPagination()}
+        {loaded && !filteredCards.length && <EmptyState>검색 결과가 없어요.</EmptyState>}
       </section>
       <section className="board"><div className="section-title"><h2>나의 문장 <small>{board.length}/12</small></h2><button disabled={!board.length || busy} onClick={() => { if (window.confirm('선택한 카드를 모두 지울까요?')) updateBoard([]); }}>비우기</button></div>
         {!board.length && <EmptyState>왼쪽 카드를 눌러 보세요.<br />나 → 물 → 마시다</EmptyState>}
@@ -585,12 +633,13 @@ function App() {
           {cardArt(card)}
           <span><strong>{card.label}</strong><small>{card.category}</small></span>{cardSpeaker(card)}
         </button>)}</div>
+        {cardPagination()}
         <aside className="card-detail" aria-live="polite">
           {selectedCard ? <>{cardArt(selectedCard, 'detail-art')}<span className="detail-category">{selectedCard.category}</span><h3>{selectedCard.label}</h3><p>{selectedCard.label}을(를) 표현하는 PECS 카드예요.</p><div className="detail-actions"><button aria-label={`${selectedCard.label} 단어 듣기`} onClick={() => speakText(selectedCard.label, 'card')}>🔊 단어 듣기</button><button className="primary" onClick={() => { add(selectedCard); setTab('cards'); }}>문장에 사용하기</button></div></> : <div className="detail-empty"><Mascot /><strong>카드를 선택해 주세요</strong><p>선택한 카드의 그림과 뜻이 여기에 보여요.</p></div>}
         </aside>
       </div>
       <div className="submission-list"><h3>나의 등록 요청</h3>{cardSubmissions.length ? <ul>{cardSubmissions.map(item => <li key={item.id}><span><strong>{item.label}</strong><small>{item.category} · {item.visibility === 'private' ? '나만 사용' : '공개 요청'}</small></span><div className="submission-actions"><b className={`submission-status ${item.status}`}>{({ draft: '작성 중', pending: '승인 대기', approved: '승인', rejected: '반려', inactive: '비활성' })[item.status] || item.status}</b>{['draft', 'rejected'].includes(item.status) && <button disabled={reviewBusy === item.id} onClick={() => { setEditingSubmission(item); setCardFormError(''); setShowCardForm(true); }}>수정</button>}{item.status === 'draft' && <button className="primary" disabled={reviewBusy === item.id} onClick={() => submitDraft(item)}>승인 요청</button>}</div></li>)}</ul> : <p className="muted">아직 등록한 카드가 없어요.</p>}</div>
-      {loaded && !visibleCards.length && <EmptyState>조건에 맞는 카드가 없어요. 다른 검색어나 카테고리를 선택해 보세요.</EmptyState>}
+      {loaded && !filteredCards.length && <EmptyState>조건에 맞는 카드가 없어요. 다른 검색어나 카테고리를 선택해 보세요.</EmptyState>}
       {showCardForm && <div className="modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setShowCardForm(false); }}>
         <section className="card-form-modal" role="dialog" aria-modal="true" aria-labelledby="card-form-title">
           <div className="modal-heading"><div><h2 id="card-form-title">{editingSubmission ? '카드 수정' : '새 카드 등록'}</h2><p className="muted">{editingSubmission ? '반려 사유를 확인하고 정보를 수정해 주세요.' : '등록할 카드의 정보를 입력해 주세요.'}</p></div><button type="button" aria-label="등록 폼 닫기" onClick={() => { setShowCardForm(false); setEditingSubmission(null); }}>×</button></div>
