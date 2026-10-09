@@ -63,6 +63,10 @@ function App() {
   const [cardFormError, setCardFormError] = useState('');
   const [editingSubmission, setEditingSubmission] = useState(null);
   const [adminSubmissions, setAdminSubmissions] = useState([]);
+  const [adminCategories, setAdminCategories] = useState([]);
+  const [categoryEdits, setCategoryEdits] = useState({});
+  const [categoryBusy, setCategoryBusy] = useState('');
+  const [categoryError, setCategoryError] = useState('');
   const [reviewDrafts, setReviewDrafts] = useState({});
   const [reviewBusy, setReviewBusy] = useState('');
   const [tab, setTab] = useState('home');
@@ -102,8 +106,12 @@ function App() {
     setError('');
     try {
       if (account?.role === 'admin') {
-        const submissions = await request('/admin/card-submissions');
+        const [submissions, categories] = await Promise.all([
+          request('/admin/card-submissions'), request('/admin/categories'),
+        ]);
         setAdminSubmissions(await hydrateImages(submissions));
+        setAdminCategories(categories);
+        setCategoryEdits(Object.fromEntries(categories.map(item => [item.id, { name: item.name, display_order: item.display_order }])));
         setTab('admin'); setLoaded(true);
         return;
       }
@@ -168,7 +176,7 @@ function App() {
     clearBoard(user?.id);
     setToken(null); setUser(null); setLoaded(false); setShowProfile(false); setProfileNotice('');
     [...cards, ...recommended, ...adminSubmissions].forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); });
-    setCards([]); setCardCategories([]); setRecommended([]); setStats(null); setBoard([]); setCardSubmissions([]); setAdminSubmissions([]); setLinkedUsers([]); setSelectedUser(null); setText(''); setGeneratedSessionId(''); setGenerationAttempt(1); setError(''); setTab('home');
+    setCards([]); setCardCategories([]); setRecommended([]); setStats(null); setBoard([]); setCardSubmissions([]); setAdminSubmissions([]); setAdminCategories([]); setCategoryEdits({}); setCategoryError(''); setLinkedUsers([]); setSelectedUser(null); setText(''); setGeneratedSessionId(''); setGenerationAttempt(1); setError(''); setTab('home');
     setTtsSettings({ preset: 'child', voiceName: '', rate: 0.9, pitch: 1.25 }); setTtsSettingsSaved(false); setSpeechFailure(null); setBusy(false);
   }
 
@@ -392,6 +400,34 @@ function App() {
     } catch (e) { setError(e.message); }
     finally { setReviewBusy(''); }
   }
+  async function addCategory(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    setCategoryBusy('new'); setCategoryError('');
+    try {
+      const saved = await request('/admin/categories', { method: 'POST', body: JSON.stringify({
+        name: formData.get('name'), display_order: Number(formData.get('display_order')),
+      }) });
+      setAdminCategories(current => [...current, saved].sort((a, b) => a.display_order - b.display_order));
+      setCategoryEdits(current => ({ ...current, [saved.id]: { name: saved.name, display_order: saved.display_order } }));
+      form.reset();
+    } catch (e) { setCategoryError(e.message); }
+    finally { setCategoryBusy(''); }
+  }
+  async function saveCategory(item, active = item.active) {
+    if (item.active && !active && !window.confirm(`${item.name} 카테고리를 비활성화할까요? 사용자 화면에서 숨겨집니다.`)) return;
+    const draft = categoryEdits[item.id] || item;
+    setCategoryBusy(item.id); setCategoryError('');
+    try {
+      const saved = await request(`/admin/categories/${item.id}`, { method: 'PATCH', body: JSON.stringify({
+        name: draft.name, display_order: Number(draft.display_order), active,
+      }) });
+      setAdminCategories(current => current.map(row => row.id === item.id ? saved : row).sort((a, b) => a.display_order - b.display_order));
+      setCategoryEdits(current => ({ ...current, [saved.id]: { name: saved.name, display_order: saved.display_order } }));
+    } catch (e) { setCategoryError(e.message); }
+    finally { setCategoryBusy(''); }
+  }
   function artStyle(card) {
     if (card.image_src) return { backgroundImage: `url(${card.image_src})`, backgroundPosition: 'center', backgroundSize: 'cover' };
     if (CARD_IMAGES[card.id]) return { backgroundImage: `url(${CARD_IMAGES[card.id]})`, backgroundPosition: 'center', backgroundSize: 'cover' };
@@ -548,6 +584,17 @@ function App() {
         </section>
       </div>}
     </section> : tab === 'admin' && user.role === 'admin' ? <section className="admin-review">
+      <div className="category-admin">
+        <div className="panel-heading"><span aria-hidden="true">▦</span><div><h2>카테고리 관리</h2><p className="muted">카테고리를 추가하고 표시 순서와 활성 상태를 관리하세요.</p></div></div>
+        {categoryError && <div role="alert" className="error">{categoryError}</div>}
+        <form className="category-create" onSubmit={addCategory}><label>이름<input name="name" required maxLength="30" placeholder="예: 운동" /></label><label>표시 순서<input name="display_order" required type="number" min="1" max="999" defaultValue={adminCategories.length + 1} /></label><button className="primary" disabled={categoryBusy === 'new'}>{categoryBusy === 'new' ? '추가 중…' : '카테고리 추가'}</button></form>
+        <div className="category-admin-list">{adminCategories.map(item => <article className={!item.active ? 'inactive' : ''} key={item.id}>
+          <label>이름<input value={categoryEdits[item.id]?.name ?? item.name} maxLength="30" onChange={event => setCategoryEdits(current => ({ ...current, [item.id]: { ...(current[item.id] || item), name: event.target.value } }))} /></label>
+          <label>순서<input type="number" min="1" max="999" value={categoryEdits[item.id]?.display_order ?? item.display_order} onChange={event => setCategoryEdits(current => ({ ...current, [item.id]: { ...(current[item.id] || item), display_order: event.target.value } }))} /></label>
+          <b className={`submission-status ${item.active ? 'approved' : 'inactive'}`}>{item.active ? '활성' : '비활성'}</b>
+          <div><button disabled={categoryBusy === item.id} onClick={() => saveCategory(item)}>수정 저장</button><button className={item.active ? 'danger' : 'primary'} disabled={categoryBusy === item.id} onClick={() => saveCategory(item, !item.active)}>{item.active ? '비활성' : '활성화'}</button></div>
+        </article>)}</div>
+      </div>
       <div className="panel-heading"><span aria-hidden="true">🛡️</span><div><h2>카드 승인 관리</h2><p className="muted">사용자가 제출한 카드를 확인하고 승인하거나 반려해 주세요.</p></div></div>
       <div className="review-summary"><strong>{adminSubmissions.filter(item => item.status === 'pending').length}</strong><span>승인 대기</span><strong>{adminSubmissions.filter(item => item.status === 'approved').length}</strong><span>승인 완료</span><strong>{adminSubmissions.filter(item => item.status === 'rejected').length}</strong><span>반려</span></div>
       <div className="review-grid">{adminSubmissions.map(item => <article className="review-card" key={item.id}>

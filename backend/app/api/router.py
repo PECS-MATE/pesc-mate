@@ -14,7 +14,9 @@ from app.services.card_submissions import (
     review_submission, submissions_for, submissions_for_review, submit_draft,
     update_submission,
 )
-from app.services.categories import active_categories
+from app.services.categories import (
+    active_categories, categories_for_admin, create_category, update_category,
+)
 
 api_router = APIRouter()
 
@@ -137,6 +139,15 @@ class CategoryResponse(BaseModel):
     id: str
     name: str
     display_order: int
+    active: bool
+
+
+class CategoryCreateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=30)
+    display_order: int = Field(ge=1, le=999)
+
+
+class CategoryUpdateRequest(CategoryCreateRequest):
     active: bool
 
 
@@ -362,6 +373,24 @@ def review_card_submission(submission_id: str, request: CardReviewRequest,
                            user=Depends(current_user)):
     require_admin(user)
     return review_submission(submission_id, user['id'], request.decision, request.reason)
+
+
+@api_router.get('/admin/categories', response_model=list[CategoryResponse], tags=['관리자'])
+def admin_categories(user=Depends(current_user)):
+    require_admin(user)
+    return categories_for_admin()
+
+
+@api_router.post('/admin/categories', response_model=CategoryResponse, status_code=201, tags=['관리자'])
+def add_category(request: CategoryCreateRequest, user=Depends(current_user)):
+    require_admin(user)
+    return create_category(request.name, request.display_order)
+
+
+@api_router.patch('/admin/categories/{category_id}', response_model=CategoryResponse, tags=['관리자'])
+def edit_category(category_id: str, request: CategoryUpdateRequest, user=Depends(current_user)):
+    require_admin(user)
+    return update_category(category_id, request.name, request.display_order, request.active)
 
 
 @api_router.post('/sentences', response_model=CommunicationSessionResponse, tags=['문장'])

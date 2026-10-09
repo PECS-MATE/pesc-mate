@@ -91,6 +91,9 @@ Authorization: Bearer {access_token}
 | 카드 | GET | `/api/cards/submissions/{id}/image` | 필요 | 권한이 있는 카드 이미지 조회 |
 | 관리자 | GET | `/api/admin/card-submissions` | 관리자 | 전체 카드 요청 조회 |
 | 관리자 | PATCH | `/api/admin/card-submissions/{id}` | 관리자 | 카드 승인 또는 반려 |
+| 관리자 | GET | `/api/admin/categories` | 관리자 | 전체 카테고리 조회 |
+| 관리자 | POST | `/api/admin/categories` | 관리자 | 카테고리 추가 |
+| 관리자 | PATCH | `/api/admin/categories/{id}` | 관리자 | 카테고리 수정 및 활성 상태 변경 |
 | 문장 | POST | `/api/sentences` | 필요 | 문장 생성 및 기록 저장 |
 | 문장 | POST | `/api/sentences/{session_id}/regenerate` | 필요 | 기존 카드로 문장 재생성 및 별도 저장 |
 | 추천 | GET | `/api/recommendations` | 필요 | 사용자별 추천 카드 조회 |
@@ -561,6 +564,34 @@ Content-Type: application/json
 승인·반려, 승인 상태에서는 비활성, 비활성 상태에서는 재활성만 허용된다.
 반려할 때는 `reason`이 필수다. 승인된 카드만 `/api/cards`의 기본 18개 카드 뒤에 추가되며,
 개인 카드는 소유자에게만, 공개 카드는 모든 일반 사용자에게 노출된다.
+
+## 7.6 관리자 카테고리 관리
+
+```http
+GET /api/admin/categories
+POST /api/admin/categories
+PATCH /api/admin/categories/{category_id}
+Authorization: Bearer {admin_access_token}
+Content-Type: application/json
+```
+
+관리자는 비활성 항목을 포함한 전체 카테고리를 조회하고 새 카테고리를 추가할 수 있다.
+이름과 표시 순서를 수정하거나 `active`를 변경하면 일반 사용자용 `/api/categories`에는
+활성 카테고리만 변경된 순서로 노출된다.
+
+추가 요청은 `name`, `display_order`를 전달하며, 수정 요청은 `active`를 함께 전달한다.
+이름은 1~30자의 한글·영문·숫자·공백을 허용하고 표시 순서는 1~999 범위다.
+
+```json
+{
+  "name": "운동",
+  "display_order": 10,
+  "active": true
+}
+```
+
+동일한 이름은 `409 Conflict`, 유효하지 않은 입력은 `422 Unprocessable Entity`, 없는
+카테고리 수정은 `404 Not Found`를 반환한다.
 
 # 8. 문장 API
 
