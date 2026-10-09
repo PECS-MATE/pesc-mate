@@ -56,6 +56,10 @@ const DEFAULT_ACCESSIBILITY = {
   reduced_motion: false, high_contrast: false,
 };
 
+const DEFAULT_PRIVACY = {
+  guardian_consent: false, retention_days: 365, deletion_status: 'none', deleted_at: null,
+};
+
 function App() {
   const [user, setUser] = useState(null);
   const [showProfile, setShowProfile] = useState(false);
@@ -66,6 +70,7 @@ function App() {
   const [authMode, setAuthMode] = useState('login');
   const [name, setName] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [registrationConsent, setRegistrationConsent] = useState(false);
   const [cards, setCards] = useState([]);
   const [cardCategories, setCardCategories] = useState([]);
   const [recommended, setRecommended] = useState([]);
@@ -116,6 +121,11 @@ function App() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [noteDrafts, setNoteDrafts] = useState({});
   const [noteBusy, setNoteBusy] = useState('');
+  const [privacy, setPrivacy] = useState(DEFAULT_PRIVACY);
+  const [privacyCaregivers, setPrivacyCaregivers] = useState([]);
+  const [privacyAudit, setPrivacyAudit] = useState([]);
+  const [privacyBusy, setPrivacyBusy] = useState('');
+  const [caregiverUsername, setCaregiverUsername] = useState('');
 
   const dashboardPath = (value = period, target = selectedUser) => {
     const params = new URLSearchParams();
@@ -145,11 +155,13 @@ function App() {
         setStats(target ? await request(dashboardPath(period, target)) : null); setLoaded(true);
         return;
       }
-      const [rawCards, rawCategories, rawRecommended, dashboard, submissions, voiceSettings, accessibilitySettings] = await Promise.all([request('/cards'), request('/categories'), request('/recommendations'), request(dashboardPath()), request('/cards/submissions'), request('/tts/settings'), request('/accessibility/settings')]);
+      const [rawCards, rawCategories, rawRecommended, dashboard, submissions, voiceSettings, accessibilitySettings, privacySettings, caregivers, privacyHistory] = await Promise.all([request('/cards'), request('/categories'), request('/recommendations'), request(dashboardPath()), request('/cards/submissions'), request('/tts/settings'), request('/accessibility/settings'), request('/privacy/settings'), request('/privacy/caregivers'), request('/privacy/audit')]);
       const [all, rec] = await Promise.all([hydrateImages(rawCards), hydrateImages(rawRecommended)]);
       setCards(all); setCardCategories(rawCategories); setRecommended(rec); setStats(dashboard); setCardSubmissions(submissions); setBoard(loadBoard(account?.id, all));
       setTtsSettings({ preset: voiceSettings.preset, voiceName: voiceSettings.voice_name, rate: voiceSettings.rate, pitch: voiceSettings.pitch });
       setAccessibility(accessibilitySettings); setAccessibilitySaved(true);
+      setPrivacy(privacySettings); setPrivacyCaregivers(caregivers); setPrivacyAudit(privacyHistory);
+      if (!privacySettings.guardian_consent) setTab('privacy');
       setTtsSettingsSaved(true); setLoaded(true);
     } catch (e) {
       if (e.status === 401) { setToken(null); setUser(null); setLoaded(false); setError('로그인이 만료되었습니다. 다시 로그인해 주세요.'); }
@@ -189,7 +201,7 @@ function App() {
     setBusy(true); setError('');
     try {
       const path = authMode === 'register' ? '/auth/register' : '/auth/login';
-      const body = authMode === 'register' ? { username, password, name } : { username, password };
+      const body = authMode === 'register' ? { username, password, name, guardian_consent: registrationConsent } : { username, password };
       const result = await request(path, { method: 'POST', body: JSON.stringify(body) });
       setToken(result.access_token); setUser(result.user); setShowProfile(false); setProfileNotice('');
       await load(result.user);
@@ -205,7 +217,7 @@ function App() {
     setToken(null); setUser(null); setLoaded(false); setShowProfile(false); setProfileNotice('');
     [...cards, ...recommended, ...adminSubmissions].forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); });
     setCards([]); setCardCategories([]); setRecommended([]); setStats(null); setBoard([]); setCardSubmissions([]); setAdminSubmissions([]); setAdminCategories([]); setCategoryEdits({}); setCategoryError(''); setLinkedUsers([]); setSelectedUser(null); setText(''); setGeneratedSessionId(''); setGenerationAttempt(1); setSentenceConfirmed(false); setGenerationFailed(false); setError(''); setTab('home');
-    setTtsSettings({ preset: 'child', voiceName: '', rate: 0.9, pitch: 1.25 }); setTtsSettingsSaved(false); setAccessibility(DEFAULT_ACCESSIBILITY); setAccessibilitySaved(true); setSpeechFailure(null); setBusy(false);
+    setTtsSettings({ preset: 'child', voiceName: '', rate: 0.9, pitch: 1.25 }); setTtsSettingsSaved(false); setAccessibility(DEFAULT_ACCESSIBILITY); setAccessibilitySaved(true); setPrivacy(DEFAULT_PRIVACY); setPrivacyCaregivers([]); setPrivacyAudit([]); setSpeechFailure(null); setBusy(false);
   }
 
   function updateBoard(next) {
@@ -398,6 +410,60 @@ function App() {
     } catch (e) { setError(e.message); }
     finally { setNoteBusy(''); }
   }
+  async function savePrivacySettings() {
+    setPrivacyBusy('settings'); setError('');
+    try {
+      setPrivacy(await request('/privacy/settings', {
+        method: 'PUT', body: JSON.stringify({
+          guardian_consent: privacy.guardian_consent,
+          retention_days: Number(privacy.retention_days),
+        }),
+      }));
+    } catch (e) { setError(e.message); }
+    finally { setPrivacyBusy(''); }
+  }
+  async function addPrivacyCaregiver(event) {
+    event.preventDefault();
+    setPrivacyBusy('caregiver'); setError('');
+    try {
+      setPrivacyCaregivers(await request('/privacy/caregivers', {
+        method: 'POST', body: JSON.stringify({ username: caregiverUsername.trim() }),
+      }));
+      setCaregiverUsername('');
+      setPrivacyAudit(await request('/privacy/audit'));
+    } catch (e) { setError(e.message); }
+    finally { setPrivacyBusy(''); }
+  }
+  async function removePrivacyCaregiver(item) {
+    if (!window.confirm(`${item.name} 보호자의 기록 열람 권한을 해제할까요?`)) return;
+    setPrivacyBusy(item.caregiver_id); setError('');
+    try {
+      await request(`/privacy/caregivers/${encodeURIComponent(item.caregiver_id)}`, { method: 'DELETE' });
+      setPrivacyCaregivers(current => current.filter(row => row.caregiver_id !== item.caregiver_id));
+      setPrivacyAudit(await request('/privacy/audit'));
+    } catch (e) { setError(e.message); }
+    finally { setPrivacyBusy(''); }
+  }
+  async function downloadPrivacyData() {
+    setPrivacyBusy('export'); setError('');
+    try {
+      const exported = await request('/privacy/export');
+      const url = URL.createObjectURL(new Blob([JSON.stringify(exported, null, 2)], { type: 'application/json' }));
+      const anchor = document.createElement('a'); anchor.href = url; anchor.download = `pesc-mate-${user.id}-data.json`; anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (e) { setError(e.message); }
+    finally { setPrivacyBusy(''); }
+  }
+  async function deletePrivacyData() {
+    if (!window.confirm('개인 카드, 문장·음성 기록, 보호자 연결과 설정을 삭제할까요? 복구할 수 없습니다.')) return;
+    setPrivacyBusy('delete'); setError('');
+    try {
+      const receipt = await request('/privacy/data', { method: 'DELETE', body: JSON.stringify({ confirmation: 'DELETE' }) });
+      clearBoard(user.id); setBoard([]); setPrivacy(receipt); setPrivacyCaregivers([]); setPrivacyAudit(await request('/privacy/audit'));
+      await load(user); setTab('privacy');
+    } catch (e) { setError(e.message); }
+    finally { setPrivacyBusy(''); }
+  }
   async function submitCard(event) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -416,6 +482,7 @@ function App() {
       setShowCardForm(false);
       setEditingSubmission(null);
       form.reset();
+      if (saved.status === 'approved') await load(user);
     } catch (e) { setCardFormError(e.message); }
     finally { setCardFormBusy(false); }
   }
@@ -424,6 +491,7 @@ function App() {
     try {
       const saved = await request(`/cards/submissions/${item.id}/submit`, { method: 'POST' });
       setCardSubmissions(current => current.map(row => row.id === item.id ? saved : row));
+      if (saved.status === 'approved') await load(user);
     } catch (e) { setError(e.message); }
     finally { setReviewBusy(''); }
   }
@@ -531,6 +599,8 @@ function App() {
       ? `오늘의 추천 카드 ${recommended.length}개를 준비했어요.`
       : tab === 'catalog'
       ? `그림 카드 ${cards.length}개를 살펴보세요.`
+      : tab === 'privacy'
+      ? '내 기록과 열람 권한을 관리해요.'
       : '나의 의사소통 기록을 확인해요.';
   if (!authReady) return <main className="login-page"><p role="status">로그인 정보를 확인하는 중입니다…</p></main>;
   if (!user) return <main className="login-page"><section className="login-card">
@@ -541,10 +611,10 @@ function App() {
       {authMode === 'register' && <label>이름<input autoFocus autoComplete="name" value={name} onChange={e => setName(e.target.value)} required minLength="1" maxLength="30" /></label>}
       <label>아이디<input autoFocus={authMode === 'login'} autoComplete="username" value={username} onChange={e => setUsername(e.target.value)} required minLength={authMode === 'register' ? 4 : 1} maxLength={authMode === 'register' ? 32 : 64} pattern={authMode === 'register' ? '[A-Za-z0-9_-]+' : undefined} /></label>
       <label>비밀번호<input type="password" autoComplete={authMode === 'register' ? 'new-password' : 'current-password'} value={password} onChange={e => setPassword(e.target.value)} required minLength={authMode === 'register' ? 8 : 1} maxLength="128" /></label>
-      {authMode === 'register' && <label>비밀번호 확인<input type="password" autoComplete="new-password" value={passwordConfirm} onChange={e => setPasswordConfirm(e.target.value)} required minLength="8" maxLength="128" /></label>}
+      {authMode === 'register' && <><label>비밀번호 확인<input type="password" autoComplete="new-password" value={passwordConfirm} onChange={e => setPasswordConfirm(e.target.value)} required minLength="8" maxLength="128" /></label><label className="registration-consent"><input type="checkbox" checked={registrationConsent} onChange={event => setRegistrationConsent(event.target.checked)} required />법정대리인이 개인정보 수집·이용과 기본 1년 보존에 동의했습니다.</label></>}
       <button className="primary full" disabled={busy}>{busy ? '처리 중…' : authMode === 'login' ? '로그인' : '가입하고 시작하기'}</button>
     </form>
-    <button className="auth-switch" disabled={busy} onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setError(''); setUsername(''); setPassword(''); setPasswordConfirm(''); setName(''); }}>{authMode === 'login' ? '처음 이용하시나요? 사용자 가입' : '이미 계정이 있나요? 로그인'}</button>
+    <button className="auth-switch" disabled={busy} onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setError(''); setUsername(''); setPassword(''); setPasswordConfirm(''); setName(''); setRegistrationConsent(false); }}>{authMode === 'login' ? '처음 이용하시나요? 사용자 가입' : '이미 계정이 있나요? 로그인'}</button>
     {authMode === 'login' && <p className="demo-account">사용자: <code>demo</code> / <code>demo1234</code><br />보호자: <code>caregiver</code> / <code>caregiver1234</code><br />관리자: <code>admin</code> / <code>admin1234</code></p>}
   </section></main>;
   if (!user.profile || showProfile) return <main className="login-page"><ProfileEditor key={user.id} user={user}
@@ -555,7 +625,7 @@ function App() {
     <aside className="sidebar">
       <div className="sidebar-brand"><Mascot className="mascot-brand" /><strong>PESC<br />MATE</strong></div>
       <div className="profile"><Avatar user={user} /><div><strong>{user.name}</strong><small>{user.role === 'admin' ? '컨텐츠 관리자' : user.role === 'caregiver' ? '보호자 계정' : 'AAC 사용자'}</small></div></div>
-      <nav aria-label="주 메뉴">{user.role === 'admin' ? <button className="active" onClick={() => setTab('admin')}><span aria-hidden="true">☑</span>카드 승인<i aria-label={`승인 대기 ${adminSubmissions.filter(item => item.status === 'pending').length}개`}>{adminSubmissions.filter(item => item.status === 'pending').length}</i></button> : <>{user.role !== 'caregiver' && <><button className={tab === 'home' ? 'active' : ''} onClick={() => setTab('home')}><span aria-hidden="true">⌂</span>홈</button><button className={tab === 'cards' ? 'active' : ''} onClick={() => setTab('cards')}><span aria-hidden="true">▦</span>그림으로 말하기<i aria-label={`추천 카드 ${recommended.length}개`}>{recommended.length}</i></button><button className={tab === 'catalog' ? 'active' : ''} onClick={() => setTab('catalog')}><span aria-hidden="true">▤</span>카드</button></>}<button className={tab === 'dashboard' ? 'active' : ''} onClick={() => setTab('dashboard')}><span aria-hidden="true">▥</span>{user.role === 'caregiver' ? '보호자 현황' : '나의 이용 기록'}</button></>}</nav>
+      <nav aria-label="주 메뉴">{user.role === 'admin' ? <button className="active" onClick={() => setTab('admin')}><span aria-hidden="true">☑</span>카드 승인<i aria-label={`승인 대기 ${adminSubmissions.filter(item => item.status === 'pending').length}개`}>{adminSubmissions.filter(item => item.status === 'pending').length}</i></button> : <>{user.role !== 'caregiver' && <><button className={tab === 'home' ? 'active' : ''} onClick={() => setTab('home')}><span aria-hidden="true">⌂</span>홈</button><button className={tab === 'cards' ? 'active' : ''} onClick={() => setTab('cards')}><span aria-hidden="true">▦</span>그림으로 말하기<i aria-label={`추천 카드 ${recommended.length}개`}>{recommended.length}</i></button><button className={tab === 'catalog' ? 'active' : ''} onClick={() => setTab('catalog')}><span aria-hidden="true">▤</span>카드</button></>}<button className={tab === 'dashboard' ? 'active' : ''} onClick={() => setTab('dashboard')}><span aria-hidden="true">▥</span>{user.role === 'caregiver' ? '보호자 현황' : '나의 이용 기록'}</button>{user.role === 'user' && <button className={tab === 'privacy' ? 'active' : ''} onClick={() => setTab('privacy')}><span aria-hidden="true">⚿</span>개인정보</button>}</>}</nav>
       <button type="button" onClick={() => { stopSpeech(); setShowProfile(true); setProfileNotice(''); }}>프로필 설정</button>
       {user.role === 'user' && <details className="accessibility-settings"><summary>♿ 접근 설정</summary><div>
         <label>카드 표시<select value={accessibility.display_mode} onChange={event => updateAccessibility({ display_mode: event.target.value })}><option value="image">그림 중심</option><option value="image_text">그림 + 글자</option><option value="text">글자 중심</option></select></label>
@@ -638,7 +708,7 @@ function App() {
           {selectedCard ? <>{cardArt(selectedCard, 'detail-art')}<span className="detail-category">{selectedCard.category}</span><h3>{selectedCard.label}</h3><p>{selectedCard.label}을(를) 표현하는 PECS 카드예요.</p><div className="detail-actions"><button aria-label={`${selectedCard.label} 단어 듣기`} onClick={() => speakText(selectedCard.label, 'card')}>🔊 단어 듣기</button><button className="primary" onClick={() => { add(selectedCard); setTab('cards'); }}>문장에 사용하기</button></div></> : <div className="detail-empty"><Mascot /><strong>카드를 선택해 주세요</strong><p>선택한 카드의 그림과 뜻이 여기에 보여요.</p></div>}
         </aside>
       </div>
-      <div className="submission-list"><h3>나의 등록 요청</h3>{cardSubmissions.length ? <ul>{cardSubmissions.map(item => <li key={item.id}><span><strong>{item.label}</strong><small>{item.category} · {item.visibility === 'private' ? '나만 사용' : '공개 요청'}</small></span><div className="submission-actions"><b className={`submission-status ${item.status}`}>{({ draft: '작성 중', pending: '승인 대기', approved: '승인', rejected: '반려', inactive: '비활성' })[item.status] || item.status}</b>{['draft', 'rejected'].includes(item.status) && <button disabled={reviewBusy === item.id} onClick={() => { setEditingSubmission(item); setCardFormError(''); setShowCardForm(true); }}>수정</button>}{item.status === 'draft' && <button className="primary" disabled={reviewBusy === item.id} onClick={() => submitDraft(item)}>승인 요청</button>}</div></li>)}</ul> : <p className="muted">아직 등록한 카드가 없어요.</p>}</div>
+      <div className="submission-list"><h3>나의 카드</h3>{cardSubmissions.length ? <ul>{cardSubmissions.map(item => <li key={item.id}><span><strong>{item.label}</strong><small>{item.category} · {item.sharing_notice || (item.visibility === 'private' ? '나만 사용' : '공개 요청')}</small></span><div className="submission-actions"><b className={`submission-status ${item.status}`}>{item.visibility === 'private' && item.status === 'approved' ? '나만 사용 중' : ({ draft: '작성 중', pending: '승인 대기', approved: '공개 승인', rejected: '반려', inactive: '비활성' })[item.status] || item.status}</b>{['draft', 'rejected'].includes(item.status) && <button disabled={reviewBusy === item.id} onClick={() => { setEditingSubmission(item); setCardFormError(''); setShowCardForm(true); }}>수정</button>}{item.status === 'draft' && <button className="primary" disabled={reviewBusy === item.id} onClick={() => submitDraft(item)}>{item.visibility === 'private' ? '나만 사용 시작' : '공개 승인 요청'}</button>}</div></li>)}</ul> : <p className="muted">아직 등록한 카드가 없어요.</p>}</div>
       {loaded && !filteredCards.length && <EmptyState>조건에 맞는 카드가 없어요. 다른 검색어나 카테고리를 선택해 보세요.</EmptyState>}
       {showCardForm && <div className="modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setShowCardForm(false); }}>
         <section className="card-form-modal" role="dialog" aria-modal="true" aria-labelledby="card-form-title">
@@ -648,13 +718,22 @@ function App() {
             <label>카드명<input name="label" required maxLength="30" placeholder="예: 연필" defaultValue={editingSubmission?.label || ''} /></label>
             <label>카드 뜻<textarea name="meaning" required maxLength="120" rows="3" placeholder="카드가 나타내는 뜻을 적어 주세요." defaultValue={editingSubmission?.meaning || ''} /></label>
             <label>카테고리<select name="category" required defaultValue={editingSubmission?.category || ''}><option value="" disabled>카테고리 선택</option>{cardCategories.map(item => <option key={item.id} value={item.name}>{item.name}</option>)}</select></label>
-            <label>공개 범위<select name="visibility" defaultValue={editingSubmission?.visibility || 'private'}><option value="private">승인 후 나만 사용</option><option value="shared">승인 후 모든 사용자에게 공개 요청</option></select></label>
+            <label>공개 범위<select name="visibility" defaultValue={editingSubmission?.visibility || 'private'}><option value="private">나만 사용 · 관리자에게 공유되지 않음</option><option value="shared">관리자 승인 후 모든 사용자에게 공개</option></select></label>
             {!editingSubmission && <label>카드 이미지<input name="image" required type="file" accept="image/jpeg,image/png,image/webp" capture="environment" /></label>}
-            <p className="form-notice">제출한 카드는 관리자 승인 전까지 그림으로 말하기에 표시되지 않아요. JPG, PNG, WebP 파일을 5MB 이하, 가로·세로 128~4096px로 올려 주세요.</p>
-            <div className="modal-actions"><button type="button" disabled={cardFormBusy} onClick={() => { setShowCardForm(false); setEditingSubmission(null); }}>취소</button>{!editingSubmission && <button type="submit" value="draft" disabled={cardFormBusy}>임시 저장</button>}<button type="submit" value="submit" className="primary" disabled={cardFormBusy}>{cardFormBusy ? '저장 중…' : editingSubmission ? '수정 저장' : '승인 요청'}</button></div>
+            <p className="form-notice">개인 카드는 관리자에게 공유되지 않고 저장 즉시 나만 사용할 수 있어요. 공개 카드는 관리자 승인 후 모두에게 표시됩니다. JPG, PNG, WebP 파일을 5MB 이하, 가로·세로 128~4096px로 올려 주세요.</p>
+            <div className="modal-actions"><button type="button" disabled={cardFormBusy} onClick={() => { setShowCardForm(false); setEditingSubmission(null); }}>취소</button>{!editingSubmission && <button type="submit" value="draft" disabled={cardFormBusy}>임시 저장</button>}<button type="submit" value="submit" className="primary" disabled={cardFormBusy}>{cardFormBusy ? '저장 중…' : editingSubmission ? '수정 저장' : '저장 또는 공개 요청'}</button></div>
           </form>
         </section>
       </div>}
+    </section> : tab === 'privacy' && user.role === 'user' ? <section className="privacy-panel">
+      <div className="panel-heading"><span aria-hidden="true">🔐</span><div><h2>개인정보와 열람 권한</h2><p className="muted">누가 기록을 볼 수 있는지 확인하고 내 데이터를 관리합니다.</p></div></div>
+      {privacy.deletion_status === 'completed' && <p className="privacy-receipt" role="status">이용 데이터 삭제 완료 · {privacy.deleted_at ? new Date(privacy.deleted_at).toLocaleString('ko-KR') : ''}</p>}
+      <div className="privacy-grid">
+        <article><h3>동의와 보존 기간</h3><label className="privacy-check"><input type="checkbox" checked={privacy.guardian_consent} onChange={event => setPrivacy(current => ({ ...current, guardian_consent: event.target.checked }))} />법정대리인이 개인정보 수집·이용에 동의했음을 확인합니다.</label><label>기록 보존 기간<select value={privacy.retention_days} onChange={event => setPrivacy(current => ({ ...current, retention_days: Number(event.target.value) }))}><option value="30">30일</option><option value="90">90일</option><option value="365">1년</option><option value="1095">3년</option></select></label><p className="muted">기간이 지난 문장·음성 이력은 설정 저장 시 삭제됩니다.</p><button className="primary" disabled={privacyBusy === 'settings'} onClick={savePrivacySettings}>{privacyBusy === 'settings' ? '저장 중…' : '동의 및 기간 저장'}</button></article>
+        <article><h3>내 기록을 볼 수 있는 보호자</h3>{privacyCaregivers.length ? <ul className="privacy-caregivers">{privacyCaregivers.map(item => <li key={item.caregiver_id}><span><strong>{item.name}</strong><small>{item.username} · 현황·기록·프로필·메모 권한</small></span><button disabled={privacyBusy === item.caregiver_id} onClick={() => removePrivacyCaregiver(item)}>연결 해제</button></li>)}</ul> : <p className="muted">연결된 보호자가 없습니다.</p>}<form className="privacy-connect" onSubmit={addPrivacyCaregiver}><label>보호자 아이디<input required maxLength="64" value={caregiverUsername} onChange={event => setCaregiverUsername(event.target.value)} /></label><button className="primary" disabled={privacyBusy === 'caregiver'}>연결</button></form></article>
+        <article><h3>연결 변경 이력</h3>{privacyAudit.length ? <ul className="privacy-audit">{privacyAudit.slice(0, 10).map(item => <li key={item.id}><span>{({ caregiver_connected: '보호자 연결', caregiver_disconnected: '보호자 연결 해제', personal_data_deleted: '이용 데이터 삭제' })[item.action] || item.action}</span><time>{new Date(item.created_at).toLocaleString('ko-KR')}</time></li>)}</ul> : <p className="muted">변경 이력이 없습니다.</p>}</article>
+        <article className="privacy-data"><h3>다운로드와 삭제</h3><p>다운로드에는 계정 정보, 문장·음성 이력, 개인 카드와 현재 열람자가 포함됩니다. 이미지 원본과 비밀번호는 포함되지 않습니다.</p><div><button disabled={privacyBusy === 'export'} onClick={downloadPrivacyData}>{privacyBusy === 'export' ? '준비 중…' : '내 데이터 다운로드'}</button><button className="danger" disabled={privacyBusy === 'delete'} onClick={deletePrivacyData}>{privacyBusy === 'delete' ? '삭제 중…' : '이용 데이터 삭제'}</button></div><small>삭제하면 개인 카드, 의사소통·음성 기록, 보호자 연결, 프로필 이미지와 사용자 설정이 제거됩니다. 로그인 계정과 삭제 확인 기록은 유지됩니다.</small></article>
+      </div>
     </section> : tab === 'admin' && user.role === 'admin' ? <section className="admin-review">
       <div className="category-admin">
         <div className="panel-heading"><span aria-hidden="true">▦</span><div><h2>카테고리 관리</h2><p className="muted">카테고리를 추가하고 표시 순서와 활성 상태를 관리하세요.</p></div></div>

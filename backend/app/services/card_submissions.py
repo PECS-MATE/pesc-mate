@@ -8,7 +8,7 @@ import warnings
 
 from fastapi import HTTPException
 from PIL import Image, ImageOps, UnidentifiedImageError
-from pymongo.errors import DuplicateKeyError, PyMongoError
+from pymongo.errors import DuplicateKeyError, OperationFailure, PyMongoError
 
 from app.services.card_metadata import with_inferred_metadata
 from app.services.database import database, log_crud
@@ -36,6 +36,8 @@ def _audit_collection():
 
 
 def _public(document):
+    private = document['visibility'] == 'private'
+    effective_status = 'approved' if private and document['status'] == 'pending' else document['status']
     return {
         'id': str(document['_id']),
         'label': document['label'],
@@ -43,7 +45,10 @@ def _public(document):
         'category': document['category'],
         'visibility': document['visibility'],
         'owner_id': document['owner_id'],
-        'status': document['status'],
+        'status': effective_status,
+        'requires_review': not private,
+        'sharing_notice': ('나만 볼 수 있으며 관리자 승인 없이 사용할 수 있습니다.' if private
+                           else '승인되면 모든 사용자에게 공개됩니다.'),
         'image_filename': document['image']['filename'],
         'image_content_type': document['image']['content_type'],
         'image_url': f"/api/cards/submissions/{document['_id']}/image",
@@ -64,26 +69,43 @@ def _compact_text(value):
     return ''.join(character for character in normalized if character.isalnum())
 
 
-def _validate_text(label, meaning):
+def _validate_text(label, meaning, visibility):
     if not 1 <= len(label) <= 30 or not 1 <= len(meaning) <= 120:
         raise HTTPException(422, '카드명은 1~30자, 뜻은 1~120자로 입력해 주세요.')
     if not LABEL_PATTERN.fullmatch(label) or not MEANING_PATTERN.fullmatch(meaning):
         raise HTTPException(422, '카드명 또는 뜻에 허용되지 않는 문자가 있습니다.')
-    compact = _compact_text(f'{label} {meaning}')
-    if any(word in compact for word in PROHIBITED_EXPRESSIONS):
-        raise HTTPException(422, '적절하지 않은 표현은 카드에 사용할 수 없습니다.')
+    if visibility == 'shared':
+        compact = _compact_text(f'{label} {meaning}')
+        if any(word in compact for word in PROHIBITED_EXPRESSIONS):
+            raise HTTPException(422, '공개 카드에는 다른 사용자에게 부적절한 표현을 사용할 수 없습니다.')
 
 
-def _ensure_unique_label(collection, normalized_label, exclude_id=None):
+def _ensure_unique_label(collection, normalized_label, owner_id, visibility, exclude_id=None):
     from app.services.communication import CARDS
     if normalized_label in {_compact_text(card['label']) for card in CARDS}:
         raise HTTPException(409, '이미 등록된 카드명입니다.')
     duplicate = next((row for row in collection.find({})
                       if row['_id'] != exclude_id
                       and row.get('status') != 'rejected'
-                      and _compact_text(row['label']) == normalized_label), None)
+                      and _compact_text(row['label']) == normalized_label
+                      and (row['owner_id'] == owner_id if visibility == 'private'
+                           else row['visibility'] == 'shared')), None)
     if duplicate:
         raise HTTPException(409, '이미 등록되었거나 승인 대기 중인 카드명입니다.')
+
+
+def _ensure_indexes(collection):
+    """Replace the legacy global unique label index with privacy-aware lookups."""
+    if hasattr(collection, 'index_information'):
+        indexes = collection.index_information()
+        legacy = indexes.get('normalized_label_1')
+        if legacy and legacy.get('unique'):
+            try:
+                collection.drop_index('normalized_label_1')
+            except OperationFailure:
+                pass
+    collection.create_index([('owner_id', 1), ('normalized_label', 1)], name='owner_label_lookup')
+    collection.create_index([('visibility', 1), ('normalized_label', 1)], name='shared_label_lookup')
 
 
 def _normalize_image(image_data, declared_content_type):
@@ -128,9 +150,9 @@ def create_submission(owner_id, label, meaning, category, visibility,
         raise HTTPException(422, '카드명과 뜻, 카테고리를 모두 입력해 주세요.')
     if category not in active_category_names():
         raise HTTPException(422, '사용할 수 없는 카드 카테고리입니다.')
-    _validate_text(label, meaning)
     if visibility not in {'private', 'shared'}:
         raise HTTPException(422, '공개 범위가 올바르지 않습니다.')
+    _validate_text(label, meaning, visibility)
     if submission_mode not in {'draft', 'submit'}:
         raise HTTPException(422, '저장 방식이 올바르지 않습니다.')
     safe_image_data, safe_content_type = _normalize_image(image_data, image_content_type)
@@ -149,7 +171,8 @@ def create_submission(owner_id, label, meaning, category, visibility,
         'category': category,
         'visibility': visibility,
         'owner_id': owner_id,
-        'status': 'draft' if submission_mode == 'draft' else 'pending',
+        'status': ('draft' if submission_mode == 'draft'
+                   else 'approved' if visibility == 'private' else 'pending'),
         'image': {
             'filename': 'card-image.webp',
             'original_filename': image_filename or 'card-image',
@@ -160,18 +183,16 @@ def create_submission(owner_id, label, meaning, category, visibility,
     }
     try:
         collection = _collection()
-        collection.create_index(
-            'normalized_label', unique=True,
-            partialFilterExpression={'status': {'$in': ['draft', 'pending', 'approved']}},
-        )
-        _ensure_unique_label(collection, normalized_label)
+        _ensure_indexes(collection)
+        _ensure_unique_label(collection, normalized_label, owner_id, visibility)
         collection.insert_one(document)
         _audit_collection().insert_one({
             '_id': str(uuid4()), 'card_submission_id': document['_id'],
-            'actor_id': owner_id, 'action': document['status'],
+            'actor_id': owner_id,
+            'action': 'private_activated' if document['status'] == 'approved' else document['status'],
             'reason': None, 'created_at': document['created_at'],
         })
-        log_crud('CREATE', 'card_submissions', '카드 승인 요청 저장')
+        log_crud('CREATE', 'card_submissions', '개인 카드 활성화' if visibility == 'private' else '공개 카드 요청 저장')
         log_crud('CREATE', 'card_audit_logs', '카드 등록 작업 기록')
         return _public(document)
     except DuplicateKeyError as exc:
@@ -195,7 +216,8 @@ def submissions_for_review():
     try:
         rows = _collection().find({}).sort('created_at', -1)
         log_crud('READ', 'card_submissions', '관리자 승인 목록 조회')
-        return [_public(row) for row in rows if row['status'] != 'draft']
+        return [_public(row) for row in rows
+                if row['visibility'] == 'shared' and row['status'] != 'draft']
     except PyMongoError as exc:
         raise HTTPException(503, '카드 승인 목록을 불러오지 못했습니다.') from exc
 
@@ -211,6 +233,8 @@ def review_submission(submission_id, reviewer_id, decision, reason=''):
         document = collection.find_one({'_id': submission_id})
         if not document:
             raise HTTPException(404, '카드 등록 요청을 찾을 수 없습니다.')
+        if document['visibility'] != 'shared':
+            raise HTTPException(403, '개인 카드는 관리자 승인 대상이 아닙니다.')
         allowed = {
             'pending': {'approved', 'rejected'},
             'approved': {'inactive'},
@@ -245,15 +269,18 @@ def submit_draft(submission_id, owner_id):
         if document['status'] != 'draft':
             raise HTTPException(409, '작성 중인 카드만 승인을 요청할 수 있습니다.')
         submitted_at = datetime.now(timezone.utc)
-        changes = {'status': 'pending', 'submitted_at': submitted_at}
+        next_status = 'approved' if document['visibility'] == 'private' else 'pending'
+        changes = {'status': next_status, 'submitted_at': submitted_at}
         collection.update_one({'_id': submission_id, 'owner_id': owner_id, 'status': 'draft'},
                               {'$set': changes})
         _audit_collection().insert_one({
             '_id': str(uuid4()), 'card_submission_id': submission_id,
-            'actor_id': owner_id, 'action': 'pending',
+            'actor_id': owner_id,
+            'action': 'private_activated' if next_status == 'approved' else 'pending',
             'reason': None, 'created_at': submitted_at,
         })
-        log_crud('UPDATE', 'card_submissions', '임시 저장 카드 승인 요청')
+        log_crud('UPDATE', 'card_submissions',
+                 '개인 카드 활성화' if next_status == 'approved' else '공개 카드 승인 요청')
         log_crud('CREATE', 'card_audit_logs', '카드 제출 작업 기록')
         return _public(document | changes)
     except HTTPException:
@@ -270,9 +297,9 @@ def update_submission(submission_id, owner_id, label, meaning, category, visibil
         raise HTTPException(422, '카드명과 뜻, 카테고리를 모두 입력해 주세요.')
     if category not in active_category_names():
         raise HTTPException(422, '사용할 수 없는 카드 카테고리입니다.')
-    _validate_text(label, meaning)
     if visibility not in {'private', 'shared'}:
         raise HTTPException(422, '공개 범위가 올바르지 않습니다.')
+    _validate_text(label, meaning, visibility)
     try:
         collection = _collection()
         document = collection.find_one({'_id': submission_id, 'owner_id': owner_id})
@@ -281,7 +308,7 @@ def update_submission(submission_id, owner_id, label, meaning, category, visibil
         if document['status'] not in {'draft', 'rejected'}:
             raise HTTPException(409, '작성 중이거나 반려된 카드만 수정할 수 있습니다.')
         normalized_label = _compact_text(label)
-        _ensure_unique_label(collection, normalized_label, submission_id)
+        _ensure_unique_label(collection, normalized_label, owner_id, visibility, submission_id)
         updated_at = datetime.now(timezone.utc)
         changes = {
             'label': label, 'normalized_label': normalized_label, 'meaning': meaning,
@@ -308,8 +335,11 @@ def update_submission(submission_id, owner_id, label, meaning, category, visibil
 
 def approved_cards_for(owner_id):
     try:
-        rows = _collection().find({'status': 'approved'}).sort('created_at', 1)
-        visible = [row for row in rows if row['visibility'] == 'shared' or row['owner_id'] == owner_id]
+        rows = _collection().find({}).sort('created_at', 1)
+        visible = [row for row in rows
+                   if (row['visibility'] == 'shared' and row['status'] == 'approved')
+                   or (row['visibility'] == 'private' and row['owner_id'] == owner_id
+                       and row['status'] in {'approved', 'pending'})]
         return [with_inferred_metadata({
             'id': f"custom:{row['_id']}", 'label': row['label'], 'meaning': row['meaning'],
             'symbol': '🖼️', 'category': row['category'], 'image_index': None,
@@ -324,10 +354,11 @@ def image_for(submission_id, requester):
         document = _collection().find_one({'_id': submission_id})
         if not document:
             raise HTTPException(404, '카드 이미지를 찾을 수 없습니다.')
-        can_review = requester['role'] == 'admin'
-        can_use = document['status'] == 'approved' and (
-            document['visibility'] == 'shared' or document['owner_id'] == requester['id']
-        )
+        can_review = requester['role'] == 'admin' and document['visibility'] == 'shared'
+        can_use = ((document['visibility'] == 'shared' and document['status'] == 'approved')
+                   or (document['visibility'] == 'private'
+                       and document['status'] in {'approved', 'pending'}
+                       and document['owner_id'] == requester['id']))
         if not can_review and not can_use:
             raise HTTPException(403, '이 카드 이미지를 볼 수 없습니다.')
         return document['image']['data'], document['image']['content_type']

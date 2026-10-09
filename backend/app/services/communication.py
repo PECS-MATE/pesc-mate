@@ -357,6 +357,9 @@ def statistics(user_id, days=None, now=None):
 def ensure_demo_history(user_id):
     """Create stable sample records only when the demo user has no history."""
     collection = _collection()
+    privacy = database().privacy_settings.find_one({'_id': user_id})
+    if not privacy or not privacy.get('guardian_consent') or privacy.get('deletion_status') == 'completed':
+        return
     if collection.count_documents({'user_id': user_id}, limit=1):
         return
     now = datetime.now(timezone.utc)

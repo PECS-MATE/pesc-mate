@@ -261,11 +261,23 @@ class CommunicationTests(unittest.TestCase):
         self.assertEqual(result['frequent_emotion_state']['id'], 'hurt')
         self.assertNotEqual(result['frequent_emotion_state']['id'], 'no')
 
-    def test_demo_history_is_seeded_once(self):
+    @patch('app.services.communication.database')
+    def test_demo_history_is_seeded_once(self, mocked_database):
+        mocked_database.return_value.privacy_settings.find_one.return_value = {
+            'guardian_consent': True, 'deletion_status': 'none',
+        }
         ensure_demo_history('demo')
         self.assertEqual(statistics('demo')['sessions'], 4)
         ensure_demo_history('demo')
         self.assertEqual(statistics('demo')['sessions'], 4)
+
+    @patch('app.services.communication.database')
+    def test_demo_history_is_not_restored_after_privacy_deletion(self, mocked_database):
+        mocked_database.return_value.privacy_settings.find_one.return_value = {
+            'guardian_consent': False, 'deletion_status': 'completed',
+        }
+        ensure_demo_history('demo')
+        self.assertEqual(statistics('demo')['sessions'], 0)
 
     def test_approved_custom_card_can_generate_and_be_counted(self):
         custom = {'id': 'custom:pencil', 'label': '연필', 'symbol': '🖼️', 'category': '학습'}

@@ -66,12 +66,13 @@ class CardSubmissionTests(unittest.TestCase):
         self.audit_mock.stop()
         self.category_mock.stop()
 
-    def test_submission_is_pending_and_scoped_to_owner(self):
+    def test_private_submission_is_immediately_active_and_scoped_to_owner(self):
         saved = create_submission(
             'demo', '연필', '글을 쓰는 도구', '학습', 'private',
             'pencil.png', 'image/png', self.image,
         )
-        self.assertEqual(saved['status'], 'pending')
+        self.assertEqual(saved['status'], 'approved')
+        self.assertFalse(saved['requires_review'])
         self.assertEqual(saved['owner_id'], 'demo')
         self.assertEqual(len(submissions_for('demo')), 1)
         self.assertEqual(submissions_for('another-user'), [])
@@ -91,15 +92,13 @@ class CardSubmissionTests(unittest.TestCase):
     def test_admin_approval_exposes_card_without_removing_defaults(self):
         saved = create_submission('demo', '연필', '글을 쓰는 도구', '학습', 'private',
                                   'pencil.png', 'image/png', self.image)
-        approved = review_submission(saved['id'], 'admin', 'approved', '')
-        self.assertEqual(approved['status'], 'approved')
         cards = approved_cards_for('demo')
         self.assertEqual(cards[0]['label'], '연필')
         self.assertEqual(approved_cards_for('another-user'), [])
         image, content_type = image_for(saved['id'], {'id': 'demo', 'role': 'user'})
         self.assertTrue(image.startswith(b'RIFF'))
         self.assertEqual(content_type, 'image/webp')
-        self.assertEqual(len(self.audit_collection.documents), 2)
+        self.assertEqual(len(self.audit_collection.documents), 1)
 
     def test_rejection_requires_reason_and_prevents_second_review(self):
         saved = create_submission('demo', '연필', '뜻', '학습', 'shared',
@@ -119,16 +118,20 @@ class CardSubmissionTests(unittest.TestCase):
         edited = update_submission(draft['id'], 'demo', '색연필', '색을 칠하는 도구', '학습', 'private')
         self.assertEqual(edited['label'], '색연필')
         self.assertEqual(edited['status'], 'draft')
-        pending = submit_draft(draft['id'], 'demo')
-        self.assertEqual(pending['status'], 'pending')
-        approved = review_submission(draft['id'], 'admin', 'approved')
+        approved = submit_draft(draft['id'], 'demo')
         self.assertEqual(approved['status'], 'approved')
-        inactive = review_submission(draft['id'], 'admin', 'inactive', '운영자 비활성')
+        with self.assertRaises(HTTPException) as private_review:
+            review_submission(draft['id'], 'admin', 'inactive', '운영자 비활성')
+        self.assertEqual(private_review.exception.status_code, 403)
+        shared = create_submission('demo', '공책', '글을 쓰는 책', '학습', 'shared',
+                                   'notebook.png', 'image/png', self.image)
+        review_submission(shared['id'], 'admin', 'approved')
+        inactive = review_submission(shared['id'], 'admin', 'inactive', '운영자 비활성')
         self.assertEqual(inactive['status'], 'inactive')
-        self.assertEqual(approved_cards_for('demo'), [])
-        restored = review_submission(draft['id'], 'admin', 'approved', '재활성')
+        self.assertEqual(len(approved_cards_for('demo')), 1)
+        restored = review_submission(shared['id'], 'admin', 'approved', '재활성')
         self.assertEqual(restored['status'], 'approved')
-        self.assertEqual(len(self.audit_collection.documents), 6)
+        self.assertEqual(len(self.audit_collection.documents), 7)
         with self.assertRaises(HTTPException) as approved_edit:
             update_submission(draft['id'], 'demo', '연필', '뜻', '학습', 'private')
         self.assertEqual(approved_edit.exception.status_code, 409)
@@ -151,7 +154,7 @@ class CardSubmissionTests(unittest.TestCase):
 
     def test_prohibited_variants_invalid_characters_and_duplicates_are_rejected(self):
         with self.assertRaises(HTTPException) as prohibited:
-            create_submission('demo', '안녕', '씨 ! 발', '감정', 'private',
+            create_submission('demo', '안녕', '씨 ! 발', '감정', 'shared',
                               'card.png', 'image/png', self.image)
         self.assertEqual(prohibited.exception.status_code, 422)
         with self.assertRaises(HTTPException) as invalid_character:
@@ -164,10 +167,29 @@ class CardSubmissionTests(unittest.TestCase):
         self.assertEqual(default_duplicate.exception.status_code, 409)
         create_submission('demo', '연필', '글을 쓰는 도구', '학습', 'private',
                           'card.png', 'image/png', self.image)
+        create_submission('another', '연 필', '개인 학습 도구', '학습', 'shared',
+                          'card.png', 'image/png', self.image)
         with self.assertRaises(HTTPException) as pending_duplicate:
-            create_submission('another', '연 필', '학습 도구', '학습', 'shared',
+            create_submission('third', '연 필', '공개 학습 도구', '학습', 'shared',
                               'card.png', 'image/png', self.image)
         self.assertEqual(pending_duplicate.exception.status_code, 409)
+
+    def test_private_expression_is_allowed_but_never_enters_public_review(self):
+        private = create_submission('demo', '싫은 말', '씨 ! 발이라고 말하기', '사용자 카드', 'private',
+                                    'card.png', 'image/png', self.image)
+        self.assertEqual(private['status'], 'approved')
+        self.assertEqual(submissions_for_review(), [])
+        with self.assertRaises(HTTPException) as hidden:
+            image_for(private['id'], {'id': 'admin', 'role': 'admin'})
+        self.assertEqual(hidden.exception.status_code, 403)
+
+    def test_legacy_pending_private_card_remains_available_only_to_owner(self):
+        saved = create_submission('demo', '사진', '개인 사진', '사용자 카드', 'private',
+                                  'card.png', 'image/png', self.image)
+        self.collection.documents[0]['status'] = 'pending'
+        self.assertEqual(submissions_for('demo')[0]['status'], 'approved')
+        self.assertEqual(approved_cards_for('demo')[0]['label'], saved['label'])
+        self.assertEqual(approved_cards_for('other'), [])
 
     def test_language_review_flags_are_saved_with_submission(self):
         saved = create_submission('demo', 'TMI', '지나친 정보', '사용자 카드', 'private',

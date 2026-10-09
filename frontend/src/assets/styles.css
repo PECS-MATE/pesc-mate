@@ -134,6 +134,8 @@ footer { text-align: center; padding: 12px; }
 .login-mascot { width: 88px; height: 88px; margin: 0 auto 20px; border-radius: 28px; background: #36bfd2; font-size: 2.6rem; transform: rotate(-5deg); }
 .login-card form, .login-card label { display: grid; gap: 8px; text-align: left; }
 .login-card form { gap: 17px; margin-top: 24px; }
+.login-card .registration-consent { display: grid; grid-template-columns: 24px 1fr; align-items: center; line-height: 1.45; }
+.login-card .registration-consent input { width: 22px; height: 22px; margin: 0; }
 .login-card input { width: 100%; margin: 0; }
 .demo-account { padding: 11px; margin: 18px 0 0; border-radius: 12px; background: #fff2a7; text-align: center; font-size: .86rem; }
 .auth-switch { margin-top: 16px; border: 0; box-shadow: none; background: transparent; color: #4f83c2; text-decoration: underline; }
@@ -615,6 +617,29 @@ footer { color: #9aa0aa; }
 .mascot-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .mascot-empty p { margin: 0; }
 .detail-empty .mascot { margin: 0 auto 12px; }
+
+/* User-controlled privacy, consent and caregiver access. */
+.privacy-panel { padding: clamp(18px, 3vw, 28px); }
+.privacy-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.privacy-grid article { padding: 18px; border: 1px solid #e1e6ec; border-radius: 14px; background: #fff; }
+.privacy-grid h3 { margin-top: 0; }
+.privacy-grid label { display: grid; gap: 7px; margin: 12px 0; color: #59616d; font-weight: 700; }
+.privacy-grid select, .privacy-grid input { min-height: 44px; padding: 9px 11px; border: 1px solid #cbd5df; border-radius: 9px; background: #fff; }
+.privacy-grid .privacy-check { grid-template-columns: 24px 1fr; align-items: center; line-height: 1.5; }
+.privacy-check input { width: 22px; min-height: 22px; height: 22px; }
+.privacy-caregivers, .privacy-audit { margin: 0; padding: 0; list-style: none; }
+.privacy-caregivers li, .privacy-audit li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid #edf0f3; }
+.privacy-caregivers strong, .privacy-caregivers small { display: block; }
+.privacy-caregivers small, .privacy-audit time { margin-top: 4px; color: #858c96; font-size: .76rem; }
+.privacy-connect { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 10px; margin-top: 14px; }
+.privacy-connect label { margin: 0; }
+.privacy-data > div { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+.privacy-data > small { display: block; color: #7b5a5f; line-height: 1.5; }
+.privacy-receipt { padding: 12px 14px; color: #256341; background: #e7f7ed; border-radius: 10px; font-weight: 700; }
+
+@media (max-width: 900px) {
+  .privacy-grid { grid-template-columns: 1fr; }
+}
 
 /* Per-user AAC accessibility preferences. */
 .skip-link { position: fixed; z-index: 100; left: 16px; top: 10px; padding: 10px 14px; border-radius: 8px; color: #fff; background: #17202a; transform: translateY(-150%); }

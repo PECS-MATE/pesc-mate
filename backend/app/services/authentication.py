@@ -45,13 +45,22 @@ def ensure_demo_users():
     _ensure_user(caregiver_id, os.environ.get('CAREGIVER_PASSWORD', 'caregiver1234'), '민준 보호자', 'caregiver')
     admin_id = os.environ.get('ADMIN_USERNAME', 'admin')
     _ensure_user(admin_id, os.environ.get('ADMIN_PASSWORD', 'admin1234'), '컨텐츠 관리자', 'admin')
-    _database().caregiver_links.update_one(
-        {'_id': f'{caregiver_id}:{user_id}'},
-        {'$set': {'caregiver_id': caregiver_id, 'user_id': user_id},
-         '$setOnInsert': {'created_at': datetime.now(timezone.utc)}},
-        upsert=True,
+    database = _database()
+    privacy = database.privacy_settings.find_one({'_id': user_id})
+    latest_access_change = database.privacy_audit_logs.find_one(
+        {'user_id': user_id, 'target_id': caregiver_id,
+         'action': {'$in': ['caregiver_connected', 'caregiver_disconnected']}},
+        sort=[('created_at', -1)],
     )
-    log_crud('UPDATE', 'caregiver_links', '데모 사용자 연결 조회')
+    if (privacy and privacy.get('guardian_consent') and privacy.get('deletion_status') != 'completed'
+            and (not latest_access_change or latest_access_change['action'] != 'caregiver_disconnected')):
+        database.caregiver_links.update_one(
+            {'_id': f'{caregiver_id}:{user_id}'},
+            {'$set': {'caregiver_id': caregiver_id, 'user_id': user_id},
+             '$setOnInsert': {'created_at': datetime.now(timezone.utc)}},
+            upsert=True,
+        )
+        log_crud('UPDATE', 'caregiver_links', '데모 사용자 최초 연결')
 
 
 def login(username, password):

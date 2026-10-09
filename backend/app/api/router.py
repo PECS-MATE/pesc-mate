@@ -7,6 +7,10 @@ from app.services.communication import CARDS, regenerate_session, save_session, 
 from app.services.accessibility_settings import save_settings as save_accessibility_settings
 from app.services.accessibility_settings import settings_for as accessibility_settings_for
 from app.services.authentication import current_user, dashboard_user, linked_users, login, logout, register, security
+from app.services.privacy import (
+    access_audit_for, caregiver_access_for, connect_caregiver, delete_personal_data,
+    disconnect_caregiver, export_for, privacy_for, save_privacy,
+)
 from app.services.model import status as model_status
 from app.services.caregiver_notes import delete_note, notes_for, save_note
 from app.services.tts_settings import save_settings, settings_for
@@ -51,6 +55,7 @@ class RegisterRequest(BaseModel):
     username: str = Field(pattern=r'^[A-Za-z0-9_-]+$', min_length=4, max_length=32)
     password: str = Field(min_length=8, max_length=128)
     name: str = Field(min_length=1, max_length=30)
+    guardian_consent: Literal[True]
 
 
 class CaregiverNoteRequest(BaseModel):
@@ -106,6 +111,42 @@ class AccessibilitySettingsRequest(BaseModel):
 
 class AccessibilitySettingsResponse(AccessibilitySettingsRequest):
     pass
+
+
+class PrivacySettingsRequest(BaseModel):
+    guardian_consent: bool
+    retention_days: Literal[30, 90, 365, 1095]
+
+
+class PrivacySettingsResponse(PrivacySettingsRequest):
+    consent_version: str
+    consented_at: datetime | None = None
+    deletion_status: str
+    deleted_at: datetime | None = None
+
+
+class CaregiverConnectRequest(BaseModel):
+    username: str = Field(min_length=1, max_length=64)
+
+
+class CaregiverAccessResponse(BaseModel):
+    caregiver_id: str
+    username: str
+    name: str
+    scopes: list[str]
+    connected_at: datetime | None = None
+
+
+class PrivacyAuditResponse(BaseModel):
+    id: str
+    action: str
+    actor_id: str
+    target_id: str | None = None
+    created_at: datetime
+
+
+class PrivacyDeleteRequest(BaseModel):
+    confirmation: Literal['DELETE']
 
 
 class TtsEventRequest(BaseModel):
@@ -176,6 +217,8 @@ class CardSubmissionResponse(BaseModel):
     visibility: str
     owner_id: str
     status: str
+    requires_review: bool
+    sharing_notice: str
     image_filename: str
     image_content_type: str
     image_url: str
@@ -243,6 +286,12 @@ def require_communicator(user):
     return user
 
 
+def require_guardian_consent(user):
+    if not privacy_for(user['id'])['guardian_consent']:
+        raise HTTPException(403, '기록을 저장하려면 개인정보 화면에서 법정대리인 동의를 확인해 주세요.')
+    return user
+
+
 def require_admin(user):
     if user['role'] != 'admin':
         raise HTTPException(403, '관리자 계정만 이용할 수 있습니다.')
@@ -259,7 +308,9 @@ def create_account(request: RegisterRequest):
     name = request.name.strip()
     if not name:
         raise HTTPException(422, '이름을 입력해 주세요.')
-    return register(request.username.strip(), request.password, name)
+    result = register(request.username.strip(), request.password, name)
+    save_privacy(result['user']['id'], request.guardian_consent, 365)
+    return result
 
 
 @api_router.get('/auth/me', response_model=UserResponse, tags=['인증'])
@@ -296,6 +347,55 @@ def remove_caregiver_note(session_id: UUID,
     return None
 
 
+@api_router.get('/privacy/settings', response_model=PrivacySettingsResponse, tags=['개인정보'])
+def get_privacy_settings(user=Depends(current_user)):
+    require_communicator(user)
+    return privacy_for(user['id'])
+
+
+@api_router.put('/privacy/settings', response_model=PrivacySettingsResponse, tags=['개인정보'])
+def put_privacy_settings(request: PrivacySettingsRequest, user=Depends(current_user)):
+    require_communicator(user)
+    return save_privacy(user['id'], request.guardian_consent, request.retention_days)
+
+
+@api_router.get('/privacy/caregivers', response_model=list[CaregiverAccessResponse], tags=['개인정보'])
+def get_privacy_caregivers(user=Depends(current_user)):
+    require_communicator(user)
+    return caregiver_access_for(user['id'])
+
+
+@api_router.post('/privacy/caregivers', response_model=list[CaregiverAccessResponse], tags=['개인정보'])
+def post_privacy_caregiver(request: CaregiverConnectRequest, user=Depends(current_user)):
+    require_communicator(user)
+    return connect_caregiver(user['id'], request.username.strip())
+
+
+@api_router.delete('/privacy/caregivers/{caregiver_id}', status_code=204, tags=['개인정보'])
+def delete_privacy_caregiver(caregiver_id: str, user=Depends(current_user)):
+    require_communicator(user)
+    disconnect_caregiver(user['id'], caregiver_id)
+    return None
+
+
+@api_router.get('/privacy/audit', response_model=list[PrivacyAuditResponse], tags=['개인정보'])
+def get_privacy_audit(user=Depends(current_user)):
+    require_communicator(user)
+    return access_audit_for(user['id'])
+
+
+@api_router.get('/privacy/export', tags=['개인정보'])
+def get_privacy_export(user=Depends(current_user)):
+    require_communicator(user)
+    return export_for(user['id'])
+
+
+@api_router.delete('/privacy/data', response_model=PrivacySettingsResponse, tags=['개인정보'])
+def delete_privacy_data(request: PrivacyDeleteRequest, user=Depends(current_user)):
+    require_communicator(user)
+    return delete_personal_data(user['id'])
+
+
 @api_router.post('/auth/logout', status_code=204, tags=['인증'])
 def sign_out(_user=Depends(current_user), credentials=Depends(security)):
     logout(credentials)
@@ -329,6 +429,7 @@ def put_accessibility_settings(request: AccessibilitySettingsRequest, user=Depen
 @api_router.post('/tts/events', response_model=TtsEventResponse, status_code=201, tags=['음성'])
 def create_tts_event(request: TtsEventRequest, user=Depends(current_user)):
     require_communicator(user)
+    require_guardian_consent(user)
     return start_event(user['id'], str(request.request_id), request.content_type, request.char_count)
 
 
@@ -365,6 +466,7 @@ async def submit_card(label: str = Form(min_length=1, max_length=30),
                       image: UploadFile = File(),
                       user=Depends(current_user)):
     require_communicator(user)
+    require_guardian_consent(user)
     image_data = await image.read(MAX_IMAGE_BYTES + 1)
     return create_submission(user['id'], label, meaning, category, visibility,
                              image.filename, image.content_type, image_data, submission_mode)
@@ -373,6 +475,7 @@ async def submit_card(label: str = Form(min_length=1, max_length=30),
 @api_router.post('/cards/submissions/{submission_id}/submit', response_model=CardSubmissionResponse, tags=['카드'])
 def request_card_review(submission_id: str, user=Depends(current_user)):
     require_communicator(user)
+    require_guardian_consent(user)
     return submit_draft(submission_id, user['id'])
 
 
@@ -380,6 +483,7 @@ def request_card_review(submission_id: str, user=Depends(current_user)):
 def edit_card_submission(submission_id: str, request: CardUpdateRequest,
                          user=Depends(current_user)):
     require_communicator(user)
+    require_guardian_consent(user)
     return update_submission(submission_id, user['id'], request.label, request.meaning,
                              request.category, request.visibility)
 
@@ -425,6 +529,7 @@ def edit_category(category_id: str, request: CategoryUpdateRequest, user=Depends
 @api_router.post('/sentences', response_model=CommunicationSessionResponse, tags=['문장'])
 def generate_sentence(request: SentenceRequest, user=Depends(current_user)):
     require_communicator(user)
+    require_guardian_consent(user)
     return save_session(request, user['id'], approved_cards_for(user['id']))
 
 
@@ -433,6 +538,7 @@ def generate_sentence(request: SentenceRequest, user=Depends(current_user)):
 def regenerate_sentence(session_id: UUID, request: RegenerateSentenceRequest,
                         user=Depends(current_user)):
     require_communicator(user)
+    require_guardian_consent(user)
     return regenerate_session(session_id, request.request_id, user['id'],
                               approved_cards_for(user['id']))
 
