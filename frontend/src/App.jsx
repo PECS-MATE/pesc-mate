@@ -13,8 +13,6 @@ import {
   clearOfflineUserData, pendingLearningAttempts, pendingOfflineEvents, queueLearningAttempt,
   queueOfflineEvent, removeLearningAttempts, removeOfflineEvents,
 } from "./services/offlineStore";
-import cardSprite from "./assets/cards/pecs-card-sprite.png";
-
 const CARD_IMAGE_MODULES = import.meta.glob('./assets/cards/*.png', {
   eager: true,
   query: '?url',
@@ -26,10 +24,15 @@ const CARD_IMAGE_NAMES = {
   water: '물.png',
   rice: '밥.png',
   apple: '사과.png',
-  drink: '물을 마시다.png',
-  eat: '밥을 먹다.png',
+  drink: '마시다.png',
+  eat: '먹다.png',
   go: '가다.png',
   rest: '쉬다.png',
+  help: '도와주세요.png',
+  toilet: '화장실.png',
+  hurt: '아파요.png',
+  no: '싫어요.png',
+  stop: '그만.png',
 };
 
 const CARD_IMAGES = Object.fromEntries(Object.entries(CARD_IMAGE_NAMES).map(([id, filename]) => [
@@ -44,7 +47,7 @@ const CARD_META = Object.fromEntries([
   ['stop', '그만'], ['more', '더'], ['again', '다시'], ['wait', '기다려 주세요'], ['unknown', '모르겠어요'], ['other', '다른 것'],
   ['head', '머리'], ['stomach', '배'], ['hand', '손'], ['leg', '다리'], ['here_hurts', '여기가 아파요'],
   ['uncomfortable', '불편해요'], ['scared', '무서워요'], ['noisy', '시끄러워요'],
-].map(([id, label], image_index) => [id, { id, label, image_index: image_index < 18 ? image_index : null }]));
+].map(([id, label]) => [id, { id, label }]));
 
 const TTS_PRESETS = {
   child: { label: '어린이 느낌', rate: 0.9, pitch: 1.25 },
@@ -330,7 +333,7 @@ function App() {
   function primeOfflineAssets() {
     if (!('serviceWorker' in navigator)) return;
     navigator.serviceWorker.ready.then(registration => registration.active?.postMessage({
-      type: 'CACHE_ASSETS', urls: [cardSprite, ...Object.values(CARD_IMAGE_MODULES)],
+      type: 'CACHE_ASSETS', urls: Object.values(CARD_IMAGE_MODULES),
     })).catch(() => {});
   }
 
@@ -828,7 +831,7 @@ function App() {
     const allowedNames = new Set(configured.map(item => item.name));
     const selectedName = cardCategories.find(item => item.id === categoryId)?.name;
     return cards.filter(card => {
-      const hasPicture = Boolean(card.image_src || CARD_IMAGES[card.id]) || Number.isInteger(card.image_index);
+      const hasPicture = Boolean(card.image_src || CARD_IMAGES[card.id]);
       const allowed = categoryId === 'all'
         ? (!allowedNames.size || allowedNames.has(card.category))
         : card.category === selectedName;
@@ -1153,10 +1156,10 @@ function App() {
   function artStyle(card) {
     if (card.image_src) return { backgroundImage: `url(${card.image_src})`, backgroundPosition: 'center', backgroundSize: 'cover' };
     if (CARD_IMAGES[card.id]) return { backgroundImage: `url(${CARD_IMAGES[card.id]})`, backgroundPosition: 'center', backgroundSize: 'cover' };
-    return { backgroundImage: `url(${cardSprite})`, backgroundPosition: `${(card.image_index % 6) * 20}% ${Math.floor(card.image_index / 6) * 50}%` };
+    return undefined;
   }
   function cardArt(card, className = 'card-art') {
-    const hasImage = Boolean(card.image_src) || Number.isInteger(card.image_index);
+    const hasImage = Boolean(card.image_src || CARD_IMAGES[card.id]);
     return <span className={`${className}${hasImage ? '' : ' image-fallback'}`} role="img" aria-label={hasImage ? `${card.label} 그림` : `${card.label} 대체 이미지`} style={hasImage ? artStyle(card) : undefined}>
       {!hasImage && <><b aria-hidden="true">🖼️</b><small>{card.label}</small></>}
     </span>;
@@ -1168,9 +1171,9 @@ function App() {
     }
     return <span className="card-speaker" role="button" tabIndex="0" aria-label={`${card.label} 단어 듣기`} onClick={play} onKeyDown={event => { if (['Enter', ' '].includes(event.key)) play(event); }}>🔊</span>;
   }
-  function cardPicture(card, className = 'mini-card') {
-    const hasImage = Boolean(card.image_src) || Number.isInteger(card.image_index);
-    return <span key={card.id} className={`${className}${hasImage ? '' : ' image-fallback'}`} title={card.label} aria-label={card.label} role="img" style={hasImage ? artStyle(card) : undefined}>{!hasImage && <small>{card.label}</small>}</span>;
+  function cardPicture(card, className = 'mini-card', renderKey = card.id) {
+    const hasImage = Boolean(card.image_src || CARD_IMAGES[card.id]);
+    return <span key={renderKey} className={`${className}${hasImage ? '' : ' image-fallback'}`} title={card.label} aria-label={card.label} role="img" style={hasImage ? artStyle(card) : undefined}>{!hasImage && <small>{card.label}</small>}</span>;
   }
   function tile(card) {
     const speakOnTap = outputMode === 'word';
@@ -1489,7 +1492,7 @@ function App() {
         <div className="metrics"><div>저장한 문장<strong>{stats.sessions}개</strong></div><div>사용한 카드<strong>{stats.selections}장</strong></div></div>
         <h3>카테고리별 사용</h3>{Object.entries(stats.categories).map(([name, count]) => <div className="bar" key={name}><span>{name}</span><meter min="0" max={Math.max(stats.selections, 1)} value={count} /> {count}회</div>)}
         <h3>자주 사용한 카드</h3><div className="categories">{stats.top_cards.slice(0, 8).map(c => <span className="status" key={c.id}>{c.symbol} {c.label} · {c.count}회</span>)}</div>
-        <h3>{isSupporter ? '최근 의사소통 타임라인' : '최근 문장'}</h3>{!stats.recent.length ? <EmptyState>선택한 기간에 기록이 없어요.</EmptyState> : <ul className="history">{stats.recent.map(r => <li key={r.id}>{isSupporter && <div className="history-cards">{r.cards.map((id, index) => cardPicture({ ...(CARD_META[id] || { id, label: id, image_index: 0 }), id: `${id}-${index}` }))}</div>}<span>{r.sentence}</span><time>{new Date(r.created_at).toLocaleString('ko-KR')}</time>{isSupporter && canWriteNotes && <div className="caregiver-note"><textarea aria-label={`${r.sentence} 지원 메모`} maxLength="500" placeholder="상황이나 반응을 메모해 주세요" value={noteDrafts[r.id] ?? r.caregiver_note ?? ''} onChange={event => setNoteDrafts(current => ({ ...current, [r.id]: event.target.value }))} /><div><small>{(noteDrafts[r.id] ?? r.caregiver_note ?? '').length}/500</small><button disabled={noteBusy === r.id} onClick={() => saveCaregiverNote(r.id)}>메모 저장</button>{r.caregiver_note && <button disabled={noteBusy === r.id} onClick={() => removeCaregiverNote(r.id)}>삭제</button>}</div></div>}</li>)}</ul>}</div>}
+        <h3>{isSupporter ? '최근 의사소통 타임라인' : '최근 문장'}</h3>{!stats.recent.length ? <EmptyState>선택한 기간에 기록이 없어요.</EmptyState> : <ul className="history">{stats.recent.map(r => <li key={r.id}>{isSupporter && <div className="history-cards">{r.cards.map((id, index) => cardPicture(CARD_META[id] || { id, label: id }, 'mini-card', `${id}-${index}`))}</div>}<span>{r.sentence}</span><time>{new Date(r.created_at).toLocaleString('ko-KR')}</time>{isSupporter && canWriteNotes && <div className="caregiver-note"><textarea aria-label={`${r.sentence} 지원 메모`} maxLength="500" placeholder="상황이나 반응을 메모해 주세요" value={noteDrafts[r.id] ?? r.caregiver_note ?? ''} onChange={event => setNoteDrafts(current => ({ ...current, [r.id]: event.target.value }))} /><div><small>{(noteDrafts[r.id] ?? r.caregiver_note ?? '').length}/500</small><button disabled={noteBusy === r.id} onClick={() => saveCaregiverNote(r.id)}>메모 저장</button>{r.caregiver_note && <button disabled={noteBusy === r.id} onClick={() => removeCaregiverNote(r.id)}>삭제</button>}</div></div>}</li>)}</ul>}</div>}
       </section>}
       <footer>실행용 프로토타입 · 실제 개인정보를 입력하지 마세요.</footer>
     </div>
