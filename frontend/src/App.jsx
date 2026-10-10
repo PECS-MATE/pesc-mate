@@ -47,7 +47,7 @@ const TTS_PRESETS = {
   man: { label: '남성 느낌', rate: 0.85, pitch: 0.8 },
 };
 
-const QUICK_EXPRESSIONS = [
+const DEFAULT_QUICK_EXPRESSIONS = [
   { id: 'hurt', label: '아파요', symbol: '🤕' },
   { id: 'no', label: '싫어요', symbol: '🙅' },
   { id: 'help', label: '도와주세요', symbol: '🤝' },
@@ -141,6 +141,11 @@ function App() {
   const [caregiverUsername, setCaregiverUsername] = useState('');
   const [newSupportPermissions, setNewSupportPermissions] = useState(['records_read']);
   const [supportPermissionDrafts, setSupportPermissionDrafts] = useState({});
+  const [boardLayout, setBoardLayout] = useState(null);
+  const [boardLayoutAudit, setBoardLayoutAudit] = useState([]);
+  const [quickDraft, setQuickDraft] = useState([]);
+  const [slotDraft, setSlotDraft] = useState([]);
+  const [boardConfigBusy, setBoardConfigBusy] = useState('');
   const [offline, setOffline] = useState(!navigator.onLine);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
 
@@ -172,6 +177,7 @@ function App() {
     setAccessibility(snapshot.accessibility); setAccessibilitySaved(true);
     setPrivacy(snapshot.privacy); setPrivacyCaregivers(snapshot.caregivers || []);
     setPrivacyAudit(snapshot.privacy_audit || []); setTtsSettingsSaved(true);
+    setBoardLayout(snapshot.board_layout || null);
     setLoaded(true); setOffline(true);
     if (!snapshot.privacy?.guardian_consent) setTab('privacy');
     setPendingSyncCount((await pendingOfflineEvents(account.id).catch(() => [])).length);
@@ -223,12 +229,13 @@ function App() {
         setStats(null); setLoaded(true);
         return;
       }
-      const [rawCards, rawCategories, rawRecommended, dashboard, submissions, voiceSettings, accessibilitySettings, privacySettings, caregivers, privacyHistory] = await Promise.all([request('/cards'), request('/categories'), request('/recommendations'), request(dashboardPath()), request('/cards/submissions'), request('/tts/settings'), request('/accessibility/settings'), request('/privacy/settings'), request('/support/links'), request('/privacy/audit')]);
+      const [rawCards, rawCategories, rawRecommended, dashboard, submissions, voiceSettings, accessibilitySettings, privacySettings, caregivers, privacyHistory, layout] = await Promise.all([request('/cards'), request('/categories'), request('/recommendations'), request(dashboardPath()), request('/cards/submissions'), request('/tts/settings'), request('/accessibility/settings'), request('/privacy/settings'), request('/support/links'), request('/privacy/audit'), request('/board/layout')]);
       const [all, rec] = await Promise.all([hydrateImages(rawCards), hydrateImages(rawRecommended)]);
       setCards(all); setCardCategories(rawCategories); setRecommended(rec); setStats(dashboard); setCardSubmissions(submissions); setBoard(loadBoard(account?.id, all));
       setTtsSettings({ preset: voiceSettings.preset, voiceName: voiceSettings.voice_name, rate: voiceSettings.rate, pitch: voiceSettings.pitch });
       setAccessibility(accessibilitySettings); setAccessibilitySaved(true);
       setPrivacy(privacySettings); setPrivacyCaregivers(caregivers); setPrivacyAudit(privacyHistory);
+      setBoardLayout(layout);
       setSupportPermissionDrafts(Object.fromEntries(caregivers.map(item => [item.supporter_id, item.permissions])));
       if (!privacySettings.guardian_consent) setTab('privacy');
       setTtsSettingsSaved(true); setLoaded(true); setOffline(false);
@@ -237,7 +244,7 @@ function App() {
         recommended: cacheableCards(rec), dashboard, submissions,
         tts_settings: { preset: voiceSettings.preset, voiceName: voiceSettings.voice_name, rate: voiceSettings.rate, pitch: voiceSettings.pitch },
         accessibility: accessibilitySettings, privacy: privacySettings,
-        caregivers, privacy_audit: privacyHistory,
+        caregivers, privacy_audit: privacyHistory, board_layout: layout,
       }).catch(() => {});
       primeOfflineAssets();
       syncPendingEvents(account);
@@ -288,7 +295,7 @@ function App() {
 
   useEffect(() => {
     setCardPage(0);
-  }, [category, search, accessibility.cards_per_page, tab, cards.length]);
+  }, [category, search, accessibility.cards_per_page, tab, cards.length, boardLayout?.updated_at]);
 
   useEffect(() => {
     const online = () => { setOffline(false); syncPendingEvents(user); if (user) load(user); };
@@ -321,7 +328,7 @@ function App() {
     if (user?.id) await clearOfflineUserData(user.id).catch(() => {});
     setToken(null); setUser(null); setLoaded(false); setShowProfile(false); setProfileNotice('');
     [...cards, ...recommended, ...adminSubmissions].forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); });
-    setCards([]); setCardCategories([]); setRecommended([]); setStats(null); setBoard([]); setCardSubmissions([]); setAdminSubmissions([]); setAdminCategories([]); setCategoryEdits({}); setCategoryError(''); setLinkedUsers([]); setSelectedUser(null); setText(''); setGeneratedSessionId(''); setGenerationAttempt(1); setSentenceConfirmed(false); setGenerationFailed(false); setError(''); setTab('home');
+    setCards([]); setCardCategories([]); setRecommended([]); setStats(null); setBoard([]); setCardSubmissions([]); setAdminSubmissions([]); setAdminCategories([]); setCategoryEdits({}); setCategoryError(''); setLinkedUsers([]); setSelectedUser(null); setBoardLayout(null); setBoardLayoutAudit([]); setQuickDraft([]); setSlotDraft([]); setText(''); setGeneratedSessionId(''); setGenerationAttempt(1); setSentenceConfirmed(false); setGenerationFailed(false); setError(''); setTab('home');
     setTtsSettings({ preset: 'child', voiceName: '', rate: 0.9, pitch: 1.25 }); setTtsSettingsSaved(false); setAccessibility(DEFAULT_ACCESSIBILITY); setAccessibilitySaved(true); setPrivacy(DEFAULT_PRIVACY); setPrivacyCaregivers([]); setPrivacyAudit([]); setSpeechFailure(null); setBusy(false);
   }
 
@@ -509,6 +516,7 @@ function App() {
     try {
       if (tab === 'dashboard' && target.permissions.includes('records_read')) setStats(await request(dashboardPath(period, target)));
       if (tab === 'support_settings' && target.permissions.includes('voice_access_manage')) await loadSupportSettings(target);
+      if (tab === 'board_settings' && target.permissions.some(permission => ['quick_speech_manage', 'board_manage'].includes(permission))) await loadBoardConfiguration(target);
     }
     catch (e) { setError(e.message); }
     finally { setStatsBusy(false); }
@@ -519,6 +527,7 @@ function App() {
     try {
       if (nextTab === 'dashboard') setStats(await request(dashboardPath(period, selectedUser)));
       if (nextTab === 'support_settings') await loadSupportSettings(selectedUser);
+      if (nextTab === 'board_settings') await loadBoardConfiguration(selectedUser);
     } catch (e) { setError(e.message); }
     finally { setStatsBusy(false); }
   }
@@ -529,6 +538,43 @@ function App() {
     ]);
     setTtsSettings({ preset: voiceSettings.preset, voiceName: voiceSettings.voice_name, rate: voiceSettings.rate, pitch: voiceSettings.pitch });
     setTtsSettingsSaved(true); setAccessibility(accessSettings); setAccessibilitySaved(true);
+  }
+  async function loadBoardConfiguration(target) {
+    const query = `?user_id=${encodeURIComponent(target.id)}`;
+    const [layout, audit] = await Promise.all([
+      request(`/board/layout${query}`), request(`/board/layout/audit${query}`),
+    ]);
+    setBoardLayout(layout); setBoardLayoutAudit(audit);
+    setQuickDraft(layout.quick_expression_ids); setSlotDraft(layout.slots.map(slot => slot.card_id));
+  }
+  function moveDraft(setter, index, offset) {
+    setter(current => {
+      const next = [...current];
+      [next[index], next[index + offset]] = [next[index + offset], next[index]];
+      return next;
+    });
+  }
+  function toggleDraft(setter, current, cardId, maximum) {
+    if (current.includes(cardId)) setter(current.filter(id => id !== cardId));
+    else if (current.length < maximum) setter([...current, cardId]);
+    else setError(`카드는 최대 ${maximum}개까지 선택할 수 있습니다.`);
+  }
+  async function saveBoardConfiguration(kind) {
+    if (!selectedUser) return;
+    const quick = kind === 'quick';
+    const cardIds = quick ? quickDraft : slotDraft;
+    if (!cardIds.length) { setError('카드를 하나 이상 선택해 주세요.'); return; }
+    setBoardConfigBusy(kind); setError('');
+    try {
+      const path = quick ? 'quick-expressions' : 'slots';
+      const query = `?user_id=${encodeURIComponent(selectedUser.id)}`;
+      const layout = await request(`/board/layout/${path}${query}`, {
+        method: 'PUT', body: JSON.stringify({ card_ids: cardIds }),
+      });
+      setBoardLayout(layout);
+      setBoardLayoutAudit(await request(`/board/layout/audit${query}`));
+    } catch (e) { setError(e.message); }
+    finally { setBoardConfigBusy(''); }
   }
   async function saveCaregiverNote(sessionId) {
     const content = (noteDrafts[sessionId] ?? stats.recent.find(row => row.id === sessionId)?.caregiver_note ?? '').trim();
@@ -729,7 +775,16 @@ function App() {
       <strong>{card.label}</strong>{card.reason && <small>{card.reason}</small>}{cardSpeaker(card)}
     </button>;
   }
-  const filteredCards = cards.filter(card =>
+  const layoutCards = boardLayout?.available_cards || cards;
+  const layoutCardsById = new Map(layoutCards.map(card => [card.id, card]));
+  const configuredBoardCards = boardLayout
+    ? boardLayout.slots.map(slot => cards.find(card => card.id === slot.card_id) || layoutCardsById.get(slot.card_id)).filter(Boolean)
+    : cards;
+  const activeCardSource = tab === 'cards' ? configuredBoardCards : cards;
+  const quickExpressionCards = boardLayout
+    ? boardLayout.quick_expression_ids.map(id => cards.find(card => card.id === id) || layoutCardsById.get(id)).filter(Boolean)
+    : DEFAULT_QUICK_EXPRESSIONS;
+  const filteredCards = activeCardSource.filter(card =>
     (category === '전체' || card.category === category)
     && card.label.includes(search.trim())
   );
@@ -751,6 +806,8 @@ function App() {
   const canReadRecords = selectedPermissions.includes('records_read');
   const canWriteNotes = selectedPermissions.includes('notes_write');
   const canManageVoice = selectedPermissions.includes('voice_access_manage');
+  const canManageQuick = selectedPermissions.includes('quick_speech_manage');
+  const canManageBoard = selectedPermissions.includes('board_manage');
   const localKoreanVoices = ttsVoices.filter(voice => voice.localService !== false);
   const speechStatusLabel = ({ starting: '음성 준비 중', playing: '음성 재생 중', paused: '음성 일시 정지' })[speechState.status];
   const pageTitle = user?.role === 'admin'
@@ -794,6 +851,7 @@ function App() {
         : isSupporter ? <>
           <button className={tab === 'support_home' ? 'active' : ''} onClick={() => setTab('support_home')}><span aria-hidden="true">⌂</span>지원 홈</button>
           {canReadRecords && <button className={tab === 'dashboard' ? 'active' : ''} onClick={() => openSupportSection('dashboard')}><span aria-hidden="true">▥</span>의사소통 기록</button>}
+          {(canManageQuick || canManageBoard) && <button className={tab === 'board_settings' ? 'active' : ''} onClick={() => openSupportSection('board_settings')}><span aria-hidden="true">▦</span>빠른 표현·카드판</button>}
           {canManageVoice && <button className={tab === 'support_settings' ? 'active' : ''} onClick={() => openSupportSection('support_settings')}><span aria-hidden="true">♿</span>음성·접근 설정</button>}
         </> : <>
           <button className={tab === 'home' ? 'active' : ''} onClick={() => setTab('home')}><span aria-hidden="true">⌂</span>홈</button>
@@ -820,7 +878,7 @@ function App() {
       {profileNotice && <p role="status">{profileNotice}</p>}
       <header className="topbar"><div><p className="eyebrow">오늘은 {todayLabel}</p><h1>{pageTitle}</h1></div><div className="topbar-statuses"><span className={`status${offline ? ' offline' : ''}`}><b className={!offline && loaded ? 'online' : ''}></b>{offline ? '오프라인 사용 중' : loaded ? '서비스 연결됨' : '연결 대기'}</span>{speechActive && <div className={`speech-player ${speechState.status}`} role="status" aria-live="polite"><span><b aria-hidden="true">🔊</b><strong>{speechStatusLabel}</strong><small title={speechState.content}>{speechState.content}</small></span>{speechState.status === 'playing' && <button type="button" onClick={pauseSpeech}>일시 정지</button>}{speechState.status === 'paused' && <button type="button" onClick={resumeSpeech}>재개</button>}<button type="button" onClick={stopSpeech}>중지</button></div>}</div></header>
       {offline && <p className="offline-notice" role="status">인터넷 연결 없이 저장된 카드를 사용 중입니다. 즉시 발화와 선택 카드 그대로 발화는 계속 사용할 수 있습니다.{localKoreanVoices.length ? ` 기기에 저장된 한국어 음성 ${localKoreanVoices.length}개를 확인했습니다.` : ' 한국어 음성이 재생되지 않으면 기기 설정에서 음성 데이터를 설치해 주세요.'}{pendingSyncCount ? ` 재연결 후 동기화할 이력 ${pendingSyncCount}건이 있습니다.` : ''}</p>}
-      {user.role === 'user' && <section className="quick-speech" aria-labelledby="quick-speech-title" data-scan-group="quick-speech"><div><strong id="quick-speech-title">빠른 표현</strong><small>누르면 바로 말해요</small></div>{QUICK_EXPRESSIONS.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 바로 말하기`} onClick={() => speakText(item.label, 'card', true, [item.id])}><span aria-hidden="true">{item.symbol}</span>{item.label}</button>)}</section>}
+      {user.role === 'user' && <section className="quick-speech" aria-labelledby="quick-speech-title" data-scan-group="quick-speech"><div><strong id="quick-speech-title">빠른 표현</strong><small>누르면 바로 말해요</small></div>{quickExpressionCards.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 바로 말하기`} onClick={() => speakText(item.label, 'card', true, [item.id])}><span aria-hidden="true">{item.symbol}</span>{item.label}</button>)}</section>}
       {error && <div role="alert" className="error">{error} <button disabled={busy} onClick={() => load(user)}>다시 연결</button></div>}
       {speechFailure && <div role="alert" className="speech-error"><span aria-hidden="true">🔇</span><div><strong>음성을 재생하지 못했어요.</strong><p>{speechFailureMessage(speechFailure.errorCode)} 선택한 카드와 문장은 그대로 유지됩니다.</p></div><div className="speech-error-actions">{speechFailure.retryable && <button className="primary" onClick={() => speakText(speechFailure.content, speechFailure.contentType)}>다시 재생</button>}<button onClick={() => setSpeechFailure(null)}>닫기</button></div></div>}
       {!loaded && !error && <p role="status">카드를 불러오는 중입니다…</p>}
@@ -829,6 +887,7 @@ function App() {
         {linkedUsers.length ? <><label className="user-picker">지원할 사용자<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)}>{linkedUsers.map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>
           <div className="support-action-grid">
             {canReadRecords && <button onClick={() => openSupportSection('dashboard')}><span>📊</span><strong>의사소통 기록</strong><small>사용 기록과 안전 관련 표현 확인</small></button>}
+            {(canManageQuick || canManageBoard) && <button onClick={() => openSupportSection('board_settings')}><span>▦</span><strong>빠른 표현·카드판</strong><small>표현과 카드 위치를 사용자별로 고정</small></button>}
             {canManageVoice && <button onClick={() => openSupportSection('support_settings')}><span>♿</span><strong>음성·접근 설정</strong><small>목소리와 화면 표시 방식 조정</small></button>}
             {Object.entries(SUPPORT_PERMISSION_LABELS).filter(([permission]) => selectedPermissions.includes(permission) && !['records_read', 'voice_access_manage'].includes(permission)).map(([permission, label]) => <article key={permission}><span>✓</span><strong>{label}</strong><small>{['notes_write'].includes(permission) ? '기록 화면에서 사용할 수 있습니다.' : '후속 기능에서 이 권한으로 제공됩니다.'}</small></article>)}
           </div></> : <EmptyState>연결된 사용자가 없습니다.</EmptyState>}
@@ -910,6 +969,14 @@ function App() {
           </form>
         </section>
       </div>}
+    </section> : tab === 'board_settings' && isSupporter && (canManageQuick || canManageBoard) ? <section className="board-settings-panel">
+      <div className="panel-heading"><span aria-hidden="true">▦</span><div><h2>빠른 표현·고정 카드판</h2><p className="muted">저장한 순서가 {selectedUser?.name} 사용자의 다른 기기에도 동일하게 적용됩니다.</p></div></div>
+      <label className="user-picker">설정 사용자<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)} disabled={statsBusy}>{linkedUsers.filter(person => person.permissions.some(permission => ['quick_speech_manage', 'board_manage'].includes(permission))).map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>
+      {boardLayout && <div className="board-config-grid">
+        {canManageQuick && <article><h3>빠른 표현 <small>{quickDraft.length}/8</small></h3><p className="muted">카드를 선택하고 화살표로 표시 순서를 정하세요.</p><div className="config-card-options">{layoutCards.map(card => <button key={card.id} aria-pressed={quickDraft.includes(card.id)} onClick={() => toggleDraft(setQuickDraft, quickDraft, card.id, 8)}>{card.symbol} {card.label}</button>)}</div><ol className="config-order-list">{quickDraft.map((id, index) => { const card = layoutCardsById.get(id); return <li key={id}><span>{index + 1}. {card?.symbol} {card?.label || id}</span><div><button aria-label={`${card?.label || id} 앞으로`} disabled={index === 0} onClick={() => moveDraft(setQuickDraft, index, -1)}>↑</button><button aria-label={`${card?.label || id} 뒤로`} disabled={index === quickDraft.length - 1} onClick={() => moveDraft(setQuickDraft, index, 1)}>↓</button><button aria-label={`${card?.label || id} 제외`} onClick={() => setQuickDraft(current => current.filter(cardId => cardId !== id))}>×</button></div></li>; })}</ol><button className="primary" disabled={boardConfigBusy === 'quick' || !quickDraft.length} onClick={() => saveBoardConfiguration('quick')}>{boardConfigBusy === 'quick' ? '저장 중…' : '빠른 표현 저장'}</button></article>}
+        {canManageBoard && <article><h3>고정 카드 슬롯 <small>{slotDraft.length}/30</small></h3><p className="muted">선택한 카드만 번호 순서대로 표시되며 이용 빈도로 위치가 바뀌지 않습니다.</p><div className="config-card-options">{layoutCards.map(card => <button key={card.id} aria-pressed={slotDraft.includes(card.id)} onClick={() => toggleDraft(setSlotDraft, slotDraft, card.id, 30)}>{card.symbol} {card.label}</button>)}</div><ol className="config-order-list">{slotDraft.map((id, index) => { const card = layoutCardsById.get(id); return <li key={id}><span>슬롯 {index + 1} · {card?.symbol} {card?.label || id}</span><div><button aria-label={`${card?.label || id} 앞으로`} disabled={index === 0} onClick={() => moveDraft(setSlotDraft, index, -1)}>↑</button><button aria-label={`${card?.label || id} 뒤로`} disabled={index === slotDraft.length - 1} onClick={() => moveDraft(setSlotDraft, index, 1)}>↓</button><button aria-label={`${card?.label || id} 제외`} onClick={() => setSlotDraft(current => current.filter(cardId => cardId !== id))}>×</button></div></li>; })}</ol><button className="primary" disabled={boardConfigBusy === 'slots' || !slotDraft.length} onClick={() => saveBoardConfiguration('slots')}>{boardConfigBusy === 'slots' ? '저장 중…' : '카드판 저장'}</button></article>}
+      </div>}
+      <article className="board-audit"><h3>최근 구성 변경</h3>{boardLayoutAudit.length ? <ul>{boardLayoutAudit.slice(0, 10).map(item => <li key={item.id}><span>{item.action === 'quick_expressions_changed' ? '빠른 표현 변경' : '카드 슬롯 변경'} · 변경자 {item.actor_id}</span><time>{new Date(item.created_at).toLocaleString('ko-KR')}</time></li>)}</ul> : <p className="muted">아직 변경 기록이 없습니다.</p>}</article>
     </section> : tab === 'support_settings' && isSupporter && canManageVoice ? <section className="support-settings-panel">
       <div className="panel-heading"><span aria-hidden="true">♿</span><div><h2>음성·접근 설정</h2><p className="muted">{selectedUser?.name} 사용자에게 적용할 설정입니다.</p></div></div>
       <label className="user-picker">설정 사용자<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)} disabled={statsBusy}>{linkedUsers.filter(person => person.permissions.includes('voice_access_manage')).map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>

@@ -635,7 +635,7 @@ footer { color: #9aa0aa; }
 .privacy-caregivers small, .privacy-audit time { margin-top: 4px; color: #858c96; font-size: .76rem; }
 
 /* Role-specific supporter home and account-scoped permissions. */
-.support-home, .support-settings-panel { padding: 24px; }
+.support-home, .support-settings-panel, .board-settings-panel { padding: 24px; }
 .support-action-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-top: 18px; }
 .support-action-grid > button, .support-action-grid > article { display: grid; gap: 7px; min-height: 150px; padding: 20px; text-align: left; border: 1px solid #e4e9ed; border-radius: 18px; background: #fff; }
 .support-action-grid > button:hover { border-color: #f42c7e; box-shadow: 0 8px 24px rgba(244, 44, 126, .09); }
@@ -654,9 +654,24 @@ footer { color: #9aa0aa; }
 .privacy-connect fieldset { grid-column: 1 / -1; margin: 0; padding: 12px; border: 1px solid #e0e6eb; border-radius: 12px; }
 .privacy-connect legend { padding: 0 6px; font-size: .8rem; font-weight: 800; }
 .privacy-audit span small { display: block; margin-top: 3px; color: #858c96; font-size: .72rem; }
+.board-config-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
+.board-config-grid > article, .board-audit { padding: 20px; border: 1px solid #e4e9ed; border-radius: 18px; background: #fff; }
+.board-config-grid h3 { margin: 0; }
+.board-config-grid h3 small { color: #858c96; }
+.config-card-options { display: flex; flex-wrap: wrap; gap: 8px; max-height: 220px; margin: 14px 0; padding: 10px; overflow-y: auto; border: 1px solid #edf0f3; border-radius: 12px; }
+.config-card-options button { min-height: 40px; padding: 7px 10px; }
+.config-card-options button[aria-pressed="true"] { color: #fff; border-color: #f42c7e; background: #f42c7e; }
+.config-order-list, .board-audit ul { margin: 0 0 14px; padding: 0; list-style: none; }
+.config-order-list { max-height: 360px; overflow-y: auto; }
+.config-order-list li, .board-audit li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid #edf0f3; }
+.config-order-list li > div { display: flex; gap: 5px; }
+.config-order-list button { min-width: 40px; min-height: 40px; padding: 5px; }
+.board-audit { margin-top: 18px; }
+.board-audit h3 { margin-top: 0; }
+.board-audit time { color: #858c96; font-size: .76rem; }
 
 @media (max-width: 820px) {
-  .support-settings-grid { grid-template-columns: 1fr; }
+  .support-settings-grid, .board-config-grid { grid-template-columns: 1fr; }
   .permission-options { grid-template-columns: 1fr; }
 }
 .privacy-connect { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 10px; margin-top: 14px; }
