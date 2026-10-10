@@ -6,7 +6,10 @@ from uuid import UUID
 from app.services.communication import CARDS, regenerate_session, save_session, statistics
 from app.services.accessibility_settings import save_settings as save_accessibility_settings
 from app.services.accessibility_settings import settings_for as accessibility_settings_for
-from app.services.authentication import current_user, dashboard_user, linked_users, login, logout, register, security
+from app.services.authentication import (
+    current_user, dashboard_user, linked_users, login, logout, register,
+    require_account_permission, security,
+)
 from app.services.privacy import (
     access_audit_for, caregiver_access_for, connect_caregiver, delete_personal_data,
     disconnect_caregiver, export_for, privacy_for, save_privacy,
@@ -99,6 +102,7 @@ class UserResponse(BaseModel):
     username: str
     name: str
     role: str
+    account_permissions: list[str] = Field(default_factory=list)
     profile: ProfileResponse | None = None
     session_expires_at: datetime | None = None
     permissions: list[str] | None = None
@@ -439,12 +443,6 @@ def require_guardian_consent(user):
     return user
 
 
-def require_admin(user):
-    if user['role'] != 'admin':
-        raise HTTPException(403, '관리자 계정만 이용할 수 있습니다.')
-    return user
-
-
 @api_router.post('/auth/login', response_model=LoginResponse, tags=['인증'])
 def authenticate(request: LoginRequest):
     return login(request.username.strip(), request.password)
@@ -774,34 +772,34 @@ def card_submission_image(submission_id: str, user=Depends(current_user)):
                     headers={'Cache-Control': 'private, max-age=300'})
 
 
-@api_router.get('/admin/card-submissions', response_model=list[CardSubmissionResponse], tags=['관리자'])
+@api_router.get('/admin/card-submissions', response_model=list[CardSubmissionResponse], tags=['운영'])
 def admin_card_submissions(user=Depends(current_user)):
-    require_admin(user)
+    require_account_permission(user, 'content_manage')
     return submissions_for_review()
 
 
-@api_router.patch('/admin/card-submissions/{submission_id}', response_model=CardSubmissionResponse, tags=['관리자'])
+@api_router.patch('/admin/card-submissions/{submission_id}', response_model=CardSubmissionResponse, tags=['운영'])
 def review_card_submission(submission_id: str, request: CardReviewRequest,
                            user=Depends(current_user)):
-    require_admin(user)
+    require_account_permission(user, 'content_manage')
     return review_submission(submission_id, user['id'], request.decision, request.reason)
 
 
-@api_router.get('/admin/categories', response_model=list[CategoryResponse], tags=['관리자'])
+@api_router.get('/admin/categories', response_model=list[CategoryResponse], tags=['운영'])
 def admin_categories(user=Depends(current_user)):
-    require_admin(user)
+    require_account_permission(user, 'content_manage')
     return categories_for_admin()
 
 
-@api_router.post('/admin/categories', response_model=CategoryResponse, status_code=201, tags=['관리자'])
+@api_router.post('/admin/categories', response_model=CategoryResponse, status_code=201, tags=['운영'])
 def add_category(request: CategoryCreateRequest, user=Depends(current_user)):
-    require_admin(user)
+    require_account_permission(user, 'content_manage')
     return create_category(request.name, request.display_order)
 
 
-@api_router.patch('/admin/categories/{category_id}', response_model=CategoryResponse, tags=['관리자'])
+@api_router.patch('/admin/categories/{category_id}', response_model=CategoryResponse, tags=['운영'])
 def edit_category(category_id: str, request: CategoryUpdateRequest, user=Depends(current_user)):
-    require_admin(user)
+    require_account_permission(user, 'content_manage')
     return update_category(category_id, request.name, request.display_order, request.active)
 
 

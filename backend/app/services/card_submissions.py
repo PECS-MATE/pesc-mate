@@ -47,7 +47,7 @@ def _public(document):
         'owner_id': document['owner_id'],
         'status': effective_status,
         'requires_review': not private,
-        'sharing_notice': ('나만 볼 수 있으며 관리자 승인 없이 사용할 수 있습니다.' if private
+        'sharing_notice': ('나만 볼 수 있으며 운영 담당자 승인 없이 사용할 수 있습니다.' if private
                            else '승인되면 모든 사용자에게 공개됩니다.'),
         'image_filename': document['image']['filename'],
         'image_content_type': document['image']['content_type'],
@@ -58,7 +58,7 @@ def _public(document):
         'language_flags': document.get('language_flags', []),
         'image_safety': document.get('image_safety', {
             'status': 'manual_review', 'provider': 'administrator',
-            'reasons': ['기존 이미지는 관리자 수동 검토가 필요합니다.'],
+            'reasons': ['기존 이미지는 운영 담당자 수동 검토가 필요합니다.'],
         }),
         'created_at': document['created_at'],
     }
@@ -215,7 +215,7 @@ def submissions_for(owner_id):
 def submissions_for_review():
     try:
         rows = _collection().find({}).sort('created_at', -1)
-        log_crud('READ', 'card_submissions', '관리자 승인 목록 조회')
+        log_crud('READ', 'card_submissions', '운영 담당자 승인 목록 조회')
         return [_public(row) for row in rows
                 if row['visibility'] == 'shared' and row['status'] != 'draft']
     except PyMongoError as exc:
@@ -234,7 +234,7 @@ def review_submission(submission_id, reviewer_id, decision, reason=''):
         if not document:
             raise HTTPException(404, '카드 등록 요청을 찾을 수 없습니다.')
         if document['visibility'] != 'shared':
-            raise HTTPException(403, '개인 카드는 관리자 승인 대상이 아닙니다.')
+            raise HTTPException(403, '개인 카드는 운영 담당자 승인 대상이 아닙니다.')
         allowed = {
             'pending': {'approved', 'rejected'},
             'approved': {'inactive'},
@@ -354,7 +354,12 @@ def image_for(submission_id, requester):
         document = _collection().find_one({'_id': submission_id})
         if not document:
             raise HTTPException(404, '카드 이미지를 찾을 수 없습니다.')
-        can_review = requester['role'] == 'admin' and document['visibility'] == 'shared'
+        from app.services.authentication import require_account_permission
+        try:
+            require_account_permission(requester, 'content_manage')
+            can_review = document['visibility'] == 'shared'
+        except HTTPException:
+            can_review = False
         can_use = ((document['visibility'] == 'shared' and document['status'] == 'approved')
                    or (document['visibility'] == 'private'
                        and document['status'] in {'approved', 'pending'}

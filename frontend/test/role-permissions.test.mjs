@@ -27,3 +27,10 @@ test('support link grant, change and revoke use account-scoped APIs', () => {
   assert.match(app, /method: 'PUT', body: JSON\.stringify\(\{ permissions \}\)/);
   assert.match(app, /method: 'DELETE'/);
 });
+
+test('content operations are an account permission on support staff', () => {
+  assert.match(app, /user\?\.role === 'support_staff' && user\?\.account_permissions\?\.includes\('content_manage'\)/);
+  assert.match(app, /canManageContent && <button/);
+  assert.match(app, /tab === 'admin' && canManageContent/);
+  assert.doesNotMatch(app, /user\.role === 'admin'/);
+});

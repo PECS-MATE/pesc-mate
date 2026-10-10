@@ -32,7 +32,7 @@ def review_language(label, meaning):
         if acronym.casefold() not in known_terms:
             results.append({
                 'term': acronym, 'kind': '약어 후보',
-                'meaning': '등록된 뜻을 찾지 못했습니다. 관리자 확인이 필요합니다.',
+                'meaning': '등록된 뜻을 찾지 못했습니다. 운영 담당자 확인이 필요합니다.',
                 'source': '내부 약어 형식 검사',
             })
     return results

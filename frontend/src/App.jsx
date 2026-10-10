@@ -215,20 +215,19 @@ function App() {
       if (await applyOfflineSnapshot(account, snapshot)) return;
     }
     try {
-      if (account?.role === 'admin') {
-        const [submissions, categories] = await Promise.all([
-          request('/admin/card-submissions'), request('/admin/categories'),
+      if (['caregiver', 'support_staff'].includes(account?.role)) {
+        const canOperateContent = account?.account_permissions?.includes('content_manage');
+        const [people, submissions, categories] = await Promise.all([
+          request('/care/linked-users'),
+          canOperateContent ? request('/admin/card-submissions') : Promise.resolve([]),
+          canOperateContent ? request('/admin/categories') : Promise.resolve([]),
         ]);
+        const target = people[0] || null;
+        setLinkedUsers(people); setSelectedUser(target); setCards([]); setRecommended([]);
         setAdminSubmissions(await hydrateImages(submissions));
         setAdminCategories(categories);
         setCategoryEdits(Object.fromEntries(categories.map(item => [item.id, { name: item.name, display_order: item.display_order }])));
-        setTab('admin'); setLoaded(true);
-        return;
-      }
-      if (['caregiver', 'support_staff'].includes(account?.role)) {
-        const people = await request('/care/linked-users');
-        const target = people[0] || null;
-        setLinkedUsers(people); setSelectedUser(target); setCards([]); setRecommended([]); setTab('support_home');
+        setTab(people.length ? 'support_home' : canOperateContent ? 'admin' : 'support_home');
         setStats(null); setLoaded(true);
         return;
       }
@@ -825,6 +824,7 @@ function App() {
   }).format(new Date());
   const speechActive = speechState.status !== 'idle';
   const isSupporter = ['caregiver', 'support_staff'].includes(user?.role);
+  const canManageContent = user?.role === 'support_staff' && user?.account_permissions?.includes('content_manage');
   const selectedPermissions = selectedUser?.permissions || [];
   const canReadRecords = selectedPermissions.includes('records_read');
   const canWriteNotes = selectedPermissions.includes('notes_write');
@@ -834,7 +834,7 @@ function App() {
   const canManageLearning = selectedPermissions.includes('learning_manage');
   const localKoreanVoices = ttsVoices.filter(voice => voice.localService !== false);
   const speechStatusLabel = ({ starting: '음성 준비 중', playing: '음성 재생 중', paused: '음성 일시 정지' })[speechState.status];
-  const pageTitle = user?.role === 'admin'
+  const pageTitle = tab === 'admin' && canManageContent
     ? '카드 등록 요청을 검토해요.'
     : isSupporter
     ? tab === 'support_home' ? '연결된 사용자를 지원해요.' : `${selectedUser?.name || '연결 사용자'}의 설정과 기록을 살펴봐요.`
@@ -862,7 +862,7 @@ function App() {
       <button className="primary full" disabled={busy}>{busy ? '처리 중…' : authMode === 'login' ? '로그인' : '가입하고 시작하기'}</button>
     </form>
     <button className="auth-switch" disabled={busy} onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setError(''); setUsername(''); setPassword(''); setPasswordConfirm(''); setName(''); setRegistrationConsent(false); }}>{authMode === 'login' ? '처음 이용하시나요? 사용자 가입' : '이미 계정이 있나요? 로그인'}</button>
-    {authMode === 'login' && <p className="demo-account">사용자: <code>demo</code> / <code>demo1234</code><br />보호자: <code>caregiver</code> / <code>caregiver1234</code><br />담당자: <code>support</code> / <code>support1234</code><br />관리자: <code>admin</code> / <code>admin1234</code></p>}
+    {authMode === 'login' && <p className="demo-account">사용자: <code>demo</code> / <code>demo1234</code><br />보호자: <code>caregiver</code> / <code>caregiver1234</code><br />담당자: <code>support</code> / <code>support1234</code><br />운영 권한 담당자: <code>admin</code> / <code>admin1234</code></p>}
   </section></main>;
   if (!user.profile || showProfile) return <main className="login-page"><ProfileEditor key={user.id} user={user}
     onSaved={account => { setUser(account); cacheAccount(account).catch(() => {}); setShowProfile(false); setProfileNotice('프로필을 저장했습니다.'); }}
@@ -871,15 +871,14 @@ function App() {
     <a className="skip-link" href="#main-content">본문 바로가기</a>
     <aside className="sidebar">
       <div className="sidebar-brand"><Mascot className="mascot-brand" /><strong>PESC<br />MATE</strong></div>
-      <div className="profile"><Avatar user={user} /><div><strong>{user.name}</strong><small>{user.role === 'admin' ? '컨텐츠 관리자' : user.role === 'caregiver' ? '보호자 계정' : user.role === 'support_staff' ? '지원 담당자 계정' : 'AAC 사용자'}</small></div></div>
-      <nav aria-label="주 메뉴">{user.role === 'admin'
-        ? <button className="active" onClick={() => setTab('admin')}><span aria-hidden="true">☑</span>카드 승인<i aria-label={`승인 대기 ${adminSubmissions.filter(item => item.status === 'pending').length}개`}>{adminSubmissions.filter(item => item.status === 'pending').length}</i></button>
-        : isSupporter ? <>
+      <div className="profile"><Avatar user={user} /><div><strong>{user.name}</strong><small>{user.role === 'caregiver' ? '보호자 계정' : canManageContent ? '운영 권한 담당자 계정' : user.role === 'support_staff' ? '지원 담당자 계정' : 'AAC 사용자'}</small></div></div>
+      <nav aria-label="주 메뉴">{isSupporter ? <>
           <button className={tab === 'support_home' ? 'active' : ''} onClick={() => setTab('support_home')}><span aria-hidden="true">⌂</span>지원 홈</button>
           {canReadRecords && <button className={tab === 'dashboard' ? 'active' : ''} onClick={() => openSupportSection('dashboard')}><span aria-hidden="true">▥</span>의사소통 기록</button>}
           {(canManageQuick || canManageBoard) && <button className={tab === 'board_settings' ? 'active' : ''} onClick={() => openSupportSection('board_settings')}><span aria-hidden="true">▦</span>빠른 표현·카드판</button>}
           {canManageVoice && <button className={tab === 'support_settings' ? 'active' : ''} onClick={() => openSupportSection('support_settings')}><span aria-hidden="true">♿</span>음성·접근 설정</button>}
           {canManageLearning && <button className={tab === 'learning_progress' ? 'active' : ''} onClick={() => openLearning(selectedUser)}><span aria-hidden="true">★</span>학습 성취</button>}
+          {canManageContent && <button className={tab === 'admin' ? 'active' : ''} onClick={() => setTab('admin')}><span aria-hidden="true">☑</span>공용 콘텐츠 운영<i aria-label={`승인 대기 ${adminSubmissions.filter(item => item.status === 'pending').length}개`}>{adminSubmissions.filter(item => item.status === 'pending').length}</i></button>}
         </> : <>
           <button className={tab === 'home' ? 'active' : ''} onClick={() => setTab('home')}><span aria-hidden="true">⌂</span>홈</button>
           <button className={tab === 'cards' ? 'active' : ''} onClick={() => setTab('cards')}><span aria-hidden="true">▦</span>그림으로 말하기<i aria-label={`추천 카드 ${recommended.length}개`}>{recommended.length}</i></button>
@@ -995,9 +994,9 @@ function App() {
             <label>카드명<input name="label" required maxLength="30" placeholder="예: 연필" defaultValue={editingSubmission?.label || ''} /></label>
             <label>카드 뜻<textarea name="meaning" required maxLength="120" rows="3" placeholder="카드가 나타내는 뜻을 적어 주세요." defaultValue={editingSubmission?.meaning || ''} /></label>
             <label>카테고리<select name="category" required defaultValue={editingSubmission?.category || ''}><option value="" disabled>카테고리 선택</option>{cardCategories.map(item => <option key={item.id} value={item.name}>{item.name}</option>)}</select></label>
-            <label>공개 범위<select name="visibility" defaultValue={editingSubmission?.visibility || 'private'}><option value="private">나만 사용 · 관리자에게 공유되지 않음</option><option value="shared">관리자 승인 후 모든 사용자에게 공개</option></select></label>
+            <label>공개 범위<select name="visibility" defaultValue={editingSubmission?.visibility || 'private'}><option value="private">나만 사용 · 운영 담당자에게 공유되지 않음</option><option value="shared">운영 담당자 승인 후 모든 사용자에게 공개</option></select></label>
             {!editingSubmission && <label>카드 이미지<input name="image" required type="file" accept="image/jpeg,image/png,image/webp" capture="environment" /></label>}
-            <p className="form-notice">개인 카드는 관리자에게 공유되지 않고 저장 즉시 나만 사용할 수 있어요. 공개 카드는 관리자 승인 후 모두에게 표시됩니다. JPG, PNG, WebP 파일을 5MB 이하, 가로·세로 128~4096px로 올려 주세요.</p>
+            <p className="form-notice">개인 카드는 운영 담당자에게 공유되지 않고 저장 즉시 나만 사용할 수 있어요. 공개 카드는 운영 담당자 승인 후 모두에게 표시됩니다. JPG, PNG, WebP 파일을 5MB 이하, 가로·세로 128~4096px로 올려 주세요.</p>
             <div className="modal-actions"><button type="button" disabled={cardFormBusy} onClick={() => { setShowCardForm(false); setEditingSubmission(null); }}>취소</button>{!editingSubmission && <button type="submit" value="draft" disabled={cardFormBusy}>임시 저장</button>}<button type="submit" value="submit" className="primary" disabled={cardFormBusy}>{cardFormBusy ? '저장 중…' : editingSubmission ? '수정 저장' : '저장 또는 공개 요청'}</button></div>
           </form>
         </section>
@@ -1045,7 +1044,7 @@ function App() {
         <article><h3>연결 변경 이력</h3>{privacyAudit.length ? <ul className="privacy-audit">{privacyAudit.slice(0, 10).map(item => <li key={item.id}><span>{({ caregiver_connected: '보호자 연결', caregiver_disconnected: '보호자 연결 해제', support_granted: '지원 연결 및 권한 부여', support_permissions_changed: '지원 권한 변경', support_revoked: '지원 연결 해제', personal_data_deleted: '이용 데이터 삭제' })[item.action] || item.action}<small>처리자 {item.actor_id}</small></span><time>{new Date(item.created_at).toLocaleString('ko-KR')}</time></li>)}</ul> : <p className="muted">변경 이력이 없습니다.</p>}</article>
         <article className="privacy-data"><h3>다운로드와 삭제</h3><p>다운로드에는 계정 정보, 문장·음성 이력, 개인 카드와 현재 열람자가 포함됩니다. 이미지 원본과 비밀번호는 포함되지 않습니다.</p><div><button disabled={privacyBusy === 'export'} onClick={downloadPrivacyData}>{privacyBusy === 'export' ? '준비 중…' : '내 데이터 다운로드'}</button><button className="danger" disabled={privacyBusy === 'delete'} onClick={deletePrivacyData}>{privacyBusy === 'delete' ? '삭제 중…' : '이용 데이터 삭제'}</button></div><small>삭제하면 개인 카드, 의사소통·음성 기록, 보호자 연결, 프로필 이미지와 사용자 설정이 제거됩니다. 로그인 계정과 삭제 확인 기록은 유지됩니다.</small></article>
       </div>
-    </section> : tab === 'admin' && user.role === 'admin' ? <section className="admin-review">
+    </section> : tab === 'admin' && canManageContent ? <section className="admin-review">
       <div className="category-admin">
         <div className="panel-heading"><span aria-hidden="true">▦</span><div><h2>카테고리 관리</h2><p className="muted">카테고리를 추가하고 표시 순서와 활성 상태를 관리하세요.</p></div></div>
         {categoryError && <div role="alert" className="error">{categoryError}</div>}

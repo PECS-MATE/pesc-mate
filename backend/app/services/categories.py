@@ -56,7 +56,7 @@ def categories_for_admin():
         collection = _collection()
         ensure_default_categories(collection)
         rows = collection.find({}).sort('display_order', 1)
-        log_crud('READ', 'card_categories', '관리자 카테고리 조회')
+        log_crud('READ', 'card_categories', '운영 담당자 카테고리 조회')
         return [_public(row) for row in rows]
     except PyMongoError as exc:
         raise HTTPException(503, '카테고리를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.') from exc

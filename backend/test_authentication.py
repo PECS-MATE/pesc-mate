@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from fastapi import HTTPException
 
-from app.services.authentication import dashboard_user, register
+from app.services.authentication import _public_user, dashboard_user, register, require_account_permission
 
 
 class AuthorizationTests(unittest.TestCase):
@@ -53,6 +53,19 @@ class AuthorizationTests(unittest.TestCase):
             dashboard_user(supporter, 'demo', 'records_read')
         self.assertEqual(caught.exception.status_code, 403)
         self.assertEqual(dashboard_user(supporter, 'demo', 'voice_access_manage'), 'demo')
+
+    def test_only_staff_with_content_permission_can_operate_shared_content(self):
+        operator = {'id': 'operator', 'role': 'support_staff', 'account_permissions': ['content_manage']}
+        self.assertEqual(require_account_permission(operator, 'content_manage'), operator)
+        with self.assertRaises(HTTPException) as caught:
+            require_account_permission({'id': 'staff', 'role': 'support_staff'}, 'content_manage')
+        self.assertEqual(caught.exception.status_code, 403)
+
+    @patch('app.services.profiles.public_profile', return_value=None)
+    def test_legacy_admin_is_exposed_as_operating_staff(self, _mocked_profile):
+        public = _public_user({'_id': 'admin', 'username': 'admin', 'name': '운영자', 'role': 'admin'})
+        self.assertEqual(public['role'], 'support_staff')
+        self.assertEqual(public['account_permissions'], ['content_manage'])
 
 
 if __name__ == '__main__':

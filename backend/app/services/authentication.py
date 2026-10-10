@@ -11,6 +11,7 @@ from pymongo.errors import DuplicateKeyError, PyMongoError
 from app.services.database import database as _database, log_crud
 
 SESSION_HOURS = 12
+ACCOUNT_PERMISSIONS = ('content_manage',)
 security = HTTPBearer(auto_error=False)
 
 
@@ -22,15 +23,27 @@ def _password_hash(password, salt=None):
 
 def _public_user(user):
     from app.services.profiles import public_profile
-    return {'id': str(user['_id']), 'username': user['username'], 'name': user['name'], 'role': user['role'], 'profile': public_profile(user)}
+    legacy_admin = user.get('role') == 'admin'
+    permissions = list(user.get('account_permissions', []))
+    if legacy_admin and 'content_manage' not in permissions:
+        permissions.append('content_manage')
+    return {
+        'id': str(user['_id']),
+        'username': user['username'],
+        'name': user['name'],
+        'role': 'support_staff' if legacy_admin else user['role'],
+        'account_permissions': [permission for permission in ACCOUNT_PERMISSIONS if permission in permissions],
+        'profile': public_profile(user),
+    }
 
 
-def _ensure_user(username, password, name, role):
+def _ensure_user(username, password, name, role, account_permissions=None):
     salt, password_hash = _password_hash(password)
     database = _database()
     database.users.update_one(
         {'_id': username},
         {'$set': {'username': username, 'name': name, 'role': role,
+                  'account_permissions': account_permissions or [],
                   'password_salt': salt, 'password_hash': password_hash},
          '$setOnInsert': {'created_at': datetime.now(timezone.utc)}},
         upsert=True,
@@ -46,8 +59,15 @@ def ensure_demo_users():
     staff_id = os.environ.get('SUPPORT_USERNAME', 'support')
     _ensure_user(staff_id, os.environ.get('SUPPORT_PASSWORD', 'support1234'), '민준 담당자', 'support_staff')
     admin_id = os.environ.get('ADMIN_USERNAME', 'admin')
-    _ensure_user(admin_id, os.environ.get('ADMIN_PASSWORD', 'admin1234'), '컨텐츠 관리자', 'admin')
+    _ensure_user(admin_id, os.environ.get('ADMIN_PASSWORD', 'admin1234'),
+                 '운영 권한 담당자', 'support_staff', ['content_manage'])
     database = _database()
+    migration = database.users.update_many(
+        {'role': 'admin'},
+        {'$set': {'role': 'support_staff'}, '$addToSet': {'account_permissions': 'content_manage'}},
+    )
+    if migration.modified_count:
+        log_crud('UPDATE', 'users', f'기존 운영자 {migration.modified_count}명을 운영 권한 담당자로 전환')
     privacy = database.privacy_settings.find_one({'_id': user_id})
     latest_access_change = database.privacy_audit_logs.find_one(
         {'user_id': user_id, 'target_id': caregiver_id,
@@ -182,3 +202,13 @@ def dashboard_user(requester, requested_user_id=None, permission='records_read')
             raise HTTPException(403, '연결되지 않은 사용자의 기록에 접근할 수 없습니다.')
         return target
     raise HTTPException(403, '이용 현황을 조회할 권한이 없습니다.')
+
+
+def require_account_permission(user, permission):
+    if permission not in ACCOUNT_PERMISSIONS:
+        raise ValueError(f'Unknown account permission: {permission}')
+    if user.get('role') == 'admin':
+        return user
+    if user.get('role') != 'support_staff' or permission not in user.get('account_permissions', []):
+        raise HTTPException(403, '이 계정에 필요한 운영 권한이 없습니다.')
+    return user
