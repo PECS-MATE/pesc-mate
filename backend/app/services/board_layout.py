@@ -10,6 +10,7 @@ from app.services.database import database as _database, log_crud
 
 DEFAULT_QUICK_IDS = ['hurt', 'no', 'help', 'toilet', 'stop']
 RECOVERY_EXPRESSIONS = {
+    'hold_on': '잠깐만요',
     'wrong_tap': '잘못 눌렀어요',
     'not_that': '그 뜻이 아니에요',
     'say_again': '다시 말할게요',
@@ -18,7 +19,8 @@ RECOVERY_EXPRESSIONS = {
     'yes': '맞아요',
     'no': '아니에요',
 }
-DEFAULT_RECOVERY_IDS = ['wrong_tap', 'not_that', 'say_again']
+FIXED_RECOVERY_IDS = ['wrong_tap', 'not_that']
+DEFAULT_RECOVERY_IDS = ['wrong_tap', 'not_that', 'hold_on', 'say_again']
 MAX_QUICK_EXPRESSIONS = 8
 MAX_RECOVERY_EXPRESSIONS = 4
 MAX_BOARD_SLOTS = 30
@@ -41,9 +43,12 @@ def _public(document, available):
                      for position, card_id in enumerate(_ids(available), 1)][:MAX_BOARD_SLOTS]
     quick_ids = [card_id for card_id in (document or {}).get('quick_expression_ids', default_quick)
                  if card_id in available_ids]
-    recovery_ids = [expression_id for expression_id in
-                    (document or {}).get('recovery_expression_ids', DEFAULT_RECOVERY_IDS)
-                    if expression_id in RECOVERY_EXPRESSIONS]
+    configured_recovery_ids = [expression_id for expression_id in
+                               (document or {}).get('recovery_expression_ids', DEFAULT_RECOVERY_IDS)
+                               if expression_id in RECOVERY_EXPRESSIONS]
+    recovery_ids = list(dict.fromkeys(FIXED_RECOVERY_IDS + configured_recovery_ids))[
+        :MAX_RECOVERY_EXPRESSIONS
+    ]
     slots = [slot for slot in (document or {}).get('slots', default_slots)
              if slot.get('card_id') in available_ids]
     return {
@@ -81,6 +86,8 @@ def save_recovery_expressions(user_id, actor_id, expression_ids):
         raise HTTPException(422, '같은 복구 표현을 중복 배치할 수 없습니다.')
     if any(expression_id not in RECOVERY_EXPRESSIONS for expression_id in values):
         raise HTTPException(422, '사용할 수 없는 복구 표현이 포함되어 있습니다.')
+    if not set(FIXED_RECOVERY_IDS).issubset(values):
+        raise HTTPException(422, '필수 복구 표현은 제외할 수 없습니다.')
     return _save(user_id, actor_id, 'recovery_expression_ids', values,
                  'recovery_expressions_changed')
 

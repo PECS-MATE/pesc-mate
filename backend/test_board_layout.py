@@ -27,11 +27,29 @@ class BoardLayoutTests(unittest.TestCase):
         result = layout_for('child')
 
         self.assertEqual(result['quick_expression_ids'], ['help', 'stop'])
-        self.assertEqual(result['recovery_expression_ids'], ['wrong_tap', 'not_that', 'say_again'])
+        self.assertEqual(result['recovery_expression_ids'], [
+            'wrong_tap', 'not_that', 'hold_on', 'say_again',
+        ])
         self.assertEqual(result['slots'], [
             {'position': 1, 'card_id': 'help'},
             {'position': 2, 'card_id': 'water'},
             {'position': 3, 'card_id': 'stop'},
+        ])
+
+    @patch('app.services.board_layout._available_cards', return_value=CARDS)
+    @patch('app.services.board_layout._database')
+    def test_legacy_layout_restores_missing_fixed_recovery_phrases(
+            self, mocked_database, _available):
+        database = MagicMock()
+        database.board_layouts.find_one.return_value = {
+            'user_id': 'child', 'recovery_expression_ids': ['say_again', 'yes'],
+        }
+        mocked_database.return_value = database
+
+        result = layout_for('child')
+
+        self.assertEqual(result['recovery_expression_ids'], [
+            'wrong_tap', 'not_that', 'say_again', 'yes',
         ])
 
     @patch('app.services.board_layout.layout_for')
@@ -74,15 +92,17 @@ class BoardLayoutTests(unittest.TestCase):
         mocked_database.return_value = database
         mocked_layout.return_value = {'user_id': 'child'}
 
-        save_recovery_expressions('child', 'caregiver', ['wrong_tap', 'say_again'])
+        save_recovery_expressions('child', 'caregiver', ['wrong_tap', 'not_that', 'say_again'])
 
         audit = database.board_audit_logs.insert_one.call_args.args[0]
         self.assertEqual(audit['action'], 'recovery_expressions_changed')
-        self.assertEqual(audit['after'], ['wrong_tap', 'say_again'])
+        self.assertEqual(audit['after'], ['wrong_tap', 'not_that', 'say_again'])
         with self.assertRaises(HTTPException):
             save_recovery_expressions('child', 'caregiver', ['wrong_tap'])
         with self.assertRaises(HTTPException):
             save_recovery_expressions('child', 'caregiver', ['wrong_tap', 'custom_text'])
+        with self.assertRaises(HTTPException):
+            save_recovery_expressions('child', 'caregiver', ['wrong_tap', 'say_again'])
 
     def test_aac_user_cannot_change_fixed_layout_even_for_self(self):
         with self.assertRaises(HTTPException) as caught:

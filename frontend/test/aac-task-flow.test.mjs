@@ -42,3 +42,11 @@ test('urgent and recovery speech remain available around the task flow', () => {
   assert.match(app, /data-scan-group="recovery-speech"/);
   assert.match(app, /마지막 말 다시 듣기/);
 });
+
+test('essential recovery phrases stay fixed and failed speech keeps visible text', () => {
+  assert.match(app, /label: '잘못 눌렀어요'.*fixed: true/);
+  assert.match(app, /label: '그 뜻이 아니에요'.*fixed: true/);
+  assert.match(app, /label: '잠깐만요'/);
+  assert.match(app, /disabled=\{item\?\.fixed \|\| recoveryDraft\.length <= 2\}/);
+  assert.match(app, /전달할 표현: <strong>\{speechFailure\.content\}<\/strong>/);
+});
