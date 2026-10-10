@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { hasToken, request, requestBlob, setToken } from "./services/api";
 import { clearBoard, loadBoard, saveBoard } from "./services/boardStorage";
+import { learningQuestions } from "./services/learningGame";
 import {
   cacheAccount, cachedAccount, cacheSnapshot, cachedSnapshot, clearCachedAccount,
   clearOfflineUserData, pendingOfflineEvents, queueOfflineEvent, removeOfflineEvents,
@@ -162,6 +163,8 @@ function App() {
   const [learningSettings, setLearningSettings] = useState(null);
   const [learningProgress, setLearningProgress] = useState(null);
   const [learningBusy, setLearningBusy] = useState(false);
+  const [practiceCategory, setPracticeCategory] = useState('all');
+  const [learningGame, setLearningGame] = useState(null);
   const [offline, setOffline] = useState(!navigator.onLine);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
 
@@ -343,7 +346,7 @@ function App() {
     if (user?.id) await clearOfflineUserData(user.id).catch(() => {});
     setToken(null); setUser(null); setLoaded(false); setShowProfile(false); setProfileNotice('');
     [...cards, ...recommended, ...adminSubmissions].forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); });
-    setCards([]); setCardCategories([]); setRecommended([]); setStats(null); setBoard([]); setCardSubmissions([]); setAdminSubmissions([]); setAdminCategories([]); setCategoryEdits({}); setCategoryError(''); setLinkedUsers([]); setSelectedUser(null); setBoardLayout(null); setBoardLayoutAudit([]); setQuickDraft([]); setRecoveryDraft([]); setSlotDraft([]); setLearningSettings(null); setLearningProgress(null); setText(''); setGeneratedSessionId(''); setGenerationAttempt(1); setSentenceConfirmed(false); setGenerationFailed(false); setError(''); setTab('home');
+    setCards([]); setCardCategories([]); setRecommended([]); setStats(null); setBoard([]); setCardSubmissions([]); setAdminSubmissions([]); setAdminCategories([]); setCategoryEdits({}); setCategoryError(''); setLinkedUsers([]); setSelectedUser(null); setBoardLayout(null); setBoardLayoutAudit([]); setQuickDraft([]); setRecoveryDraft([]); setSlotDraft([]); setLearningSettings(null); setLearningProgress(null); setLearningGame(null); setPracticeCategory('all'); setText(''); setGeneratedSessionId(''); setGenerationAttempt(1); setSentenceConfirmed(false); setGenerationFailed(false); setError(''); setTab('home');
     setTtsSettings({ preset: 'child', voiceName: '', rate: 0.9, pitch: 1.25 }); setTtsSettingsSaved(false); setAccessibility(DEFAULT_ACCESSIBILITY); setAccessibilitySaved(true); setPrivacy(DEFAULT_PRIVACY); setPrivacyCaregivers([]); setPrivacyAudit([]); setSpeechFailure(null); setLastUtterance(null); setLastSentence(null); setBusy(false);
   }
 
@@ -594,6 +597,81 @@ function App() {
     } catch (e) { setError(e.message); }
     finally { setLearningBusy(false); }
   }
+  function availablePracticeCards(categoryId = practiceCategory) {
+    const configured = learningSettings?.category_ids?.length
+      ? cardCategories.filter(item => learningSettings.category_ids.includes(item.id))
+      : cardCategories;
+    const allowedNames = new Set(configured.map(item => item.name));
+    const selectedName = cardCategories.find(item => item.id === categoryId)?.name;
+    return cards.filter(card => {
+      const hasPicture = Boolean(card.image_src || CARD_IMAGES[card.id]) || Number.isInteger(card.image_index);
+      const allowed = categoryId === 'all'
+        ? (!allowedNames.size || allowedNames.has(card.category))
+        : card.category === selectedName;
+      return hasPicture && allowed;
+    });
+  }
+  function startLearningGame() {
+    const source = availablePracticeCards();
+    const questions = learningQuestions(source, learningSettings?.question_count || 10);
+    if (!questions.length) {
+      setError('선택한 범위에 그림이 있는 카드가 2개 이상 필요합니다.');
+      return;
+    }
+    setError('');
+    setLearningGame({
+      phase: 'playing', questions, questionIndex: 0, correctAnswers: 0,
+      hadWrong: false, feedback: '', selectedId: '', startedAt: Date.now(),
+      requestId: crypto.randomUUID(), attempt: null,
+    });
+  }
+  function answerLearningQuestion(cardId) {
+    setLearningGame(current => {
+      if (!current || current.phase !== 'playing' || current.feedback === 'correct') return current;
+      const question = current.questions[current.questionIndex];
+      const correct = cardId === question.target.id;
+      if (correct) return {
+        ...current, selectedId: cardId, feedback: 'correct',
+        correctAnswers: current.correctAnswers + (current.hadWrong ? 0 : 1),
+      };
+      return {
+        ...current, selectedId: cardId, hadWrong: true,
+        feedback: learningSettings?.retry_enabled === false ? 'incorrect' : 'retry',
+      };
+    });
+  }
+  async function finishLearningGame(snapshot) {
+    if (!snapshot || snapshot.phase === 'saving') return;
+    const durationSeconds = Math.max(1, Math.round((Date.now() - snapshot.startedAt) / 1000));
+    setLearningGame(current => ({ ...current, phase: 'saving' }));
+    setError('');
+    try {
+      const attempt = await request('/learning/attempts', { method: 'POST', body: JSON.stringify({
+        request_id: snapshot.requestId, activity_type: 'word_picture_match',
+        category_id: practiceCategory === 'all' ? 'mixed' : practiceCategory,
+        total_questions: snapshot.questions.length,
+        correct_answers: snapshot.correctAnswers,
+        duration_seconds: durationSeconds,
+      }) });
+      setLearningGame(current => ({ ...current, phase: 'complete', attempt }));
+      try { setLearningProgress(await request('/learning/progress?days=30')); }
+      catch { setError('연습 결과는 저장되었지만 최근 진행 현황은 새로고침이 필요합니다.'); }
+    } catch (e) {
+      setError(`${e.message} 결과를 저장하지 못했지만 말하기 기능은 계속 사용할 수 있습니다.`);
+      setLearningGame(current => ({ ...current, phase: 'complete', attempt: null }));
+    }
+  }
+  function nextLearningQuestion() {
+    if (!learningGame || !['correct', 'incorrect'].includes(learningGame.feedback)) return;
+    if (learningGame.questionIndex === learningGame.questions.length - 1) {
+      finishLearningGame(learningGame);
+      return;
+    }
+    setLearningGame(current => ({
+      ...current, questionIndex: current.questionIndex + 1,
+      hadWrong: false, feedback: '', selectedId: '',
+    }));
+  }
   function moveDraft(setter, index, offset) {
     setter(current => {
       const next = [...current];
@@ -834,6 +912,10 @@ function App() {
     : DEFAULT_QUICK_EXPRESSIONS;
   const recoveryExpressions = (boardLayout?.recovery_expression_ids || ['wrong_tap', 'not_that', 'say_again'])
     .map(id => RECOVERY_EXPRESSIONS.find(item => item.id === id)).filter(Boolean);
+  const practiceCategories = (learningSettings?.category_ids?.length
+    ? cardCategories.filter(item => learningSettings.category_ids.includes(item.id))
+    : cardCategories).filter(item => availablePracticeCards(item.id).length >= 2);
+  const currentLearningQuestion = learningGame?.questions?.[learningGame.questionIndex];
   const filteredCards = activeCardSource.filter(card =>
     (category === '전체' || card.category === category)
     && card.label.includes(search.trim())
@@ -992,9 +1074,14 @@ function App() {
       </section></div>
     </div> : tab === 'practice' && user.role === 'user' ? <section className="learning-hub">
       <div className="panel-heading"><span aria-hidden="true">★</span><div><h2>연습하기</h2><p className="muted">연습 결과는 실제 의사소통 기록과 섞이지 않고 따로 저장됩니다.</p></div></div>
-      {learningBusy ? <p role="status">학습 정보를 불러오는 중입니다…</p> : <div className="learning-overview-grid">
-        <article className="learning-activity-card"><span aria-hidden="true">🧩</span><div><h3>단어·그림 맞추기</h3><p>그림과 알맞은 단어를 찾아보는 연습입니다.</p>{learningSettings && <small>{learningSettings.question_count}문제 · 제한 시간 {learningSettings.time_limit_seconds}초 · {learningSettings.retry_enabled ? '재도전 가능' : '재도전 없음'}</small>}</div><button disabled>다음 단계에서 시작</button></article>
-        <article><h3>최근 30일 연습</h3><div className="learning-metrics"><div><strong>{learningProgress?.attempts || 0}</strong><span>완료 횟수</span></div><div><strong>{learningProgress?.average_score || 0}점</strong><span>평균 점수</span></div><div><strong>{learningProgress?.correct_answers || 0}</strong><span>맞힌 문제</span></div></div>{!learningProgress?.attempts && <p className="muted">아직 완료한 연습이 없습니다.</p>}</article>
+      {learningBusy ? <p role="status">학습 정보를 불러오는 중입니다…</p> : learningGame?.phase === 'playing' || learningGame?.phase === 'saving' ? <article className="learning-game" aria-labelledby="learning-question-title">
+        <div className="learning-game-progress"><strong>{learningGame.questionIndex + 1} / {learningGame.questions.length}</strong><progress value={learningGame.questionIndex + (learningGame.feedback ? 1 : 0)} max={learningGame.questions.length} /><span>천천히 골라도 괜찮아요.</span></div>
+        {currentLearningQuestion && <><p className="eyebrow">그림과 같은 단어를 골라 보세요</p><h3 id="learning-question-title">이 그림은 무엇일까요?</h3><span className="learning-question-art" role="img" aria-label="문제 그림" style={artStyle(currentLearningQuestion.target)} /><div className="learning-options" role="group" aria-label="단어 보기">{currentLearningQuestion.options.map(option => { const selected = learningGame.selectedId === option.id; const correct = learningGame.feedback === 'correct' && option.id === currentLearningQuestion.target.id; const incorrect = selected && ['retry', 'incorrect'].includes(learningGame.feedback); const locked = ['correct', 'incorrect'].includes(learningGame.feedback); return <button key={option.id} className={correct ? 'correct' : incorrect ? 'incorrect' : ''} aria-pressed={selected} disabled={learningGame.phase === 'saving' || locked || (learningGame.feedback === 'retry' && selected)} onClick={() => answerLearningQuestion(option.id)}>{option.label}</button>; })}</div></>}
+        <div className={`learning-feedback ${learningGame.feedback || 'waiting'}`} role="status" aria-live="polite">{learningGame.feedback === 'correct' ? '잘 찾았어요! 다음 문제로 가 볼까요?' : learningGame.feedback === 'retry' ? '괜찮아요. 다른 단어를 다시 골라 보세요.' : learningGame.feedback === 'incorrect' ? `괜찮아요. 정답은 ${currentLearningQuestion?.target.label}이에요.` : '정답을 골라 주세요.'}</div>
+        {['correct', 'incorrect'].includes(learningGame.feedback) && <button className="primary learning-next" disabled={learningGame.phase === 'saving'} onClick={nextLearningQuestion}>{learningGame.phase === 'saving' ? '결과 저장 중…' : learningGame.questionIndex === learningGame.questions.length - 1 ? '연습 마치기' : '다음 문제'}</button>}
+      </article> : learningGame?.phase === 'complete' ? <article className="learning-result"><span aria-hidden="true">🌟</span><h3>연습을 마쳤어요!</h3><p>처음 선택으로 <strong>{learningGame.attempt?.correct_answers ?? learningGame.correctAnswers}</strong>개를 찾았어요. 틀린 문제도 다시 살펴본 것이 중요한 연습이에요.</p>{learningGame.attempt ? <small>학습 기록에만 안전하게 저장했습니다.</small> : <small>결과가 저장되지 않았습니다. 다시 연결한 뒤 한 번 더 연습해 주세요.</small>}<div><button onClick={() => setLearningGame(null)}>연습 목록</button><button className="primary" onClick={startLearningGame}>같은 범위 다시 연습</button></div></article> : <div className="learning-overview-grid">
+        <article className="learning-activity-card"><span aria-hidden="true">🧩</span><div><h3>단어·그림 맞추기</h3><p>그림과 알맞은 단어를 찾아보는 연습입니다.</p>{learningSettings && <small>{learningSettings.question_count}문제 · 권장 시간 {learningSettings.time_limit_seconds}초 · {learningSettings.retry_enabled ? '재도전 가능' : '정답 확인 후 진행'}</small>}</div><label>연습 범위<select value={practiceCategory} onChange={event => setPracticeCategory(event.target.value)}><option value="all">설정된 카드 전체</option>{practiceCategories.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><button className="primary" disabled={availablePracticeCards().length < 2} onClick={startLearningGame}>연습 시작</button></article>
+        <article><h3>최근 30일 연습</h3><div className="learning-metrics"><div><strong>{learningProgress?.attempts || 0}</strong><span>완료 횟수</span></div><div><strong>{learningProgress?.average_score || 0}점</strong><span>평균 점수</span></div><div><strong>{learningProgress?.correct_answers || 0}</strong><span>처음에 맞힌 문제</span></div></div>{!learningProgress?.attempts && <p className="muted">아직 완료한 연습이 없습니다.</p>}</article>
       </div>}
       <button className="primary communication-return" onClick={() => setTab('cards')}>💬 말하기로 이동</button>
     </section> : tab === 'catalog' && user.role === 'user' ? <section className="card-catalog">
