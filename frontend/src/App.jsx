@@ -19,26 +19,13 @@ const CARD_IMAGE_MODULES = import.meta.glob('./assets/cards/*.png', {
   import: 'default',
 });
 
-const CARD_IMAGE_NAMES = {
-  me: '나.png',
-  water: '물.png',
-  rice: '밥.png',
-  apple: '사과.png',
-  drink: '마시다.png',
-  eat: '먹다.png',
-  go: '가다.png',
-  rest: '쉬다.png',
-  help: '도와주세요.png',
-  toilet: '화장실.png',
-  hurt: '아파요.png',
-  no: '싫어요.png',
-  stop: '그만.png',
-};
+function bundledCardImage(label) {
+  return label ? CARD_IMAGE_MODULES[`./assets/cards/${label}.png`] : undefined;
+}
 
-const CARD_IMAGES = Object.fromEntries(Object.entries(CARD_IMAGE_NAMES).map(([id, filename]) => [
-  id,
-  CARD_IMAGE_MODULES[`./assets/cards/${filename}`],
-]));
+function cardImage(card) {
+  return card.image_src || bundledCardImage(card.label);
+}
 
 const CARD_META = Object.fromEntries([
   ['me', '나'], ['mom', '엄마'], ['water', '물'], ['rice', '밥'], ['apple', '사과'], ['milk', '우유'],
@@ -831,7 +818,7 @@ function App() {
     const allowedNames = new Set(configured.map(item => item.name));
     const selectedName = cardCategories.find(item => item.id === categoryId)?.name;
     return cards.filter(card => {
-      const hasPicture = Boolean(card.image_src || CARD_IMAGES[card.id]);
+      const hasPicture = Boolean(cardImage(card));
       const allowed = categoryId === 'all'
         ? (!allowedNames.size || allowedNames.has(card.category))
         : card.category === selectedName;
@@ -1154,12 +1141,11 @@ function App() {
     finally { setCategoryBusy(''); }
   }
   function artStyle(card) {
-    if (card.image_src) return { backgroundImage: `url(${card.image_src})`, backgroundPosition: 'center', backgroundSize: 'cover' };
-    if (CARD_IMAGES[card.id]) return { backgroundImage: `url(${CARD_IMAGES[card.id]})`, backgroundPosition: 'center', backgroundSize: 'cover' };
-    return undefined;
+    const image = cardImage(card);
+    return image ? { backgroundImage: `url(${image})`, backgroundPosition: 'center', backgroundSize: 'cover' } : undefined;
   }
   function cardArt(card, className = 'card-art') {
-    const hasImage = Boolean(card.image_src || CARD_IMAGES[card.id]);
+    const hasImage = Boolean(cardImage(card));
     return <span className={`${className}${hasImage ? '' : ' image-fallback'}`} role="img" aria-label={hasImage ? `${card.label} 그림` : `${card.label} 대체 이미지`} style={hasImage ? artStyle(card) : undefined}>
       {!hasImage && <><b aria-hidden="true">🖼️</b><small>{card.label}</small></>}
     </span>;
@@ -1172,7 +1158,7 @@ function App() {
     return <span className="card-speaker" role="button" tabIndex="0" aria-label={`${card.label} 단어 듣기`} onClick={play} onKeyDown={event => { if (['Enter', ' '].includes(event.key)) play(event); }}>🔊</span>;
   }
   function cardPicture(card, className = 'mini-card', renderKey = card.id) {
-    const hasImage = Boolean(card.image_src || CARD_IMAGES[card.id]);
+    const hasImage = Boolean(cardImage(card));
     return <span key={renderKey} className={`${className}${hasImage ? '' : ' image-fallback'}`} title={card.label} aria-label={card.label} role="img" style={hasImage ? artStyle(card) : undefined}>{!hasImage && <small>{card.label}</small>}</span>;
   }
   function tile(card) {
