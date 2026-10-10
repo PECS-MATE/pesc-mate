@@ -440,11 +440,12 @@ Content-Type: application/json
   "preset": "child",
   "voice_name": "Microsoft Heami",
   "rate": 0.9,
-  "pitch": 1.25
+  "pitch": 1.25,
+  "volume": 1.0
 }
 ```
 
-일반 사용자 본인의 음성 프리셋, 기기 음성 이름, 속도 및 음높이를 조회하거나 저장한다. 저장된 설정이 없으면 어린이 느낌 기본값을 반환한다. `preset`은 `child`, `woman`, `man` 중 하나이며 속도와 음높이는 `0.5`부터 `1.5`까지 허용한다.
+일반 사용자 본인 또는 `voice_access_manage` 권한이 있는 보호자·담당자가 음성 프리셋, 기기 음성 이름, 속도, 음높이와 기본 볼륨을 조회하거나 저장한다. 저장된 설정이 없으면 어린이 느낌과 100% 볼륨을 기본값으로 반환한다. `preset`은 `child`, `woman`, `man` 중 하나이며 속도와 음높이는 `0.5`부터 `1.5`, 볼륨은 `0.0`부터 `1.0`까지 허용한다. 볼륨이 0이면 클라이언트는 무음 재생 대신 설정 변경 안내를 표시한다.
 
 ## 6.9 TTS 이용 이력 저장
 
@@ -455,7 +456,7 @@ Authorization: Bearer {access_token}
 Content-Type: application/json
 ```
 
-재생을 요청할 때 UUID, 콘텐츠 종류(`card`, `sentence`, `preview`)와 글자 수를 저장한다. 재생이 끝나면 같은 UUID에 `succeeded`, `failed`, `cancelled` 결과와 오류 코드를 기록한다. 발화 원문은 개인정보 노출을 줄이기 위해 저장하지 않는다.
+재생을 요청할 때 UUID, 콘텐츠 종류(`card`, `sentence`, `recovery`, `preview`)와 글자 수를 저장한다. 기기 TTS 재생을 먼저 요청한 뒤 이력을 비동기로 저장하며, 재생이 끝나면 같은 UUID에 `succeeded`, `failed`, `cancelled` 결과와 오류 코드를 기록한다. 발화 원문은 개인정보 노출을 줄이기 위해 저장하지 않는다.
 
 ## 6.10 사용자 접근 설정 조회 및 저장
 
