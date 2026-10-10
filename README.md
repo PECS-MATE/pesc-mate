@@ -7,7 +7,8 @@ PESC MATE는 실물 PECS 카드가 늘어날수록 발생하는 휴대·분류·
 
 ## 프로젝트 구조
 
-백엔드 테스트: `cd backend` 후 `python -m unittest test_communication -v`.
+백엔드 테스트: `cd backend` 후 `pip install -r requirements-test.txt`를 실행하고
+`python -m unittest discover -s . -p "test_*.py"`로 전체 검증한다.
 프런트엔드 검증: `cd frontend` 후 `npm run build`.
 
 ### 소스 구성
