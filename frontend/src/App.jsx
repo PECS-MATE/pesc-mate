@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { hasToken, request, requestBlob, setToken } from "./services/api";
 import { clearBoard, loadBoard, saveBoard } from "./services/boardStorage";
 import { learningQuestions } from "./services/learningGame";
+import { localKoreanVoices as installedKoreanVoices, selectTtsVoice } from "./services/ttsVoice";
 import {
   cacheAccount, cachedAccount, cacheSnapshot, cachedSnapshot, clearCachedAccount,
   clearOfflineUserData, pendingOfflineEvents, queueOfflineEvent, removeOfflineEvents,
@@ -471,7 +472,7 @@ function App() {
     const utterance = new SpeechSynthesisUtterance(content);
     utterance.lang = 'ko-KR'; utterance.rate = ttsSettings.rate; utterance.pitch = ttsSettings.pitch;
     utterance.volume = ttsSettings.volume;
-    const voice = ttsVoices.find(item => item.name === ttsSettings.voiceName) || ttsVoices[0];
+    const voice = selectTtsVoice(ttsVoices, ttsSettings.voiceName, offline);
     if (voice) utterance.voice = voice;
     utterance.onstart = () => { if (speechRunRef.current === runId) setSpeechState({ status: 'playing', content }); };
     utterance.onpause = () => { if (speechRunRef.current === runId) setSpeechState({ status: 'paused', content }); };
@@ -970,7 +971,7 @@ function App() {
   const canManageQuick = selectedPermissions.includes('quick_speech_manage');
   const canManageBoard = selectedPermissions.includes('board_manage');
   const canManageLearning = selectedPermissions.includes('learning_manage');
-  const localKoreanVoices = ttsVoices.filter(voice => voice.localService !== false);
+  const localKoreanVoices = installedKoreanVoices(ttsVoices);
   const speechStatusLabel = ({ starting: '음성 준비 중', playing: '음성 재생 중', paused: '음성 일시 정지' })[speechState.status];
   const pageTitle = tab === 'admin' && canManageContent
     ? '카드 등록 요청을 검토해요.'
@@ -1092,7 +1093,7 @@ function App() {
           <summary>⚙️ 음성 설정</summary>
           <div className="tts-settings-grid">
             <label>음성 느낌<select value={ttsSettings.preset} onChange={event => changeTtsPreset(event.target.value)}>{Object.entries(TTS_PRESETS).map(([value, preset]) => <option key={value} value={value}>{preset.label}</option>)}</select></label>
-            <label>기기 한국어 음성<select value={ttsSettings.voiceName} onChange={event => updateTtsSettings({ voiceName: event.target.value })}><option value="">한국어 음성 자동 선택</option>{ttsSettings.voiceName && !ttsVoices.some(voice => voice.name === ttsSettings.voiceName) && <option value={ttsSettings.voiceName}>{ttsSettings.voiceName} (현재 기기에 없음)</option>}{ttsVoices.map(voice => <option key={voice.voiceURI} value={voice.name}>{voice.name}</option>)}</select></label>
+            <label>기기 한국어 음성<select value={ttsSettings.voiceName} onChange={event => updateTtsSettings({ voiceName: event.target.value })}><option value="">한국어 음성 자동 선택</option>{ttsSettings.voiceName && !ttsVoices.some(voice => voice.name === ttsSettings.voiceName) && <option value={ttsSettings.voiceName}>{ttsSettings.voiceName} (현재 기기에 없음)</option>}{ttsVoices.map(voice => <option key={voice.voiceURI} value={voice.name}>{voice.name}{voice.localService === true ? ' · 기기 저장' : voice.localService === false ? ' · 온라인 음성' : ' · 오프라인 확인 필요'}</option>)}</select></label>
             <label>속도 <output>{ttsSettings.rate.toFixed(2)}배</output><input type="range" min="0.5" max="1.5" step="0.05" value={ttsSettings.rate} onChange={event => updateTtsSettings({ rate: Number(event.target.value) })} /></label>
             <label>음높이 <output>{ttsSettings.pitch.toFixed(2)}</output><input type="range" min="0.5" max="1.5" step="0.05" value={ttsSettings.pitch} onChange={event => updateTtsSettings({ pitch: Number(event.target.value) })} /></label>
             <label>기본 볼륨 <output>{Math.round(ttsSettings.volume * 100)}%</output><input type="range" min="0" max="1" step="0.05" value={ttsSettings.volume} onChange={event => updateTtsSettings({ volume: Number(event.target.value) })} /></label>
@@ -1168,7 +1169,7 @@ function App() {
       <div className="support-settings-grid">
         <article><h3>목소리 설정</h3><div className="tts-settings-grid">
           <label>음성 느낌<select value={ttsSettings.preset} onChange={event => changeTtsPreset(event.target.value)}>{Object.entries(TTS_PRESETS).map(([value, preset]) => <option key={value} value={value}>{preset.label}</option>)}</select></label>
-          <label>기기 한국어 음성<select value={ttsSettings.voiceName} onChange={event => updateTtsSettings({ voiceName: event.target.value })}><option value="">한국어 음성 자동 선택</option>{ttsVoices.map(voice => <option key={voice.voiceURI} value={voice.name}>{voice.name}</option>)}</select></label>
+          <label>기기 한국어 음성<select value={ttsSettings.voiceName} onChange={event => updateTtsSettings({ voiceName: event.target.value })}><option value="">한국어 음성 자동 선택</option>{ttsVoices.map(voice => <option key={voice.voiceURI} value={voice.name}>{voice.name}{voice.localService === true ? ' · 기기 저장' : voice.localService === false ? ' · 온라인 음성' : ' · 오프라인 확인 필요'}</option>)}</select></label>
           <label>속도 <output>{ttsSettings.rate.toFixed(2)}배</output><input type="range" min="0.5" max="1.5" step="0.05" value={ttsSettings.rate} onChange={event => updateTtsSettings({ rate: Number(event.target.value) })} /></label>
           <label>음높이 <output>{ttsSettings.pitch.toFixed(2)}</output><input type="range" min="0.5" max="1.5" step="0.05" value={ttsSettings.pitch} onChange={event => updateTtsSettings({ pitch: Number(event.target.value) })} /></label>
           <label>기본 볼륨 <output>{Math.round(ttsSettings.volume * 100)}%</output><input type="range" min="0" max="1" step="0.05" value={ttsSettings.volume} onChange={event => updateTtsSettings({ volume: Number(event.target.value) })} /></label>
