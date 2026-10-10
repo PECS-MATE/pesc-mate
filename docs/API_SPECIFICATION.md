@@ -93,10 +93,10 @@ Authorization: Bearer {access_token}
 | 보호자 | DELETE | `/api/care/notes/{session_id}` | 필요 | 보호자 메모 삭제 |
 | 카드 | GET | `/api/cards` | 필요 | 전체 카드 조회 |
 | 카드 | GET | `/api/categories` | 필요 | 활성 카드 카테고리 조회 |
-| 카드 | GET | `/api/cards/submissions` | 필요 | 본인 카드 등록 요청 조회 |
-| 카드 | POST | `/api/cards/submissions` | 필요 | 카드 승인 요청 저장 |
-| 카드 | POST | `/api/cards/submissions/{id}/submit` | 필요 | 임시 저장 카드를 승인 대기로 제출 |
-| 카드 | PATCH | `/api/cards/submissions/{id}` | 필요 | 작성 중·반려 카드 정보 수정 |
+| 카드 | GET | `/api/cards/submissions` | 본인 또는 `cards_manage` | 본인·연결 사용자의 카드 등록 요청 조회 |
+| 카드 | POST | `/api/cards/submissions` | 본인 또는 `cards_manage` | 본인·연결 사용자의 카드 요청 저장 |
+| 카드 | POST | `/api/cards/submissions/{id}/submit` | 본인 또는 `cards_manage` | 임시 저장 카드를 승인 대기로 제출 |
+| 카드 | PATCH | `/api/cards/submissions/{id}` | 본인 또는 `cards_manage` | 작성 중·반려 카드 정보 수정 |
 | 카드 | GET | `/api/cards/submissions/{id}/image` | 필요 | 권한이 있는 카드 이미지 조회 |
 | 카드판 | GET | `/api/board/layout` | 본인 또는 연결 권한 | 고정 카드·빠른 표현·복구 표현 구성 조회 |
 | 카드판 | PUT | `/api/board/layout/recovery-expressions` | `quick_speech_manage` | 사용자별 복구 표현 2~4개와 고정 순서 저장 |
@@ -610,9 +610,12 @@ Content-Type: multipart/form-data
 | `visibility` | string | `private` 또는 `shared` |
 | `image` | file | JPG, PNG, WebP, 최대 5MB, 가로·세로 128~4096px |
 | `submission_mode` | string | `draft` 또는 `submit`. 기본값 `submit` |
+| `user_id` | string | 보호자·담당자가 관리할 연결 사용자. 본인은 생략 |
 
-인증된 일반 사용자만 요청할 수 있다. 소유자는 인증 정보로
-설정되며 `draft`는 작성 중으로 저장된다. `submit`인 개인 카드는 본인에게 즉시
+AAC 사용자 본인 또는 `cards_manage` 권한이 있는 연결 보호자·담당자가 요청할 수
+있다. 보호자·담당자는 연결 사용자의 `user_id`를 전송하며 서버가 연결과 권한을
+다시 확인한다. 카드 소유자는 연결 사용자, 감사 기록의 처리자는 실제 요청 계정으로
+분리해 저장한다. `draft`는 작성 중으로 저장된다. `submit`인 개인 카드는 본인에게 즉시
 활성화되고 운영 권한 담당자에게 공유되지 않으며, 공개 카드는 승인 대기로 저장된다.
 성공 시 `201 Created`를 반환한다. 작성 중 개인 카드는
 `POST /api/cards/submissions/{id}/submit`으로 즉시 활성화하고 공개 카드는 운영 권한 담당자에게 제출한다.
@@ -631,14 +634,16 @@ Content-Type: multipart/form-data
 외부 공급자는 `IMAGE_SAFETY_API_URL`에 JSON POST로 호출되며
 `{"safe": true|false, "provider": "...", "reasons": []}` 응답을 사용한다.
 
-## 7.4 본인 카드 등록 요청 조회
+## 7.4 사용자 카드 등록 요청 조회
 
 ```http
 GET /api/cards/submissions
 Authorization: Bearer {access_token}
 ```
 
-현재 로그인한 사용자가 제출한 요청만 최신순으로 반환한다.
+AAC 사용자는 본인의 요청만 최신순으로 반환받는다. 보호자·담당자는
+`GET /api/cards/submissions?user_id=...`로 `cards_manage` 권한이 있는 연결 사용자의
+요청만 조회한다.
 작성 중이거나 반려된 카드는 `PATCH /api/cards/submissions/{id}`로
 카드명, 뜻, 카테고리, 공개 범위를 수정할 수 있다. 반려 카드를 수정하면
 작성 중 상태로 전환되며, 승인 대기로 다시 제출해야 한다.
