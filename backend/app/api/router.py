@@ -18,8 +18,11 @@ from app.services.tts_settings import save_settings, settings_for
 from app.services.tts_events import finish_event, start_event
 from app.services.support_links import (
     LINK_PERMISSIONS, SUPPORT_ROLES, change_support_permissions, grant_support,
-    permissions_for, require_link_permission, revoke_support, support_access_for,
+    permissions_for, require_any_link_permission, require_link_permission,
+    revoke_support, support_access_for,
 )
+from app.services.board_layout import audit_for as board_audit_for
+from app.services.board_layout import layout_for, save_quick_expressions, save_slots
 from app.services.card_submissions import (
     MAX_IMAGE_BYTES, approved_cards_for, create_submission, image_for,
     review_submission, submissions_for, submissions_for_review, submit_draft,
@@ -241,6 +244,33 @@ class CardResponse(BaseModel):
     custom: bool | None = None
     count: int | None = None
     reason: str | None = None
+
+
+class BoardSlotResponse(BaseModel):
+    position: int
+    card_id: str
+
+
+class BoardLayoutResponse(BaseModel):
+    user_id: str
+    quick_expression_ids: list[str]
+    slots: list[BoardSlotResponse]
+    available_cards: list[CardResponse]
+    updated_at: datetime | None = None
+
+
+class BoardCardIdsRequest(BaseModel):
+    card_ids: list[Annotated[str, Field(min_length=1, max_length=100)]] = Field(min_length=1, max_length=30)
+
+
+class BoardAuditResponse(BaseModel):
+    id: str
+    target_user_id: str
+    actor_id: str
+    action: str
+    before: list[object] | None = None
+    after: list[object] | None = None
+    created_at: datetime
 
 
 class CategoryResponse(BaseModel):
@@ -536,6 +566,47 @@ def complete_tts_event(request_id: UUID, request: TtsEventResultRequest, user=De
 def cards(user=Depends(current_user)):
     require_communicator(user)
     return CARDS + approved_cards_for(user['id'])
+
+
+@api_router.get('/board/layout', response_model=BoardLayoutResponse,
+                response_model_exclude_none=True, tags=['카드판'])
+def get_board_layout(user_id: str | None = Query(default=None, max_length=64),
+                     user=Depends(current_user)):
+    target = user_id or user['id']
+    require_any_link_permission(user, target, {'quick_speech_manage', 'board_manage'})
+    return layout_for(target)
+
+
+def _require_support_manager(user, user_id, permission):
+    if user['role'] not in SUPPORT_ROLES:
+        raise HTTPException(403, '보호자 또는 담당자만 카드판 구성을 변경할 수 있습니다.')
+    return require_link_permission(user, user_id, permission)
+
+
+@api_router.put('/board/layout/quick-expressions', response_model=BoardLayoutResponse,
+                response_model_exclude_none=True, tags=['카드판'])
+def put_quick_expressions(request: BoardCardIdsRequest,
+                          user_id: str = Query(min_length=1, max_length=64),
+                          user=Depends(current_user)):
+    target = _require_support_manager(user, user_id, 'quick_speech_manage')
+    return save_quick_expressions(target, user['id'], request.card_ids)
+
+
+@api_router.put('/board/layout/slots', response_model=BoardLayoutResponse,
+                response_model_exclude_none=True, tags=['카드판'])
+def put_board_slots(request: BoardCardIdsRequest,
+                    user_id: str = Query(min_length=1, max_length=64),
+                    user=Depends(current_user)):
+    target = _require_support_manager(user, user_id, 'board_manage')
+    return save_slots(target, user['id'], request.card_ids)
+
+
+@api_router.get('/board/layout/audit', response_model=list[BoardAuditResponse], tags=['카드판'])
+def get_board_audit(user_id: str | None = Query(default=None, max_length=64),
+                    user=Depends(current_user)):
+    target = user_id or user['id']
+    require_any_link_permission(user, target, {'quick_speech_manage', 'board_manage'})
+    return board_audit_for(target)
 
 
 @api_router.get('/categories', response_model=list[CategoryResponse], tags=['카드'])

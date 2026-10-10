@@ -75,6 +75,24 @@ def require_link_permission(requester, user_id, permission):
     return user_id
 
 
+def require_any_link_permission(requester, user_id, permissions):
+    requested = set(permissions)
+    if not requested or not requested.issubset(LINK_PERMISSIONS):
+        raise ValueError('Unknown or empty link permissions')
+    if requester['role'] == 'user':
+        if requester['id'] != user_id:
+            raise HTTPException(403, '다른 사용자의 정보에 접근할 수 없습니다.')
+        return user_id
+    if requester['role'] not in SUPPORT_ROLES:
+        raise HTTPException(403, '연결 사용자 정보에 접근할 권한이 없습니다.')
+    link = link_for(requester['id'], user_id)
+    if not link:
+        raise HTTPException(403, '연결되지 않은 사용자의 정보에 접근할 수 없습니다.')
+    if requested.isdisjoint(_permissions(link)):
+        raise HTTPException(403, '이 연결에 필요한 권한이 없습니다.')
+    return user_id
+
+
 def linked_users_for(supporter_id):
     try:
         database = _database()

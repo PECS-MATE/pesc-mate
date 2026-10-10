@@ -5,7 +5,7 @@ from fastapi import HTTPException
 
 from app.services.support_links import (
     change_support_permissions, grant_support, require_link_permission, revoke_support,
-    validate_permissions,
+    require_any_link_permission, validate_permissions,
 )
 
 
@@ -56,6 +56,18 @@ class SupportLinkTests(unittest.TestCase):
             validate_permissions([])
         with self.assertRaises(HTTPException):
             validate_permissions(['not-a-permission'])
+
+    @patch('app.services.support_links._database')
+    def test_board_layout_read_accepts_either_management_permission(self, mocked_database):
+        database = MagicMock()
+        database.caregiver_links.find_one.return_value = {
+            'supporter_id': 'staff', 'user_id': 'child', 'active': True,
+            'permissions': ['quick_speech_manage'],
+        }
+        mocked_database.return_value = database
+        supporter = {'id': 'staff', 'role': 'support_staff'}
+        self.assertEqual(require_any_link_permission(
+            supporter, 'child', {'quick_speech_manage', 'board_manage'}), 'child')
 
 
 if __name__ == '__main__':

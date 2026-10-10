@@ -180,6 +180,8 @@ def delete_personal_data(user_id):
             (database.offline_events, {'user_id': user_id}),
             (database.tts_settings, {'_id': user_id}),
             (database.accessibility_settings, {'_id': user_id}),
+            (database.board_layouts, {'_id': user_id}),
+            (database.board_audit_logs, {'target_user_id': user_id}),
             (database.caregiver_notes, {'user_id': user_id}),
             (database.caregiver_links, {'user_id': user_id}),
             (database.card_submissions, {'owner_id': user_id}),
