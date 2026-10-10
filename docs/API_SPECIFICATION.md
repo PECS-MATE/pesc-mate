@@ -103,8 +103,8 @@ Authorization: Bearer {access_token}
 | 카드판 | PUT | `/api/board/layout/quick-expressions` | `quick_speech_manage` | 빠른 표현 카드와 고정 순서 저장 |
 | 카드판 | PUT | `/api/board/layout/slots` | `board_manage` | 카드판 슬롯과 고정 순서 저장 |
 | 카드판 | GET | `/api/board/layout/audit` | 본인 또는 연결 권한 | 카드판 구성 변경 이력 조회 |
-| 학습 | GET | `/api/learning/settings` | 본인 또는 `learning_manage` | 단어·그림 맞추기 문제 수·권장 시간·재도전 설정 조회 |
-| 학습 | PUT | `/api/learning/settings` | `learning_manage` | 연결 사용자의 학습 범위와 설정 저장 |
+| 학습 | GET | `/api/learning/settings` | 본인 또는 `learning_manage` | 단어·그림 맞추기 범위·문제 수·보기 수·반복 빈도·권장 시간·재도전 설정 조회 |
+| 학습 | PUT | `/api/learning/settings` | `learning_manage` | 연결 사용자의 학습 범위와 난이도 설정 저장 |
 | 학습 | POST | `/api/learning/attempts` | 사용자 | 완료한 학습 세션 결과를 의사소통 기록과 분리하여 저장 |
 | 학습 | GET | `/api/learning/progress` | 본인 또는 `learning_manage` | 기간별 학습 참여와 정답 집계 조회 |
 | 학습 | GET | `/api/learning/audit` | 본인 또는 `learning_manage` | 학습 설정 변경 이력 조회 |
