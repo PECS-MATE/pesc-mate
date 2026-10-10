@@ -528,6 +528,10 @@ Content-Type: application/json
 문제 수와 정답 수에 일치해야 한다. 기존 클라이언트를 위해 문제별 결과가 없는
 요청도 허용한다.
 
+클라이언트는 오프라인 완료 결과를 별도 로컬 대기열에 보관한 뒤 같은
+`request_id`로 이 API를 재호출한다. 서버는 요청 ID를 학습 기록의 고유 키로
+사용하므로 응답을 받기 전에 연결이 다시 끊겨도 중복 결과를 만들지 않는다.
+
 `GET /api/learning/progress?days=30`은 참여 횟수와 함께 `familiar_words`,
 `repeat_words`, `practicing_words`를 반환한다. 최근 조회 기간에 두 번 이상 모두
 첫 시도에 찾은 단어는 익숙한 단어, 한 번이라도 어려웠던 단어는 다시 연습할
