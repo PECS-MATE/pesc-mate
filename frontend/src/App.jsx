@@ -64,6 +64,15 @@ const DEFAULT_PRIVACY = {
   guardian_consent: false, retention_days: 365, deletion_status: 'none', deleted_at: null,
 };
 
+const SUPPORT_PERMISSION_LABELS = {
+  records_read: '의사소통 기록 조회',
+  notes_write: '지원 메모 작성',
+  quick_speech_manage: '빠른 표현 관리',
+  board_manage: '보드 구성 관리',
+  voice_access_manage: '음성·접근 설정 관리',
+  learning_manage: '학습 설정 관리',
+};
+
 function App() {
   const [user, setUser] = useState(null);
   const [showProfile, setShowProfile] = useState(false);
@@ -130,6 +139,8 @@ function App() {
   const [privacyAudit, setPrivacyAudit] = useState([]);
   const [privacyBusy, setPrivacyBusy] = useState('');
   const [caregiverUsername, setCaregiverUsername] = useState('');
+  const [newSupportPermissions, setNewSupportPermissions] = useState(['records_read']);
+  const [supportPermissionDrafts, setSupportPermissionDrafts] = useState({});
   const [offline, setOffline] = useState(!navigator.onLine);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
 
@@ -205,19 +216,20 @@ function App() {
         setTab('admin'); setLoaded(true);
         return;
       }
-      if (account?.role === 'caregiver') {
+      if (['caregiver', 'support_staff'].includes(account?.role)) {
         const people = await request('/care/linked-users');
         const target = people[0] || null;
-        setLinkedUsers(people); setSelectedUser(target); setCards([]); setRecommended([]); setTab('dashboard');
-        setStats(target ? await request(dashboardPath(period, target)) : null); setLoaded(true);
+        setLinkedUsers(people); setSelectedUser(target); setCards([]); setRecommended([]); setTab('support_home');
+        setStats(null); setLoaded(true);
         return;
       }
-      const [rawCards, rawCategories, rawRecommended, dashboard, submissions, voiceSettings, accessibilitySettings, privacySettings, caregivers, privacyHistory] = await Promise.all([request('/cards'), request('/categories'), request('/recommendations'), request(dashboardPath()), request('/cards/submissions'), request('/tts/settings'), request('/accessibility/settings'), request('/privacy/settings'), request('/privacy/caregivers'), request('/privacy/audit')]);
+      const [rawCards, rawCategories, rawRecommended, dashboard, submissions, voiceSettings, accessibilitySettings, privacySettings, caregivers, privacyHistory] = await Promise.all([request('/cards'), request('/categories'), request('/recommendations'), request(dashboardPath()), request('/cards/submissions'), request('/tts/settings'), request('/accessibility/settings'), request('/privacy/settings'), request('/support/links'), request('/privacy/audit')]);
       const [all, rec] = await Promise.all([hydrateImages(rawCards), hydrateImages(rawRecommended)]);
       setCards(all); setCardCategories(rawCategories); setRecommended(rec); setStats(dashboard); setCardSubmissions(submissions); setBoard(loadBoard(account?.id, all));
       setTtsSettings({ preset: voiceSettings.preset, voiceName: voiceSettings.voice_name, rate: voiceSettings.rate, pitch: voiceSettings.pitch });
       setAccessibility(accessibilitySettings); setAccessibilitySaved(true);
       setPrivacy(privacySettings); setPrivacyCaregivers(caregivers); setPrivacyAudit(privacyHistory);
+      setSupportPermissionDrafts(Object.fromEntries(caregivers.map(item => [item.supporter_id, item.permissions])));
       if (!privacySettings.guardian_consent) setTab('privacy');
       setTtsSettingsSaved(true); setLoaded(true); setOffline(false);
       cacheSnapshot(account.id, {
@@ -457,13 +469,14 @@ function App() {
   async function saveTtsSettings() {
     setTtsSettingsBusy(true); setError('');
     try {
-      const saved = await request('/tts/settings', { method: 'PUT', body: JSON.stringify({
+      const targetQuery = ['caregiver', 'support_staff'].includes(user.role) && selectedUser ? `?user_id=${encodeURIComponent(selectedUser.id)}` : '';
+      const saved = await request(`/tts/settings${targetQuery}`, { method: 'PUT', body: JSON.stringify({
         preset: ttsSettings.preset, voice_name: ttsSettings.voiceName,
         rate: ttsSettings.rate, pitch: ttsSettings.pitch,
       }) });
       setTtsSettings({ preset: saved.preset, voiceName: saved.voice_name, rate: saved.rate, pitch: saved.pitch });
       setTtsSettingsSaved(true);
-      await load(user);
+      if (user.role === 'user') await load(user);
     } catch (e) { setError(e.message); }
     finally { setTtsSettingsBusy(false); }
   }
@@ -474,11 +487,12 @@ function App() {
   async function saveAccessibility() {
     setAccessibilityBusy(true); setError('');
     try {
-      setAccessibility(await request('/accessibility/settings', {
+      const targetQuery = ['caregiver', 'support_staff'].includes(user.role) && selectedUser ? `?user_id=${encodeURIComponent(selectedUser.id)}` : '';
+      setAccessibility(await request(`/accessibility/settings${targetQuery}`, {
         method: 'PUT', body: JSON.stringify(accessibility),
       }));
       setAccessibilitySaved(true);
-      await load(user);
+      if (user.role === 'user') await load(user);
     } catch (e) { setError(e.message); }
     finally { setAccessibilityBusy(false); }
   }
@@ -491,10 +505,30 @@ function App() {
   async function changeLinkedUser(value) {
     const target = linkedUsers.find(person => person.id === value);
     if (!target) return;
-    setSelectedUser(target); setStatsBusy(true); setError('');
-    try { setStats(await request(dashboardPath(period, target))); }
+    setSelectedUser(target); setStatsBusy(true); setError(''); setStats(null);
+    try {
+      if (tab === 'dashboard' && target.permissions.includes('records_read')) setStats(await request(dashboardPath(period, target)));
+      if (tab === 'support_settings' && target.permissions.includes('voice_access_manage')) await loadSupportSettings(target);
+    }
     catch (e) { setError(e.message); }
     finally { setStatsBusy(false); }
+  }
+  async function openSupportSection(nextTab) {
+    if (!selectedUser) return;
+    setTab(nextTab); setStatsBusy(true); setError('');
+    try {
+      if (nextTab === 'dashboard') setStats(await request(dashboardPath(period, selectedUser)));
+      if (nextTab === 'support_settings') await loadSupportSettings(selectedUser);
+    } catch (e) { setError(e.message); }
+    finally { setStatsBusy(false); }
+  }
+  async function loadSupportSettings(target) {
+    const query = `?user_id=${encodeURIComponent(target.id)}`;
+    const [voiceSettings, accessSettings] = await Promise.all([
+      request(`/tts/settings${query}`), request(`/accessibility/settings${query}`),
+    ]);
+    setTtsSettings({ preset: voiceSettings.preset, voiceName: voiceSettings.voice_name, rate: voiceSettings.rate, pitch: voiceSettings.pitch });
+    setTtsSettingsSaved(true); setAccessibility(accessSettings); setAccessibilitySaved(true);
   }
   async function saveCaregiverNote(sessionId) {
     const content = (noteDrafts[sessionId] ?? stats.recent.find(row => row.id === sessionId)?.caregiver_note ?? '').trim();
@@ -533,21 +567,38 @@ function App() {
     event.preventDefault();
     setPrivacyBusy('caregiver'); setError('');
     try {
-      setPrivacyCaregivers(await request('/privacy/caregivers', {
-        method: 'POST', body: JSON.stringify({ username: caregiverUsername.trim() }),
-      }));
+      const links = await request('/support/links', {
+        method: 'POST', body: JSON.stringify({ username: caregiverUsername.trim(), permissions: newSupportPermissions }),
+      });
+      setPrivacyCaregivers(links);
+      setSupportPermissionDrafts(Object.fromEntries(links.map(item => [item.supporter_id, item.permissions])));
       setCaregiverUsername('');
       setPrivacyAudit(await request('/privacy/audit'));
     } catch (e) { setError(e.message); }
     finally { setPrivacyBusy(''); }
   }
   async function removePrivacyCaregiver(item) {
-    if (!window.confirm(`${item.name} 보호자의 기록 열람 권한을 해제할까요?`)) return;
-    setPrivacyBusy(item.caregiver_id); setError('');
+    if (!window.confirm(`${item.name}님의 지원 연결을 해제할까요?`)) return;
+    setPrivacyBusy(item.supporter_id); setError('');
     try {
-      await request(`/privacy/caregivers/${encodeURIComponent(item.caregiver_id)}`, { method: 'DELETE' });
-      setPrivacyCaregivers(current => current.filter(row => row.caregiver_id !== item.caregiver_id));
+      await request(`/support/links/${encodeURIComponent(item.supporter_id)}`, { method: 'DELETE' });
+      setPrivacyCaregivers(current => current.filter(row => row.supporter_id !== item.supporter_id));
       setPrivacyAudit(await request('/privacy/audit'));
+    } catch (e) { setError(e.message); }
+    finally { setPrivacyBusy(''); }
+  }
+  function toggleSupportPermission(current, permission) {
+    return current.includes(permission) ? current.filter(value => value !== permission) : [...current, permission];
+  }
+  async function saveSupportPermissions(item) {
+    const permissions = supportPermissionDrafts[item.supporter_id] || [];
+    if (!permissions.length) { setError('권한을 하나 이상 선택해 주세요.'); return; }
+    setPrivacyBusy(item.supporter_id); setError('');
+    try {
+      const links = await request(`/support/links/${encodeURIComponent(item.supporter_id)}`, {
+        method: 'PUT', body: JSON.stringify({ permissions }),
+      });
+      setPrivacyCaregivers(links); setPrivacyAudit(await request('/privacy/audit'));
     } catch (e) { setError(e.message); }
     finally { setPrivacyBusy(''); }
   }
@@ -695,12 +746,17 @@ function App() {
     month: '2-digit', day: '2-digit', weekday: 'long',
   }).format(new Date());
   const speechActive = speechState.status !== 'idle';
+  const isSupporter = ['caregiver', 'support_staff'].includes(user?.role);
+  const selectedPermissions = selectedUser?.permissions || [];
+  const canReadRecords = selectedPermissions.includes('records_read');
+  const canWriteNotes = selectedPermissions.includes('notes_write');
+  const canManageVoice = selectedPermissions.includes('voice_access_manage');
   const localKoreanVoices = ttsVoices.filter(voice => voice.localService !== false);
   const speechStatusLabel = ({ starting: '음성 준비 중', playing: '음성 재생 중', paused: '음성 일시 정지' })[speechState.status];
   const pageTitle = user?.role === 'admin'
     ? '카드 등록 요청을 검토해요.'
-    : user?.role === 'caregiver'
-    ? `${selectedUser?.name || '보호 대상'}의 기록을 살펴봐요.`
+    : isSupporter
+    ? tab === 'support_home' ? '연결된 사용자를 지원해요.' : `${selectedUser?.name || '연결 사용자'}의 설정과 기록을 살펴봐요.`
     : tab === 'home'
       ? '오늘은 무엇을 해볼까요?'
       : tab === 'cards'
@@ -723,7 +779,7 @@ function App() {
       <button className="primary full" disabled={busy}>{busy ? '처리 중…' : authMode === 'login' ? '로그인' : '가입하고 시작하기'}</button>
     </form>
     <button className="auth-switch" disabled={busy} onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setError(''); setUsername(''); setPassword(''); setPasswordConfirm(''); setName(''); setRegistrationConsent(false); }}>{authMode === 'login' ? '처음 이용하시나요? 사용자 가입' : '이미 계정이 있나요? 로그인'}</button>
-    {authMode === 'login' && <p className="demo-account">사용자: <code>demo</code> / <code>demo1234</code><br />보호자: <code>caregiver</code> / <code>caregiver1234</code><br />관리자: <code>admin</code> / <code>admin1234</code></p>}
+    {authMode === 'login' && <p className="demo-account">사용자: <code>demo</code> / <code>demo1234</code><br />보호자: <code>caregiver</code> / <code>caregiver1234</code><br />담당자: <code>support</code> / <code>support1234</code><br />관리자: <code>admin</code> / <code>admin1234</code></p>}
   </section></main>;
   if (!user.profile || showProfile) return <main className="login-page"><ProfileEditor key={user.id} user={user}
     onSaved={account => { setUser(account); cacheAccount(account).catch(() => {}); setShowProfile(false); setProfileNotice('프로필을 저장했습니다.'); }}
@@ -732,8 +788,20 @@ function App() {
     <a className="skip-link" href="#main-content">본문 바로가기</a>
     <aside className="sidebar">
       <div className="sidebar-brand"><Mascot className="mascot-brand" /><strong>PESC<br />MATE</strong></div>
-      <div className="profile"><Avatar user={user} /><div><strong>{user.name}</strong><small>{user.role === 'admin' ? '컨텐츠 관리자' : user.role === 'caregiver' ? '보호자 계정' : 'AAC 사용자'}</small></div></div>
-      <nav aria-label="주 메뉴">{user.role === 'admin' ? <button className="active" onClick={() => setTab('admin')}><span aria-hidden="true">☑</span>카드 승인<i aria-label={`승인 대기 ${adminSubmissions.filter(item => item.status === 'pending').length}개`}>{adminSubmissions.filter(item => item.status === 'pending').length}</i></button> : <>{user.role !== 'caregiver' && <><button className={tab === 'home' ? 'active' : ''} onClick={() => setTab('home')}><span aria-hidden="true">⌂</span>홈</button><button className={tab === 'cards' ? 'active' : ''} onClick={() => setTab('cards')}><span aria-hidden="true">▦</span>그림으로 말하기<i aria-label={`추천 카드 ${recommended.length}개`}>{recommended.length}</i></button><button className={tab === 'catalog' ? 'active' : ''} onClick={() => setTab('catalog')}><span aria-hidden="true">▤</span>카드</button></>}<button className={tab === 'dashboard' ? 'active' : ''} onClick={() => setTab('dashboard')}><span aria-hidden="true">▥</span>{user.role === 'caregiver' ? '보호자 현황' : '나의 이용 기록'}</button>{user.role === 'user' && <button className={tab === 'privacy' ? 'active' : ''} onClick={() => setTab('privacy')}><span aria-hidden="true">⚿</span>개인정보</button>}</>}</nav>
+      <div className="profile"><Avatar user={user} /><div><strong>{user.name}</strong><small>{user.role === 'admin' ? '컨텐츠 관리자' : user.role === 'caregiver' ? '보호자 계정' : user.role === 'support_staff' ? '지원 담당자 계정' : 'AAC 사용자'}</small></div></div>
+      <nav aria-label="주 메뉴">{user.role === 'admin'
+        ? <button className="active" onClick={() => setTab('admin')}><span aria-hidden="true">☑</span>카드 승인<i aria-label={`승인 대기 ${adminSubmissions.filter(item => item.status === 'pending').length}개`}>{adminSubmissions.filter(item => item.status === 'pending').length}</i></button>
+        : isSupporter ? <>
+          <button className={tab === 'support_home' ? 'active' : ''} onClick={() => setTab('support_home')}><span aria-hidden="true">⌂</span>지원 홈</button>
+          {canReadRecords && <button className={tab === 'dashboard' ? 'active' : ''} onClick={() => openSupportSection('dashboard')}><span aria-hidden="true">▥</span>의사소통 기록</button>}
+          {canManageVoice && <button className={tab === 'support_settings' ? 'active' : ''} onClick={() => openSupportSection('support_settings')}><span aria-hidden="true">♿</span>음성·접근 설정</button>}
+        </> : <>
+          <button className={tab === 'home' ? 'active' : ''} onClick={() => setTab('home')}><span aria-hidden="true">⌂</span>홈</button>
+          <button className={tab === 'cards' ? 'active' : ''} onClick={() => setTab('cards')}><span aria-hidden="true">▦</span>그림으로 말하기<i aria-label={`추천 카드 ${recommended.length}개`}>{recommended.length}</i></button>
+          <button className={tab === 'catalog' ? 'active' : ''} onClick={() => setTab('catalog')}><span aria-hidden="true">▤</span>카드</button>
+          <button className={tab === 'dashboard' ? 'active' : ''} onClick={() => setTab('dashboard')}><span aria-hidden="true">▥</span>나의 이용 기록</button>
+          <button className={tab === 'privacy' ? 'active' : ''} onClick={() => setTab('privacy')}><span aria-hidden="true">⚿</span>개인정보</button>
+        </>}</nav>
       <button type="button" onClick={() => { stopSpeech(); setShowProfile(true); setProfileNotice(''); }}>프로필 설정</button>
       {user.role === 'user' && <details className="accessibility-settings"><summary>♿ 접근 설정</summary><div>
         <label>카드 표시<select value={accessibility.display_mode} onChange={event => updateAccessibility({ display_mode: event.target.value })}><option value="image">그림 중심</option><option value="image_text">그림 + 글자</option><option value="text">글자 중심</option></select></label>
@@ -744,8 +812,8 @@ function App() {
         <label className="check-setting"><input type="checkbox" checked={accessibility.high_contrast} onChange={event => updateAccessibility({ high_contrast: event.target.checked })} />고대비 표시</label>
         <button className="primary" disabled={accessibilityBusy || accessibilitySaved} onClick={saveAccessibility}>{accessibilityBusy ? '저장 중…' : accessibilitySaved ? '저장됨' : '설정 저장'}</button>
       </div></details>}
-      <div className="sidebar-summary"><small>오늘의 의사소통</small><strong>{stats?.today_sessions || 0}개 문장</strong><span>{stats?.today_selections || 0}장의 카드를 사용했어요</span></div>
-      <div className="sidebar-tip"><Mascot className="mascot-help" /><div><small>도움말</small><strong>그림을 차례대로 눌러<br />마음을 표현해 보세요.</strong></div></div>
+      {user.role === 'user' && <><div className="sidebar-summary"><small>오늘의 의사소통</small><strong>{stats?.today_sessions || 0}개 문장</strong><span>{stats?.today_selections || 0}장의 카드를 사용했어요</span></div>
+      <div className="sidebar-tip"><Mascot className="mascot-help" /><div><small>도움말</small><strong>그림을 차례대로 눌러<br />마음을 표현해 보세요.</strong></div></div></>}
       <button className="logout" onClick={handleLogout} disabled={busy}>로그아웃</button>
     </aside>
     <div className="app-content" id="main-content" tabIndex="-1">
@@ -756,7 +824,15 @@ function App() {
       {error && <div role="alert" className="error">{error} <button disabled={busy} onClick={() => load(user)}>다시 연결</button></div>}
       {speechFailure && <div role="alert" className="speech-error"><span aria-hidden="true">🔇</span><div><strong>음성을 재생하지 못했어요.</strong><p>{speechFailureMessage(speechFailure.errorCode)} 선택한 카드와 문장은 그대로 유지됩니다.</p></div><div className="speech-error-actions">{speechFailure.retryable && <button className="primary" onClick={() => speakText(speechFailure.content, speechFailure.contentType)}>다시 재생</button>}<button onClick={() => setSpeechFailure(null)}>닫기</button></div></div>}
       {!loaded && !error && <p role="status">카드를 불러오는 중입니다…</p>}
-      {tab === 'home' && user.role !== 'caregiver' ? <section className="home-screen">
+      {tab === 'support_home' && isSupporter ? <section className="support-home">
+        <div className="panel-heading"><span aria-hidden="true">🤝</span><div><h2>{user.role === 'caregiver' ? '보호자 지원 홈' : '담당자 지원 홈'}</h2><p className="muted">연결 사용자를 선택하면 부여된 권한 범위의 메뉴만 표시됩니다.</p></div></div>
+        {linkedUsers.length ? <><label className="user-picker">지원할 사용자<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)}>{linkedUsers.map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>
+          <div className="support-action-grid">
+            {canReadRecords && <button onClick={() => openSupportSection('dashboard')}><span>📊</span><strong>의사소통 기록</strong><small>사용 기록과 안전 관련 표현 확인</small></button>}
+            {canManageVoice && <button onClick={() => openSupportSection('support_settings')}><span>♿</span><strong>음성·접근 설정</strong><small>목소리와 화면 표시 방식 조정</small></button>}
+            {Object.entries(SUPPORT_PERMISSION_LABELS).filter(([permission]) => selectedPermissions.includes(permission) && !['records_read', 'voice_access_manage'].includes(permission)).map(([permission, label]) => <article key={permission}><span>✓</span><strong>{label}</strong><small>{['notes_write'].includes(permission) ? '기록 화면에서 사용할 수 있습니다.' : '후속 기능에서 이 권한으로 제공됩니다.'}</small></article>)}
+          </div></> : <EmptyState>연결된 사용자가 없습니다.</EmptyState>}
+      </section> : tab === 'home' && user.role === 'user' ? <section className="home-screen">
         <div className="home-heading"><div><p>원하는 활동을 선택해 주세요</p><h2>나의 PESC MATE</h2></div><Mascot className="mascot-heading" /></div>
         <div className="home-launch-grid">
           <button className="home-launch-card communication" onClick={() => setTab('cards')}>
@@ -773,7 +849,7 @@ function App() {
           </button>
         </div>
         <div className="home-note"><Avatar user={user} /><div><strong>{user.name}님, 반가워요!</strong><p>그림 카드를 눌러 오늘의 이야기를 시작해 보세요.</p></div></div>
-      </section> : tab === 'cards' && user.role !== 'caregiver' ? <div className="communication-layout">
+      </section> : tab === 'cards' && user.role === 'user' ? <div className="communication-layout">
       <section className="recommend-panel"><div className="stage-title"><span className="stage-back" aria-hidden="true">‹‹</span><div><strong>오늘의 추천 카드</strong><i aria-hidden="true"><b></b><b></b><b></b></i><p>자주 쓰는 카드를 골라 문장을 시작해요</p></div><span className="stage-helper" aria-hidden="true">🌱</span></div><div className="cards recommendations">{recommended.map(tile)}</div><div className="stage-ground" aria-hidden="true">▲　▲　　▲　　　▲　▲</div></section>
       <div className="workspace"><section><div className="section-title"><h2>무엇을 말하고 싶나요?</h2><input aria-label="카드 검색" placeholder="카드 이름 검색" value={search} onChange={e => setSearch(e.target.value)} /></div>
         <div className="output-mode" role="group" aria-label="출력 방식" data-scan-group="output-mode"><span>출력 방식</span><button aria-pressed={outputMode === 'word'} className={outputMode === 'word' ? 'active' : ''} onClick={() => setOutputMode('word')}>🔊 단어 즉시 발화</button><button aria-pressed={outputMode === 'selection'} className={outputMode === 'selection' ? 'active' : ''} onClick={() => setOutputMode('selection')}>선택 카드 그대로</button><button aria-pressed={outputMode === 'natural'} className={outputMode === 'natural' ? 'active' : ''} onClick={() => setOutputMode('natural')}>자연스러운 문장</button></div>
@@ -801,7 +877,7 @@ function App() {
         </details>
         <p className="muted">Ollama Qwen으로 문장을 만들며, 모델을 사용할 수 없으면 규칙 기반 문장으로 자동 전환합니다.</p>
       </section></div>
-    </div> : tab === 'catalog' && user.role !== 'caregiver' ? <section className="card-catalog">
+    </div> : tab === 'catalog' && user.role === 'user' ? <section className="card-catalog">
       <div className="catalog-toolbar">
         <div><h2>카드 보기</h2><p className="muted">카드를 눌러 그림과 뜻을 확인해 보세요.</p></div>
         <div className="catalog-actions"><input aria-label="카드 검색" placeholder="카드 이름 검색" value={search} onChange={event => setSearch(event.target.value)} /><button className="primary" onClick={() => { setEditingSubmission(null); setCardFormError(''); setShowCardForm(true); }}>+ 카드 등록</button></div>
@@ -834,13 +910,32 @@ function App() {
           </form>
         </section>
       </div>}
+    </section> : tab === 'support_settings' && isSupporter && canManageVoice ? <section className="support-settings-panel">
+      <div className="panel-heading"><span aria-hidden="true">♿</span><div><h2>음성·접근 설정</h2><p className="muted">{selectedUser?.name} 사용자에게 적용할 설정입니다.</p></div></div>
+      <label className="user-picker">설정 사용자<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)} disabled={statsBusy}>{linkedUsers.filter(person => person.permissions.includes('voice_access_manage')).map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>
+      <div className="support-settings-grid">
+        <article><h3>목소리 설정</h3><div className="tts-settings-grid">
+          <label>음성 느낌<select value={ttsSettings.preset} onChange={event => changeTtsPreset(event.target.value)}>{Object.entries(TTS_PRESETS).map(([value, preset]) => <option key={value} value={value}>{preset.label}</option>)}</select></label>
+          <label>기기 한국어 음성<select value={ttsSettings.voiceName} onChange={event => updateTtsSettings({ voiceName: event.target.value })}><option value="">한국어 음성 자동 선택</option>{ttsVoices.map(voice => <option key={voice.voiceURI} value={voice.name}>{voice.name}</option>)}</select></label>
+          <label>속도 <output>{ttsSettings.rate.toFixed(2)}배</output><input type="range" min="0.5" max="1.5" step="0.05" value={ttsSettings.rate} onChange={event => updateTtsSettings({ rate: Number(event.target.value) })} /></label>
+          <label>음높이 <output>{ttsSettings.pitch.toFixed(2)}</output><input type="range" min="0.5" max="1.5" step="0.05" value={ttsSettings.pitch} onChange={event => updateTtsSettings({ pitch: Number(event.target.value) })} /></label>
+        </div><button className="primary" disabled={ttsSettingsBusy || ttsSettingsSaved} onClick={saveTtsSettings}>{ttsSettingsBusy ? '저장 중…' : ttsSettingsSaved ? '저장됨' : '목소리 저장'}</button></article>
+        <article><h3>화면 접근 설정</h3><div className="support-access-fields">
+          <label>카드 표시<select value={accessibility.display_mode} onChange={event => updateAccessibility({ display_mode: event.target.value })}><option value="image">그림 중심</option><option value="image_text">그림 + 글자</option><option value="text">글자 중심</option></select></label>
+          <label>한 페이지 카드 수<select value={accessibility.cards_per_page} onChange={event => updateAccessibility({ cards_per_page: Number(event.target.value) })}>{[6, 12, 18, 24, 30].map(value => <option key={value} value={value}>{value}개</option>)}</select></label>
+          <label>카드 크기<select value={accessibility.card_size} onChange={event => updateAccessibility({ card_size: event.target.value })}><option value="small">작게</option><option value="medium">보통</option><option value="large">크게</option></select></label>
+          <label>글자 크기<select value={accessibility.text_size} onChange={event => updateAccessibility({ text_size: event.target.value })}><option value="small">작게</option><option value="medium">보통</option><option value="large">크게</option></select></label>
+          <label className="privacy-check"><input type="checkbox" checked={accessibility.reduced_motion} onChange={event => updateAccessibility({ reduced_motion: event.target.checked })} />애니메이션·장식 줄이기</label>
+          <label className="privacy-check"><input type="checkbox" checked={accessibility.high_contrast} onChange={event => updateAccessibility({ high_contrast: event.target.checked })} />고대비 표시</label>
+        </div><button className="primary" disabled={accessibilityBusy || accessibilitySaved} onClick={saveAccessibility}>{accessibilityBusy ? '저장 중…' : accessibilitySaved ? '저장됨' : '접근 설정 저장'}</button></article>
+      </div>
     </section> : tab === 'privacy' && user.role === 'user' ? <section className="privacy-panel">
       <div className="panel-heading"><span aria-hidden="true">🔐</span><div><h2>개인정보와 열람 권한</h2><p className="muted">누가 기록을 볼 수 있는지 확인하고 내 데이터를 관리합니다.</p></div></div>
       {privacy.deletion_status === 'completed' && <p className="privacy-receipt" role="status">이용 데이터 삭제 완료 · {privacy.deleted_at ? new Date(privacy.deleted_at).toLocaleString('ko-KR') : ''}</p>}
       <div className="privacy-grid">
         <article><h3>동의와 보존 기간</h3><label className="privacy-check"><input type="checkbox" checked={privacy.guardian_consent} onChange={event => setPrivacy(current => ({ ...current, guardian_consent: event.target.checked }))} />법정대리인이 개인정보 수집·이용에 동의했음을 확인합니다.</label><label>기록 보존 기간<select value={privacy.retention_days} onChange={event => setPrivacy(current => ({ ...current, retention_days: Number(event.target.value) }))}><option value="30">30일</option><option value="90">90일</option><option value="365">1년</option><option value="1095">3년</option></select></label><p className="muted">기간이 지난 문장·음성 이력은 설정 저장 시 삭제됩니다.</p><button className="primary" disabled={privacyBusy === 'settings'} onClick={savePrivacySettings}>{privacyBusy === 'settings' ? '저장 중…' : '동의 및 기간 저장'}</button></article>
-        <article><h3>내 기록을 볼 수 있는 보호자</h3>{privacyCaregivers.length ? <ul className="privacy-caregivers">{privacyCaregivers.map(item => <li key={item.caregiver_id}><span><strong>{item.name}</strong><small>{item.username} · 현황·기록·프로필·메모 권한</small></span><button disabled={privacyBusy === item.caregiver_id} onClick={() => removePrivacyCaregiver(item)}>연결 해제</button></li>)}</ul> : <p className="muted">연결된 보호자가 없습니다.</p>}<form className="privacy-connect" onSubmit={addPrivacyCaregiver}><label>보호자 아이디<input required maxLength="64" value={caregiverUsername} onChange={event => setCaregiverUsername(event.target.value)} /></label><button className="primary" disabled={privacyBusy === 'caregiver'}>연결</button></form></article>
-        <article><h3>연결 변경 이력</h3>{privacyAudit.length ? <ul className="privacy-audit">{privacyAudit.slice(0, 10).map(item => <li key={item.id}><span>{({ caregiver_connected: '보호자 연결', caregiver_disconnected: '보호자 연결 해제', personal_data_deleted: '이용 데이터 삭제' })[item.action] || item.action}</span><time>{new Date(item.created_at).toLocaleString('ko-KR')}</time></li>)}</ul> : <p className="muted">변경 이력이 없습니다.</p>}</article>
+        <article className="support-access-manager"><h3>보호자·담당자 연결</h3>{privacyCaregivers.length ? <ul className="privacy-caregivers">{privacyCaregivers.map(item => <li key={item.supporter_id}><div className="support-link-heading"><span><strong>{item.name}</strong><small>{item.username} · {item.role === 'caregiver' ? '보호자' : '지원 담당자'}</small></span><button disabled={privacyBusy === item.supporter_id} onClick={() => removePrivacyCaregiver(item)}>연결 해제</button></div><div className="permission-options">{Object.entries(SUPPORT_PERMISSION_LABELS).map(([permission, label]) => <label key={permission}><input type="checkbox" checked={(supportPermissionDrafts[item.supporter_id] || item.permissions).includes(permission)} onChange={() => setSupportPermissionDrafts(current => ({ ...current, [item.supporter_id]: toggleSupportPermission(current[item.supporter_id] || item.permissions, permission) }))} />{label}</label>)}</div><button className="primary" disabled={privacyBusy === item.supporter_id || JSON.stringify(supportPermissionDrafts[item.supporter_id] || item.permissions) === JSON.stringify(item.permissions)} onClick={() => saveSupportPermissions(item)}>권한 저장</button></li>)}</ul> : <p className="muted">연결된 보호자나 담당자가 없습니다.</p>}<form className="privacy-connect" onSubmit={addPrivacyCaregiver}><label>보호자·담당자 아이디<input required maxLength="64" value={caregiverUsername} onChange={event => setCaregiverUsername(event.target.value)} /></label><fieldset><legend>부여할 권한</legend><div className="permission-options">{Object.entries(SUPPORT_PERMISSION_LABELS).map(([permission, label]) => <label key={permission}><input type="checkbox" checked={newSupportPermissions.includes(permission)} onChange={() => setNewSupportPermissions(current => toggleSupportPermission(current, permission))} />{label}</label>)}</div></fieldset><button className="primary" disabled={privacyBusy === 'caregiver' || !newSupportPermissions.length}>연결</button></form></article>
+        <article><h3>연결 변경 이력</h3>{privacyAudit.length ? <ul className="privacy-audit">{privacyAudit.slice(0, 10).map(item => <li key={item.id}><span>{({ caregiver_connected: '보호자 연결', caregiver_disconnected: '보호자 연결 해제', support_granted: '지원 연결 및 권한 부여', support_permissions_changed: '지원 권한 변경', support_revoked: '지원 연결 해제', personal_data_deleted: '이용 데이터 삭제' })[item.action] || item.action}<small>처리자 {item.actor_id}</small></span><time>{new Date(item.created_at).toLocaleString('ko-KR')}</time></li>)}</ul> : <p className="muted">변경 이력이 없습니다.</p>}</article>
         <article className="privacy-data"><h3>다운로드와 삭제</h3><p>다운로드에는 계정 정보, 문장·음성 이력, 개인 카드와 현재 열람자가 포함됩니다. 이미지 원본과 비밀번호는 포함되지 않습니다.</p><div><button disabled={privacyBusy === 'export'} onClick={downloadPrivacyData}>{privacyBusy === 'export' ? '준비 중…' : '내 데이터 다운로드'}</button><button className="danger" disabled={privacyBusy === 'delete'} onClick={deletePrivacyData}>{privacyBusy === 'delete' ? '삭제 중…' : '이용 데이터 삭제'}</button></div><small>삭제하면 개인 카드, 의사소통·음성 기록, 보호자 연결, 프로필 이미지와 사용자 설정이 제거됩니다. 로그인 계정과 삭제 확인 기록은 유지됩니다.</small></article>
       </div>
     </section> : tab === 'admin' && user.role === 'admin' ? <section className="admin-review">
@@ -866,14 +961,14 @@ function App() {
         </div>
       </article>)}</div>
       {!adminSubmissions.length && <EmptyState>아직 제출된 카드가 없습니다.</EmptyState>}
-    </section> : <section className="dashboard"><div className="panel-heading"><span aria-hidden="true">🏆</span><div><h2>{user.role === 'caregiver' ? '보호 대상 의사소통 기록' : '나의 의사소통 기록'}</h2><p className="muted">{(selectedUser || user).name} · {period === 'all' ? '전체 기간' : `최근 ${period}일`} · 문장 저장 기준</p></div></div>
-      {user.role === 'caregiver' && selectedUser && <div className="profile"><Avatar user={selectedUser} /><strong>{selectedUser.name}</strong></div>}
-      {user.role === 'caregiver' && <label className="user-picker">조회 사용자<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)} disabled={statsBusy}>{linkedUsers.map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>}
+    </section> : <section className="dashboard"><div className="panel-heading"><span aria-hidden="true">🏆</span><div><h2>{isSupporter ? '연결 사용자 의사소통 기록' : '나의 의사소통 기록'}</h2><p className="muted">{(selectedUser || user).name} · {period === 'all' ? '전체 기간' : `최근 ${period}일`} · 문장 저장 기준</p></div></div>
+      {isSupporter && selectedUser && <div className="profile"><Avatar user={selectedUser} /><strong>{selectedUser.name}</strong></div>}
+      {isSupporter && <label className="user-picker">조회 사용자<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)} disabled={statsBusy}>{linkedUsers.filter(person => person.permissions.includes('records_read')).map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>}
       <div className="period-filter" aria-label="조회 기간">{[['7', '최근 7일'], ['30', '최근 30일'], ['all', '전체']].map(([value, label]) => <button key={value} className={period === value ? 'active' : ''} aria-pressed={period === value} disabled={statsBusy} onClick={() => changePeriod(value)}>{label}</button>)}</div>
       {statsBusy && <p className="muted" role="status">통계를 불러오는 중입니다…</p>}
-      {user.role === 'caregiver' && loaded && !selectedUser && <EmptyState>연결된 사용자가 없습니다.</EmptyState>}
+      {isSupporter && loaded && !selectedUser && <EmptyState>연결된 사용자가 없습니다.</EmptyState>}
       {stats && <div className={statsBusy ? 'stats-content loading' : 'stats-content'}>
-        {user.role === 'caregiver' && <><div className="guardian-summary">
+        {isSupporter && <><div className="guardian-summary">
           <div><span>오늘 문장</span><strong>{stats.today_sessions}개</strong></div><div><span>오늘 사용 카드</span><strong>{stats.today_selections}장</strong></div>
           <div><span>자주 사용한 감정·상태 표현</span><strong>{stats.frequent_emotion_state?.label || '기록 없음'}</strong></div><div><span>마지막 표현</span><strong>{stats.last_activity ? new Date(stats.last_activity).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '기록 없음'}</strong></div>
         </div><div className="guardian-grid"><article className="activity-panel"><h3>최근 7일 의사소통</h3><div className="activity-chart">{stats.daily_activity.map(day => { const max = Math.max(...stats.daily_activity.map(item => item.sessions), 1); return <div key={day.date}><span className="activity-value">{day.sessions}</span><i style={{ height: `${Math.max((day.sessions / max) * 100, 4)}%` }}></i><time>{new Date(`${day.date}T00:00:00`).toLocaleDateString('ko-KR', { weekday: 'short' })}</time></div>; })}</div></article>
@@ -882,7 +977,7 @@ function App() {
         <div className="metrics"><div>저장한 문장<strong>{stats.sessions}개</strong></div><div>사용한 카드<strong>{stats.selections}장</strong></div></div>
         <h3>카테고리별 사용</h3>{Object.entries(stats.categories).map(([name, count]) => <div className="bar" key={name}><span>{name}</span><meter min="0" max={Math.max(stats.selections, 1)} value={count} /> {count}회</div>)}
         <h3>자주 사용한 카드</h3><div className="categories">{stats.top_cards.slice(0, 8).map(c => <span className="status" key={c.id}>{c.symbol} {c.label} · {c.count}회</span>)}</div>
-        <h3>{user.role === 'caregiver' ? '최근 의사소통 타임라인' : '최근 문장'}</h3>{!stats.recent.length ? <EmptyState>선택한 기간에 기록이 없어요.</EmptyState> : <ul className="history">{stats.recent.map(r => <li key={r.id}>{user.role === 'caregiver' && <div className="history-cards">{r.cards.map((id, index) => cardPicture({ ...(CARD_META[id] || { id, label: id, image_index: 0 }), id: `${id}-${index}` }))}</div>}<span>{r.sentence}</span><time>{new Date(r.created_at).toLocaleString('ko-KR')}</time>{user.role === 'caregiver' && <div className="caregiver-note"><textarea aria-label={`${r.sentence} 보호자 메모`} maxLength="500" placeholder="상황이나 반응을 메모해 주세요" value={noteDrafts[r.id] ?? r.caregiver_note ?? ''} onChange={event => setNoteDrafts(current => ({ ...current, [r.id]: event.target.value }))} /><div><small>{(noteDrafts[r.id] ?? r.caregiver_note ?? '').length}/500</small><button disabled={noteBusy === r.id} onClick={() => saveCaregiverNote(r.id)}>메모 저장</button>{r.caregiver_note && <button disabled={noteBusy === r.id} onClick={() => removeCaregiverNote(r.id)}>삭제</button>}</div></div>}</li>)}</ul>}</div>}
+        <h3>{isSupporter ? '최근 의사소통 타임라인' : '최근 문장'}</h3>{!stats.recent.length ? <EmptyState>선택한 기간에 기록이 없어요.</EmptyState> : <ul className="history">{stats.recent.map(r => <li key={r.id}>{isSupporter && <div className="history-cards">{r.cards.map((id, index) => cardPicture({ ...(CARD_META[id] || { id, label: id, image_index: 0 }), id: `${id}-${index}` }))}</div>}<span>{r.sentence}</span><time>{new Date(r.created_at).toLocaleString('ko-KR')}</time>{isSupporter && canWriteNotes && <div className="caregiver-note"><textarea aria-label={`${r.sentence} 지원 메모`} maxLength="500" placeholder="상황이나 반응을 메모해 주세요" value={noteDrafts[r.id] ?? r.caregiver_note ?? ''} onChange={event => setNoteDrafts(current => ({ ...current, [r.id]: event.target.value }))} /><div><small>{(noteDrafts[r.id] ?? r.caregiver_note ?? '').length}/500</small><button disabled={noteBusy === r.id} onClick={() => saveCaregiverNote(r.id)}>메모 저장</button>{r.caregiver_note && <button disabled={noteBusy === r.id} onClick={() => removeCaregiverNote(r.id)}>삭제</button>}</div></div>}</li>)}</ul>}</div>}
       </section>}
       <footer>실행용 프로토타입 · 실제 개인정보를 입력하지 마세요.</footer>
     </div>

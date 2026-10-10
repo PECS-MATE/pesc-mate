@@ -633,6 +633,32 @@ footer { color: #9aa0aa; }
 .privacy-caregivers li, .privacy-audit li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid #edf0f3; }
 .privacy-caregivers strong, .privacy-caregivers small { display: block; }
 .privacy-caregivers small, .privacy-audit time { margin-top: 4px; color: #858c96; font-size: .76rem; }
+
+/* Role-specific supporter home and account-scoped permissions. */
+.support-home, .support-settings-panel { padding: 24px; }
+.support-action-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-top: 18px; }
+.support-action-grid > button, .support-action-grid > article { display: grid; gap: 7px; min-height: 150px; padding: 20px; text-align: left; border: 1px solid #e4e9ed; border-radius: 18px; background: #fff; }
+.support-action-grid > button:hover { border-color: #f42c7e; box-shadow: 0 8px 24px rgba(244, 44, 126, .09); }
+.support-action-grid span { font-size: 1.5rem; }
+.support-action-grid small { color: #747d87; line-height: 1.45; }
+.support-settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
+.support-settings-grid > article { padding: 20px; border: 1px solid #e4e9ed; border-radius: 18px; background: #fff; }
+.support-settings-grid h3 { margin-top: 0; }
+.support-access-fields { display: grid; gap: 12px; margin-bottom: 16px; }
+.support-access-fields > label:not(.privacy-check) { display: grid; gap: 6px; }
+.support-link-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; }
+.support-access-manager .privacy-caregivers li { display: grid; align-items: stretch; gap: 12px; }
+.permission-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 12px; }
+.permission-options label { display: flex; align-items: center; gap: 7px; font-size: .82rem; color: #59636e; }
+.permission-options input { width: auto; margin: 0; }
+.privacy-connect fieldset { grid-column: 1 / -1; margin: 0; padding: 12px; border: 1px solid #e0e6eb; border-radius: 12px; }
+.privacy-connect legend { padding: 0 6px; font-size: .8rem; font-weight: 800; }
+.privacy-audit span small { display: block; margin-top: 3px; color: #858c96; font-size: .72rem; }
+
+@media (max-width: 820px) {
+  .support-settings-grid { grid-template-columns: 1fr; }
+  .permission-options { grid-template-columns: 1fr; }
+}
 .privacy-connect { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 10px; margin-top: 14px; }
 .privacy-connect label { margin: 0; }
 .privacy-data > div { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
