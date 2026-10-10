@@ -105,8 +105,8 @@ Authorization: Bearer {access_token}
 | 카드판 | GET | `/api/board/layout/audit` | 본인 또는 연결 권한 | 카드판 구성 변경 이력 조회 |
 | 학습 | GET | `/api/learning/settings` | 본인 또는 `learning_manage` | 단어·그림 맞추기 범위·문제 수·보기 수·반복 빈도·권장 시간·재도전 설정 조회 |
 | 학습 | PUT | `/api/learning/settings` | `learning_manage` | 연결 사용자의 학습 범위와 난이도 설정 저장 |
-| 학습 | POST | `/api/learning/attempts` | 사용자 | 완료한 학습 세션 결과를 의사소통 기록과 분리하여 저장 |
-| 학습 | GET | `/api/learning/progress` | 본인 또는 `learning_manage` | 기간별 학습 참여와 정답 집계 조회 |
+| 학습 | POST | `/api/learning/attempts` | 사용자 | 완료한 학습 세션과 문제별 첫 시도 결과를 의사소통 기록과 분리하여 저장 |
+| 학습 | GET | `/api/learning/progress` | 본인 또는 `learning_manage` | 기간별 참여 횟수와 익숙한 단어·반복할 단어 조회 |
 | 학습 | GET | `/api/learning/audit` | 본인 또는 `learning_manage` | 학습 설정 변경 이력 조회 |
 | 운영 | GET | `/api/admin/card-submissions` | `content_manage` 권한 담당자 | 전체 카드 요청 조회 |
 | 운영 | PATCH | `/api/admin/card-submissions/{id}` | `content_manage` 권한 담당자 | 카드 승인 또는 반려 |
@@ -520,6 +520,18 @@ Content-Type: application/json
 ```
 
 동의한 사용자가 오프라인에서 실행한 즉시 발화 또는 선택 카드 그대로 발화의 UUID, 유형, 카드 ID와 기기 시각만 저장한다. 발화 원문은 전송하지 않는다. 서버는 UUID를 `_id`로 upsert하므로 같은 묶음을 재전송해도 중복 이력이 생기지 않는다. 응답의 `accepted_ids`를 받은 뒤에만 기기 대기열에서 제거한다. 한 요청은 최대 100건, 카드 ID는 이벤트당 1~12개다.
+
+## 6.13 학습 결과와 단어별 진행 조회
+
+`POST /api/learning/attempts`는 세션 합계와 함께 각 문제의 `card_id`, `label`,
+`first_try_correct`를 저장한다. 문제별 결과 수와 첫 시도 성공 수는 세션의 전체
+문제 수와 정답 수에 일치해야 한다. 기존 클라이언트를 위해 문제별 결과가 없는
+요청도 허용한다.
+
+`GET /api/learning/progress?days=30`은 참여 횟수와 함께 `familiar_words`,
+`repeat_words`, `practicing_words`를 반환한다. 최근 조회 기간에 두 번 이상 모두
+첫 시도에 찾은 단어는 익숙한 단어, 한 번이라도 어려웠던 단어는 다시 연습할
+단어로 분류한다. 화면에서는 평균 점수보다 참여와 단어별 경험을 먼저 표시한다.
 
 # 7. 카드 API
 
