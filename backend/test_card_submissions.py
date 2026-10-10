@@ -6,6 +6,7 @@ from unittest.mock import patch
 from fastapi import HTTPException
 from PIL import Image
 
+from app.api.router import _card_owner
 from app.services.card_submissions import (
     approved_cards_for, create_submission, image_for, review_submission,
     submissions_for, submissions_for_review, submit_draft, update_submission,
@@ -65,6 +66,40 @@ class CardSubmissionTests(unittest.TestCase):
         self.mock.stop()
         self.audit_mock.stop()
         self.category_mock.stop()
+
+    @patch('app.api.router.require_link_permission', return_value='child')
+    def test_supporter_card_owner_requires_explicit_link_permission(self, mocked_permission):
+        supporter = {'id': 'caregiver', 'role': 'caregiver'}
+
+        self.assertEqual(_card_owner(supporter, 'child'), 'child')
+        mocked_permission.assert_called_once_with(supporter, 'child', 'cards_manage')
+        with self.assertRaises(HTTPException) as missing:
+            _card_owner(supporter)
+        self.assertEqual(missing.exception.status_code, 422)
+
+    def test_supporter_card_change_keeps_child_owner_and_supporter_actor(self):
+        saved = create_submission(
+            'child', '연필', '글을 쓰는 도구', '학습', 'private',
+            'pencil.png', 'image/png', self.image, actor_id='caregiver',
+        )
+
+        self.assertEqual(saved['owner_id'], 'child')
+        self.assertEqual(self.audit_collection.documents[0]['actor_id'], 'caregiver')
+
+    @patch('app.services.support_links.require_link_permission', return_value='child')
+    def test_card_manager_can_view_linked_private_image(self, mocked_permission):
+        saved = create_submission(
+            'child', '연필', '글을 쓰는 도구', '학습', 'private',
+            'pencil.png', 'image/png', self.image,
+        )
+
+        image, content_type = image_for(saved['id'], {'id': 'caregiver', 'role': 'caregiver'})
+
+        self.assertTrue(image.startswith(b'RIFF'))
+        self.assertEqual(content_type, 'image/webp')
+        mocked_permission.assert_called_once_with(
+            {'id': 'caregiver', 'role': 'caregiver'}, 'child', 'cards_manage',
+        )
 
     def test_private_submission_is_immediately_active_and_scoped_to_owner(self):
         saved = create_submission(

@@ -95,6 +95,7 @@ const DEFAULT_PRIVACY = {
 const SUPPORT_PERMISSION_LABELS = {
   records_read: '의사소통 기록 조회',
   notes_write: '지원 메모 작성',
+  cards_manage: '개인 카드 관리',
   quick_speech_manage: '빠른 표현 관리',
   board_manage: '보드 구성 관리',
   voice_access_manage: '음성·접근 설정 관리',
@@ -333,7 +334,11 @@ function App() {
           request('/categories'),
         ]);
         const target = people[0] || null;
+        const targetCards = target?.permissions.includes('cards_manage')
+          ? await request(`/cards/submissions?user_id=${encodeURIComponent(target.id)}`)
+          : [];
         setLinkedUsers(people); setSelectedUser(target); setCards([]); setCardCategories(activeCategories); setRecommended([]);
+        setCardSubmissions(await hydrateImages(targetCards));
         setAdminSubmissions(await hydrateImages(submissions));
         setAdminCategories(categories);
         setCategoryEdits(Object.fromEntries(categories.map(item => [item.id, { name: item.name, display_order: item.display_order }])));
@@ -663,6 +668,7 @@ function App() {
     try {
       if (tab === 'dashboard' && target.permissions.includes('records_read')) setStats(await request(dashboardPath(period, target)));
       if (tab === 'support_settings' && target.permissions.includes('voice_access_manage')) await loadSupportSettings(target);
+      if (tab === 'card_settings' && target.permissions.includes('cards_manage')) await loadSupportCards(target);
       if (tab === 'board_settings' && target.permissions.some(permission => ['quick_speech_manage', 'board_manage'].includes(permission))) await loadBoardConfiguration(target);
       if (tab === 'learning_progress' && target.permissions.includes('learning_manage')) await loadLearning(target);
     }
@@ -675,6 +681,7 @@ function App() {
     try {
       if (nextTab === 'dashboard') setStats(await request(dashboardPath(period, selectedUser)));
       if (nextTab === 'support_settings') await loadSupportSettings(selectedUser);
+      if (nextTab === 'card_settings') await loadSupportCards(selectedUser);
       if (nextTab === 'board_settings') await loadBoardConfiguration(selectedUser);
     } catch (e) { setError(e.message); }
     finally { setStatsBusy(false); }
@@ -686,6 +693,10 @@ function App() {
     ]);
     setTtsSettings(normalizeTtsSettings(voiceSettings));
     setTtsSettingsSaved(true); setAccessibility(accessSettings); setAccessibilitySaved(true);
+  }
+  async function loadSupportCards(target) {
+    const query = `?user_id=${encodeURIComponent(target.id)}`;
+    setCardSubmissions(await hydrateImages(await request(`/cards/submissions${query}`)));
   }
   async function loadBoardConfiguration(target) {
     const query = `?user_id=${encodeURIComponent(target.id)}`;
@@ -992,10 +1003,12 @@ function App() {
     const form = event.currentTarget;
     const formData = new FormData(form);
     formData.set('submission_mode', event.nativeEvent.submitter?.value || 'submit');
+    const targetQuery = isSupporter && selectedUser ? `?user_id=${encodeURIComponent(selectedUser.id)}` : '';
+    if (isSupporter && selectedUser) formData.set('user_id', selectedUser.id);
     setCardFormBusy(true); setCardFormError(''); setError('');
     try {
       const saved = editingSubmission
-        ? await request(`/cards/submissions/${editingSubmission.id}`, {
+        ? await request(`/cards/submissions/${editingSubmission.id}${targetQuery}`, {
           method: 'PATCH', body: JSON.stringify(Object.fromEntries(['label', 'meaning', 'category', 'visibility'].map(key => [key, formData.get(key)]))),
         })
         : await request('/cards/submissions', { method: 'POST', body: formData });
@@ -1005,16 +1018,23 @@ function App() {
       setShowCardForm(false);
       setEditingSubmission(null);
       form.reset();
-      if (saved.status === 'approved') await load(user);
+      if (saved.status === 'approved') {
+        if (isSupporter) await loadSupportCards(selectedUser);
+        else await load(user);
+      }
     } catch (e) { setCardFormError(e.message); }
     finally { setCardFormBusy(false); }
   }
   async function submitDraft(item) {
     setReviewBusy(item.id); setError('');
     try {
-      const saved = await request(`/cards/submissions/${item.id}/submit`, { method: 'POST' });
+      const targetQuery = isSupporter && selectedUser ? `?user_id=${encodeURIComponent(selectedUser.id)}` : '';
+      const saved = await request(`/cards/submissions/${item.id}/submit${targetQuery}`, { method: 'POST' });
       setCardSubmissions(current => current.map(row => row.id === item.id ? saved : row));
-      if (saved.status === 'approved') await load(user);
+      if (saved.status === 'approved') {
+        if (isSupporter) await loadSupportCards(selectedUser);
+        else await load(user);
+      }
     } catch (e) { setError(e.message); }
     finally { setReviewBusy(''); }
   }
@@ -1131,6 +1151,7 @@ function App() {
   const selectedPermissions = selectedUser?.permissions || [];
   const canReadRecords = selectedPermissions.includes('records_read');
   const canWriteNotes = selectedPermissions.includes('notes_write');
+  const canManageCards = selectedPermissions.includes('cards_manage');
   const canManageVoice = selectedPermissions.includes('voice_access_manage');
   const canManageQuick = selectedPermissions.includes('quick_speech_manage');
   const canManageBoard = selectedPermissions.includes('board_manage');
@@ -1178,6 +1199,7 @@ function App() {
       <nav aria-label="주 메뉴">{isSupporter ? <>
           <button className={tab === 'support_home' ? 'active' : ''} onClick={() => setTab('support_home')}><span aria-hidden="true">⌂</span>지원 홈</button>
           {canReadRecords && <button className={tab === 'dashboard' ? 'active' : ''} onClick={() => openSupportSection('dashboard')}><span aria-hidden="true">▥</span>의사소통 기록</button>}
+          {canManageCards && <button className={tab === 'card_settings' ? 'active' : ''} onClick={() => openSupportSection('card_settings')}><span aria-hidden="true">▤</span>개인 카드 관리</button>}
           {(canManageQuick || canManageBoard) && <button className={tab === 'board_settings' ? 'active' : ''} onClick={() => openSupportSection('board_settings')}><span aria-hidden="true">▦</span>빠른 표현·카드판</button>}
           {canManageVoice && <button className={tab === 'support_settings' ? 'active' : ''} onClick={() => openSupportSection('support_settings')}><span aria-hidden="true">♿</span>음성·접근 설정</button>}
           {canManageLearning && <button className={tab === 'learning_progress' ? 'active' : ''} onClick={() => openLearning(selectedUser)}><span aria-hidden="true">★</span>학습 성취</button>}
@@ -1218,6 +1240,7 @@ function App() {
         {linkedUsers.length ? <><label className="user-picker">지원할 사용자<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)}>{linkedUsers.map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>
           <div className="support-action-grid">
             {canReadRecords && <button onClick={() => openSupportSection('dashboard')}><span>📊</span><strong>의사소통 기록</strong><small>사용 기록과 안전 관련 표현 확인</small></button>}
+            {canManageCards && <button onClick={() => openSupportSection('card_settings')}><span>▤</span><strong>개인 카드 관리</strong><small>연결 사용자 전용 카드 등록과 수정</small></button>}
             {(canManageQuick || canManageBoard) && <button onClick={() => openSupportSection('board_settings')}><span>▦</span><strong>빠른 표현·카드판</strong><small>표현과 카드 위치를 사용자별로 고정</small></button>}
             {canManageVoice && <button onClick={() => openSupportSection('support_settings')}><span>♿</span><strong>음성·접근 설정</strong><small>목소리와 화면 표시 방식 조정</small></button>}
             {canManageLearning && <button onClick={() => openLearning(selectedUser)}><span>★</span><strong>학습 성취</strong><small>최근 연습 결과와 카테고리별 성취 확인</small></button>}
@@ -1312,6 +1335,11 @@ function App() {
           </form>
         </section>
       </div>}
+    </section> : tab === 'card_settings' && isSupporter && canManageCards ? <section className="card-catalog">
+      <div className="catalog-toolbar"><div><h2>{selectedUser?.name}님의 개인 카드</h2><p className="muted">연결 사용자만 사용하는 카드를 대신 등록하고 관리합니다.</p></div><button className="primary" onClick={() => { setEditingSubmission(null); setCardFormError(''); setShowCardForm(true); }}>+ 개인 카드 등록</button></div>
+      <label className="user-picker">관리 사용자<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)} disabled={cardFormBusy}>{linkedUsers.filter(person => person.permissions.includes('cards_manage')).map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>
+      <div className="submission-list"><h3>등록 카드</h3>{cardSubmissions.length ? <ul>{cardSubmissions.map(item => <li key={item.id}><span><strong>{item.label}</strong><small>{item.category} · {item.sharing_notice || (item.visibility === 'private' ? '연결 사용자만 사용' : '공개 요청')}</small></span><div className="submission-actions"><b className={`submission-status ${item.status}`}>{item.visibility === 'private' && item.status === 'approved' ? '사용 중' : ({ draft: '작성 중', pending: '승인 대기', approved: '공개 승인', rejected: '반려', inactive: '비활성' })[item.status] || item.status}</b>{['draft', 'rejected'].includes(item.status) && <button disabled={reviewBusy === item.id} onClick={() => { setEditingSubmission(item); setCardFormError(''); setShowCardForm(true); }}>수정</button>}{item.status === 'draft' && <button className="primary" disabled={reviewBusy === item.id} onClick={() => submitDraft(item)}>{item.visibility === 'private' ? '사용 시작' : '공개 승인 요청'}</button>}</div></li>)}</ul> : <p className="muted">등록된 개인 카드가 없습니다.</p>}</div>
+      {showCardForm && <div className="modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setShowCardForm(false); }}><section className="card-form-modal" role="dialog" aria-modal="true" aria-labelledby="support-card-form-title"><div className="modal-heading"><div><h2 id="support-card-form-title">{editingSubmission ? '개인 카드 수정' : '개인 카드 등록'}</h2><p className="muted">{selectedUser?.name}님 계정에 저장할 카드입니다.</p></div><button type="button" aria-label="등록 폼 닫기" onClick={() => { setShowCardForm(false); setEditingSubmission(null); }}>×</button></div><form key={editingSubmission?.id || 'support-new'} className="card-form" onSubmit={submitCard}>{cardFormError && <div role="alert" className="error">{cardFormError}</div>}<label>카드명<input name="label" required maxLength="30" placeholder="예: 연필" defaultValue={editingSubmission?.label || ''} /></label><label>카드 뜻<textarea name="meaning" required maxLength="120" rows="3" placeholder="카드가 나타내는 뜻을 적어 주세요." defaultValue={editingSubmission?.meaning || ''} /></label><label>카테고리<select name="category" required defaultValue={editingSubmission?.category || ''}><option value="" disabled>카테고리 선택</option>{cardCategories.map(item => <option key={item.id} value={item.name}>{item.name}</option>)}</select></label><input name="visibility" type="hidden" value="private" />{!editingSubmission && <label>카드 이미지<input name="image" required type="file" accept="image/jpeg,image/png,image/webp" capture="environment" /></label>}<p className="form-notice">개인 카드는 연결 사용자에게만 표시되며 운영 담당자의 공개 승인 목록에는 나타나지 않습니다.</p><div className="modal-actions"><button type="button" disabled={cardFormBusy} onClick={() => { setShowCardForm(false); setEditingSubmission(null); }}>취소</button>{!editingSubmission && <button type="submit" value="draft" disabled={cardFormBusy}>임시 저장</button>}<button type="submit" value="submit" className="primary" disabled={cardFormBusy}>{cardFormBusy ? '저장 중…' : editingSubmission ? '수정 저장' : '카드 저장'}</button></div></form></section></div>}
     </section> : tab === 'learning_progress' && isSupporter && canManageLearning ? <section className="learning-hub">
       <div className="panel-heading"><span aria-hidden="true">★</span><div><h2>연결 사용자 학습 성취</h2><p className="muted">학습 결과는 의사소통 기록과 분리된 최근 30일 집계입니다.</p></div></div>
       <label className="user-picker">조회 사용자<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)} disabled={learningBusy}>{linkedUsers.filter(person => person.permissions.includes('learning_manage')).map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>

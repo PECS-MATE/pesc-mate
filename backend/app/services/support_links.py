@@ -12,12 +12,16 @@ SUPPORT_ROLES = {'caregiver', 'support_staff'}
 LINK_PERMISSIONS = (
     'records_read',
     'notes_write',
+    'cards_manage',
     'quick_speech_manage',
     'board_manage',
     'voice_access_manage',
     'learning_manage',
 )
-LEGACY_PERMISSIONS = list(LINK_PERMISSIONS)
+LEGACY_PERMISSIONS = [
+    'records_read', 'notes_write', 'quick_speech_manage', 'board_manage',
+    'voice_access_manage', 'learning_manage',
+]
 
 
 def _supporter_id(link):

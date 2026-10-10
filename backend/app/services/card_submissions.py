@@ -142,7 +142,8 @@ def _normalize_image(image_data, declared_content_type):
 
 def create_submission(owner_id, label, meaning, category, visibility,
                       image_filename, image_content_type, image_data,
-                      submission_mode='submit'):
+                      submission_mode='submit', actor_id=None):
+    actor_id = actor_id or owner_id
     label = label.strip()
     meaning = meaning.strip()
     category = category.strip()
@@ -188,7 +189,7 @@ def create_submission(owner_id, label, meaning, category, visibility,
         collection.insert_one(document)
         _audit_collection().insert_one({
             '_id': str(uuid4()), 'card_submission_id': document['_id'],
-            'actor_id': owner_id,
+            'actor_id': actor_id,
             'action': 'private_activated' if document['status'] == 'approved' else document['status'],
             'reason': None, 'created_at': document['created_at'],
         })
@@ -260,7 +261,8 @@ def review_submission(submission_id, reviewer_id, decision, reason=''):
         raise HTTPException(503, '카드 승인 결과를 저장하지 못했습니다.') from exc
 
 
-def submit_draft(submission_id, owner_id):
+def submit_draft(submission_id, owner_id, actor_id=None):
+    actor_id = actor_id or owner_id
     try:
         collection = _collection()
         document = collection.find_one({'_id': submission_id, 'owner_id': owner_id})
@@ -275,7 +277,7 @@ def submit_draft(submission_id, owner_id):
                               {'$set': changes})
         _audit_collection().insert_one({
             '_id': str(uuid4()), 'card_submission_id': submission_id,
-            'actor_id': owner_id,
+            'actor_id': actor_id,
             'action': 'private_activated' if next_status == 'approved' else 'pending',
             'reason': None, 'created_at': submitted_at,
         })
@@ -289,7 +291,9 @@ def submit_draft(submission_id, owner_id):
         raise HTTPException(503, '카드 승인 요청을 저장하지 못했습니다.') from exc
 
 
-def update_submission(submission_id, owner_id, label, meaning, category, visibility):
+def update_submission(submission_id, owner_id, label, meaning, category, visibility,
+                      actor_id=None):
+    actor_id = actor_id or owner_id
     label = label.strip()
     meaning = meaning.strip()
     category = category.strip()
@@ -321,7 +325,7 @@ def update_submission(submission_id, owner_id, label, meaning, category, visibil
                                'status': document['status']}, {'$set': changes})
         _audit_collection().insert_one({
             '_id': str(uuid4()), 'card_submission_id': submission_id,
-            'actor_id': owner_id, 'action': 'updated',
+            'actor_id': actor_id, 'action': 'updated',
             'reason': None, 'created_at': updated_at,
         })
         log_crud('UPDATE', 'card_submissions', '카드 정보 수정')
@@ -360,11 +364,15 @@ def image_for(submission_id, requester):
             can_review = document['visibility'] == 'shared'
         except HTTPException:
             can_review = False
+        try:
+            from app.services.support_links import require_link_permission
+            require_link_permission(requester, document['owner_id'], 'cards_manage')
+            can_manage = True
+        except HTTPException:
+            can_manage = False
         can_use = ((document['visibility'] == 'shared' and document['status'] == 'approved')
-                   or (document['visibility'] == 'private'
-                       and document['status'] in {'approved', 'pending'}
-                       and document['owner_id'] == requester['id']))
-        if not can_review and not can_use:
+                   or document['owner_id'] == requester['id'])
+        if not can_review and not can_use and not can_manage:
             raise HTTPException(403, '이 카드 이미지를 볼 수 없습니다.')
         return document['image']['data'], document['image']['content_type']
     except HTTPException:

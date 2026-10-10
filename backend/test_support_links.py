@@ -4,8 +4,8 @@ from unittest.mock import MagicMock, patch
 from fastapi import HTTPException
 
 from app.services.support_links import (
-    change_support_permissions, grant_support, require_link_permission, revoke_support,
-    require_any_link_permission, validate_permissions,
+    LEGACY_PERMISSIONS, change_support_permissions, grant_support, require_link_permission,
+    revoke_support, require_any_link_permission, validate_permissions,
 )
 
 
@@ -52,6 +52,8 @@ class SupportLinkTests(unittest.TestCase):
         self.assertTrue(all(row['actor_id'] == 'child' and row['created_at'] for row in audits))
 
     def test_empty_or_unknown_permissions_are_rejected(self):
+        self.assertEqual(validate_permissions(['cards_manage']), ['cards_manage'])
+        self.assertNotIn('cards_manage', LEGACY_PERMISSIONS)
         with self.assertRaises(HTTPException):
             validate_permissions([])
         with self.assertRaises(HTTPException):

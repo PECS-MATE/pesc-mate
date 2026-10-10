@@ -163,14 +163,14 @@ class CaregiverAccessResponse(BaseModel):
 class SupportLinkRequest(BaseModel):
     username: str = Field(min_length=1, max_length=64)
     permissions: list[Literal[
-        'records_read', 'notes_write', 'quick_speech_manage', 'board_manage',
+        'records_read', 'notes_write', 'cards_manage', 'quick_speech_manage', 'board_manage',
         'voice_access_manage', 'learning_manage',
     ]] = Field(min_length=1, max_length=len(LINK_PERMISSIONS))
 
 
 class SupportPermissionsRequest(BaseModel):
     permissions: list[Literal[
-        'records_read', 'notes_write', 'quick_speech_manage', 'board_manage',
+        'records_read', 'notes_write', 'cards_manage', 'quick_speech_manage', 'board_manage',
         'voice_access_manage', 'learning_manage',
     ]] = Field(min_length=1, max_length=len(LINK_PERMISSIONS))
 
@@ -770,10 +770,20 @@ def categories(_user=Depends(current_user)):
     return active_categories()
 
 
+def _card_owner(user, user_id=None):
+    if user['role'] == 'user':
+        if user_id and user_id != user['id']:
+            raise HTTPException(403, '다른 사용자의 카드를 관리할 수 없습니다.')
+        return user['id']
+    if not user_id:
+        raise HTTPException(422, '관리할 연결 사용자를 선택해 주세요.')
+    return require_link_permission(user, user_id, 'cards_manage')
+
+
 @api_router.get('/cards/submissions', response_model=list[CardSubmissionResponse], tags=['카드'])
-def card_submissions(user=Depends(current_user)):
-    require_communicator(user)
-    return submissions_for(user['id'])
+def card_submissions(user_id: str | None = Query(default=None, max_length=64),
+                     user=Depends(current_user)):
+    return submissions_for(_card_owner(user, user_id))
 
 
 @api_router.post('/cards/submissions', response_model=CardSubmissionResponse, status_code=201, tags=['카드'])
@@ -782,29 +792,34 @@ async def submit_card(label: str = Form(min_length=1, max_length=30),
                       category: str = Form(min_length=1, max_length=30),
                       visibility: str = Form(),
                       submission_mode: str = Form(default='submit'),
+                      user_id: str | None = Form(default=None, max_length=64),
                       image: UploadFile = File(),
                       user=Depends(current_user)):
-    require_communicator(user)
-    require_guardian_consent(user)
+    owner_id = _card_owner(user, user_id)
+    require_guardian_consent({'id': owner_id})
     image_data = await image.read(MAX_IMAGE_BYTES + 1)
-    return create_submission(user['id'], label, meaning, category, visibility,
-                             image.filename, image.content_type, image_data, submission_mode)
+    return create_submission(owner_id, label, meaning, category, visibility,
+                             image.filename, image.content_type, image_data, submission_mode,
+                             actor_id=user['id'])
 
 
 @api_router.post('/cards/submissions/{submission_id}/submit', response_model=CardSubmissionResponse, tags=['카드'])
-def request_card_review(submission_id: str, user=Depends(current_user)):
-    require_communicator(user)
-    require_guardian_consent(user)
-    return submit_draft(submission_id, user['id'])
+def request_card_review(submission_id: str,
+                        user_id: str | None = Query(default=None, max_length=64),
+                        user=Depends(current_user)):
+    owner_id = _card_owner(user, user_id)
+    require_guardian_consent({'id': owner_id})
+    return submit_draft(submission_id, owner_id, actor_id=user['id'])
 
 
 @api_router.patch('/cards/submissions/{submission_id}', response_model=CardSubmissionResponse, tags=['카드'])
 def edit_card_submission(submission_id: str, request: CardUpdateRequest,
+                         user_id: str | None = Query(default=None, max_length=64),
                          user=Depends(current_user)):
-    require_communicator(user)
-    require_guardian_consent(user)
-    return update_submission(submission_id, user['id'], request.label, request.meaning,
-                             request.category, request.visibility)
+    owner_id = _card_owner(user, user_id)
+    require_guardian_consent({'id': owner_id})
+    return update_submission(submission_id, owner_id, request.label, request.meaning,
+                             request.category, request.visibility, actor_id=user['id'])
 
 
 @api_router.get('/cards/submissions/{submission_id}/image', tags=['카드'])

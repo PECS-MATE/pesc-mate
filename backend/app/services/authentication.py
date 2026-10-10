@@ -81,7 +81,7 @@ def ensure_demo_users():
             {'_id': f'{caregiver_id}:{user_id}'},
             {'$set': {'caregiver_id': caregiver_id, 'supporter_id': caregiver_id,
                       'supporter_role': 'caregiver', 'user_id': user_id,
-                      'permissions': ['records_read', 'notes_write', 'quick_speech_manage',
+                      'permissions': ['records_read', 'notes_write', 'cards_manage', 'quick_speech_manage',
                                       'board_manage', 'voice_access_manage', 'learning_manage'],
                       'active': True},
              '$setOnInsert': {'created_at': datetime.now(timezone.utc)}},

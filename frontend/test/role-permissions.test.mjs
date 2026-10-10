@@ -8,9 +8,11 @@ test('supporter navigation is derived from the selected link permissions', () =>
   assert.match(app, /selectedPermissions\.includes\('records_read'\)/);
   assert.match(app, /selectedPermissions\.includes\('notes_write'\)/);
   assert.match(app, /selectedPermissions\.includes\('voice_access_manage'\)/);
+  assert.match(app, /selectedPermissions\.includes\('cards_manage'\)/);
   assert.match(app, /canReadRecords && <button/);
   assert.match(app, /isSupporter && canWriteNotes/);
   assert.match(app, /canManageVoice && <button/);
+  assert.match(app, /canManageCards && <button/);
   assert.match(app, /canManageQuick \|\| canManageBoard/);
 });
 
