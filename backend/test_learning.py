@@ -64,11 +64,19 @@ class LearningTests(unittest.TestCase):
             'activity_type': 'word_picture_match', 'category_id': 'food',
             'total_questions': 10, 'correct_answers': 8, 'incorrect_answers': 2,
             'score': 80, 'duration_seconds': 40, 'completed_at': now,
+            'items': [
+                {'card_id': 'apple', 'label': '사과', 'first_try_correct': True},
+                {'card_id': 'water', 'label': '물', 'first_try_correct': False},
+            ],
         }, {
             '_id': 'b', 'user_id': 'child', 'record_type': 'learning_attempt',
             'activity_type': 'word_picture_match', 'category_id': 'food',
             'total_questions': 10, 'correct_answers': 10, 'incorrect_answers': 0,
             'score': 100, 'duration_seconds': 30, 'completed_at': now,
+            'items': [
+                {'card_id': 'apple', 'label': '사과', 'first_try_correct': True},
+                {'card_id': 'rice', 'label': '밥', 'first_try_correct': True},
+            ],
         }]
         database = MagicMock()
         database.learning_attempts.find.return_value.sort.return_value = rows
@@ -79,8 +87,20 @@ class LearningTests(unittest.TestCase):
         self.assertEqual(result['attempts'], 2)
         self.assertEqual(result['average_score'], 90)
         self.assertEqual(result['categories']['food']['correct_answers'], 18)
+        self.assertEqual(result['familiar_words'][0]['label'], '사과')
+        self.assertEqual(result['repeat_words'][0]['label'], '물')
+        self.assertEqual(result['practicing_words'][0]['label'], '밥')
         query = database.learning_attempts.find.call_args.args[0]
         self.assertEqual(query['record_type'], 'learning_attempt')
+
+    @patch('app.services.learning._database')
+    def test_attempt_rejects_inconsistent_item_results(self, mocked_database):
+        with self.assertRaises(HTTPException) as caught:
+            record_attempt('child', 'request-2', 'word_picture_match', 'food', 2, 2, 20, [{
+                'card_id': 'water', 'label': '물', 'first_try_correct': False,
+            }])
+        self.assertEqual(caught.exception.status_code, 422)
+        mocked_database.assert_not_called()
 
     def test_aac_user_cannot_modify_learning_settings(self):
         request = LearningSettingsRequest(

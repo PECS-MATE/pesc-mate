@@ -40,6 +40,8 @@ test('play screen saves only a learning attempt and keeps communication availabl
   const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
   assert.match(app, /request\('\/learning\/attempts'/);
   assert.match(app, /activity_type: 'word_picture_match'/);
+  assert.match(app, /items: snapshot\.results/);
+  assert.match(app, /first_try_correct: !current\.hadWrong/);
   assert.match(app, /className="primary communication-return"/);
   assert.match(app, /괜찮아요\. 다른 단어를 다시 골라 보세요\./);
 });

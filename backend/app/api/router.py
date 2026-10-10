@@ -311,6 +311,12 @@ class LearningSettingsResponse(BaseModel):
     updated_by: str | None = None
 
 
+class LearningItemResult(BaseModel):
+    card_id: str = Field(min_length=1, max_length=64)
+    label: str = Field(min_length=1, max_length=30)
+    first_try_correct: bool
+
+
 class LearningAttemptRequest(BaseModel):
     request_id: UUID
     activity_type: Literal['word_picture_match']
@@ -318,6 +324,7 @@ class LearningAttemptRequest(BaseModel):
     total_questions: int = Field(ge=1, le=30)
     correct_answers: int = Field(ge=0, le=30)
     duration_seconds: int = Field(ge=0, le=3600)
+    items: list[LearningItemResult] = Field(default_factory=list, max_length=30)
 
 
 class LearningAttemptResponse(BaseModel):
@@ -330,7 +337,16 @@ class LearningAttemptResponse(BaseModel):
     incorrect_answers: int
     score: int
     duration_seconds: int
+    items: list[LearningItemResult]
     completed_at: datetime
+
+
+class LearningWordProgress(BaseModel):
+    card_id: str
+    label: str
+    practice_count: int
+    first_try_correct_count: int
+    needs_repeat_count: int
 
 
 class LearningProgressResponse(BaseModel):
@@ -343,6 +359,9 @@ class LearningProgressResponse(BaseModel):
     average_score: int
     last_completed_at: datetime | None = None
     categories: dict[str, dict[str, int]]
+    familiar_words: list[LearningWordProgress]
+    repeat_words: list[LearningWordProgress]
+    practicing_words: list[LearningWordProgress]
     recent: list[LearningAttemptResponse]
 
 
@@ -725,6 +744,7 @@ def post_learning_attempt(request: LearningAttemptRequest, user=Depends(current_
     return record_learning_attempt(
         user['id'], str(request.request_id), request.activity_type, request.category_id,
         request.total_questions, request.correct_answers, request.duration_seconds,
+        [item.model_dump() for item in request.items],
     )
 
 

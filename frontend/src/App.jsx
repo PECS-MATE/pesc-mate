@@ -685,7 +685,7 @@ function App() {
     setLearningGame({
       phase: 'playing', questions, questionIndex: 0, correctAnswers: 0,
       hadWrong: false, feedback: '', selectedId: '', startedAt: Date.now(),
-      requestId: crypto.randomUUID(), attempt: null,
+      requestId: crypto.randomUUID(), attempt: null, results: [],
     });
   }
   function answerLearningQuestion(cardId) {
@@ -696,10 +696,20 @@ function App() {
       if (correct) return {
         ...current, selectedId: cardId, feedback: 'correct',
         correctAnswers: current.correctAnswers + (current.hadWrong ? 0 : 1),
+        results: [...current.results, {
+          card_id: question.target.id, label: question.target.label,
+          first_try_correct: !current.hadWrong,
+        }],
       };
       return {
         ...current, selectedId: cardId, hadWrong: true,
         feedback: learningSettings?.retry_enabled === false ? 'incorrect' : 'retry',
+        results: learningSettings?.retry_enabled === false
+          ? [...current.results, {
+            card_id: question.target.id, label: question.target.label,
+            first_try_correct: false,
+          }]
+          : current.results,
       };
     });
   }
@@ -715,6 +725,7 @@ function App() {
         total_questions: snapshot.questions.length,
         correct_answers: snapshot.correctAnswers,
         duration_seconds: durationSeconds,
+        items: snapshot.results,
       }) });
       setLearningGame(current => ({ ...current, phase: 'complete', attempt }));
       try { setLearningProgress(await request('/learning/progress?days=30')); }
@@ -1145,7 +1156,7 @@ function App() {
         {['correct', 'incorrect'].includes(learningGame.feedback) && <button className="primary learning-next" disabled={learningGame.phase === 'saving'} onClick={nextLearningQuestion}>{learningGame.phase === 'saving' ? '결과 저장 중…' : learningGame.questionIndex === learningGame.questions.length - 1 ? '연습 마치기' : '다음 문제'}</button>}
       </article> : learningGame?.phase === 'complete' ? <article className="learning-result"><span aria-hidden="true">🌟</span><h3>연습을 마쳤어요!</h3><p>처음 선택으로 <strong>{learningGame.attempt?.correct_answers ?? learningGame.correctAnswers}</strong>개를 찾았어요. 틀린 문제도 다시 살펴본 것이 중요한 연습이에요.</p>{learningGame.attempt ? <small>학습 기록에만 안전하게 저장했습니다.</small> : <small>결과가 저장되지 않았습니다. 다시 연결한 뒤 한 번 더 연습해 주세요.</small>}<div><button onClick={() => setLearningGame(null)}>연습 목록</button><button className="primary" onClick={startLearningGame}>같은 범위 다시 연습</button></div></article> : <div className="learning-overview-grid">
         <article className="learning-activity-card"><span aria-hidden="true">🧩</span><div><h3>단어·그림 맞추기</h3><p>그림과 알맞은 단어를 찾아보는 연습입니다.</p>{learningSettings && <small>{learningSettings.question_count}문제 · 보기 {learningSettings.option_count}개 · 카드 반복 {learningSettings.repeat_frequency}회 · 권장 시간 {learningSettings.time_limit_seconds}초 · {learningSettings.retry_enabled ? '재도전 가능' : '정답 확인 후 진행'}</small>}</div><label>연습 범위<select value={practiceCategory} onChange={event => setPracticeCategory(event.target.value)}><option value="all">설정된 카드 전체</option>{practiceCategories.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><button className="primary" disabled={availablePracticeCards().length < (learningSettings?.option_count || 3)} onClick={startLearningGame}>연습 시작</button></article>
-        <article><h3>최근 30일 연습</h3><div className="learning-metrics"><div><strong>{learningProgress?.attempts || 0}</strong><span>완료 횟수</span></div><div><strong>{learningProgress?.average_score || 0}점</strong><span>평균 점수</span></div><div><strong>{learningProgress?.correct_answers || 0}</strong><span>처음에 맞힌 문제</span></div></div>{!learningProgress?.attempts && <p className="muted">아직 완료한 연습이 없습니다.</p>}</article>
+        <article><h3>최근 30일 연습</h3><div className="learning-metrics"><div><strong>{learningProgress?.attempts || 0}</strong><span>참여 횟수</span></div><div><strong>{learningProgress?.familiar_words?.length || 0}</strong><span>익숙해진 단어</span></div><div><strong>{learningProgress?.repeat_words?.length || 0}</strong><span>다시 연습할 단어</span></div></div>{!learningProgress?.attempts && <p className="muted">아직 완료한 연습이 없습니다.</p>}</article>
       </div>}
       <button className="primary communication-return" onClick={() => setTab('cards')}>💬 말하기로 이동</button>
     </section> : tab === 'catalog' && user.role === 'user' ? <section className="card-catalog">
@@ -1186,7 +1197,7 @@ function App() {
       <label className="user-picker">조회 사용자<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)} disabled={learningBusy}>{linkedUsers.filter(person => person.permissions.includes('learning_manage')).map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>
       {learningBusy ? <p role="status">학습 성취를 불러오는 중입니다…</p> : <div className="learning-overview-grid">
         <article><h3>{selectedUser?.name}님의 학습 설정</h3>{learningSettings ? <form className="learning-settings-form" onSubmit={saveLearningConfiguration}><fieldset><legend>학습 카테고리</legend><div className="learning-category-options">{cardCategories.map(item => <label key={item.id}><input type="checkbox" checked={learningSettings.category_ids.includes(item.id)} onChange={event => updateLearningSetting({ category_ids: event.target.checked ? [...learningSettings.category_ids, item.id] : learningSettings.category_ids.filter(id => id !== item.id) })} />{item.name}</label>)}</div></fieldset><div className="learning-setting-fields"><label>문제 수<select value={learningSettings.question_count} onChange={event => updateLearningSetting({ question_count: Number(event.target.value) })}>{[5, 10, 15, 20, 30].map(value => <option key={value} value={value}>{value}개</option>)}</select></label><label>단어 보기 수<select value={learningSettings.option_count} onChange={event => updateLearningSetting({ option_count: Number(event.target.value) })}>{[2, 3, 4].map(value => <option key={value} value={value}>{value}개</option>)}</select></label><label>카드 반복<select value={learningSettings.repeat_frequency} onChange={event => updateLearningSetting({ repeat_frequency: Number(event.target.value) })}>{[1, 2, 3].map(value => <option key={value} value={value}>{value}회</option>)}</select></label><label>권장 시간<select value={learningSettings.time_limit_seconds} onChange={event => updateLearningSetting({ time_limit_seconds: Number(event.target.value) })}>{[30, 60, 120, 300, 600].map(value => <option key={value} value={value}>{value}초</option>)}</select></label></div><label className="privacy-check"><input type="checkbox" checked={learningSettings.retry_enabled} onChange={event => updateLearningSetting({ retry_enabled: event.target.checked })} />오답을 다시 선택할 수 있게 해요</label><button className="primary" disabled={!learningSettings.category_ids.length}>학습 설정 저장</button></form> : <p className="muted">기본 학습 설정을 사용합니다.</p>}</article>
-        <article><h3>최근 30일 성취</h3><div className="learning-metrics"><div><strong>{learningProgress?.attempts || 0}</strong><span>완료 횟수</span></div><div><strong>{learningProgress?.average_score || 0}점</strong><span>평균 점수</span></div><div><strong>{learningProgress?.correct_answers || 0}/{learningProgress?.total_questions || 0}</strong><span>정답</span></div></div>{learningProgress?.last_completed_at ? <p className="muted">최근 완료 {new Date(learningProgress.last_completed_at).toLocaleString('ko-KR')}</p> : <p className="muted">아직 완료한 연습이 없습니다.</p>}</article>
+        <article className="learning-word-progress"><h3>최근 30일 학습 흐름</h3><div className="learning-metrics"><div><strong>{learningProgress?.attempts || 0}</strong><span>참여 횟수</span></div><div><strong>{learningProgress?.familiar_words?.length || 0}</strong><span>익숙해진 단어</span></div><div><strong>{learningProgress?.repeat_words?.length || 0}</strong><span>다시 연습할 단어</span></div></div>{learningProgress?.last_completed_at ? <p className="muted">최근 참여 {new Date(learningProgress.last_completed_at).toLocaleString('ko-KR')}</p> : <p className="muted">아직 완료한 연습이 없습니다.</p>}<div className="learning-word-groups"><section><h4>익숙해진 단어</h4>{learningProgress?.familiar_words?.length ? <ul>{learningProgress.familiar_words.map(item => <li key={item.card_id}><strong>{item.label}</strong><span>{item.practice_count}번 연습</span></li>)}</ul> : <p className="muted">두 번 이상 편안하게 찾은 단어가 여기에 표시됩니다.</p>}</section><section><h4>다시 만나볼 단어</h4>{learningProgress?.repeat_words?.length ? <ul>{learningProgress.repeat_words.map(item => <li key={item.card_id}><strong>{item.label}</strong><span>{item.needs_repeat_count}번 어려웠어요</span></li>)}</ul> : <p className="muted">조금 더 연습할 단어가 없습니다.</p>}</section></div></article>
       </div>}
     </section> : tab === 'board_settings' && isSupporter && (canManageQuick || canManageBoard) ? <section className="board-settings-panel">
       <div className="panel-heading"><span aria-hidden="true">▦</span><div><h2>복구·빠른 표현·고정 카드판</h2><p className="muted">저장한 순서가 {selectedUser?.name} 사용자의 다른 기기에도 동일하게 적용됩니다.</p></div></div>

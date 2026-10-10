@@ -69,11 +69,15 @@ def save_settings(user_id, actor_id, category_ids, question_count, option_count,
 
 
 def record_attempt(user_id, request_id, activity_type, category_id,
-                   total_questions, correct_answers, duration_seconds):
+                   total_questions, correct_answers, duration_seconds, items=None):
     if activity_type not in ACTIVITY_TYPES:
         raise HTTPException(422, '지원하지 않는 학습 활동입니다.')
     if correct_answers > total_questions:
         raise HTTPException(422, '정답 수는 전체 문제 수보다 클 수 없습니다.')
+    item_results = list(items or [])
+    if item_results and (len(item_results) != total_questions or
+                         sum(bool(item['first_try_correct']) for item in item_results) != correct_answers):
+        raise HTTPException(422, '문제별 결과와 전체 학습 결과가 일치하지 않습니다.')
     now = datetime.now(timezone.utc)
     document = {
         '_id': request_id,
@@ -86,6 +90,7 @@ def record_attempt(user_id, request_id, activity_type, category_id,
         'incorrect_answers': total_questions - correct_answers,
         'score': round(correct_answers / total_questions * 100),
         'duration_seconds': duration_seconds,
+        'items': item_results,
         'completed_at': now,
     }
     try:
@@ -116,6 +121,7 @@ def _attempt_public(document):
             'user_id', 'activity_type', 'category_id', 'total_questions',
             'correct_answers', 'incorrect_answers', 'score', 'duration_seconds', 'completed_at',
         )},
+        'items': document.get('items', []),
     }
 
 
@@ -138,6 +144,26 @@ def progress_for(user_id, days=None, now=None):
         item['correct_answers'] += row['correct_answers']
     total_questions = sum(row['total_questions'] for row in rows)
     correct_answers = sum(row['correct_answers'] for row in rows)
+    word_totals = {}
+    for row in rows:
+        for result in row['items']:
+            item = word_totals.setdefault(result['card_id'], {
+                'card_id': result['card_id'], 'label': result['label'],
+                'practice_count': 0, 'first_try_correct_count': 0, 'needs_repeat_count': 0,
+            })
+            item['practice_count'] += 1
+            if result['first_try_correct']:
+                item['first_try_correct_count'] += 1
+            else:
+                item['needs_repeat_count'] += 1
+    familiar_words = [item for item in word_totals.values()
+                      if item['practice_count'] >= 2 and item['needs_repeat_count'] == 0]
+    repeat_words = [item for item in word_totals.values() if item['needs_repeat_count'] > 0]
+    practicing_words = [item for item in word_totals.values()
+                        if item['practice_count'] < 2 and item['needs_repeat_count'] == 0]
+    familiar_words.sort(key=lambda item: (-item['practice_count'], item['label']))
+    repeat_words.sort(key=lambda item: (-item['needs_repeat_count'], -item['practice_count'], item['label']))
+    practicing_words.sort(key=lambda item: (-item['practice_count'], item['label']))
     return {
         'user_id': user_id,
         'period_days': days,
@@ -148,6 +174,9 @@ def progress_for(user_id, days=None, now=None):
         'average_score': round(sum(row['score'] for row in rows) / len(rows)) if rows else 0,
         'last_completed_at': rows[0]['completed_at'] if rows else None,
         'categories': dict(category_totals),
+        'familiar_words': familiar_words[:20],
+        'repeat_words': repeat_words[:20],
+        'practicing_words': practicing_words[:20],
         'recent': rows[:20],
     }
 

@@ -34,3 +34,11 @@ test('learning manager can save difficulty and repetition settings', () => {
   assert.match(app, /단어 보기 수/);
   assert.match(app, /카드 반복/);
 });
+
+test('learning progress prioritizes participation and word familiarity', () => {
+  assert.match(app, /참여 횟수/);
+  assert.match(app, /익숙해진 단어/);
+  assert.match(app, /다시 만나볼 단어/);
+  assert.match(app, /learningProgress\.repeat_words/);
+  assert.doesNotMatch(app, /<span>평균 점수<\/span>/);
+});
