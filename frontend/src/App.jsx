@@ -7,8 +7,10 @@ import { clearBoard, loadBoard, saveBoard } from "./services/boardStorage";
 import { learningQuestions } from "./services/learningGame";
 import { localKoreanVoices as installedKoreanVoices, selectTtsVoice } from "./services/ttsVoice";
 import {
-  cacheAccount, cachedAccount, cacheSnapshot, cachedSnapshot, clearCachedAccount,
-  clearOfflineUserData, pendingOfflineEvents, queueOfflineEvent, removeOfflineEvents,
+  cacheAccount, cachedAccount, cacheLearningGame, cachedLearningGame, cacheLearningState,
+  cachedLearningState, cacheSnapshot, cachedSnapshot, clearCachedAccount, clearLearningGame,
+  clearOfflineUserData, pendingLearningAttempts, pendingOfflineEvents, queueLearningAttempt,
+  queueOfflineEvent, removeLearningAttempts, removeOfflineEvents,
 } from "./services/offlineStore";
 import cardSprite from "./assets/cards/pecs-card-sprite.png";
 
@@ -202,6 +204,54 @@ function App() {
       : item);
   }
 
+  function cacheableLearningGame(game) {
+    const withoutTemporaryUrl = card => {
+      const { image_src: _temporaryUrl, ...stored } = card;
+      return stored;
+    };
+    return {
+      ...game,
+      questions: game.questions.map(question => ({
+        target: withoutTemporaryUrl(question.target),
+        options: question.options.map(withoutTemporaryUrl),
+      })),
+    };
+  }
+
+  function restoreLearningCards(game, availableCards) {
+    const byId = new Map(availableCards.map(card => [card.id, card]));
+    const restore = card => byId.get(card.id) || (card.image_blob
+      ? { ...card, image_src: URL.createObjectURL(card.image_blob) }
+      : card);
+    return {
+      ...game, phase: 'playing', resumed: true,
+      questions: game.questions.map(question => ({
+        target: restore(question.target), options: question.options.map(restore),
+      })),
+    };
+  }
+
+  async function restoreLearningSession(account, availableCards) {
+    const saved = await cachedLearningGame(account.id).catch(() => null);
+    if (!saved?.game?.questions?.length || saved.game.questionIndex >= saved.game.questions.length) {
+      if (saved) await clearLearningGame(account.id).catch(() => {});
+      return false;
+    }
+    setLearningSettings(saved.learning_settings);
+    setPracticeCategory(saved.practice_category || 'all');
+    setLearningGame(restoreLearningCards(saved.game, availableCards));
+    setTab('practice');
+    return true;
+  }
+
+  async function updatePendingSyncCount(accountId) {
+    const [events, attempts] = await Promise.all([
+      pendingOfflineEvents(accountId).catch(() => []),
+      pendingLearningAttempts(accountId).catch(() => []),
+    ]);
+    setPendingSyncCount(events.length + attempts.length);
+  }
+
   async function applyOfflineSnapshot(account, snapshot) {
     if (!snapshot) return false;
     const all = restoreCachedCards(snapshot.cards);
@@ -215,22 +265,49 @@ function App() {
     setBoardLayout(snapshot.board_layout || null);
     setLoaded(true); setOffline(true);
     if (!snapshot.privacy?.guardian_consent) setTab('privacy');
-    setPendingSyncCount((await pendingOfflineEvents(account.id).catch(() => [])).length);
+    else await restoreLearningSession(account, all);
+    await updatePendingSyncCount(account.id);
     return true;
   }
 
   async function syncPendingEvents(account = user) {
     if (!account || account.role !== 'user' || !navigator.onLine) return;
-    const events = await pendingOfflineEvents(account.id).catch(() => []);
-    setPendingSyncCount(events.length);
-    if (!events.length) return;
-    try {
-      const result = await request('/offline/events/sync', {
-        method: 'POST', body: JSON.stringify({ events: events.map(({ user_id: _userId, ...event }) => event) }),
-      });
-      await removeOfflineEvents(result.accepted_ids);
-      setPendingSyncCount(Math.max(0, events.length - result.accepted_ids.length));
-    } catch { /* Retry with the same UUIDs on the next online event. */ }
+    const [events, attempts] = await Promise.all([
+      pendingOfflineEvents(account.id).catch(() => []),
+      pendingLearningAttempts(account.id).catch(() => []),
+    ]);
+    setPendingSyncCount(events.length + attempts.length);
+    if (events.length) {
+      try {
+        const result = await request('/offline/events/sync', {
+          method: 'POST', body: JSON.stringify({ events: events.map(({ user_id: _userId, ...event }) => event) }),
+        });
+        await removeOfflineEvents(result.accepted_ids);
+      } catch { /* Retry with the same UUIDs on the next online event. */ }
+    }
+    const syncedAttempts = [];
+    for (const queued of attempts) {
+      const { user_id: _userId, ...attempt } = queued;
+      try {
+        await request('/learning/attempts', { method: 'POST', body: JSON.stringify(attempt) });
+        syncedAttempts.push(attempt.request_id);
+      } catch { /* Each learning request keeps its UUID and retries after the next reconnect. */ }
+    }
+    await removeLearningAttempts(syncedAttempts).catch(() => {});
+    if (syncedAttempts.length) {
+      setLearningGame(current => current?.attempt?.pending_sync &&
+        syncedAttempts.includes(current.attempt.request_id)
+        ? { ...current, attempt: { ...current.attempt, pending_sync: false } }
+        : current);
+      try {
+        const progress = await request('/learning/progress?days=30');
+        setLearningProgress(progress);
+        if (learningSettings) cacheLearningState(account.id, {
+          settings: learningSettings, progress,
+        }).catch(() => {});
+      } catch { /* The queued attempts are already safe; refresh progress on the next visit. */ }
+    }
+    await updatePendingSyncCount(account.id);
   }
 
   function primeOfflineAssets() {
@@ -273,6 +350,7 @@ function App() {
       setBoardLayout(layout);
       setSupportPermissionDrafts(Object.fromEntries(caregivers.map(item => [item.supporter_id, item.permissions])));
       if (!privacySettings.guardian_consent) setTab('privacy');
+      else await restoreLearningSession(account, all);
       setTtsSettingsSaved(true); setLoaded(true); setOffline(false);
       cacheSnapshot(account.id, {
         cards: cacheableCards(all), categories: rawCategories,
@@ -338,6 +416,16 @@ function App() {
     window.addEventListener('online', online); window.addEventListener('offline', offlineNow);
     return () => { window.removeEventListener('online', online); window.removeEventListener('offline', offlineNow); };
   }, [user]);
+
+  useEffect(() => {
+    if (user?.role !== 'user' || learningGame?.phase !== 'playing' || !learningSettings) return;
+    cacheLearningGame(user.id, {
+      game: cacheableLearningGame(learningGame),
+      practice_category: practiceCategory,
+      learning_settings: learningSettings,
+      saved_at: new Date().toISOString(),
+    }).catch(() => {});
+  }, [user?.id, user?.role, learningGame, practiceCategory, learningSettings]);
 
   async function handleLogin(event) {
     event.preventDefault();
@@ -617,6 +705,7 @@ function App() {
       request(`/learning/progress${query}${separator}days=30`),
     ]);
     setLearningSettings(settings); setLearningProgress(progress);
+    if (!isLinkedTarget) cacheLearningState(user.id, { settings, progress }).catch(() => {});
   }
   function updateLearningSetting(changes) {
     setLearningSettings(current => ({ ...current, ...changes }));
@@ -647,8 +736,12 @@ function App() {
     setTab(['caregiver', 'support_staff'].includes(user.role) ? 'learning_progress' : 'practice');
     setLearningBusy(true); setError('');
     try {
-      if (!navigator.onLine) throw new Error('학습 기록은 온라인 연결 후 확인할 수 있습니다. 말하기와 빠른 표현은 계속 사용할 수 있습니다.');
-      await loadLearning(target);
+      if (!navigator.onLine) {
+        if (user.role !== 'user') throw new Error('학습 기록은 온라인 연결 후 확인할 수 있습니다. 말하기와 빠른 표현은 계속 사용할 수 있습니다.');
+        const cached = await cachedLearningState(user.id).catch(() => null);
+        if (!cached?.settings) throw new Error('온라인에서 연습하기를 한 번 열어야 오프라인 학습을 사용할 수 있습니다.');
+        setLearningSettings(cached.settings); setLearningProgress(cached.progress);
+      } else await loadLearning(target);
     } catch (e) { setError(e.message); }
     finally { setLearningBusy(false); }
   }
@@ -715,24 +808,50 @@ function App() {
   }
   async function finishLearningGame(snapshot) {
     if (!snapshot || snapshot.phase === 'saving') return;
-    const durationSeconds = Math.max(1, Math.round((Date.now() - snapshot.startedAt) / 1000));
+    const durationSeconds = Math.min(3600, Math.max(1, Math.round((Date.now() - snapshot.startedAt) / 1000)));
+    const payload = {
+      request_id: snapshot.requestId, activity_type: 'word_picture_match',
+      category_id: practiceCategory === 'all' ? 'mixed' : practiceCategory,
+      total_questions: snapshot.questions.length,
+      correct_answers: snapshot.correctAnswers,
+      duration_seconds: durationSeconds,
+      items: snapshot.results,
+    };
+    async function queueForSync() {
+      await queueLearningAttempt({ user_id: user.id, ...payload });
+      await clearLearningGame(user.id);
+      await updatePendingSyncCount(user.id);
+      setLearningGame(current => ({
+        ...current, phase: 'complete', attempt: { ...payload, pending_sync: true },
+      }));
+    }
     setLearningGame(current => ({ ...current, phase: 'saving' }));
     setError('');
+    if (!navigator.onLine) {
+      try { await queueForSync(); }
+      catch { setLearningGame(current => ({ ...current, phase: 'playing' })); setError('기기에 학습 결과를 저장하지 못했습니다. 다시 시도해 주세요.'); }
+      return;
+    }
     try {
-      const attempt = await request('/learning/attempts', { method: 'POST', body: JSON.stringify({
-        request_id: snapshot.requestId, activity_type: 'word_picture_match',
-        category_id: practiceCategory === 'all' ? 'mixed' : practiceCategory,
-        total_questions: snapshot.questions.length,
-        correct_answers: snapshot.correctAnswers,
-        duration_seconds: durationSeconds,
-        items: snapshot.results,
-      }) });
+      const attempt = await request('/learning/attempts', {
+        method: 'POST', body: JSON.stringify(payload),
+      });
+      await clearLearningGame(user.id).catch(() => {});
       setLearningGame(current => ({ ...current, phase: 'complete', attempt }));
-      try { setLearningProgress(await request('/learning/progress?days=30')); }
+      try {
+        const progress = await request('/learning/progress?days=30');
+        setLearningProgress(progress);
+        cacheLearningState(user.id, { settings: learningSettings, progress }).catch(() => {});
+      }
       catch { setError('연습 결과는 저장되었지만 최근 진행 현황은 새로고침이 필요합니다.'); }
     } catch (e) {
-      setError(`${e.message} 결과를 저장하지 못했지만 말하기 기능은 계속 사용할 수 있습니다.`);
-      setLearningGame(current => ({ ...current, phase: 'complete', attempt: null }));
+      if (!e.status || e.status >= 500) {
+        try { await queueForSync(); setError('연습 결과를 기기에 저장했습니다. 온라인 연결 후 자동으로 동기화합니다.'); }
+        catch { setLearningGame(current => ({ ...current, phase: 'playing' })); setError('학습 결과를 저장하지 못했습니다. 다시 시도해 주세요.'); }
+      } else {
+        setLearningGame(current => ({ ...current, phase: 'playing' }));
+        setError(`${e.message} 결과를 확인한 뒤 다시 저장해 주세요.`);
+      }
     }
   }
   function nextLearningQuestion() {
@@ -1150,11 +1269,12 @@ function App() {
     </div> : tab === 'practice' && user.role === 'user' ? <section className="learning-hub">
       <div className="panel-heading"><span aria-hidden="true">★</span><div><h2>연습하기</h2><p className="muted">연습 결과는 실제 의사소통 기록과 섞이지 않고 따로 저장됩니다.</p></div></div>
       {learningBusy ? <p role="status">학습 정보를 불러오는 중입니다…</p> : learningGame?.phase === 'playing' || learningGame?.phase === 'saving' ? <article className="learning-game" aria-labelledby="learning-question-title">
+        {learningGame.resumed && <p className="learning-resumed" role="status">저장된 문제부터 이어서 연습해요.</p>}
         <div className="learning-game-progress"><strong>{learningGame.questionIndex + 1} / {learningGame.questions.length}</strong><progress value={learningGame.questionIndex + (learningGame.feedback ? 1 : 0)} max={learningGame.questions.length} /><span>천천히 골라도 괜찮아요.</span></div>
         {currentLearningQuestion && <><p className="eyebrow">그림과 같은 단어를 골라 보세요</p><h3 id="learning-question-title">이 그림은 무엇일까요?</h3><span className="learning-question-art" role="img" aria-label="문제 그림" style={artStyle(currentLearningQuestion.target)} /><div className="learning-options" role="group" aria-label="단어 보기">{currentLearningQuestion.options.map(option => { const selected = learningGame.selectedId === option.id; const correct = learningGame.feedback === 'correct' && option.id === currentLearningQuestion.target.id; const incorrect = selected && ['retry', 'incorrect'].includes(learningGame.feedback); const locked = ['correct', 'incorrect'].includes(learningGame.feedback); return <button key={option.id} className={correct ? 'correct' : incorrect ? 'incorrect' : ''} aria-pressed={selected} disabled={learningGame.phase === 'saving' || locked || (learningGame.feedback === 'retry' && selected)} onClick={() => answerLearningQuestion(option.id)}>{option.label}</button>; })}</div></>}
         <div className={`learning-feedback ${learningGame.feedback || 'waiting'}`} role="status" aria-live="polite">{learningGame.feedback === 'correct' ? '잘 찾았어요! 다음 문제로 가 볼까요?' : learningGame.feedback === 'retry' ? '괜찮아요. 다른 단어를 다시 골라 보세요.' : learningGame.feedback === 'incorrect' ? `괜찮아요. 정답은 ${currentLearningQuestion?.target.label}이에요.` : '정답을 골라 주세요.'}</div>
         {['correct', 'incorrect'].includes(learningGame.feedback) && <button className="primary learning-next" disabled={learningGame.phase === 'saving'} onClick={nextLearningQuestion}>{learningGame.phase === 'saving' ? '결과 저장 중…' : learningGame.questionIndex === learningGame.questions.length - 1 ? '연습 마치기' : '다음 문제'}</button>}
-      </article> : learningGame?.phase === 'complete' ? <article className="learning-result"><span aria-hidden="true">🌟</span><h3>연습을 마쳤어요!</h3><p>처음 선택으로 <strong>{learningGame.attempt?.correct_answers ?? learningGame.correctAnswers}</strong>개를 찾았어요. 틀린 문제도 다시 살펴본 것이 중요한 연습이에요.</p>{learningGame.attempt ? <small>학습 기록에만 안전하게 저장했습니다.</small> : <small>결과가 저장되지 않았습니다. 다시 연결한 뒤 한 번 더 연습해 주세요.</small>}<div><button onClick={() => setLearningGame(null)}>연습 목록</button><button className="primary" onClick={startLearningGame}>같은 범위 다시 연습</button></div></article> : <div className="learning-overview-grid">
+      </article> : learningGame?.phase === 'complete' ? <article className="learning-result"><span aria-hidden="true">🌟</span><h3>연습을 마쳤어요!</h3><p>처음 선택으로 <strong>{learningGame.attempt?.correct_answers ?? learningGame.correctAnswers}</strong>개를 찾았어요. 틀린 문제도 다시 살펴본 것이 중요한 연습이에요.</p>{learningGame.attempt?.pending_sync ? <small>결과를 기기에 저장했습니다. 온라인 연결 후 자동으로 동기화합니다.</small> : learningGame.attempt ? <small>학습 기록에만 안전하게 저장했습니다.</small> : <small>결과가 저장되지 않았습니다. 다시 연결한 뒤 한 번 더 연습해 주세요.</small>}<div><button onClick={() => setLearningGame(null)}>연습 목록</button><button className="primary" onClick={startLearningGame}>같은 범위 다시 연습</button></div></article> : <div className="learning-overview-grid">
         <article className="learning-activity-card"><span aria-hidden="true">🧩</span><div><h3>단어·그림 맞추기</h3><p>그림과 알맞은 단어를 찾아보는 연습입니다.</p>{learningSettings && <small>{learningSettings.question_count}문제 · 보기 {learningSettings.option_count}개 · 카드 반복 {learningSettings.repeat_frequency}회 · 권장 시간 {learningSettings.time_limit_seconds}초 · {learningSettings.retry_enabled ? '재도전 가능' : '정답 확인 후 진행'}</small>}</div><label>연습 범위<select value={practiceCategory} onChange={event => setPracticeCategory(event.target.value)}><option value="all">설정된 카드 전체</option>{practiceCategories.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><button className="primary" disabled={availablePracticeCards().length < (learningSettings?.option_count || 3)} onClick={startLearningGame}>연습 시작</button></article>
         <article><h3>최근 30일 연습</h3><div className="learning-metrics"><div><strong>{learningProgress?.attempts || 0}</strong><span>참여 횟수</span></div><div><strong>{learningProgress?.familiar_words?.length || 0}</strong><span>익숙해진 단어</span></div><div><strong>{learningProgress?.repeat_words?.length || 0}</strong><span>다시 연습할 단어</span></div></div>{!learningProgress?.attempts && <p className="muted">아직 완료한 연습이 없습니다.</p>}</article>
       </div>}

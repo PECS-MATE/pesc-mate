@@ -10,7 +10,20 @@ test('offline storage separates account snapshots and pending events', () => {
   assert.match(store, /createObjectStore\('account'/);
   assert.match(store, /createObjectStore\('snapshots'/);
   assert.match(store, /createObjectStore\('events'/);
+  assert.match(store, /createObjectStore\('learning'/);
+  assert.match(store, /createObjectStore\('learningAttempts'/);
   assert.match(store, /offline_expires_at/);
+});
+
+test('learning sessions resume and completed attempts sync with the same request id', () => {
+  assert.match(store, /cacheLearningGame/);
+  assert.match(store, /cachedLearningGame/);
+  assert.match(store, /queueLearningAttempt/);
+  assert.match(store, /keyPath: 'request_id'/);
+  assert.match(app, /restoreLearningSession/);
+  assert.match(app, /request_id: snapshot\.requestId/);
+  assert.match(app, /await request\('\/learning\/attempts'/);
+  assert.match(app, /pending_sync: true/);
 });
 
 test('service worker caches the app shell but never caches API responses', () => {

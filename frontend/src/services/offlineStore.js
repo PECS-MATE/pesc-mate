@@ -1,5 +1,5 @@
 const DATABASE_NAME = 'pesc-mate-offline';
-const DATABASE_VERSION = 1;
+const DATABASE_VERSION = 2;
 
 function openDatabase() {
   return new Promise((resolve, reject) => {
@@ -11,6 +11,8 @@ function openDatabase() {
       if (!database.objectStoreNames.contains('account')) database.createObjectStore('account');
       if (!database.objectStoreNames.contains('snapshots')) database.createObjectStore('snapshots');
       if (!database.objectStoreNames.contains('events')) database.createObjectStore('events', { keyPath: 'id' });
+      if (!database.objectStoreNames.contains('learning')) database.createObjectStore('learning');
+      if (!database.objectStoreNames.contains('learningAttempts')) database.createObjectStore('learningAttempts', { keyPath: 'request_id' });
     };
     request.onsuccess = () => resolve(request.result);
   });
@@ -82,8 +84,56 @@ export async function removeOfflineEvents(ids) {
   database.close();
 }
 
+export function cacheLearningState(userId, state) {
+  return operation('learning', 'readwrite', store => store.put(state, `${userId}:state`));
+}
+
+export function cachedLearningState(userId) {
+  return operation('learning', 'readonly', store => store.get(`${userId}:state`));
+}
+
+export function cacheLearningGame(userId, state) {
+  return operation('learning', 'readwrite', store => store.put(state, `${userId}:game`));
+}
+
+export function cachedLearningGame(userId) {
+  return operation('learning', 'readonly', store => store.get(`${userId}:game`));
+}
+
+export function clearLearningGame(userId) {
+  return operation('learning', 'readwrite', store => store.delete(`${userId}:game`));
+}
+
+export function queueLearningAttempt(attempt) {
+  return operation('learningAttempts', 'readwrite', store => store.put(attempt));
+}
+
+export async function pendingLearningAttempts(userId) {
+  const all = await operation('learningAttempts', 'readonly', store => store.getAll());
+  return (all || []).filter(attempt => attempt.user_id === userId);
+}
+
+export async function removeLearningAttempts(ids) {
+  if (!ids.length) return;
+  const database = await openDatabase();
+  await new Promise((resolve, reject) => {
+    const transaction = database.transaction('learningAttempts', 'readwrite');
+    const store = transaction.objectStore('learningAttempts');
+    ids.forEach(id => store.delete(id));
+    transaction.oncomplete = resolve;
+    transaction.onerror = () => reject(transaction.error);
+  });
+  database.close();
+}
+
 export async function clearOfflineUserData(userId) {
   await operation('snapshots', 'readwrite', store => store.delete(userId));
   const events = await pendingOfflineEvents(userId);
   await removeOfflineEvents(events.map(event => event.id));
+  await operation('learning', 'readwrite', store => {
+    store.delete(`${userId}:state`);
+    store.delete(`${userId}:game`);
+  });
+  const attempts = await pendingLearningAttempts(userId);
+  await removeLearningAttempts(attempts.map(attempt => attempt.request_id));
 }
