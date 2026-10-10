@@ -1,0 +1,4 @@
+services:
+  frontend:
+    ports: !override
+      - "${TABLET_BIND_ADDRESS:-0.0.0.0}:5173:5173"

@@ -63,6 +63,25 @@ docker compose down
 추적하지 않으며, Docker Desktop에서 메모리 부족으로 감시기가 종료되는
 문제를 방지하기 위해 폴링 방식을 사용합니다.
 
+### 같은 로컬망의 태블릿에서 확인
+
+신뢰할 수 있는 사설망에서만 다음 검수용 구성을 실행합니다.
+
+```bash
+docker compose -f compose.yaml -f compose.tablet.yaml up --build
+```
+
+PC의 사설 IPv4 주소가 `192.168.0.10`이라면 태블릿에서
+`http://192.168.0.10:5173`을 엽니다. PC와 태블릿은 같은 Wi-Fi에 연결되어야 하며,
+Windows 방화벽에서 비공개 네트워크의 TCP 5173 인바운드 연결을 허용해야 합니다.
+검수가 끝나면 `docker compose -f compose.yaml -f compose.tablet.yaml down`으로
+종료합니다.
+
+이 구성은 프런트엔드만 로컬망에 열고 API와 MongoDB는 PC 외부에 직접 노출하지
+않습니다. 개발용 계정이 포함되어 있으므로 공용 Wi-Fi나 인터넷에 공개하면 안 됩니다.
+LAN의 HTTP 주소는 서비스 워커의 안전한 출처가 아니므로 설치·완전 오프라인 검증에는
+사용하지 않습니다. 해당 검증은 HTTPS 배포 환경에서 별도로 수행합니다.
+
 ### 개별 실행
 
 #### 백엔드
@@ -104,3 +123,4 @@ npm run build:watch
 - [개발 TODO 및 요구사항 진행표](docs/TODO.md)
 - [커밋 메시지 규칙](docs/COMMIT_CONVENTION.md)
 - [API 명세서](docs/API_SPECIFICATION.md)
+- [실제 기기 연결 및 현장 검증 기록](docs/ACTUAL_USE_VALIDATION.md)
