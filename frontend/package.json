@@ -8,6 +8,7 @@
     "build": "vite build",
     "build:watch": "vite build --watch",
     "test": "node --test test/*.test.mjs",
+    "test:e2e": "playwright test",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -15,6 +16,7 @@
     "react-dom": "latest"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.0",
     "@vitejs/plugin-react": "latest",
     "vite": "latest"
   }
