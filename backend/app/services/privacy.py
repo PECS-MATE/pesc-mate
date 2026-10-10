@@ -60,6 +60,7 @@ def save_privacy(user_id, guardian_consent, retention_days):
         database.tts_events.delete_many({'user_id': user_id, 'requested_at': {'$lt': cutoff}})
         database.offline_events.delete_many({'user_id': user_id, 'occurred_at': {'$lt': cutoff}})
         database.caregiver_notes.delete_many({'user_id': user_id, 'updated_at': {'$lt': cutoff}})
+        database.learning_attempts.delete_many({'user_id': user_id, 'completed_at': {'$lt': cutoff}})
         log_crud('UPDATE', 'privacy_settings', '동의 및 보존 기간 저장')
         return settings
     except PyMongoError as exc:
@@ -158,6 +159,8 @@ def export_for(user_id):
             'communication_sessions': list(database.communication_sessions.find({'user_id': user_id})),
             'tts_events': list(database.tts_events.find({'user_id': user_id})),
             'offline_events': list(database.offline_events.find({'user_id': user_id})),
+            'learning_settings': database.learning_settings.find_one({'_id': user_id}),
+            'learning_attempts': list(database.learning_attempts.find({'user_id': user_id})),
             'cards': [{key: row.get(key) for key in
                        ('_id', 'label', 'meaning', 'category', 'visibility', 'status', 'created_at')}
                       for row in cards],
@@ -182,6 +185,9 @@ def delete_personal_data(user_id):
             (database.accessibility_settings, {'_id': user_id}),
             (database.board_layouts, {'_id': user_id}),
             (database.board_audit_logs, {'target_user_id': user_id}),
+            (database.learning_settings, {'_id': user_id}),
+            (database.learning_attempts, {'user_id': user_id}),
+            (database.learning_audit_logs, {'target_user_id': user_id}),
             (database.caregiver_notes, {'user_id': user_id}),
             (database.caregiver_links, {'user_id': user_id}),
             (database.card_submissions, {'owner_id': user_id}),

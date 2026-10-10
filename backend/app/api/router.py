@@ -23,6 +23,11 @@ from app.services.support_links import (
 )
 from app.services.board_layout import audit_for as board_audit_for
 from app.services.board_layout import layout_for, save_quick_expressions, save_slots
+from app.services.learning import audit_for as learning_audit_for
+from app.services.learning import progress_for as learning_progress_for
+from app.services.learning import record_attempt as record_learning_attempt
+from app.services.learning import save_settings as save_learning_settings
+from app.services.learning import settings_for as learning_settings_for
 from app.services.card_submissions import (
     MAX_IMAGE_BYTES, approved_cards_for, create_submission, image_for,
     review_submission, submissions_for, submissions_for_review, submit_draft,
@@ -270,6 +275,68 @@ class BoardAuditResponse(BaseModel):
     action: str
     before: list[object] | None = None
     after: list[object] | None = None
+    created_at: datetime
+
+
+class LearningSettingsRequest(BaseModel):
+    category_ids: list[Annotated[str, Field(min_length=1, max_length=64)]] = Field(min_length=1, max_length=20)
+    question_count: int = Field(ge=5, le=30)
+    time_limit_seconds: int = Field(ge=30, le=600)
+    retry_enabled: bool
+
+
+class LearningSettingsResponse(BaseModel):
+    user_id: str
+    category_ids: list[str]
+    question_count: int
+    time_limit_seconds: int
+    retry_enabled: bool
+    updated_at: datetime | None = None
+    updated_by: str | None = None
+
+
+class LearningAttemptRequest(BaseModel):
+    request_id: UUID
+    activity_type: Literal['word_picture_match']
+    category_id: str = Field(min_length=1, max_length=64)
+    total_questions: int = Field(ge=1, le=30)
+    correct_answers: int = Field(ge=0, le=30)
+    duration_seconds: int = Field(ge=0, le=3600)
+
+
+class LearningAttemptResponse(BaseModel):
+    id: UUID
+    user_id: str
+    activity_type: str
+    category_id: str
+    total_questions: int
+    correct_answers: int
+    incorrect_answers: int
+    score: int
+    duration_seconds: int
+    completed_at: datetime
+
+
+class LearningProgressResponse(BaseModel):
+    user_id: str
+    period_days: int | None = None
+    attempts: int
+    total_questions: int
+    correct_answers: int
+    incorrect_answers: int
+    average_score: int
+    last_completed_at: datetime | None = None
+    categories: dict[str, dict[str, int]]
+    recent: list[LearningAttemptResponse]
+
+
+class LearningAuditResponse(BaseModel):
+    id: UUID
+    target_user_id: str
+    actor_id: str
+    action: str
+    before: dict[str, object] | None = None
+    after: dict[str, object] | None = None
     created_at: datetime
 
 
@@ -607,6 +674,54 @@ def get_board_audit(user_id: str | None = Query(default=None, max_length=64),
     target = user_id or user['id']
     require_any_link_permission(user, target, {'quick_speech_manage', 'board_manage'})
     return board_audit_for(target)
+
+
+@api_router.get('/learning/settings', response_model=LearningSettingsResponse, tags=['학습'])
+def get_learning_settings(user_id: str | None = Query(default=None, max_length=64),
+                          user=Depends(current_user)):
+    target = user_id or user['id']
+    require_link_permission(user, target, 'learning_manage')
+    return learning_settings_for(target)
+
+
+@api_router.put('/learning/settings', response_model=LearningSettingsResponse, tags=['학습'])
+def put_learning_settings(request: LearningSettingsRequest,
+                          user_id: str = Query(min_length=1, max_length=64),
+                          user=Depends(current_user)):
+    if user['role'] not in SUPPORT_ROLES:
+        raise HTTPException(403, '보호자 또는 담당자만 학습 설정을 변경할 수 있습니다.')
+    target = require_link_permission(user, user_id, 'learning_manage')
+    return save_learning_settings(target, user['id'], request.category_ids,
+                                  request.question_count, request.time_limit_seconds,
+                                  request.retry_enabled)
+
+
+@api_router.post('/learning/attempts', response_model=LearningAttemptResponse,
+                 status_code=201, tags=['학습'])
+def post_learning_attempt(request: LearningAttemptRequest, user=Depends(current_user)):
+    require_communicator(user)
+    require_guardian_consent(user)
+    return record_learning_attempt(
+        user['id'], str(request.request_id), request.activity_type, request.category_id,
+        request.total_questions, request.correct_answers, request.duration_seconds,
+    )
+
+
+@api_router.get('/learning/progress', response_model=LearningProgressResponse, tags=['학습'])
+def get_learning_progress(days: int | None = Query(default=None, ge=1, le=365),
+                          user_id: str | None = Query(default=None, max_length=64),
+                          user=Depends(current_user)):
+    target = user_id or user['id']
+    require_link_permission(user, target, 'learning_manage')
+    return learning_progress_for(target, days=days)
+
+
+@api_router.get('/learning/audit', response_model=list[LearningAuditResponse], tags=['학습'])
+def get_learning_audit(user_id: str | None = Query(default=None, max_length=64),
+                       user=Depends(current_user)):
+    target = user_id or user['id']
+    require_link_permission(user, target, 'learning_manage')
+    return learning_audit_for(target)
 
 
 @api_router.get('/categories', response_model=list[CategoryResponse], tags=['카드'])
