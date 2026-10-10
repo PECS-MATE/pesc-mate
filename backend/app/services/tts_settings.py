@@ -12,6 +12,7 @@ DEFAULT_SETTINGS = {
     'voice_name': '',
     'rate': 0.9,
     'pitch': 1.25,
+    'volume': 1.0,
 }
 
 
@@ -26,13 +27,14 @@ def settings_for(user_id):
         raise HTTPException(503, '음성 설정을 불러오지 못했습니다.') from exc
 
 
-def save_settings(user_id, preset, voice_name, rate, pitch):
+def save_settings(user_id, preset, voice_name, rate, pitch, volume):
     try:
         settings = {
             'preset': preset,
             'voice_name': voice_name,
             'rate': rate,
             'pitch': pitch,
+            'volume': volume,
         }
         now = datetime.now(timezone.utc)
         _database().tts_settings.update_one(

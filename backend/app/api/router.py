@@ -116,6 +116,7 @@ class TtsSettingsRequest(BaseModel):
     voice_name: str = Field(default='', max_length=120)
     rate: float = Field(ge=0.5, le=1.5)
     pitch: float = Field(ge=0.5, le=1.5)
+    volume: float = Field(ge=0.0, le=1.0)
 
 
 class TtsSettingsResponse(TtsSettingsRequest):
@@ -601,7 +602,8 @@ def put_tts_settings(request: TtsSettingsRequest,
                      user=Depends(current_user)):
     target = user_id or user['id']
     require_link_permission(user, target, 'voice_access_manage')
-    return save_settings(target, request.preset, request.voice_name.strip(), request.rate, request.pitch)
+    return save_settings(target, request.preset, request.voice_name.strip(), request.rate,
+                         request.pitch, request.volume)
 
 
 @api_router.get('/accessibility/settings', response_model=AccessibilitySettingsResponse, tags=['접근성'])

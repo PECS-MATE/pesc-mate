@@ -48,6 +48,20 @@ const TTS_PRESETS = {
   man: { label: '남성 느낌', rate: 0.85, pitch: 0.8 },
 };
 
+const DEFAULT_TTS_SETTINGS = {
+  preset: 'child', voiceName: '', rate: 0.9, pitch: 1.25, volume: 1,
+};
+
+function normalizeTtsSettings(settings = {}) {
+  return {
+    preset: settings.preset || DEFAULT_TTS_SETTINGS.preset,
+    voiceName: settings.voiceName ?? settings.voice_name ?? '',
+    rate: settings.rate ?? DEFAULT_TTS_SETTINGS.rate,
+    pitch: settings.pitch ?? DEFAULT_TTS_SETTINGS.pitch,
+    volume: settings.volume ?? DEFAULT_TTS_SETTINGS.volume,
+  };
+}
+
 const DEFAULT_QUICK_EXPRESSIONS = [
   { id: 'hurt', label: '아파요', symbol: '🤕' },
   { id: 'no', label: '싫어요', symbol: '🙅' },
@@ -135,8 +149,9 @@ function App() {
   const [lastSentence, setLastSentence] = useState(null);
   const speechRunRef = useRef(0);
   const speechEventRef = useRef(null);
+  const lastSpeechTapRef = useRef({ content: '', at: 0 });
   const [ttsVoices, setTtsVoices] = useState([]);
-  const [ttsSettings, setTtsSettings] = useState({ preset: 'child', voiceName: '', rate: 0.9, pitch: 1.25 });
+  const [ttsSettings, setTtsSettings] = useState(DEFAULT_TTS_SETTINGS);
   const [ttsSettingsBusy, setTtsSettingsBusy] = useState(false);
   const [ttsSettingsSaved, setTtsSettingsSaved] = useState(false);
   const [accessibility, setAccessibility] = useState(DEFAULT_ACCESSIBILITY);
@@ -192,7 +207,7 @@ function App() {
     const rec = restoreCachedCards(snapshot.recommended);
     setCards(all); setCardCategories(snapshot.categories || []); setRecommended(rec);
     setStats(snapshot.dashboard || null); setCardSubmissions(snapshot.submissions || []);
-    setBoard(loadBoard(account.id, all)); setTtsSettings(snapshot.tts_settings);
+    setBoard(loadBoard(account.id, all)); setTtsSettings(normalizeTtsSettings(snapshot.tts_settings));
     setAccessibility(snapshot.accessibility); setAccessibilitySaved(true);
     setPrivacy(snapshot.privacy); setPrivacyCaregivers(snapshot.caregivers || []);
     setPrivacyAudit(snapshot.privacy_audit || []); setTtsSettingsSaved(true);
@@ -250,7 +265,7 @@ function App() {
       const [rawCards, rawCategories, rawRecommended, dashboard, submissions, voiceSettings, accessibilitySettings, privacySettings, caregivers, privacyHistory, layout] = await Promise.all([request('/cards'), request('/categories'), request('/recommendations'), request(dashboardPath()), request('/cards/submissions'), request('/tts/settings'), request('/accessibility/settings'), request('/privacy/settings'), request('/support/links'), request('/privacy/audit'), request('/board/layout')]);
       const [all, rec] = await Promise.all([hydrateImages(rawCards), hydrateImages(rawRecommended)]);
       setCards(all); setCardCategories(rawCategories); setRecommended(rec); setStats(dashboard); setCardSubmissions(submissions); setBoard(loadBoard(account?.id, all));
-      setTtsSettings({ preset: voiceSettings.preset, voiceName: voiceSettings.voice_name, rate: voiceSettings.rate, pitch: voiceSettings.pitch });
+      setTtsSettings(normalizeTtsSettings(voiceSettings));
       setAccessibility(accessibilitySettings); setAccessibilitySaved(true);
       setPrivacy(privacySettings); setPrivacyCaregivers(caregivers); setPrivacyAudit(privacyHistory);
       setBoardLayout(layout);
@@ -260,7 +275,7 @@ function App() {
       cacheSnapshot(account.id, {
         cards: cacheableCards(all), categories: rawCategories,
         recommended: cacheableCards(rec), dashboard, submissions,
-        tts_settings: { preset: voiceSettings.preset, voiceName: voiceSettings.voice_name, rate: voiceSettings.rate, pitch: voiceSettings.pitch },
+        tts_settings: normalizeTtsSettings(voiceSettings),
         accessibility: accessibilitySettings, privacy: privacySettings,
         caregivers, privacy_audit: privacyHistory, board_layout: layout,
       }).catch(() => {});
@@ -347,7 +362,7 @@ function App() {
     setToken(null); setUser(null); setLoaded(false); setShowProfile(false); setProfileNotice('');
     [...cards, ...recommended, ...adminSubmissions].forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); });
     setCards([]); setCardCategories([]); setRecommended([]); setStats(null); setBoard([]); setCardSubmissions([]); setAdminSubmissions([]); setAdminCategories([]); setCategoryEdits({}); setCategoryError(''); setLinkedUsers([]); setSelectedUser(null); setBoardLayout(null); setBoardLayoutAudit([]); setQuickDraft([]); setRecoveryDraft([]); setSlotDraft([]); setLearningSettings(null); setLearningProgress(null); setLearningGame(null); setPracticeCategory('all'); setText(''); setGeneratedSessionId(''); setGenerationAttempt(1); setSentenceConfirmed(false); setGenerationFailed(false); setError(''); setTab('home');
-    setTtsSettings({ preset: 'child', voiceName: '', rate: 0.9, pitch: 1.25 }); setTtsSettingsSaved(false); setAccessibility(DEFAULT_ACCESSIBILITY); setAccessibilitySaved(true); setPrivacy(DEFAULT_PRIVACY); setPrivacyCaregivers([]); setPrivacyAudit([]); setSpeechFailure(null); setLastUtterance(null); setLastSentence(null); setBusy(false);
+    setTtsSettings(DEFAULT_TTS_SETTINGS); setTtsSettingsSaved(false); setAccessibility(DEFAULT_ACCESSIBILITY); setAccessibilitySaved(true); setPrivacy(DEFAULT_PRIVACY); setPrivacyCaregivers([]); setPrivacyAudit([]); setSpeechFailure(null); setLastUtterance(null); setLastSentence(null); setBusy(false);
   }
 
   function updateBoard(next) {
@@ -406,12 +421,20 @@ function App() {
     return event.completion;
   }
   function speechFailureMessage(errorCode) {
+    if (errorCode === 'volume-zero') return '기본 볼륨이 0입니다. 음성 설정에서 볼륨을 올려 주세요.';
     if (errorCode === 'not-allowed') return '브라우저의 음성 재생 권한과 기기 음량을 확인한 뒤 다시 시도해 주세요.';
     if (['language-unavailable', 'voice-unavailable'].includes(errorCode)) return '기기에 한국어 음성을 설치하거나 음성 설정에서 다른 음성을 선택해 주세요.';
     if (errorCode === 'unsupported') return '이 브라우저에서는 음성 재생을 지원하지 않습니다. 최신 Chrome 또는 Edge에서 다시 열어 주세요.';
     return '기기의 한국어 음성 설정과 음량을 확인한 뒤 다시 재생해 주세요.';
   }
-  function speakText(content, contentType = 'sentence', speakBeforeTracking = false, cardIds = []) {
+  function speakText(content, contentType = 'sentence', cardIds = []) {
+    if (ttsSettings.volume <= 0) {
+      setSpeechFailure({ content, contentType, cardIds, errorCode: 'volume-zero', retryable: false });
+      return;
+    }
+    const tappedAt = Date.now();
+    if (lastSpeechTapRef.current.content === content && tappedAt - lastSpeechTapRef.current.at < 600) return;
+    lastSpeechTapRef.current = { content, at: tappedAt };
     if (contentType !== 'preview') setLastUtterance({ content, contentType, cardIds });
     finishSpeechEvent(speechEventRef.current, 'cancelled', 'replaced');
     const speechEvent = {
@@ -432,13 +455,14 @@ function App() {
       } else if (e.status) setError(e.message);
       return false;
     });
-    speechEvent.started = speakBeforeTracking ? Promise.resolve(false) : startTracking();
+    speechEvent.started = Promise.resolve(false);
     speechEventRef.current = speechEvent;
     setSpeechFailure(null);
     if (!window.speechSynthesis) {
-      if (speakBeforeTracking) speechEvent.started = startTracking();
+      speechEvent.started = startTracking();
       finishSpeechEvent(speechEvent, 'failed', 'unsupported');
-      setSpeechFailure({ content, contentType, errorCode: 'unsupported', retryable: false });
+      lastSpeechTapRef.current = { content: '', at: 0 };
+      setSpeechFailure({ content, contentType, cardIds, errorCode: 'unsupported', retryable: false });
       return;
     }
     const runId = ++speechRunRef.current;
@@ -446,6 +470,7 @@ function App() {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(content);
     utterance.lang = 'ko-KR'; utterance.rate = ttsSettings.rate; utterance.pitch = ttsSettings.pitch;
+    utterance.volume = ttsSettings.volume;
     const voice = ttsVoices.find(item => item.name === ttsSettings.voiceName) || ttsVoices[0];
     if (voice) utterance.voice = voice;
     utterance.onstart = () => { if (speechRunRef.current === runId) setSpeechState({ status: 'playing', content }); };
@@ -459,15 +484,18 @@ function App() {
       finishSpeechEvent(speechEvent, ['canceled', 'interrupted'].includes(errorEvent.error) ? 'cancelled' : 'failed', errorEvent.error);
       if (speechRunRef.current !== runId) return;
       setSpeechState({ status: 'idle', content: '' });
-      if (!['canceled', 'interrupted'].includes(errorEvent.error)) setSpeechFailure({ content, contentType, errorCode: errorEvent.error || 'unknown', retryable: true });
+      if (!['canceled', 'interrupted'].includes(errorEvent.error)) {
+        lastSpeechTapRef.current = { content: '', at: 0 };
+        setSpeechFailure({ content, contentType, cardIds, errorCode: errorEvent.error || 'unknown', retryable: true });
+      }
     };
     setSpeechState({ status: 'starting', content }); window.speechSynthesis.speak(utterance);
-    if (speakBeforeTracking) speechEvent.started = startTracking();
+    speechEvent.started = startTracking();
   }
   function rememberAndSpeakSentence(content) {
     const cardIds = board.map(card => card.id);
     setLastSentence({ content, cards: [...board] });
-    speakText(content, 'sentence', false, cardIds);
+    speakText(content, 'sentence', cardIds);
   }
   function speak() { if (sentenceConfirmed) rememberAndSpeakSentence(text); }
   function speakSelection() { rememberAndSpeakSentence(board.map(card => card.label).join(' ')); }
@@ -508,9 +536,9 @@ function App() {
       const targetQuery = ['caregiver', 'support_staff'].includes(user.role) && selectedUser ? `?user_id=${encodeURIComponent(selectedUser.id)}` : '';
       const saved = await request(`/tts/settings${targetQuery}`, { method: 'PUT', body: JSON.stringify({
         preset: ttsSettings.preset, voice_name: ttsSettings.voiceName,
-        rate: ttsSettings.rate, pitch: ttsSettings.pitch,
+        rate: ttsSettings.rate, pitch: ttsSettings.pitch, volume: ttsSettings.volume,
       }) });
-      setTtsSettings({ preset: saved.preset, voiceName: saved.voice_name, rate: saved.rate, pitch: saved.pitch });
+      setTtsSettings(normalizeTtsSettings(saved));
       setTtsSettingsSaved(true);
       if (user.role === 'user') await load(user);
     } catch (e) { setError(e.message); }
@@ -566,7 +594,7 @@ function App() {
     const [voiceSettings, accessSettings] = await Promise.all([
       request(`/tts/settings${query}`), request(`/accessibility/settings${query}`),
     ]);
-    setTtsSettings({ preset: voiceSettings.preset, voiceName: voiceSettings.voice_name, rate: voiceSettings.rate, pitch: voiceSettings.pitch });
+    setTtsSettings(normalizeTtsSettings(voiceSettings));
     setTtsSettingsSaved(true); setAccessibility(accessSettings); setAccessibilitySaved(true);
   }
   async function loadBoardConfiguration(target) {
@@ -886,7 +914,7 @@ function App() {
   function cardSpeaker(card) {
     function play(event) {
       event.preventDefault(); event.stopPropagation();
-      if (!busy) speakText(card.label, 'card', false, [card.id]);
+      if (!busy) speakText(card.label, 'card', [card.id]);
     }
     return <span className="card-speaker" role="button" tabIndex="0" aria-label={`${card.label} 단어 듣기`} onClick={play} onKeyDown={event => { if (['Enter', ' '].includes(event.key)) play(event); }}>🔊</span>;
   }
@@ -896,7 +924,7 @@ function App() {
   }
   function tile(card) {
     const speakOnTap = outputMode === 'word';
-    return <button className={`card${speakOnTap ? ' speak-on-tap' : ''}`} key={card.id} disabled={busy} aria-label={`${card.label} ${speakOnTap ? '바로 말하기' : '문장에 담기'}`} onClick={() => speakOnTap ? speakText(card.label, 'card', false, [card.id]) : add(card)}>
+    return <button className={`card${speakOnTap ? ' speak-on-tap' : ''}`} key={card.id} disabled={busy} aria-label={`${card.label} ${speakOnTap ? '바로 말하기' : '문장에 담기'}`} onClick={() => speakOnTap ? speakText(card.label, 'card', [card.id]) : add(card)}>
       {cardArt(card)}
       <strong>{card.label}</strong>{card.reason && <small>{card.reason}</small>}{cardSpeaker(card)}
     </button>;
@@ -1015,10 +1043,10 @@ function App() {
       {profileNotice && <p role="status">{profileNotice}</p>}
       <header className="topbar"><div><p className="eyebrow">오늘은 {todayLabel}</p><h1>{pageTitle}</h1></div><div className="topbar-statuses"><span className={`status${offline ? ' offline' : ''}`}><b className={!offline && loaded ? 'online' : ''}></b>{offline ? '오프라인 사용 중' : loaded ? '서비스 연결됨' : '연결 대기'}</span>{speechActive && <div className={`speech-player ${speechState.status}`} role="status" aria-live="polite"><span><b aria-hidden="true">🔊</b><strong>{speechStatusLabel}</strong><small title={speechState.content}>{speechState.content}</small></span>{speechState.status === 'playing' && <button type="button" onClick={pauseSpeech}>일시 정지</button>}{speechState.status === 'paused' && <button type="button" onClick={resumeSpeech}>재개</button>}<button type="button" onClick={stopSpeech}>중지</button></div>}</div></header>
       {offline && <p className="offline-notice" role="status">인터넷 연결 없이 저장된 카드를 사용 중입니다. 즉시 발화와 선택 카드 그대로 발화는 계속 사용할 수 있습니다.{localKoreanVoices.length ? ` 기기에 저장된 한국어 음성 ${localKoreanVoices.length}개를 확인했습니다.` : ' 한국어 음성이 재생되지 않으면 기기 설정에서 음성 데이터를 설치해 주세요.'}{pendingSyncCount ? ` 재연결 후 동기화할 이력 ${pendingSyncCount}건이 있습니다.` : ''}</p>}
-      {user.role === 'user' && <section className="recovery-speech" aria-labelledby="recovery-speech-title" data-scan-group="recovery-speech"><div><strong id="recovery-speech-title">다시 말하기·고치기</strong><small>잘못 전했을 때 바로 말해요</small></div>{recoveryExpressions.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 복구 표현 말하기`} onClick={() => speakText(item.label, 'recovery', true)}><span aria-hidden="true">{item.symbol}</span>{item.label}</button>)}<button disabled={!lastUtterance || speechState.status === 'starting'} onClick={() => lastUtterance && speakText(lastUtterance.content, lastUtterance.contentType, true, lastUtterance.cardIds)}><span aria-hidden="true">🔊</span>마지막 말 다시 듣기</button><button disabled={!board.length && !text} onClick={() => updateBoard([])}><span aria-hidden="true">⌫</span>현재 문장 취소</button><button disabled={!lastSentence} onClick={restoreLastSentence}><span aria-hidden="true">↶</span>직전 문장 불러오기</button></section>}
-      {user.role === 'user' && <section className="quick-speech" aria-labelledby="quick-speech-title" data-scan-group="quick-speech"><div><strong id="quick-speech-title">빠른 표현</strong><small>누르면 바로 말해요</small></div>{quickExpressionCards.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 바로 말하기`} onClick={() => speakText(item.label, 'card', true, [item.id])}><span aria-hidden="true">{item.symbol}</span>{item.label}</button>)}</section>}
+      {user.role === 'user' && <section className="recovery-speech" aria-labelledby="recovery-speech-title" data-scan-group="recovery-speech"><div><strong id="recovery-speech-title">다시 말하기·고치기</strong><small>잘못 전했을 때 바로 말해요</small></div>{recoveryExpressions.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 복구 표현 말하기`} onClick={() => speakText(item.label, 'recovery')}><span aria-hidden="true">{item.symbol}</span>{item.label}</button>)}<button disabled={!lastUtterance || speechState.status === 'starting'} onClick={() => lastUtterance && speakText(lastUtterance.content, lastUtterance.contentType, lastUtterance.cardIds)}><span aria-hidden="true">🔊</span>마지막 말 다시 듣기</button><button disabled={!board.length && !text} onClick={() => updateBoard([])}><span aria-hidden="true">⌫</span>현재 문장 취소</button><button disabled={!lastSentence} onClick={restoreLastSentence}><span aria-hidden="true">↶</span>직전 문장 불러오기</button></section>}
+      {user.role === 'user' && <section className="quick-speech" aria-labelledby="quick-speech-title" data-scan-group="quick-speech"><div><strong id="quick-speech-title">빠른 표현</strong><small>누르면 바로 말해요</small></div>{quickExpressionCards.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 바로 말하기`} onClick={() => speakText(item.label, 'card', [item.id])}><span aria-hidden="true">{item.symbol}</span>{item.label}</button>)}</section>}
       {error && <div role="alert" className="error">{error} <button disabled={busy} onClick={() => load(user)}>다시 연결</button></div>}
-      {speechFailure && <div role="alert" className="speech-error"><span aria-hidden="true">🔇</span><div><strong>음성을 재생하지 못했어요.</strong><p>{speechFailureMessage(speechFailure.errorCode)} 선택한 카드와 문장은 그대로 유지됩니다.</p></div><div className="speech-error-actions">{speechFailure.retryable && <button className="primary" onClick={() => speakText(speechFailure.content, speechFailure.contentType)}>다시 재생</button>}<button onClick={() => setSpeechFailure(null)}>닫기</button></div></div>}
+      {speechFailure && <div role="alert" className="speech-error"><span aria-hidden="true">🔇</span><div><strong>음성을 재생하지 못했어요.</strong><p>{speechFailureMessage(speechFailure.errorCode)} 선택한 카드와 문장은 그대로 유지됩니다.</p></div><div className="speech-error-actions">{speechFailure.retryable && <button className="primary" onClick={() => speakText(speechFailure.content, speechFailure.contentType, speechFailure.cardIds || [])}>다시 재생</button>}<button onClick={() => setSpeechFailure(null)}>닫기</button></div></div>}
       {!loaded && !error && <p role="status">카드를 불러오는 중입니다…</p>}
       {tab === 'support_home' && isSupporter ? <section className="support-home">
         <div className="panel-heading"><span aria-hidden="true">🤝</span><div><h2>{user.role === 'caregiver' ? '보호자 지원 홈' : '담당자 지원 홈'}</h2><p className="muted">연결 사용자를 선택하면 부여된 권한 범위의 메뉴만 표시됩니다.</p></div></div>
@@ -1067,6 +1095,7 @@ function App() {
             <label>기기 한국어 음성<select value={ttsSettings.voiceName} onChange={event => updateTtsSettings({ voiceName: event.target.value })}><option value="">한국어 음성 자동 선택</option>{ttsSettings.voiceName && !ttsVoices.some(voice => voice.name === ttsSettings.voiceName) && <option value={ttsSettings.voiceName}>{ttsSettings.voiceName} (현재 기기에 없음)</option>}{ttsVoices.map(voice => <option key={voice.voiceURI} value={voice.name}>{voice.name}</option>)}</select></label>
             <label>속도 <output>{ttsSettings.rate.toFixed(2)}배</output><input type="range" min="0.5" max="1.5" step="0.05" value={ttsSettings.rate} onChange={event => updateTtsSettings({ rate: Number(event.target.value) })} /></label>
             <label>음높이 <output>{ttsSettings.pitch.toFixed(2)}</output><input type="range" min="0.5" max="1.5" step="0.05" value={ttsSettings.pitch} onChange={event => updateTtsSettings({ pitch: Number(event.target.value) })} /></label>
+            <label>기본 볼륨 <output>{Math.round(ttsSettings.volume * 100)}%</output><input type="range" min="0" max="1" step="0.05" value={ttsSettings.volume} onChange={event => updateTtsSettings({ volume: Number(event.target.value) })} /></label>
           </div>
           <div className="tts-preview"><small role="status">{localKoreanVoices.length ? `기기에 저장된 한국어 음성 ${localKoreanVoices.length}개를 확인했습니다.` : ttsVoices.length ? `한국어 음성 ${ttsVoices.length}개가 있지만 오프라인 사용 여부는 비행기 모드에서 확인해 주세요.` : '한국어 음성이 없으면 기기 설정에서 음성 데이터를 설치해 주세요.'}</small><span><button type="button" disabled={busy || ttsSettingsBusy} onClick={() => speakText('안녕하세요. 목소리를 확인해 보세요.', 'preview')}>미리 듣기</button><button type="button" className="primary" disabled={ttsSettingsBusy || ttsSettingsSaved} onClick={saveTtsSettings}>{ttsSettingsBusy ? '저장 중…' : '설정 저장'}</button></span></div>
         </details>
@@ -1097,7 +1126,7 @@ function App() {
         </button>)}</div>
         {cardPagination()}
         <aside className="card-detail" aria-live="polite">
-          {selectedCard ? <>{cardArt(selectedCard, 'detail-art')}<span className="detail-category">{selectedCard.category}</span><h3>{selectedCard.label}</h3><p>{selectedCard.label}을(를) 표현하는 PECS 카드예요.</p><div className="detail-actions"><button aria-label={`${selectedCard.label} 단어 듣기`} onClick={() => speakText(selectedCard.label, 'card', false, [selectedCard.id])}>🔊 단어 듣기</button><button className="primary" onClick={() => { add(selectedCard); setTab('cards'); }}>문장에 사용하기</button></div></> : <div className="detail-empty"><Mascot /><strong>카드를 선택해 주세요</strong><p>선택한 카드의 그림과 뜻이 여기에 보여요.</p></div>}
+          {selectedCard ? <>{cardArt(selectedCard, 'detail-art')}<span className="detail-category">{selectedCard.category}</span><h3>{selectedCard.label}</h3><p>{selectedCard.label}을(를) 표현하는 PECS 카드예요.</p><div className="detail-actions"><button aria-label={`${selectedCard.label} 단어 듣기`} onClick={() => speakText(selectedCard.label, 'card', [selectedCard.id])}>🔊 단어 듣기</button><button className="primary" onClick={() => { add(selectedCard); setTab('cards'); }}>문장에 사용하기</button></div></> : <div className="detail-empty"><Mascot /><strong>카드를 선택해 주세요</strong><p>선택한 카드의 그림과 뜻이 여기에 보여요.</p></div>}
         </aside>
       </div>
       <div className="submission-list"><h3>나의 카드</h3>{cardSubmissions.length ? <ul>{cardSubmissions.map(item => <li key={item.id}><span><strong>{item.label}</strong><small>{item.category} · {item.sharing_notice || (item.visibility === 'private' ? '나만 사용' : '공개 요청')}</small></span><div className="submission-actions"><b className={`submission-status ${item.status}`}>{item.visibility === 'private' && item.status === 'approved' ? '나만 사용 중' : ({ draft: '작성 중', pending: '승인 대기', approved: '공개 승인', rejected: '반려', inactive: '비활성' })[item.status] || item.status}</b>{['draft', 'rejected'].includes(item.status) && <button disabled={reviewBusy === item.id} onClick={() => { setEditingSubmission(item); setCardFormError(''); setShowCardForm(true); }}>수정</button>}{item.status === 'draft' && <button className="primary" disabled={reviewBusy === item.id} onClick={() => submitDraft(item)}>{item.visibility === 'private' ? '나만 사용 시작' : '공개 승인 요청'}</button>}</div></li>)}</ul> : <p className="muted">아직 등록한 카드가 없어요.</p>}</div>
@@ -1142,6 +1171,7 @@ function App() {
           <label>기기 한국어 음성<select value={ttsSettings.voiceName} onChange={event => updateTtsSettings({ voiceName: event.target.value })}><option value="">한국어 음성 자동 선택</option>{ttsVoices.map(voice => <option key={voice.voiceURI} value={voice.name}>{voice.name}</option>)}</select></label>
           <label>속도 <output>{ttsSettings.rate.toFixed(2)}배</output><input type="range" min="0.5" max="1.5" step="0.05" value={ttsSettings.rate} onChange={event => updateTtsSettings({ rate: Number(event.target.value) })} /></label>
           <label>음높이 <output>{ttsSettings.pitch.toFixed(2)}</output><input type="range" min="0.5" max="1.5" step="0.05" value={ttsSettings.pitch} onChange={event => updateTtsSettings({ pitch: Number(event.target.value) })} /></label>
+          <label>기본 볼륨 <output>{Math.round(ttsSettings.volume * 100)}%</output><input type="range" min="0" max="1" step="0.05" value={ttsSettings.volume} onChange={event => updateTtsSettings({ volume: Number(event.target.value) })} /></label>
         </div><button className="primary" disabled={ttsSettingsBusy || ttsSettingsSaved} onClick={saveTtsSettings}>{ttsSettingsBusy ? '저장 중…' : ttsSettingsSaved ? '저장됨' : '목소리 저장'}</button></article>
         <article><h3>화면 접근 설정</h3><div className="support-access-fields">
           <label>카드 표시<select value={accessibility.display_mode} onChange={event => updateAccessibility({ display_mode: event.target.value })}><option value="image">그림 중심</option><option value="image_text">그림 + 글자</option><option value="text">글자 중심</option></select></label>
