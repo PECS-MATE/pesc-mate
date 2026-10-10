@@ -43,20 +43,27 @@ def ensure_demo_users():
     _ensure_user(user_id, os.environ.get('DEMO_PASSWORD', 'demo1234'), '민준', 'user')
     caregiver_id = os.environ.get('CAREGIVER_USERNAME', 'caregiver')
     _ensure_user(caregiver_id, os.environ.get('CAREGIVER_PASSWORD', 'caregiver1234'), '민준 보호자', 'caregiver')
+    staff_id = os.environ.get('SUPPORT_USERNAME', 'support')
+    _ensure_user(staff_id, os.environ.get('SUPPORT_PASSWORD', 'support1234'), '민준 담당자', 'support_staff')
     admin_id = os.environ.get('ADMIN_USERNAME', 'admin')
     _ensure_user(admin_id, os.environ.get('ADMIN_PASSWORD', 'admin1234'), '컨텐츠 관리자', 'admin')
     database = _database()
     privacy = database.privacy_settings.find_one({'_id': user_id})
     latest_access_change = database.privacy_audit_logs.find_one(
         {'user_id': user_id, 'target_id': caregiver_id,
-         'action': {'$in': ['caregiver_connected', 'caregiver_disconnected']}},
+         'action': {'$in': ['caregiver_connected', 'caregiver_disconnected',
+                            'support_granted', 'support_permissions_changed', 'support_revoked']}},
         sort=[('created_at', -1)],
     )
     if (privacy and privacy.get('guardian_consent') and privacy.get('deletion_status') != 'completed'
-            and (not latest_access_change or latest_access_change['action'] != 'caregiver_disconnected')):
+            and (not latest_access_change or latest_access_change['action'] not in {'caregiver_disconnected', 'support_revoked'})):
         database.caregiver_links.update_one(
             {'_id': f'{caregiver_id}:{user_id}'},
-            {'$set': {'caregiver_id': caregiver_id, 'user_id': user_id},
+            {'$set': {'caregiver_id': caregiver_id, 'supporter_id': caregiver_id,
+                      'supporter_role': 'caregiver', 'user_id': user_id,
+                      'permissions': ['records_read', 'notes_write', 'quick_speech_manage',
+                                      'board_manage', 'voice_access_manage', 'learning_manage'],
+                      'active': True},
              '$setOnInsert': {'created_at': datetime.now(timezone.utc)}},
             upsert=True,
         )
@@ -155,32 +162,23 @@ def logout(credentials: HTTPAuthorizationCredentials = Depends(security)):
             raise HTTPException(503, '로그아웃을 처리하지 못했습니다.') from exc
 
 
-def linked_users(caregiver_id):
-    try:
-        database = _database()
-        links = database.caregiver_links.find({'caregiver_id': caregiver_id})
-        users = []
-        for link in links:
-            linked = database.users.find_one({'_id': link['user_id'], 'role': 'user'})
-            if linked:
-                users.append(_public_user(linked))
-        log_crud('READ', 'caregiver_links', '연결 사용자 조회')
-        return users
-    except PyMongoError as exc:
-        raise HTTPException(503, '연결 사용자 정보를 조회하지 못했습니다.') from exc
+def linked_users(supporter_id):
+    from app.services.support_links import linked_users_for
+    return linked_users_for(supporter_id)
 
 
-def dashboard_user(requester, requested_user_id=None):
+def dashboard_user(requester, requested_user_id=None, permission='records_read'):
     if requester['role'] == 'user':
         if requested_user_id and requested_user_id != requester['id']:
             raise HTTPException(403, '다른 사용자의 기록에 접근할 수 없습니다.')
         return requester['id']
-    if requester['role'] == 'caregiver':
+    if requester['role'] in {'caregiver', 'support_staff'}:
         available = linked_users(requester['id'])
         if not available:
             raise HTTPException(404, '연결된 사용자가 없습니다.')
-        target = requested_user_id or available[0]['id']
-        if target not in {user['id'] for user in available}:
+        permitted = [user for user in available if permission in user.get('permissions', [])]
+        target = requested_user_id or (permitted[0]['id'] if permitted else None)
+        if not target or target not in {user['id'] for user in permitted}:
             raise HTTPException(403, '연결되지 않은 사용자의 기록에 접근할 수 없습니다.')
         return target
     raise HTTPException(403, '이용 현황을 조회할 권한이 없습니다.')

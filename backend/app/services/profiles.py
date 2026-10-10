@@ -45,7 +45,7 @@ def save_profile(user_id, preset=None, image_data=None, content_type=None):
 def profile_image(user_id, requester):
     if requester['id'] != user_id:
         from app.services.authentication import dashboard_user
-        if requester['role'] != 'caregiver':
+        if requester['role'] not in {'caregiver', 'support_staff'}:
             raise HTTPException(403, '프로필 이미지를 조회할 권한이 없습니다.')
         dashboard_user(requester, user_id)
     try:

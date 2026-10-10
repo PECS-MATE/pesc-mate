@@ -1,0 +1,62 @@
+import unittest
+from unittest.mock import MagicMock, patch
+
+from fastapi import HTTPException
+
+from app.services.support_links import (
+    change_support_permissions, grant_support, require_link_permission, revoke_support,
+    validate_permissions,
+)
+
+
+class SupportLinkTests(unittest.TestCase):
+    @patch('app.services.support_links._database')
+    def test_permission_is_checked_server_side(self, mocked_database):
+        database = MagicMock()
+        database.caregiver_links.find_one.return_value = {
+            '_id': 'staff:child', 'supporter_id': 'staff', 'user_id': 'child',
+            'active': True, 'permissions': ['records_read'],
+        }
+        mocked_database.return_value = database
+        supporter = {'id': 'staff', 'role': 'support_staff'}
+
+        self.assertEqual(require_link_permission(supporter, 'child', 'records_read'), 'child')
+        with self.assertRaises(HTTPException) as caught:
+            require_link_permission(supporter, 'child', 'voice_access_manage')
+        self.assertEqual(caught.exception.status_code, 403)
+
+    @patch('app.services.support_links.support_access_for', return_value=[])
+    @patch('app.services.support_links._database')
+    def test_grant_change_and_revoke_record_actor_and_time(self, mocked_database, _mocked_access):
+        database = MagicMock()
+        database.users.find_one.return_value = {
+            '_id': 'staff', 'username': 'staff', 'name': '담당자', 'role': 'support_staff',
+        }
+        database.caregiver_links.find_one.side_effect = [
+            None,
+            {'_id': 'staff:child', 'supporter_id': 'staff', 'user_id': 'child',
+             'permissions': ['records_read'], 'active': True},
+            {'_id': 'staff:child', 'supporter_id': 'staff', 'user_id': 'child',
+             'permissions': ['records_read', 'notes_write'], 'active': True},
+        ]
+        mocked_database.return_value = database
+
+        grant_support('child', 'staff', ['records_read'], 'child')
+        change_support_permissions('child', 'staff', ['records_read', 'notes_write'], 'child')
+        revoke_support('child', 'staff', 'child')
+
+        audits = [call.args[0] for call in database.privacy_audit_logs.insert_one.call_args_list]
+        self.assertEqual([row['action'] for row in audits], [
+            'support_granted', 'support_permissions_changed', 'support_revoked',
+        ])
+        self.assertTrue(all(row['actor_id'] == 'child' and row['created_at'] for row in audits))
+
+    def test_empty_or_unknown_permissions_are_rejected(self):
+        with self.assertRaises(HTTPException):
+            validate_permissions([])
+        with self.assertRaises(HTTPException):
+            validate_permissions(['not-a-permission'])
+
+
+if __name__ == '__main__':
+    unittest.main()

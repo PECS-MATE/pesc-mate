@@ -9,15 +9,16 @@ from app.api.router import UserResponse
 
 
 class ProfileTests(unittest.TestCase):
+    @patch('app.services.support_links._database')
     @patch('app.services.authentication._database')
     @patch('app.services.profiles.database')
-    def test_saved_profile_survives_new_authenticated_session(self, profile_db, auth_db):
+    def test_saved_profile_survives_new_authenticated_session(self, profile_db, auth_db, support_db):
         from datetime import datetime, timedelta, timezone
         from fastapi.security import HTTPAuthorizationCredentials
         from app.services.authentication import current_user, linked_users
         stored = dict(_id='u', username='u', name='User', role='user')
         database = MagicMock()
-        profile_db.return_value = auth_db.return_value = database
+        profile_db.return_value = auth_db.return_value = support_db.return_value = database
         def update(query, changes):
             stored.update(changes['$set'])
             return MagicMock(matched_count=1)
@@ -28,7 +29,7 @@ class ProfileTests(unittest.TestCase):
         for token in ('first-device', 'second-device'):
             account = current_user(HTTPAuthorizationCredentials(scheme='Bearer', credentials=token))
             self.assertEqual(account['profile'], dict(kind='preset', preset='pink'))
-        database.caregiver_links.find.return_value = [dict(user_id='u')]
+        database.caregiver_links.find.return_value = [dict(user_id='u', permissions=['records_read'])]
         self.assertEqual(linked_users('caregiver')[0]['profile'], account['profile'])
 
     def test_presets_include_profile_images(self):
@@ -101,9 +102,9 @@ class ProfileTests(unittest.TestCase):
     def test_owner_and_linked_caregiver_can_read(self, db, linked):
         db().users.find_one.return_value = {'profile': dict(kind='custom', image_data=b'webp', content_type='image/webp')}
         self.assertEqual(profile_image('u', dict(id='u', role='user')), (b'webp', 'image/webp'))
-        linked.return_value = [dict(id='u')]
+        linked.return_value = [dict(id='u', permissions=['records_read'])]
         self.assertEqual(profile_image('u', dict(id='c', role='caregiver')), (b'webp', 'image/webp'))
-        linked.return_value = [dict(id='other')]
+        linked.return_value = [dict(id='other', permissions=['records_read'])]
         with self.assertRaises(HTTPException):
             profile_image('u', dict(id='c', role='caregiver'))
 

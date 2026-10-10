@@ -38,12 +38,21 @@ class AuthorizationTests(unittest.TestCase):
 
     @patch('app.services.authentication.linked_users')
     def test_caregiver_can_only_read_linked_user(self, mocked):
-        mocked.return_value = [{'id': 'demo'}]
+        mocked.return_value = [{'id': 'demo', 'permissions': ['records_read']}]
         caregiver = {'id': 'caregiver', 'role': 'caregiver'}
         self.assertEqual(dashboard_user(caregiver), 'demo')
         with self.assertRaises(HTTPException) as caught:
             dashboard_user(caregiver, 'another')
         self.assertEqual(caught.exception.status_code, 403)
+
+    @patch('app.services.authentication.linked_users')
+    def test_same_role_with_different_permissions_gets_different_access(self, mocked):
+        supporter = {'id': 'staff', 'role': 'support_staff'}
+        mocked.return_value = [{'id': 'demo', 'permissions': ['voice_access_manage']}]
+        with self.assertRaises(HTTPException) as caught:
+            dashboard_user(supporter, 'demo', 'records_read')
+        self.assertEqual(caught.exception.status_code, 403)
+        self.assertEqual(dashboard_user(supporter, 'demo', 'voice_access_manage'), 'demo')
 
 
 if __name__ == '__main__':

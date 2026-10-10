@@ -133,6 +133,8 @@ def access_audit_for(user_id):
         return [{
             'id': str(row['_id']), 'action': row['action'], 'actor_id': row['actor_id'],
             'target_id': row.get('target_id'), 'created_at': row['created_at'],
+            'before_permissions': row.get('before_permissions'),
+            'after_permissions': row.get('after_permissions'),
         } for row in rows]
     except PyMongoError as exc:
         raise HTTPException(503, '개인정보 변경 이력을 조회하지 못했습니다.') from exc
@@ -145,12 +147,14 @@ def export_for(user_id):
         profile = user.get('profile') or {}
         safe_profile = {key: value for key, value in profile.items() if key != 'image_data'}
         cards = database.card_submissions.find({'owner_id': user_id})
+        from app.services.support_links import support_access_for
         payload = {
             'exported_at': datetime.now(timezone.utc),
             'account': {'id': user_id, 'username': user.get('username'), 'name': user.get('name'),
                         'role': user.get('role'), 'profile': safe_profile},
             'privacy': privacy_for(user_id),
             'caregiver_access': caregiver_access_for(user_id),
+            'support_access': support_access_for(user_id),
             'communication_sessions': list(database.communication_sessions.find({'user_id': user_id})),
             'tts_events': list(database.tts_events.find({'user_id': user_id})),
             'offline_events': list(database.offline_events.find({'user_id': user_id})),

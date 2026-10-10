@@ -16,6 +16,10 @@ from app.services.offline_events import sync_events
 from app.services.caregiver_notes import delete_note, notes_for, save_note
 from app.services.tts_settings import save_settings, settings_for
 from app.services.tts_events import finish_event, start_event
+from app.services.support_links import (
+    LINK_PERMISSIONS, SUPPORT_ROLES, change_support_permissions, grant_support,
+    permissions_for, require_link_permission, revoke_support, support_access_for,
+)
 from app.services.card_submissions import (
     MAX_IMAGE_BYTES, approved_cards_for, create_submission, image_for,
     review_submission, submissions_for, submissions_for_review, submit_draft,
@@ -89,6 +93,8 @@ class UserResponse(BaseModel):
     role: str
     profile: ProfileResponse | None = None
     session_expires_at: datetime | None = None
+    permissions: list[str] | None = None
+    link_role: str | None = None
 
 
 class TtsSettingsRequest(BaseModel):
@@ -139,12 +145,39 @@ class CaregiverAccessResponse(BaseModel):
     connected_at: datetime | None = None
 
 
+class SupportLinkRequest(BaseModel):
+    username: str = Field(min_length=1, max_length=64)
+    permissions: list[Literal[
+        'records_read', 'notes_write', 'quick_speech_manage', 'board_manage',
+        'voice_access_manage', 'learning_manage',
+    ]] = Field(min_length=1, max_length=len(LINK_PERMISSIONS))
+
+
+class SupportPermissionsRequest(BaseModel):
+    permissions: list[Literal[
+        'records_read', 'notes_write', 'quick_speech_manage', 'board_manage',
+        'voice_access_manage', 'learning_manage',
+    ]] = Field(min_length=1, max_length=len(LINK_PERMISSIONS))
+
+
+class SupportAccessResponse(BaseModel):
+    supporter_id: str
+    username: str
+    name: str
+    role: Literal['caregiver', 'support_staff']
+    permissions: list[str]
+    connected_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
 class PrivacyAuditResponse(BaseModel):
     id: str
     action: str
     actor_id: str
     target_id: str | None = None
     created_at: datetime
+    before_permissions: list[str] | None = None
+    after_permissions: list[str] | None = None
 
 
 class PrivacyDeleteRequest(BaseModel):
@@ -337,16 +370,16 @@ def me(user=Depends(current_user)):
 
 @api_router.get('/care/linked-users', response_model=list[UserResponse], tags=['보호자'])
 def care_users(user=Depends(current_user)):
-    if user['role'] != 'caregiver':
-        raise HTTPException(403, '보호자 계정만 접근할 수 있습니다.')
+    if user['role'] not in SUPPORT_ROLES:
+        raise HTTPException(403, '보호자 또는 담당자 계정만 접근할 수 있습니다.')
     return linked_users(user['id'])
 
 
 @api_router.put('/care/notes/{session_id}', response_model=CaregiverNoteResponse, tags=['보호자'])
 def put_caregiver_note(session_id: UUID, request: CaregiverNoteRequest, user=Depends(current_user)):
-    if user['role'] != 'caregiver':
-        raise HTTPException(403, '보호자 계정만 메모를 작성할 수 있습니다.')
-    target = dashboard_user(user, request.user_id)
+    if user['role'] not in SUPPORT_ROLES:
+        raise HTTPException(403, '보호자 또는 담당자만 메모를 작성할 수 있습니다.')
+    target = dashboard_user(user, request.user_id, 'notes_write')
     content = request.content.strip()
     if not content:
         raise HTTPException(422, '메모 내용을 입력해 주세요.')
@@ -357,9 +390,9 @@ def put_caregiver_note(session_id: UUID, request: CaregiverNoteRequest, user=Dep
 def remove_caregiver_note(session_id: UUID,
                           user_id: str = Query(min_length=1, max_length=64),
                           user=Depends(current_user)):
-    if user['role'] != 'caregiver':
-        raise HTTPException(403, '보호자 계정만 메모를 삭제할 수 있습니다.')
-    target = dashboard_user(user, user_id)
+    if user['role'] not in SUPPORT_ROLES:
+        raise HTTPException(403, '보호자 또는 담당자만 메모를 삭제할 수 있습니다.')
+    target = dashboard_user(user, user_id, 'notes_write')
     delete_note(user['id'], target, str(session_id))
     return None
 
@@ -401,6 +434,32 @@ def get_privacy_audit(user=Depends(current_user)):
     return access_audit_for(user['id'])
 
 
+@api_router.get('/support/links', response_model=list[SupportAccessResponse], tags=['역할·권한'])
+def get_support_links(user=Depends(current_user)):
+    require_communicator(user)
+    return support_access_for(user['id'])
+
+
+@api_router.post('/support/links', response_model=list[SupportAccessResponse], tags=['역할·권한'])
+def post_support_link(request: SupportLinkRequest, user=Depends(current_user)):
+    require_communicator(user)
+    return grant_support(user['id'], request.username.strip(), request.permissions, user['id'])
+
+
+@api_router.put('/support/links/{supporter_id}', response_model=list[SupportAccessResponse], tags=['역할·권한'])
+def put_support_permissions(supporter_id: str, request: SupportPermissionsRequest,
+                            user=Depends(current_user)):
+    require_communicator(user)
+    return change_support_permissions(user['id'], supporter_id, request.permissions, user['id'])
+
+
+@api_router.delete('/support/links/{supporter_id}', status_code=204, tags=['역할·권한'])
+def delete_support_link(supporter_id: str, user=Depends(current_user)):
+    require_communicator(user)
+    revoke_support(user['id'], supporter_id, user['id'])
+    return None
+
+
 @api_router.get('/privacy/export', tags=['개인정보'])
 def get_privacy_export(user=Depends(current_user)):
     require_communicator(user)
@@ -427,27 +486,37 @@ def sign_out(_user=Depends(current_user), credentials=Depends(security)):
 
 
 @api_router.get('/tts/settings', response_model=TtsSettingsResponse, tags=['음성'])
-def get_tts_settings(user=Depends(current_user)):
-    require_communicator(user)
-    return settings_for(user['id'])
+def get_tts_settings(user_id: str | None = Query(default=None, max_length=64),
+                     user=Depends(current_user)):
+    target = user_id or user['id']
+    require_link_permission(user, target, 'voice_access_manage')
+    return settings_for(target)
 
 
 @api_router.put('/tts/settings', response_model=TtsSettingsResponse, tags=['음성'])
-def put_tts_settings(request: TtsSettingsRequest, user=Depends(current_user)):
-    require_communicator(user)
-    return save_settings(user['id'], request.preset, request.voice_name.strip(), request.rate, request.pitch)
+def put_tts_settings(request: TtsSettingsRequest,
+                     user_id: str | None = Query(default=None, max_length=64),
+                     user=Depends(current_user)):
+    target = user_id or user['id']
+    require_link_permission(user, target, 'voice_access_manage')
+    return save_settings(target, request.preset, request.voice_name.strip(), request.rate, request.pitch)
 
 
 @api_router.get('/accessibility/settings', response_model=AccessibilitySettingsResponse, tags=['접근성'])
-def get_accessibility_settings(user=Depends(current_user)):
-    require_communicator(user)
-    return accessibility_settings_for(user['id'])
+def get_accessibility_settings(user_id: str | None = Query(default=None, max_length=64),
+                               user=Depends(current_user)):
+    target = user_id or user['id']
+    require_link_permission(user, target, 'voice_access_manage')
+    return accessibility_settings_for(target)
 
 
 @api_router.put('/accessibility/settings', response_model=AccessibilitySettingsResponse, tags=['접근성'])
-def put_accessibility_settings(request: AccessibilitySettingsRequest, user=Depends(current_user)):
-    require_communicator(user)
-    return save_accessibility_settings(user['id'], request.model_dump())
+def put_accessibility_settings(request: AccessibilitySettingsRequest,
+                               user_id: str | None = Query(default=None, max_length=64),
+                               user=Depends(current_user)):
+    target = user_id or user['id']
+    require_link_permission(user, target, 'voice_access_manage')
+    return save_accessibility_settings(target, request.model_dump())
 
 
 @api_router.post('/tts/events', response_model=TtsEventResponse, status_code=201, tags=['음성'])
@@ -586,7 +655,7 @@ def dashboard(days: int | None = Query(default=None, ge=1, le=365),
               user=Depends(current_user)):
     target = dashboard_user(user, user_id)
     result = statistics(target, days=days)
-    if user['role'] == 'caregiver':
+    if user['role'] in SUPPORT_ROLES and 'notes_write' in permissions_for(user['id'], target):
         notes = notes_for(user['id'], target, [row['id'] for row in result['recent']])
         for row in result['recent']:
             row['caregiver_note'] = notes.get(row['id'])
