@@ -27,9 +27,11 @@ class LearningTests(unittest.TestCase):
         database.learning_settings.find_one.return_value = None
         mocked_database.return_value = database
 
-        result = save_settings('child', 'staff', ['food'], 10, 60, True)
+        result = save_settings('child', 'staff', ['food'], 10, 3, 2, 60, True)
 
         self.assertEqual(result['updated_by'], 'staff')
+        self.assertEqual(result['option_count'], 3)
+        self.assertEqual(result['repeat_frequency'], 2)
         audit = database.learning_audit_logs.insert_one.call_args.args[0]
         self.assertEqual(audit['target_user_id'], 'child')
         self.assertEqual(audit['actor_id'], 'staff')
@@ -83,7 +85,7 @@ class LearningTests(unittest.TestCase):
     def test_aac_user_cannot_modify_learning_settings(self):
         request = LearningSettingsRequest(
             category_ids=['food'], question_count=10, time_limit_seconds=60,
-            retry_enabled=True,
+            option_count=3, repeat_frequency=1, retry_enabled=True,
         )
         with self.assertRaises(HTTPException) as caught:
             put_learning_settings(request, user_id='child', user={'id': 'child', 'role': 'user'})

@@ -25,3 +25,12 @@ test('learning achievement navigation requires the linked permission', () => {
   assert.match(app, /linkedUsers\.filter\(person => person\.permissions\.includes\('learning_manage'\)\)/);
   assert.match(app, /request\(`\/learning\/progress/);
 });
+
+test('learning manager can save difficulty and repetition settings', () => {
+  assert.match(app, /saveLearningConfiguration/);
+  assert.match(app, /option_count: Number\(learningSettings\.option_count\)/);
+  assert.match(app, /repeat_frequency: Number\(learningSettings\.repeat_frequency\)/);
+  assert.match(app, /request\(`\/learning\/settings\$\{query\}`/);
+  assert.match(app, /단어 보기 수/);
+  assert.match(app, /카드 반복/);
+});

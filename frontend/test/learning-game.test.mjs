@@ -12,7 +12,7 @@ const cards = [
 ];
 
 test('word-picture game creates the requested number of answerable questions', () => {
-  const questions = learningQuestions(cards, 6, () => 0.25);
+  const questions = learningQuestions(cards, 6, 3, 1, () => 0.25);
 
   assert.equal(questions.length, 6);
   for (const question of questions) {
@@ -22,8 +22,18 @@ test('word-picture game creates the requested number of answerable questions', (
   }
 });
 
-test('word-picture game requires at least two picture cards', () => {
+test('word-picture game requires enough cards for every option', () => {
   assert.deepEqual(learningQuestions(cards.slice(0, 1), 5), []);
+  assert.deepEqual(learningQuestions(cards.slice(0, 3), 5, 4), []);
+});
+
+test('difficulty controls option count and repeated target exposure', () => {
+  const questions = learningQuestions(cards, 8, 4, 2, () => 0.25);
+
+  assert.ok(questions.every(question => question.options.length === 4));
+  const firstCycle = questions.slice(0, 4).map(question => question.target.id);
+  const repeatedCycle = questions.slice(4, 8).map(question => question.target.id);
+  assert.deepEqual(repeatedCycle, firstCycle);
 });
 
 test('play screen saves only a learning attempt and keeps communication available', () => {

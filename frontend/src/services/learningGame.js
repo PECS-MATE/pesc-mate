@@ -7,15 +7,19 @@ export function shuffled(items, random = Math.random) {
   return result;
 }
 
-export function learningQuestions(cards, questionCount, random = Math.random) {
-  if (cards.length < 2) return [];
+export function learningQuestions(cards, questionCount, optionCount = 3, repeatFrequency = 1,
+                                  random = Math.random) {
+  if (cards.length < optionCount) return [];
   const targets = [];
-  while (targets.length < questionCount) targets.push(...shuffled(cards, random));
+  while (targets.length < questionCount) {
+    const cycle = shuffled(cards, random);
+    for (let repeat = 0; repeat < repeatFrequency; repeat += 1) targets.push(...cycle);
+  }
   return targets.slice(0, questionCount).map(target => ({
     target,
     options: shuffled([
       target,
-      ...shuffled(cards.filter(card => card.id !== target.id), random).slice(0, 2),
+      ...shuffled(cards.filter(card => card.id !== target.id), random).slice(0, optionCount - 1),
     ], random),
   }));
 }

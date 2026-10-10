@@ -13,6 +13,8 @@ ACTIVITY_TYPES = {'word_picture_match'}
 DEFAULT_SETTINGS = {
     'category_ids': [],
     'question_count': 10,
+    'option_count': 3,
+    'repeat_frequency': 1,
     'time_limit_seconds': 60,
     'retry_enabled': True,
 }
@@ -36,7 +38,8 @@ def settings_for(user_id):
         raise HTTPException(503, '학습 설정을 불러오지 못했습니다.') from exc
 
 
-def save_settings(user_id, actor_id, category_ids, question_count, time_limit_seconds, retry_enabled):
+def save_settings(user_id, actor_id, category_ids, question_count, option_count,
+                  repeat_frequency, time_limit_seconds, retry_enabled):
     categories = list(dict.fromkeys(category_ids))
     if not categories:
         raise HTTPException(422, '학습 카테고리를 하나 이상 선택해 주세요.')
@@ -44,6 +47,8 @@ def save_settings(user_id, actor_id, category_ids, question_count, time_limit_se
     values = {
         'category_ids': categories,
         'question_count': question_count,
+        'option_count': option_count,
+        'repeat_frequency': repeat_frequency,
         'time_limit_seconds': time_limit_seconds,
         'retry_enabled': retry_enabled,
     }

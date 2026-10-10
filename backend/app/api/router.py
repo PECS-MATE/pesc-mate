@@ -293,6 +293,8 @@ class BoardAuditResponse(BaseModel):
 class LearningSettingsRequest(BaseModel):
     category_ids: list[Annotated[str, Field(min_length=1, max_length=64)]] = Field(min_length=1, max_length=20)
     question_count: int = Field(ge=5, le=30)
+    option_count: int = Field(default=3, ge=2, le=4)
+    repeat_frequency: int = Field(default=1, ge=1, le=3)
     time_limit_seconds: int = Field(ge=30, le=600)
     retry_enabled: bool
 
@@ -301,6 +303,8 @@ class LearningSettingsResponse(BaseModel):
     user_id: str
     category_ids: list[str]
     question_count: int
+    option_count: int
+    repeat_frequency: int
     time_limit_seconds: int
     retry_enabled: bool
     updated_at: datetime | None = None
@@ -708,7 +712,8 @@ def put_learning_settings(request: LearningSettingsRequest,
         raise HTTPException(403, '보호자 또는 담당자만 학습 설정을 변경할 수 있습니다.')
     target = require_link_permission(user, user_id, 'learning_manage')
     return save_learning_settings(target, user['id'], request.category_ids,
-                                  request.question_count, request.time_limit_seconds,
+                                  request.question_count, request.option_count,
+                                  request.repeat_frequency, request.time_limit_seconds,
                                   request.retry_enabled)
 
 
@@ -741,8 +746,7 @@ def get_learning_audit(user_id: str | None = Query(default=None, max_length=64),
 
 
 @api_router.get('/categories', response_model=list[CategoryResponse], tags=['카드'])
-def categories(user=Depends(current_user)):
-    require_communicator(user)
+def categories(_user=Depends(current_user)):
     return active_categories()
 
 
