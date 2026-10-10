@@ -21,3 +21,11 @@ test('speech records startup latency without storing spoken text', () => {
   assert.match(app, /startup_ms: event\.startupMs/);
   assert.doesNotMatch(app, /startup_ms:.*content/);
 });
+
+test('screen lock cancels stale speech and refreshes voices after return', () => {
+  assert.match(app, /document\.visibilityState === 'hidden'/);
+  assert.match(app, /finishSpeechEvent\(speechEventRef\.current, 'cancelled', 'screen-hidden'\)/);
+  assert.match(app, /document\.addEventListener\('visibilitychange', handleVisibility\)/);
+  assert.match(app, /window\.addEventListener\('focus', updateVoices\)/);
+  assert.match(app, /document\.removeEventListener\('visibilitychange', handleVisibility\)/);
+});

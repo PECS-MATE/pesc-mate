@@ -426,9 +426,26 @@ function App() {
     const synthesis = window.speechSynthesis;
     if (!synthesis) return undefined;
     const updateVoices = () => setTtsVoices(synthesis.getVoices().filter(voice => voice.lang.toLowerCase().startsWith('ko')));
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        finishSpeechEvent(speechEventRef.current, 'cancelled', 'screen-hidden');
+        speechRunRef.current += 1;
+        synthesis.cancel();
+        if (synthesis.paused) synthesis.resume();
+        setSpeechState({ status: 'idle', content: '' });
+        return;
+      }
+      updateVoices();
+    };
     updateVoices();
     synthesis.addEventListener('voiceschanged', updateVoices);
-    return () => synthesis.removeEventListener('voiceschanged', updateVoices);
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', updateVoices);
+    return () => {
+      synthesis.removeEventListener('voiceschanged', updateVoices);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', updateVoices);
+    };
   }, []);
 
   useEffect(() => {
