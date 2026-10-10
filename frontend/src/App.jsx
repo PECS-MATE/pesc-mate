@@ -549,7 +549,9 @@ function App() {
     if (event.finished) return event.completion || Promise.resolve();
     event.finished = true;
     event.completion = event.started.then(started => started ? request(`/tts/events/${event.id}`, {
-      method: 'PATCH', body: JSON.stringify({ status, error_code: errorCode }),
+      method: 'PATCH', body: JSON.stringify({
+        status, error_code: errorCode, startup_ms: event.startupMs,
+      }),
     }) : null).catch(e => setError(e.message));
     return event.completion;
   }
@@ -571,7 +573,7 @@ function App() {
     if (contentType !== 'preview') setLastUtterance({ content, contentType, cardIds });
     finishSpeechEvent(speechEventRef.current, 'cancelled', 'replaced');
     const speechEvent = {
-      id: crypto.randomUUID(), finished: false,
+      id: crypto.randomUUID(), finished: false, requestedAt: Date.now(), startupMs: null,
       started: null,
     };
     const startTracking = () => request('/tts/events', { method: 'POST', body: JSON.stringify({
@@ -606,7 +608,10 @@ function App() {
     utterance.volume = ttsSettings.volume;
     const voice = selectTtsVoice(ttsVoices, ttsSettings.voiceName, offline);
     if (voice) utterance.voice = voice;
-    utterance.onstart = () => { if (speechRunRef.current === runId) setSpeechState({ status: 'playing', content }); };
+    utterance.onstart = () => {
+      speechEvent.startupMs = Math.max(0, Date.now() - speechEvent.requestedAt);
+      if (speechRunRef.current === runId) setSpeechState({ status: 'playing', content });
+    };
     utterance.onpause = () => { if (speechRunRef.current === runId) setSpeechState({ status: 'paused', content }); };
     utterance.onresume = () => { if (speechRunRef.current === runId) setSpeechState({ status: 'playing', content }); };
     utterance.onend = () => {

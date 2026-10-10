@@ -26,12 +26,13 @@ class TtsEventTests(unittest.TestCase):
         database.tts_events.update_one.return_value.matched_count = 1
         mocked_database.return_value = database
 
-        result = finish_event('demo', 'request-id', 'succeeded')
+        result = finish_event('demo', 'request-id', 'succeeded', startup_ms=240)
 
         self.assertEqual(result['status'], 'succeeded')
         query, update = database.tts_events.update_one.call_args.args
         self.assertEqual(query, {'_id': 'request-id', 'user_id': 'demo', 'status': 'requested'})
         self.assertEqual(update['$set']['status'], 'succeeded')
+        self.assertEqual(update['$set']['startup_ms'], 240)
 
     @patch('app.services.tts_events._database')
     def test_unknown_request_cannot_be_completed(self, mocked_database):

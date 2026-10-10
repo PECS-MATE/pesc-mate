@@ -223,6 +223,7 @@ class TtsEventRequest(BaseModel):
 class TtsEventResultRequest(BaseModel):
     status: Literal['succeeded', 'failed', 'cancelled']
     error_code: str = Field(default='', max_length=80)
+    startup_ms: int | None = Field(default=None, ge=0, le=60000)
 
 
 class TtsEventResponse(BaseModel):
@@ -231,6 +232,7 @@ class TtsEventResponse(BaseModel):
     error_code: str | None = None
     requested_at: datetime | None = None
     completed_at: datetime | None = None
+    startup_ms: int | None = None
 
 
 class LoginResponse(BaseModel):
@@ -656,7 +658,8 @@ def create_tts_event(request: TtsEventRequest, user=Depends(current_user)):
 @api_router.patch('/tts/events/{request_id}', response_model=TtsEventResponse, tags=['음성'])
 def complete_tts_event(request_id: UUID, request: TtsEventResultRequest, user=Depends(current_user)):
     require_communicator(user)
-    return finish_event(user['id'], str(request_id), request.status, request.error_code.strip())
+    return finish_event(user['id'], str(request_id), request.status, request.error_code.strip(),
+                        request.startup_ms)
 
 
 @api_router.get('/cards', response_model=list[CardResponse], response_model_exclude_none=True, tags=['카드'])

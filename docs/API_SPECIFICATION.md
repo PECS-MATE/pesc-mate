@@ -456,7 +456,7 @@ Authorization: Bearer {access_token}
 Content-Type: application/json
 ```
 
-재생을 요청할 때 UUID, 콘텐츠 종류(`card`, `sentence`, `recovery`, `preview`)와 글자 수를 저장한다. 기기 TTS 재생을 먼저 요청한 뒤 이력을 비동기로 저장하며, 재생이 끝나면 같은 UUID에 `succeeded`, `failed`, `cancelled` 결과와 오류 코드를 기록한다. 발화 원문은 개인정보 노출을 줄이기 위해 저장하지 않는다.
+재생을 요청할 때 UUID, 콘텐츠 종류(`card`, `sentence`, `recovery`, `preview`)와 글자 수를 저장한다. 기기 TTS 재생을 먼저 요청한 뒤 이력을 비동기로 저장하며, 재생이 끝나면 같은 UUID에 `succeeded`, `failed`, `cancelled` 결과, 오류 코드와 발화 시작 지연 시간 `startup_ms`를 기록한다. 지연 시간은 버튼 입력부터 브라우저의 `onstart` 이벤트까지 측정하고 최대 60초만 허용한다. 발화 원문은 개인정보 노출을 줄이기 위해 저장하지 않는다.
 
 ## 6.10 사용자 접근 설정 조회 및 저장
 
