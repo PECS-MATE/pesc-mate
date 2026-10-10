@@ -21,6 +21,13 @@ test('configured quick expressions and slots stay separate from recommendations'
   assert.match(app, /request\(`\/board\/layout\/\$\{path\}\$\{query\}`/);
 });
 
+test('recovery expressions have a fixed user area and supporter configuration', () => {
+  assert.match(app, /className="recovery-speech"/);
+  assert.match(app, /boardLayout\?\.recovery_expression_ids/);
+  assert.match(app, /recovery-expressions/);
+  assert.match(app, /speakText\(item\.label, 'recovery', true\)/);
+});
+
 test('support link grant, change and revoke use account-scoped APIs', () => {
   assert.match(app, /request\('\/support\/links'/);
   assert.match(app, /request\(`\/support\/links\/\$\{encodeURIComponent\(item\.supporter_id\)\}`/);

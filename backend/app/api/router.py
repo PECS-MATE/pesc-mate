@@ -25,7 +25,9 @@ from app.services.support_links import (
     revoke_support, support_access_for,
 )
 from app.services.board_layout import audit_for as board_audit_for
-from app.services.board_layout import layout_for, save_quick_expressions, save_slots
+from app.services.board_layout import (
+    layout_for, save_quick_expressions, save_recovery_expressions, save_slots,
+)
 from app.services.learning import audit_for as learning_audit_for
 from app.services.learning import progress_for as learning_progress_for
 from app.services.learning import record_attempt as record_learning_attempt
@@ -213,7 +215,7 @@ class OfflineSyncResponse(BaseModel):
 
 class TtsEventRequest(BaseModel):
     request_id: UUID
-    content_type: Literal['card', 'sentence', 'preview']
+    content_type: Literal['card', 'sentence', 'recovery', 'preview']
     char_count: int = Field(ge=1, le=500)
 
 
@@ -263,6 +265,7 @@ class BoardSlotResponse(BaseModel):
 class BoardLayoutResponse(BaseModel):
     user_id: str
     quick_expression_ids: list[str]
+    recovery_expression_ids: list[str]
     slots: list[BoardSlotResponse]
     available_cards: list[CardResponse]
     updated_at: datetime | None = None
@@ -270,6 +273,10 @@ class BoardLayoutResponse(BaseModel):
 
 class BoardCardIdsRequest(BaseModel):
     card_ids: list[Annotated[str, Field(min_length=1, max_length=100)]] = Field(min_length=1, max_length=30)
+
+
+class BoardRecoveryIdsRequest(BaseModel):
+    expression_ids: list[Annotated[str, Field(min_length=1, max_length=40)]] = Field(min_length=2, max_length=4)
 
 
 class BoardAuditResponse(BaseModel):
@@ -655,6 +662,15 @@ def put_quick_expressions(request: BoardCardIdsRequest,
                           user=Depends(current_user)):
     target = _require_support_manager(user, user_id, 'quick_speech_manage')
     return save_quick_expressions(target, user['id'], request.card_ids)
+
+
+@api_router.put('/board/layout/recovery-expressions', response_model=BoardLayoutResponse,
+                response_model_exclude_none=True, tags=['카드판'])
+def put_recovery_expressions(request: BoardRecoveryIdsRequest,
+                             user_id: str = Query(min_length=1, max_length=64),
+                             user=Depends(current_user)):
+    target = _require_support_manager(user, user_id, 'quick_speech_manage')
+    return save_recovery_expressions(target, user['id'], request.expression_ids)
 
 
 @api_router.put('/board/layout/slots', response_model=BoardLayoutResponse,

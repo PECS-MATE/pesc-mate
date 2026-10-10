@@ -9,7 +9,18 @@ from app.services.database import database as _database, log_crud
 
 
 DEFAULT_QUICK_IDS = ['hurt', 'no', 'help', 'toilet', 'stop']
+RECOVERY_EXPRESSIONS = {
+    'wrong_tap': '잘못 눌렀어요',
+    'not_that': '그 뜻이 아니에요',
+    'say_again': '다시 말할게요',
+    'please_wait': '제 말을 기다려 주세요',
+    'dont_understand': '질문을 잘 모르겠어요',
+    'yes': '맞아요',
+    'no': '아니에요',
+}
+DEFAULT_RECOVERY_IDS = ['wrong_tap', 'not_that', 'say_again']
 MAX_QUICK_EXPRESSIONS = 8
+MAX_RECOVERY_EXPRESSIONS = 4
 MAX_BOARD_SLOTS = 30
 
 
@@ -30,11 +41,15 @@ def _public(document, available):
                      for position, card_id in enumerate(_ids(available), 1)][:MAX_BOARD_SLOTS]
     quick_ids = [card_id for card_id in (document or {}).get('quick_expression_ids', default_quick)
                  if card_id in available_ids]
+    recovery_ids = [expression_id for expression_id in
+                    (document or {}).get('recovery_expression_ids', DEFAULT_RECOVERY_IDS)
+                    if expression_id in RECOVERY_EXPRESSIONS]
     slots = [slot for slot in (document or {}).get('slots', default_slots)
              if slot.get('card_id') in available_ids]
     return {
         'user_id': document.get('user_id') if document else None,
         'quick_expression_ids': quick_ids,
+        'recovery_expression_ids': recovery_ids,
         'slots': sorted(slots, key=lambda slot: slot['position']),
         'available_cards': available,
         'updated_at': document.get('updated_at') if document else None,
@@ -56,6 +71,18 @@ def layout_for(user_id):
 def save_quick_expressions(user_id, actor_id, card_ids):
     card_ids = _validate_card_ids(user_id, card_ids, 1, MAX_QUICK_EXPRESSIONS, '빠른 표현')
     return _save(user_id, actor_id, 'quick_expression_ids', card_ids, 'quick_expressions_changed')
+
+
+def save_recovery_expressions(user_id, actor_id, expression_ids):
+    values = list(expression_ids)
+    if not 2 <= len(values) <= MAX_RECOVERY_EXPRESSIONS:
+        raise HTTPException(422, f'복구 표현은 2~{MAX_RECOVERY_EXPRESSIONS}개로 구성해 주세요.')
+    if len(values) != len(set(values)):
+        raise HTTPException(422, '같은 복구 표현을 중복 배치할 수 없습니다.')
+    if any(expression_id not in RECOVERY_EXPRESSIONS for expression_id in values):
+        raise HTTPException(422, '사용할 수 없는 복구 표현이 포함되어 있습니다.')
+    return _save(user_id, actor_id, 'recovery_expression_ids', values,
+                 'recovery_expressions_changed')
 
 
 def save_slots(user_id, actor_id, card_ids):

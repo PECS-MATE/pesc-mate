@@ -3,7 +3,9 @@ from unittest.mock import MagicMock, patch
 
 from fastapi import HTTPException
 
-from app.services.board_layout import layout_for, save_quick_expressions, save_slots
+from app.services.board_layout import (
+    layout_for, save_quick_expressions, save_recovery_expressions, save_slots,
+)
 from app.api.router import _require_support_manager
 
 
@@ -25,6 +27,7 @@ class BoardLayoutTests(unittest.TestCase):
         result = layout_for('child')
 
         self.assertEqual(result['quick_expression_ids'], ['help', 'stop'])
+        self.assertEqual(result['recovery_expression_ids'], ['wrong_tap', 'not_that', 'say_again'])
         self.assertEqual(result['slots'], [
             {'position': 1, 'card_id': 'help'},
             {'position': 2, 'card_id': 'water'},
@@ -60,6 +63,26 @@ class BoardLayoutTests(unittest.TestCase):
             save_slots('child', 'staff', ['help', 'help'])
         with self.assertRaises(HTTPException):
             save_quick_expressions('child', 'staff', ['missing'])
+
+    @patch('app.services.board_layout.layout_for')
+    @patch('app.services.board_layout._available_cards', return_value=CARDS)
+    @patch('app.services.board_layout._database')
+    def test_recovery_expressions_are_fixed_presets_and_audited(
+            self, mocked_database, _available, mocked_layout):
+        database = MagicMock()
+        database.board_layouts.find_one.return_value = None
+        mocked_database.return_value = database
+        mocked_layout.return_value = {'user_id': 'child'}
+
+        save_recovery_expressions('child', 'caregiver', ['wrong_tap', 'say_again'])
+
+        audit = database.board_audit_logs.insert_one.call_args.args[0]
+        self.assertEqual(audit['action'], 'recovery_expressions_changed')
+        self.assertEqual(audit['after'], ['wrong_tap', 'say_again'])
+        with self.assertRaises(HTTPException):
+            save_recovery_expressions('child', 'caregiver', ['wrong_tap'])
+        with self.assertRaises(HTTPException):
+            save_recovery_expressions('child', 'caregiver', ['wrong_tap', 'custom_text'])
 
     def test_aac_user_cannot_change_fixed_layout_even_for_self(self):
         with self.assertRaises(HTTPException) as caught:
