@@ -6,6 +6,7 @@ import { hasToken, request, requestBlob, setToken } from "./services/api";
 import { clearBoard, loadBoard, saveBoard } from "./services/boardStorage";
 import { learningQuestions } from "./services/learningGame";
 import { localKoreanVoices as installedKoreanVoices, selectTtsVoice } from "./services/ttsVoice";
+import { createRequestId } from "./services/requestId";
 import {
   cacheAccount, cachedAccount, cacheLearningGame, cachedLearningGame, cacheLearningState,
   cachedLearningState, cacheSnapshot, cachedSnapshot, clearCachedAccount, clearLearningGame,
@@ -167,7 +168,7 @@ function App() {
   const [accessibility, setAccessibility] = useState(DEFAULT_ACCESSIBILITY);
   const [accessibilityBusy, setAccessibilityBusy] = useState(false);
   const [accessibilitySaved, setAccessibilitySaved] = useState(true);
-  const [requestId, setRequestId] = useState(() => crypto.randomUUID());
+  const [requestId, setRequestId] = useState(() => createRequestId());
   const [linkedUsers, setLinkedUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [noteDrafts, setNoteDrafts] = useState({});
@@ -517,7 +518,7 @@ function App() {
 
   function updateBoard(next) {
     stopSpeech();
-    setBoard(next); saveBoard(user?.id, next); setText(''); setGenerationSource(''); setGeneratedSessionId(''); setGenerationAttempt(1); setSentenceConfirmed(false); setGenerationFailed(false); setSpeechFailure(null); setRequestId(crypto.randomUUID());
+    setBoard(next); saveBoard(user?.id, next); setText(''); setGenerationSource(''); setGeneratedSessionId(''); setGenerationAttempt(1); setSentenceConfirmed(false); setGenerationFailed(false); setSpeechFailure(null); setRequestId(createRequestId());
   }
   function add(card) {
     if (board.length >= 12) { setError('카드는 최대 12장까지 선택할 수 있어요.'); return; }
@@ -548,7 +549,7 @@ function App() {
     setBusy(true); setError(''); setGenerationFailed(false); setSentenceConfirmed(false);
     try {
       const result = await request(`/sentences/${generatedSessionId}/regenerate`, {
-        method: 'POST', body: JSON.stringify({ request_id: crypto.randomUUID() }),
+        method: 'POST', body: JSON.stringify({ request_id: createRequestId() }),
       });
       setText(result.sentence);
       setGenerationSource(result.generation_source || 'rule');
@@ -590,7 +591,7 @@ function App() {
     if (contentType !== 'preview') setLastUtterance({ content, contentType, cardIds });
     finishSpeechEvent(speechEventRef.current, 'cancelled', 'replaced');
     const speechEvent = {
-      id: crypto.randomUUID(), finished: false, requestedAt: Date.now(), startupMs: null,
+      id: createRequestId(), finished: false, requestedAt: Date.now(), startupMs: null,
       started: null,
     };
     const startTracking = () => request('/tts/events', { method: 'POST', body: JSON.stringify({
@@ -849,7 +850,7 @@ function App() {
     setLearningGame({
       phase: 'playing', questions, questionIndex: 0, correctAnswers: 0,
       hadWrong: false, feedback: '', selectedId: '', startedAt: Date.now(),
-      requestId: crypto.randomUUID(), attempt: null, results: [],
+      requestId: createRequestId(), attempt: null, results: [],
     });
   }
   function answerLearningQuestion(cardId) {

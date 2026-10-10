@@ -6,7 +6,7 @@ const accounts = {
   support: { username: 'support', password: 'support1234' },
   operator: { username: 'admin', password: 'admin1234' },
 };
-const apiBaseUrl = process.env.E2E_API_BASE_URL || 'http://127.0.0.1:8000';
+const apiBaseUrl = process.env.E2E_API_BASE_URL || '';
 
 async function finishInitialProfile(page) {
   const heading = page.getByRole('heading', { name: '처음 사용할 프로필을 골라 주세요' });
