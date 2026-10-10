@@ -5,7 +5,7 @@ from app.api.router import api_router
 
 app = FastAPI(
     title="PESC MATE API",
-    description="발화에 어려움이 있는 아동을 위한 개인 맞춤형 AAC 의사소통 플랫폼 API",
+    description="실물 PECS 카드의 휴대·관리 부담을 줄이고 의사소통과 학습을 지원하는 개인 맞춤형 디지털 AAC 플랫폼 API",
     version="0.1.0",
 )
 

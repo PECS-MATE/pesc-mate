@@ -98,11 +98,11 @@ Authorization: Bearer {access_token}
 | 카드 | POST | `/api/cards/submissions/{id}/submit` | 필요 | 임시 저장 카드를 승인 대기로 제출 |
 | 카드 | PATCH | `/api/cards/submissions/{id}` | 필요 | 작성 중·반려 카드 정보 수정 |
 | 카드 | GET | `/api/cards/submissions/{id}/image` | 필요 | 권한이 있는 카드 이미지 조회 |
-| 관리자 | GET | `/api/admin/card-submissions` | 관리자 | 전체 카드 요청 조회 |
-| 관리자 | PATCH | `/api/admin/card-submissions/{id}` | 관리자 | 카드 승인 또는 반려 |
-| 관리자 | GET | `/api/admin/categories` | 관리자 | 전체 카테고리 조회 |
-| 관리자 | POST | `/api/admin/categories` | 관리자 | 카테고리 추가 |
-| 관리자 | PATCH | `/api/admin/categories/{id}` | 관리자 | 카테고리 수정 및 활성 상태 변경 |
+| 운영 | GET | `/api/admin/card-submissions` | `content_manage` 권한 담당자 | 전체 카드 요청 조회 |
+| 운영 | PATCH | `/api/admin/card-submissions/{id}` | `content_manage` 권한 담당자 | 카드 승인 또는 반려 |
+| 운영 | GET | `/api/admin/categories` | `content_manage` 권한 담당자 | 전체 카테고리 조회 |
+| 운영 | POST | `/api/admin/categories` | `content_manage` 권한 담당자 | 카테고리 추가 |
+| 운영 | PATCH | `/api/admin/categories/{id}` | `content_manage` 권한 담당자 | 카테고리 수정 및 활성 상태 변경 |
 | 문장 | POST | `/api/sentences` | 필요 | 문장 생성 및 기록 저장 |
 | 문장 | POST | `/api/sentences/{session_id}/regenerate` | 필요 | 기존 카드로 문장 재생성 및 별도 저장 |
 | 추천 | GET | `/api/recommendations` | 필요 | 사용자별 추천 카드 조회 |
@@ -117,7 +117,8 @@ Authorization: Bearer {access_token}
 | `id` | string | 예 | 사용자 식별자 |
 | `username` | string | 예 | 로그인 아이디 |
 | `name` | string | 예 | 화면 표시 이름 |
-| `role` | string | 예 | 사용자 역할. `user` 또는 `caregiver` |
+| `role` | string | 예 | 사용자 역할. `user`, `caregiver`, `support_staff` 중 하나 |
+| `account_permissions` | string[] | 예 | 담당자 계정 전체에 적용되는 운영 권한. 공용 콘텐츠 운영은 `content_manage` |
 | `session_expires_at` | datetime 또는 null | 아니요 | 현재 사용자 조회 시 오프라인 저장본에도 적용할 세션 만료 시각 |
 
 ```json
@@ -585,9 +586,9 @@ Content-Type: multipart/form-data
 
 인증된 일반 사용자만 요청할 수 있다. 소유자는 인증 정보로
 설정되며 `draft`는 작성 중으로 저장된다. `submit`인 개인 카드는 본인에게 즉시
-활성화되고 관리자에게 공유되지 않으며, 공개 카드는 승인 대기로 저장된다.
+활성화되고 운영 권한 담당자에게 공유되지 않으며, 공개 카드는 승인 대기로 저장된다.
 성공 시 `201 Created`를 반환한다. 작성 중 개인 카드는
-`POST /api/cards/submissions/{id}/submit`으로 즉시 활성화하고 공개 카드는 관리자에게 제출한다.
+`POST /api/cards/submissions/{id}/submit`으로 즉시 활성화하고 공개 카드는 운영 권한 담당자에게 제출한다.
 서버는 실제 이미지 형식과 선언된 MIME을 비교하고, 디코딩과 해상도 검증 후
 메타데이터와 부가 데이터를 제거한 WebP로 재인코딩해 저장한다.
 카드명은 한글·영문·숫자와 공백만, 뜻은 일반적인 문장부호를 추가로 허용한다.
@@ -596,10 +597,10 @@ Content-Type: multipart/form-data
 `409 Conflict`를 반환한다.
 약어·은어·신조어 후보는 내부 검토 사전과 영문 약어 형식 검사를 거쳐
 `language_flags`에 표현, 유형, 뜻, 참고 출처를 반환한다. 이 결과는 자동 반려
-조건이 아니며 관리자 판단을 돕는 참고 정보다.
+조건이 아니며 운영 권한 담당자의 판단을 돕는 참고 정보다.
 이미지 안전성 검사 결과는 `image_safety`에 `passed`, `blocked`,
 `manual_review` 중 하나로 저장된다. `blocked`는 `422`로 등록을 거부하고,
-공급자 미설정·장애 시에는 `manual_review`로 저장해 관리자에게 표시한다.
+공급자 미설정·장애 시에는 `manual_review`로 저장해 운영 권한 담당자에게 표시한다.
 외부 공급자는 `IMAGE_SAFETY_API_URL`에 JSON POST로 호출되며
 `{"safe": true|false, "provider": "...", "reasons": []}` 응답을 사용한다.
 
@@ -619,15 +620,15 @@ Authorization: Bearer {access_token}
 
 ```http
 GET /api/admin/card-submissions
-Authorization: Bearer {admin_access_token}
+Authorization: Bearer {operator_access_token}
 ```
 
-관리자는 전체 제출 목록과 이미지를 확인할 수 있다. 검토 결과는 다음과
+`content_manage` 권한을 가진 담당자는 전체 제출 목록과 이미지를 확인할 수 있다. 검토 결과는 다음과
 같이 저장한다.
 
 ```http
 PATCH /api/admin/card-submissions/{submission_id}
-Authorization: Bearer {admin_access_token}
+Authorization: Bearer {operator_access_token}
 Content-Type: application/json
 ```
 
@@ -643,17 +644,17 @@ Content-Type: application/json
 반려할 때는 `reason`이 필수다. 승인된 카드만 `/api/cards`의 기본 18개 카드 뒤에 추가되며,
 개인 카드는 소유자에게만, 공개 카드는 모든 일반 사용자에게 노출된다.
 
-## 7.6 관리자 카테고리 관리
+## 7.6 운영 권한 담당자의 카테고리 관리
 
 ```http
 GET /api/admin/categories
 POST /api/admin/categories
 PATCH /api/admin/categories/{category_id}
-Authorization: Bearer {admin_access_token}
+Authorization: Bearer {operator_access_token}
 Content-Type: application/json
 ```
 
-관리자는 비활성 항목을 포함한 전체 카테고리를 조회하고 새 카테고리를 추가할 수 있다.
+`content_manage` 권한을 가진 담당자는 비활성 항목을 포함한 전체 카테고리를 조회하고 새 카테고리를 추가할 수 있다.
 이름과 표시 순서를 수정하거나 `active`를 변경하면 일반 사용자용 `/api/categories`에는
 활성 카테고리만 변경된 순서로 노출된다.
 
