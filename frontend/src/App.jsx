@@ -102,6 +102,11 @@ const SUPPORT_PERMISSION_LABELS = {
   learning_manage: '학습 설정 관리',
 };
 
+async function cacheAccountForOffline(account, expiresAt) {
+  if (account?.role === 'user') return cacheAccount(account, expiresAt);
+  return clearCachedAccount();
+}
+
 function App() {
   const [user, setUser] = useState(null);
   const [showProfile, setShowProfile] = useState(false);
@@ -186,6 +191,15 @@ function App() {
   const [learningGame, setLearningGame] = useState(null);
   const [offline, setOffline] = useState(!navigator.onLine);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
+
+  function clearSupportTargetData() {
+    cardSubmissions.forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); });
+    setLinkedUsers([]); setSelectedUser(null); setCardSubmissions([]); setStats(null); setNoteDrafts({});
+    setBoardLayout(null); setBoardLayoutAudit([]); setQuickDraft([]); setRecoveryDraft([]); setSlotDraft([]);
+    setLearningSettings(null); setLearningProgress(null); setLearningGame(null);
+    setTtsSettings(DEFAULT_TTS_SETTINGS); setTtsSettingsSaved(false);
+    setAccessibility(DEFAULT_ACCESSIBILITY); setAccessibilitySaved(true);
+  }
 
   const dashboardPath = (value = period, target = selectedUser) => {
     const params = new URLSearchParams();
@@ -326,6 +340,7 @@ function App() {
     }
     try {
       if (['caregiver', 'support_staff'].includes(account?.role)) {
+        clearSupportTargetData();
         const canOperateContent = account?.account_permissions?.includes('content_manage');
         const [people, submissions, categories, activeCategories] = await Promise.all([
           request('/care/linked-users'),
@@ -370,7 +385,10 @@ function App() {
       if (e.status === 401) { setToken(null); setUser(null); setLoaded(false); setError('로그인이 만료되었습니다. 다시 로그인해 주세요.'); }
       else if (account?.role === 'user' && await applyOfflineSnapshot(account, await cachedSnapshot(account.id).catch(() => null))) {
         setError('');
-      } else setError(e.message || '서버에 연결하지 못했습니다.');
+      } else {
+        if (['caregiver', 'support_staff'].includes(account?.role)) clearSupportTargetData();
+        setError(e.message || '서버에 연결하지 못했습니다.');
+      }
     }
   }
   useEffect(() => {
@@ -378,7 +396,8 @@ function App() {
       if (!hasToken()) { setAuthReady(true); return; }
       if (!navigator.onLine) {
         const account = await cachedAccount().catch(() => null);
-        if (account) { setUser(account); await load(account); }
+        if (account?.role === 'user') { setUser(account); await load(account); }
+        else if (account) { await clearCachedAccount().catch(() => {}); setToken(null); }
         else setToken(null);
         setAuthReady(true);
         return;
@@ -386,7 +405,7 @@ function App() {
       try {
         const account = await request('/auth/me');
         setUser(account);
-        cacheAccount(account, account.session_expires_at).catch(() => {});
+        cacheAccountForOffline(account, account.session_expires_at).catch(() => {});
         await load(account);
       } catch (error) {
         if (error.status === 401) { setToken(null); await clearCachedAccount().catch(() => {}); }
@@ -417,9 +436,27 @@ function App() {
 
   useEffect(() => {
     const online = () => { setOffline(false); syncPendingEvents(user); if (user) load(user); };
-    const offlineNow = () => setOffline(true);
+    const offlineNow = () => {
+      setOffline(true);
+      if (['caregiver', 'support_staff'].includes(user?.role)) {
+        clearSupportTargetData();
+        setTab(user?.account_permissions?.includes('content_manage') ? 'admin' : 'support_home');
+        setError('보호자·담당자용 사용자 정보는 오프라인에서 보관하지 않습니다. 다시 연결해 주세요.');
+      }
+    };
     window.addEventListener('online', online); window.addEventListener('offline', offlineNow);
     return () => { window.removeEventListener('online', online); window.removeEventListener('offline', offlineNow); };
+  }, [user]);
+
+  useEffect(() => {
+    const denySupportAccess = () => {
+      if (!['caregiver', 'support_staff'].includes(user?.role)) return;
+      clearSupportTargetData();
+      setTab(user?.account_permissions?.includes('content_manage') ? 'admin' : 'support_home');
+      setError('지원 권한이 변경되어 사용자 정보를 닫았습니다. 다시 불러와 주세요.');
+    };
+    window.addEventListener('pesc-mate:access-denied', denySupportAccess);
+    return () => window.removeEventListener('pesc-mate:access-denied', denySupportAccess);
   }, [user]);
 
   useEffect(() => {
@@ -441,7 +478,7 @@ function App() {
       const body = authMode === 'register' ? { username, password, name, guardian_consent: registrationConsent } : { username, password };
       const result = await request(path, { method: 'POST', body: JSON.stringify(body) });
       setToken(result.access_token); setUser(result.user); setShowProfile(false); setProfileNotice('');
-      cacheAccount(result.user, result.expires_at).catch(() => {});
+      cacheAccountForOffline(result.user, result.expires_at).catch(() => {});
       await load(result.user);
     } catch (e) { setError(e.message); }
     finally { setBusy(false); setAuthReady(true); }
@@ -1189,7 +1226,7 @@ function App() {
     {authMode === 'login' && <p className="demo-account">사용자: <code>demo</code> / <code>demo1234</code><br />보호자: <code>caregiver</code> / <code>caregiver1234</code><br />담당자: <code>support</code> / <code>support1234</code><br />운영 권한 담당자: <code>admin</code> / <code>admin1234</code></p>}
   </section></main>;
   if (!user.profile || showProfile) return <main className="login-page"><ProfileEditor key={user.id} user={user}
-    onSaved={account => { setUser(account); cacheAccount(account).catch(() => {}); setShowProfile(false); setProfileNotice('프로필을 저장했습니다.'); }}
+    onSaved={account => { setUser(account); cacheAccountForOffline(account).catch(() => {}); setShowProfile(false); setProfileNotice('프로필을 저장했습니다.'); }}
     onCancel={user.profile ? () => setShowProfile(false) : handleLogout} /></main>;
   return <main className={`app display-${accessibility.display_mode} card-size-${accessibility.card_size} text-size-${accessibility.text_size}${accessibility.reduced_motion ? ' reduced-motion' : ''}${accessibility.high_contrast ? ' high-contrast' : ''}`}>
     <a className="skip-link" href="#main-content">본문 바로가기</a>

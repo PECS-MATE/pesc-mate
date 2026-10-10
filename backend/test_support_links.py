@@ -71,6 +71,46 @@ class SupportLinkTests(unittest.TestCase):
         self.assertEqual(require_any_link_permission(
             supporter, 'child', {'quick_speech_manage', 'board_manage'}), 'child')
 
+    @patch('app.services.support_links._database')
+    def test_staff_access_is_scoped_to_linked_child_and_each_permission(self, mocked_database):
+        database = MagicMock()
+        mocked_database.return_value = database
+        supporter = {'id': 'staff', 'role': 'support_staff'}
+
+        for permission in (
+            'records_read', 'notes_write', 'cards_manage', 'quick_speech_manage',
+            'board_manage', 'voice_access_manage', 'learning_manage',
+        ):
+            database.caregiver_links.find_one.return_value = {
+                '_id': 'staff:child', 'supporter_id': 'staff', 'user_id': 'child',
+                'active': True, 'permissions': [permission],
+            }
+            self.assertEqual(require_link_permission(supporter, 'child', permission), 'child')
+            other_permission = 'records_read' if permission != 'records_read' else 'learning_manage'
+            with self.assertRaises(HTTPException) as denied:
+                require_link_permission(supporter, 'child', other_permission)
+            self.assertEqual(denied.exception.status_code, 403)
+
+        database.caregiver_links.find_one.return_value = None
+        with self.assertRaises(HTTPException) as other_child:
+            require_link_permission(supporter, 'other-child', 'records_read')
+        self.assertEqual(other_child.exception.status_code, 403)
+
+    @patch('app.services.support_links._database')
+    def test_revoked_link_blocks_every_permission(self, mocked_database):
+        database = MagicMock()
+        database.caregiver_links.find_one.return_value = {
+            '_id': 'staff:child', 'supporter_id': 'staff', 'user_id': 'child',
+            'active': False, 'permissions': ['records_read', 'learning_manage'],
+        }
+        mocked_database.return_value = database
+        supporter = {'id': 'staff', 'role': 'support_staff'}
+
+        for permission in ('records_read', 'learning_manage'):
+            with self.assertRaises(HTTPException) as denied:
+                require_link_permission(supporter, 'child', permission)
+            self.assertEqual(denied.exception.status_code, 403)
+
 
 if __name__ == '__main__':
     unittest.main()

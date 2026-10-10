@@ -3,6 +3,10 @@ const API_BASE_URL =
 
 const TOKEN_KEY = 'pesc-mate-token';
 
+function notifyAccessDenied(status) {
+  if (status === 403) window.dispatchEvent(new Event('pesc-mate:access-denied'));
+}
+
 export function setToken(token) {
   if (token) localStorage.setItem(TOKEN_KEY, token);
   else localStorage.removeItem(TOKEN_KEY);
@@ -25,6 +29,7 @@ export async function request(path, options = {}) {
   });
   const data = response.status === 204 ? null : await response.json();
   if (!response.ok) {
+    notifyAccessDenied(response.status);
     const error = new Error(typeof data?.detail === 'string' ? data.detail : '요청을 처리하지 못했습니다.');
     error.status = response.status;
     throw error;
@@ -49,6 +54,11 @@ export async function requestBlob(path) {
       ? { Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}` }
       : {},
   });
-  if (!response.ok) throw new Error('이미지를 불러오지 못했습니다.');
+  if (!response.ok) {
+    notifyAccessDenied(response.status);
+    const error = new Error('이미지를 불러오지 못했습니다.');
+    error.status = response.status;
+    throw error;
+  }
   return response.blob();
 }
