@@ -26,6 +26,10 @@ test('recovery expressions have a fixed user area and supporter configuration', 
   assert.match(app, /boardLayout\?\.recovery_expression_ids/);
   assert.match(app, /recovery-expressions/);
   assert.match(app, /speakText\(item\.label, 'recovery', true\)/);
+  assert.match(app, /마지막 말 다시 듣기/);
+  assert.match(app, /현재 문장 취소/);
+  assert.match(app, /직전 문장 불러오기/);
+  assert.match(app, /function restoreLastSentence\(\)/);
 });
 
 test('support link grant, change and revoke use account-scoped APIs', () => {
