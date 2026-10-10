@@ -1,7 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
+from app.services.device_access import log_device_access
 
 app = FastAPI(
     title="PESC MATE API",
@@ -21,6 +22,12 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix="/api")
+
+
+@app.post('/api/device/access', status_code=204, include_in_schema=False)
+async def device_access(request: Request):
+    log_device_access(request)
+    return Response(status_code=204)
 
 
 @app.get("/")

@@ -22,7 +22,9 @@ def database():
 
 
 def log_crud(operation, collection, detail=None):
-    """Log database actions without document contents or credentials."""
+    """Optionally log database actions without document contents or credentials."""
+    if os.environ.get('DB_CRUD_LOG_ENABLED', '').lower() != 'true':
+        return
     suffix = f' | {detail}' if detail else ''
     log = logger.debug if operation.upper() == 'READ' else logger.info
     log('DB CRUD | %s | %s%s', operation, collection, suffix)

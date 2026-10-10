@@ -1,7 +1,10 @@
+import { createRequestId } from './requestId';
+
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "";
 
 const TOKEN_KEY = 'pesc-mate-token';
+const DEVICE_KEY = 'pesc-mate-device-id';
 
 function notifyAccessDenied(status) {
   if (status === 403) window.dispatchEvent(new Event('pesc-mate:access-denied'));
@@ -14,6 +17,22 @@ export function setToken(token) {
 
 export function hasToken() {
   return Boolean(localStorage.getItem(TOKEN_KEY));
+}
+
+export async function recordDeviceAccess() {
+  let deviceId;
+  try {
+    deviceId = localStorage.getItem(DEVICE_KEY);
+    if (!deviceId) {
+      deviceId = createRequestId();
+      localStorage.setItem(DEVICE_KEY, deviceId);
+    }
+  } catch {
+    deviceId = createRequestId();
+  }
+  await fetch(`${API_BASE_URL}/api/device/access`, {
+    method: 'POST', keepalive: true, headers: { 'X-Pesc-Device': deviceId },
+  });
 }
 
 export async function request(path, options = {}) {

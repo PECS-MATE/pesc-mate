@@ -8,6 +8,12 @@ export default defineConfig({
       usePolling: process.env.VITE_USE_POLLING === 'true',
       interval: 300,
     },
-    proxy: { '/api': process.env.VITE_PROXY_TARGET || 'http://127.0.0.1:8000' },
+    proxy: {
+      '/api': {
+        target: process.env.VITE_PROXY_TARGET || 'http://127.0.0.1:8000',
+        changeOrigin: true,
+        xfwd: true,
+      },
+    },
   },
 });
