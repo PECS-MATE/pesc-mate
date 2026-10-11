@@ -51,6 +51,7 @@ CARDS = [with_inferred_metadata(dict(id=key, label=label, symbol=symbol, categor
     ('uncomfortable', '불편해요', '😣', '감정', '몸이나 상황이 편하지 않은 상태', 'adjective', 'predicate'),
     ('scared', '무서워요', '😨', '감정', '두렵거나 무서운 감정', 'adjective', 'predicate'),
     ('noisy', '시끄러워요', '🔊', '감정', '소리가 크거나 시끄러워 힘든 감각 상태', 'adjective', 'predicate'),
+    ('snack', '간식', '🍪', '음식', '간단히 먹는 음식', 'noun', 'object'),
 ])]
 
 SEMANTIC_GROUPS = {

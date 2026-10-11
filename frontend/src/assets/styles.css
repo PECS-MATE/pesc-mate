@@ -38,9 +38,10 @@ h3 { margin-top: 28px; color: #e97718; }
 .quick-speech > div, .recovery-speech > div { flex: 0 0 auto; display: grid; min-width: 105px; color: #98405b; }
 .recovery-speech > div { min-width: 155px; color: #315f91; }
 .quick-speech > div small, .recovery-speech > div small { margin-top: 2px; color: #a16c7c; }
-.quick-speech button, .recovery-speech button { flex: 1 0 auto; min-width: 112px; min-height: 52px; padding: 8px 13px; border-color: #f2a9bb; color: #7d3048; background: #fff; box-shadow: 0 3px 0 #efbdc9; }
+.quick-speech button, .recovery-speech button { flex: 1 0 auto; display: flex; align-items: center; justify-content: center; gap: 7px; min-width: 112px; min-height: 52px; padding: 8px 13px; border-color: #f2a9bb; color: #7d3048; background: #fff; box-shadow: 0 3px 0 #efbdc9; }
 .recovery-speech button { border-color: #9fc8f5; color: #244f7c; box-shadow: 0 3px 0 #bdd8f4; }
 .quick-speech button span, .recovery-speech button span { margin-right: 6px; font-size: 1.2rem; }
+.quick-speech button .expression-visual, .recovery-speech button .expression-visual { flex: 0 0 38px; width: 38px; height: 38px; margin-right: 0; border-radius: 10px; background-position: center; background-size: cover; background-repeat: no-repeat; }
 
 nav { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
 nav button { display: flex; align-items: center; gap: 8px; background: #fff; }

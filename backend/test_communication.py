@@ -65,6 +65,7 @@ class CommunicationTests(unittest.TestCase):
         self.assertEqual(cards['hurt']['semantic_group'], 'physical_state')
         self.assertEqual(cards['no']['semantic_group'], 'rejection')
         self.assertEqual(cards['yes']['semantic_group'], 'affirmation')
+        self.assertEqual(cards['snack']['label'], '간식')
 
     def test_particles_follow_batchim_and_sentence_role(self):
         cards = {card['id']: card for card in CARDS}
@@ -80,6 +81,7 @@ class CommunicationTests(unittest.TestCase):
     def test_rule_sentence_uses_roles_and_particles(self):
         self.assertEqual(sentence(['mom', 'happy']), '엄마가 좋아요.')
         self.assertEqual(sentence(['water', 'apple', 'eat']), '물과 사과를 먹고 싶어요.')
+        self.assertEqual(sentence(['snack', 'eat']), '간식을 먹고 싶어요.')
         self.assertEqual(sentence(['me', 'home', 'go']), '저는 집에 가고 싶어요.')
         self.assertEqual(sentence(['water', 'no']), '물이 싫어요.')
         self.assertEqual(sentence(['head', 'here_hurts']), '머리가 아파요.')
