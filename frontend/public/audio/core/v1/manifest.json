@@ -1,0 +1,72 @@
+{
+  "version": "v1",
+  "voice": {
+    "name": "Microsoft Heami Desktop",
+    "culture": "ko-KR"
+  },
+  "provenance": {
+    "engine": "System.Speech",
+    "source": "frontend/src/App.jsx",
+    "scope": "public-fixed-expressions"
+  },
+  "format": {
+    "encoding": "PCM",
+    "sampleRate": 16000,
+    "bitsPerSample": 16,
+    "channels": 1
+  },
+  "entries": [
+    {
+      "text": "아파요",
+      "file": "아파요.wav"
+    },
+    {
+      "text": "싫어요",
+      "file": "싫어요.wav"
+    },
+    {
+      "text": "도와주세요",
+      "file": "도와주세요.wav"
+    },
+    {
+      "text": "화장실",
+      "file": "화장실.wav"
+    },
+    {
+      "text": "그만",
+      "file": "그만.wav"
+    },
+    {
+      "text": "잘못 눌렀어요",
+      "file": "잘못_눌렀어요.wav"
+    },
+    {
+      "text": "그 뜻이 아니에요",
+      "file": "그_뜻이_아니에요.wav"
+    },
+    {
+      "text": "잠깐만요",
+      "file": "잠깐만요.wav"
+    },
+    {
+      "text": "다시 말할게요",
+      "file": "다시_말할게요.wav"
+    },
+    {
+      "text": "제 말을 기다려 주세요",
+      "file": "제_말을_기다려_주세요.wav"
+    },
+    {
+      "text": "질문을 잘 모르겠어요",
+      "file": "질문을_잘_모르겠어요.wav"
+    },
+    {
+      "text": "맞아요",
+      "file": "맞아요.wav"
+    },
+    {
+      "text": "아니에요",
+      "file": "아니에요.wav"
+    }
+  ]
+}

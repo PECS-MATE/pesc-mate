@@ -1,5 +1,5 @@
 const DATABASE_NAME = 'pesc-mate-offline';
-const DATABASE_VERSION = 2;
+const DATABASE_VERSION = 3;
 
 function openDatabase() {
   return new Promise((resolve, reject) => {
@@ -13,6 +13,7 @@ function openDatabase() {
       if (!database.objectStoreNames.contains('events')) database.createObjectStore('events', { keyPath: 'id' });
       if (!database.objectStoreNames.contains('learning')) database.createObjectStore('learning');
       if (!database.objectStoreNames.contains('learningAttempts')) database.createObjectStore('learningAttempts', { keyPath: 'request_id' });
+      if (!database.objectStoreNames.contains('coreSpeech')) database.createObjectStore('coreSpeech');
     };
     request.onsuccess = () => resolve(request.result);
   });
@@ -60,6 +61,15 @@ export function cacheSnapshot(userId, snapshot) {
 
 export function cachedSnapshot(userId) {
   return operation('snapshots', 'readonly', store => store.get(userId));
+}
+
+// Public, bundled phrases only; no user text or recordings belong in this store.
+export function cachedCoreSpeech() {
+  return operation('coreSpeech', 'readonly', store => store.get('bundle'));
+}
+
+export function cacheCoreSpeech(bundle) {
+  return operation('coreSpeech', 'readwrite', store => store.put(bundle, 'bundle'));
 }
 
 export function queueOfflineEvent(event) {

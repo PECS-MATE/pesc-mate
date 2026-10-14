@@ -5,14 +5,15 @@ import test from 'node:test';
 const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
 const speakText = app.slice(app.indexOf('function speakText('), app.indexOf('function rememberAndSpeakSentence('));
 
-test('device speech starts before network tracking', () => {
-  assert.ok(speakText.indexOf('window.speechSynthesis.speak(utterance)') >= 0);
-  assert.ok(speakText.indexOf('window.speechSynthesis.speak(utterance)') < speakText.lastIndexOf('speechEvent.started = startTracking()'));
+test('playback starts before network tracking with synchronous errors supported', () => {
+  assert.ok(speakText.indexOf('speechPlayback.speak({') >= 0);
+  assert.ok(speakText.indexOf('speechEvent.started = new Promise') < speakText.indexOf('speechPlayback.speak({'));
+  assert.ok(speakText.indexOf('speechPlayback.speak({') < speakText.lastIndexOf('resolveStarted(startTracking())'));
 });
 test('speech protects against duplicate taps and silent volume', () => {
   assert.match(speakText, /tappedAt - lastSpeechTapRef\.current\.at < 600/);
   assert.match(speakText, /ttsSettings\.volume <= 0/);
-  assert.match(speakText, /utterance\.volume = ttsSettings\.volume/);
+  assert.match(speakText, /volume: ttsSettings\.volume/);
   assert.match(app, /기본 볼륨 <output>/);
 });
 test('speech records startup latency without storing spoken text', () => {

@@ -7,6 +7,8 @@ import { clearBoard, loadBoard, saveBoard } from "./services/boardStorage";
 import { learningQuestions } from "./services/learningGame";
 import { localKoreanVoices as installedKoreanVoices, selectTtsVoice } from "./services/ttsVoice";
 import { createRequestId } from "./services/requestId";
+import { createCoreSpeechCache } from './services/coreSpeech';
+import { createSpeechPlayback } from './services/speechPlayback';
 import {
   cacheAccount, cachedAccount, cacheLearningGame, cachedLearningGame, cacheLearningState,
   cachedLearningState, cacheSnapshot, cachedSnapshot, clearCachedAccount, clearLearningGame,
@@ -152,6 +154,10 @@ function App() {
   const speechRunRef = useRef(0);
   const speechEventRef = useRef(null);
   const lastSpeechTapRef = useRef({ content: '', at: 0 });
+  const [speechPlayback] = useState(() => createSpeechPlayback());
+  const [coreSpeechCache] = useState(() => createCoreSpeechCache());
+  const [coreSpeechStatus, setCoreSpeechStatus] = useState({ status: 'preparing', ready: 0, saved: 0, total: 0 });
+  const [coreSpeechRetry, setCoreSpeechRetry] = useState(0);
   const [ttsVoices, setTtsVoices] = useState([]);
   const [ttsSettings, setTtsSettings] = useState(DEFAULT_TTS_SETTINGS);
   const [ttsSettingsBusy, setTtsSettingsBusy] = useState(false);
@@ -415,30 +421,40 @@ function App() {
       finally { setAuthReady(true); }
     }
     restoreLogin();
-    return () => window.speechSynthesis?.cancel();
+    return () => { speechPlayback.stop(); coreSpeechCache.dispose(); };
   }, []);
 
   useEffect(() => {
+    if (user?.role !== 'user') return;
+    let active = true;
+    setCoreSpeechStatus(current => ({ ...current, status: 'preparing' }));
+    coreSpeechCache.prepare({ online: !offline }).then(status => {
+      if (active) setCoreSpeechStatus(status);
+    }).catch(() => {
+      if (active) setCoreSpeechStatus({ status: 'unavailable', ready: 0, saved: 0, total: 0 });
+    });
+    return () => { active = false; };
+  }, [user?.id, user?.role, offline, coreSpeechRetry]);
+
+  useEffect(() => {
     const synthesis = window.speechSynthesis;
-    if (!synthesis) return undefined;
-    const updateVoices = () => setTtsVoices(synthesis.getVoices().filter(voice => voice.lang.toLowerCase().startsWith('ko')));
+    const updateVoices = () => setTtsVoices((synthesis?.getVoices() || []).filter(voice => voice.lang.toLowerCase().startsWith('ko')));
     const handleVisibility = () => {
       if (document.visibilityState === 'hidden') {
         finishSpeechEvent(speechEventRef.current, 'cancelled', 'screen-hidden');
         speechRunRef.current += 1;
-        synthesis.cancel();
-        if (synthesis.paused) synthesis.resume();
+        speechPlayback.stop();
         setSpeechState({ status: 'idle', content: '' });
         return;
       }
       updateVoices();
     };
     updateVoices();
-    synthesis.addEventListener('voiceschanged', updateVoices);
+    synthesis?.addEventListener('voiceschanged', updateVoices);
     document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('focus', updateVoices);
     return () => {
-      synthesis.removeEventListener('voiceschanged', updateVoices);
+      synthesis?.removeEventListener('voiceschanged', updateVoices);
       document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('focus', updateVoices);
     };
@@ -572,7 +588,7 @@ function App() {
     if (errorCode === 'volume-zero') return '기본 볼륨이 0입니다. 음성 설정에서 볼륨을 올려 주세요.';
     if (errorCode === 'not-allowed') return '브라우저의 음성 재생 권한과 기기 음량을 확인한 뒤 다시 시도해 주세요.';
     if (['language-unavailable', 'voice-unavailable'].includes(errorCode)) return '기기에 한국어 음성을 설치하거나 음성 설정에서 다른 음성을 선택해 주세요.';
-    if (errorCode === 'unsupported') return '이 브라우저에서는 음성 재생을 지원하지 않습니다. 최신 Chrome 또는 Edge에서 다시 열어 주세요.';
+    if (errorCode === 'unsupported') return '이 표현의 음성을 재생할 수 없습니다. 기본 긴급·복구 음성을 준비하거나 기기의 한국어 음성을 확인해 주세요.';
     return '기기의 한국어 음성 설정과 음량을 확인한 뒤 다시 재생해 주세요.';
   }
   function speakText(content, contentType = 'sentence', cardIds = []) {
@@ -603,45 +619,38 @@ function App() {
       } else if (e.status) setError(e.message);
       return false;
     });
-    speechEvent.started = Promise.resolve(false);
+    let resolveStarted;
+    speechEvent.started = new Promise(resolve => { resolveStarted = resolve; });
     speechEventRef.current = speechEvent;
     setSpeechFailure(null);
-    if (!window.speechSynthesis) {
-      speechEvent.started = startTracking();
-      finishSpeechEvent(speechEvent, 'failed', 'unsupported');
-      lastSpeechTapRef.current = { content: '', at: 0 };
-      setSpeechFailure({ content, contentType, cardIds, errorCode: 'unsupported', retryable: false });
-      return;
-    }
     const runId = ++speechRunRef.current;
-    if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(content);
-    utterance.lang = 'ko-KR'; utterance.rate = ttsSettings.rate; utterance.pitch = ttsSettings.pitch;
-    utterance.volume = ttsSettings.volume;
     const voice = selectTtsVoice(ttsVoices, ttsSettings.voiceName, offline);
-    if (voice) utterance.voice = voice;
-    utterance.onstart = () => {
-      speechEvent.startupMs = Math.max(0, Date.now() - speechEvent.requestedAt);
-      if (speechRunRef.current === runId) setSpeechState({ status: 'playing', content });
-    };
-    utterance.onpause = () => { if (speechRunRef.current === runId) setSpeechState({ status: 'paused', content }); };
-    utterance.onresume = () => { if (speechRunRef.current === runId) setSpeechState({ status: 'playing', content }); };
-    utterance.onend = () => {
-      finishSpeechEvent(speechEvent, 'succeeded');
-      if (speechRunRef.current === runId) setSpeechState({ status: 'idle', content: '' });
-    };
-    utterance.onerror = (errorEvent) => {
-      finishSpeechEvent(speechEvent, ['canceled', 'interrupted'].includes(errorEvent.error) ? 'cancelled' : 'failed', errorEvent.error);
-      if (speechRunRef.current !== runId) return;
-      setSpeechState({ status: 'idle', content: '' });
-      if (!['canceled', 'interrupted'].includes(errorEvent.error)) {
-        lastSpeechTapRef.current = { content: '', at: 0 };
-        setSpeechFailure({ content, contentType, cardIds, errorCode: errorEvent.error || 'unknown', retryable: true });
-      }
-    };
-    setSpeechState({ status: 'starting', content }); window.speechSynthesis.speak(utterance);
-    speechEvent.started = startTracking();
+    setSpeechState({ status: 'starting', content });
+    speechPlayback.speak({
+      text: content, voice, rate: ttsSettings.rate, pitch: ttsSettings.pitch, volume: ttsSettings.volume,
+      audioUrl: contentType === 'preview' ? undefined : coreSpeechCache.urlFor(content),
+      preferAudio: offline || !ttsVoices.length,
+      onStart: () => {
+        speechEvent.startupMs = Math.max(0, Date.now() - speechEvent.requestedAt);
+        if (speechRunRef.current === runId) setSpeechState({ status: 'playing', content });
+      },
+      onPause: () => { if (speechRunRef.current === runId) setSpeechState({ status: 'paused', content }); },
+      onResume: () => { if (speechRunRef.current === runId) setSpeechState({ status: 'playing', content }); },
+      onEnd: () => {
+        finishSpeechEvent(speechEvent, 'succeeded');
+        if (speechRunRef.current === runId) setSpeechState({ status: 'idle', content: '' });
+      },
+      onError: errorCode => {
+        finishSpeechEvent(speechEvent, ['canceled', 'interrupted'].includes(errorCode) ? 'cancelled' : 'failed', errorCode);
+        if (speechRunRef.current !== runId) return;
+        setSpeechState({ status: 'idle', content: '' });
+        if (!['canceled', 'interrupted'].includes(errorCode)) {
+          lastSpeechTapRef.current = { content: '', at: 0 };
+          setSpeechFailure({ content, contentType, cardIds, errorCode, retryable: true });
+        }
+      },
+    });
+    resolveStarted(startTracking());
   }
   function rememberAndSpeakSentence(content) {
     const cardIds = board.map(card => card.id);
@@ -657,19 +666,16 @@ function App() {
   }
   function pauseSpeech() {
     if (speechState.status !== 'playing') return;
-    window.speechSynthesis.pause();
-    setSpeechState(current => ({ ...current, status: 'paused' }));
+    speechPlayback.pause();
   }
   function resumeSpeech() {
     if (speechState.status !== 'paused') return;
-    window.speechSynthesis.resume();
-    setSpeechState(current => ({ ...current, status: 'playing' }));
+    speechPlayback.resume();
   }
   function stopSpeech() {
     const completion = finishSpeechEvent(speechEventRef.current, 'cancelled', 'user-stopped');
     speechRunRef.current += 1;
-    window.speechSynthesis?.cancel();
-    if (window.speechSynthesis?.paused) window.speechSynthesis.resume();
+    speechPlayback.stop();
     setSpeechState({ status: 'idle', content: '' });
     return completion;
   }
@@ -1291,6 +1297,10 @@ function App() {
       {offline && <p className="offline-notice" role="status">인터넷 연결 없이 저장된 카드를 사용 중입니다. 즉시 발화와 선택 카드 그대로 발화는 계속 사용할 수 있습니다.{localKoreanVoices.length ? ` 기기에 저장된 한국어 음성 ${localKoreanVoices.length}개를 확인했습니다.` : ' 한국어 음성이 재생되지 않으면 기기 설정에서 음성 데이터를 설치해 주세요.'}{pendingSyncCount ? ` 재연결 후 동기화할 이력 ${pendingSyncCount}건이 있습니다.` : ''}</p>}
       {user.role === 'user' && <section className="recovery-speech" aria-labelledby="recovery-speech-title" data-scan-group="recovery-speech"><div><strong id="recovery-speech-title">다시 말하기·고치기</strong><small>잘못 전했을 때 바로 말해요</small></div>{recoveryExpressions.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 복구 표현 말하기`} onClick={() => speakText(item.label, 'recovery')}>{expressionVisual(item)}{item.label}</button>)}<button disabled={!lastUtterance || speechState.status === 'starting'} onClick={() => lastUtterance && speakText(lastUtterance.content, lastUtterance.contentType, lastUtterance.cardIds)}><span aria-hidden="true">🔊</span>마지막 말 다시 듣기</button><button disabled={!board.length && !text} onClick={() => updateBoard([])}><span aria-hidden="true">⌫</span>현재 문장 취소</button><button disabled={!lastSentence} onClick={restoreLastSentence}><span aria-hidden="true">↶</span>직전 문장 불러오기</button></section>}
       {user.role === 'user' && <section className="quick-speech" aria-labelledby="quick-speech-title" data-scan-group="quick-speech"><div><strong id="quick-speech-title">빠른 표현</strong><small>누르면 바로 말해요</small></div>{quickExpressionCards.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 바로 말하기`} onClick={() => speakText(item.label, 'card', [item.id])}>{expressionVisual(item)}{item.label}</button>)}</section>}
+      {user.role === 'user' && <div className="core-speech-status" data-testid="core-speech-status">
+        <span role="status">{coreSpeechStatus.status === 'preparing' ? '기본 긴급·복구 음성을 준비하고 있어요.' : coreSpeechStatus.status === 'ready' ? `기본 긴급·복구 음성 ${coreSpeechStatus.saved}개 저장됨` : coreSpeechStatus.ready ? `기본 긴급·복구 음성 ${coreSpeechStatus.saved}/${coreSpeechStatus.total}개 저장됨 · 현재 ${coreSpeechStatus.ready}개 재생 가능` : '기본 긴급·복구 음성을 저장하지 못했어요. 기기 음성은 계속 사용할 수 있어요.'}</span>
+        {!['ready', 'preparing'].includes(coreSpeechStatus.status) && <button type="button" onClick={() => setCoreSpeechRetry(current => current + 1)}>기본 음성 준비 다시 시도</button>}
+      </div>}
       {error && <div role="alert" className="error">{error} <button disabled={busy} onClick={() => load(user)}>다시 연결</button></div>}
       {speechFailure && <div role="alert" className="speech-error"><span aria-hidden="true">🔇</span><div><strong>음성을 재생하지 못했어요.</strong><p>전달할 표현: <strong>{speechFailure.content}</strong></p><p>{speechFailureMessage(speechFailure.errorCode)} 선택한 카드와 문장은 그대로 유지됩니다.</p></div><div className="speech-error-actions">{speechFailure.retryable && <button className="primary" onClick={() => speakText(speechFailure.content, speechFailure.contentType, speechFailure.cardIds || [])}>다시 재생</button>}<button onClick={() => setSpeechFailure(null)}>닫기</button></div></div>}
       {!loaded && !error && <p role="status">카드를 불러오는 중입니다…</p>}

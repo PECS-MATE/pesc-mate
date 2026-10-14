@@ -34,6 +34,8 @@ h3 { margin-top: 28px; color: #e97718; }
 .status { display: inline-flex; align-items: center; padding: 8px 13px; border-radius: 999px; background: #fff; border: 2px solid #f5d97d; font-size: .85rem; }
 .quick-speech, .recovery-speech { display: flex; align-items: center; gap: 9px; padding: 12px 14px; overflow-x: auto; border: 3px solid #ffd2dc; background: linear-gradient(135deg, #fff7f9, #fff); box-shadow: 0 8px 20px #9f50631f; }
 .quick-speech { gap: 9px; }
+.core-speech-status { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; color: #536273; font-size: .85rem; }
+.core-speech-status button { min-height: 44px; padding: 6px 12px; }
 .recovery-speech { border-color: #b9d9ff; background: linear-gradient(135deg, #eef7ff, #fff); }
 .quick-speech > div, .recovery-speech > div { flex: 0 0 auto; display: grid; min-width: 105px; color: #98405b; }
 .recovery-speech > div { min-width: 155px; color: #315f91; }
