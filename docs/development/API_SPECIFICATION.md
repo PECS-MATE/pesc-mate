@@ -38,6 +38,16 @@ Authorization: Bearer {access_token}
 
 토큰은 로그인 시 생성되며 기본 12시간 동안 유효하다. 로그아웃하면 해당 토큰이 즉시 삭제된다.
 
+### 요청 추적 ID
+
+클라이언트는 `X-Request-ID`에 UUID를 보낼 수 있다. 정규 UUID 형식의 헤더가 하나만
+있으면 서버는 소문자로 정규화해 사용하고, 누락·잘못된 형식·중복 헤더는 새 UUID로
+대체한다. 모든 HTTP 응답은 `X-Request-ID`를 반환하며 허용된 CORS 출처에서도
+브라우저가 읽을 수 있다. 프런트엔드는 API·이미지·기기 접근 요청마다 새 ID를 보낸다.
+
+이 헤더는 요청 추적용이다. 문장 생성·학습·TTS 기록 본문의 `request_id`는 중복
+저장 방지용으로 그대로 유지하므로, 같은 작업을 재전송해도 헤더 ID는 달라질 수 있다.
+
 ## 2.2 날짜와 시간
 
 날짜와 시간은 ISO 8601 문자열로 반환한다. 서버 저장 기준은 UTC이며 `Z` 또는 `+00:00` 시간대가 포함될 수 있다.
@@ -50,9 +60,37 @@ Authorization: Bearer {access_token}
 
 ```json
 {
-  "detail": "오류 설명"
+  "detail": "오류 설명",
+  "error": {
+    "code": "forbidden",
+    "message": "오류 설명",
+    "request_id": "36b34017-f740-4a87-a21b-89d815178120"
+  }
 }
 ```
+
+기존 `detail`은 유지하고 `error`를 추가한다. 오류 응답은 `Cache-Control: no-store`를
+사용하며 `error.request_id`는 응답 헤더와 동일하다. 클라이언트 오류 객체의
+`requestId`, `status`, `code` 속성으로 요청을 추적할 수 있다.
+
+입력 검증 오류의 `detail`은 `type`, `loc`, `msg` 목록이다. 입력 원문과 `ctx`는
+제외하고 `error.message`에 입력 확인 안내를 제공한다. 예상하지 못한 오류와
+HTTP 500은 일반 안내만 반환하고 내부 예외 문구를 응답에 포함하지 않는다.
+
+| 상태 | `error.code` |
+|---|---|
+| 401 | `unauthorized` |
+| 403 | `forbidden` |
+| 404 | `not_found` |
+| 409 | `conflict` |
+| 422 | `validation_error` |
+| 500 | `internal_error` |
+| 503 | `service_unavailable` |
+| 그 밖의 HTTP 오류 | `http_error` |
+
+이미 시작한 바이너리·스트리밍 응답의 오류는 JSON 응답으로 교체할 수 없어 전송을
+중단하고 일반 예외만 전달한다. CORS preflight 응답 형식은 기존 규약을 유지하며
+요청 ID 헤더를 추가한다.
 
 | HTTP 상태 | 의미 |
 |---|---|
@@ -69,7 +107,7 @@ Authorization: Bearer {access_token}
 | 구분 | 메서드 | 경로 | 인증 | 설명 |
 |---|---|---|---|---|
 | 시스템 | GET | `/` | 불필요 | API 기본 응답 |
-| 시스템 | GET | `/api/health` | 불필요 | 서버 상태 확인 |
+| 시스템 | GET | `/api/health` | 불필요 | 서버와 필수·선택형 의존성 상태 확인 |
 | 모델 | GET | `/api/model/status` | 필요 | Ollama 사용 설정과 모델 이름 조회 |
 | 인증 | POST | `/api/auth/login` | 불필요 | 로그인 및 세션 생성 |
 | 인증 | POST | `/api/auth/register` | 불필요 | 일반 사용자 가입 및 로그인 |
@@ -251,15 +289,47 @@ GET /
 GET /api/health
 ```
 
-백엔드 프로세스가 HTTP 요청을 처리할 수 있는지 확인한다. 인증은 필요하지 않다. 현재 응답은 MongoDB 연결 상태까지 검사하지 않는다.
+인증 없이 서버, MongoDB, 선택형 Ollama와 기기 TTS의 검사 범위를 확인한다.
+MongoDB는 실제 `ping`, Ollama는 `/api/tags`에서 설정된 모델의 존재를 검사한다.
+모델 존재 확인은 실제 생성 성공을 보장하지 않는다. 기기 TTS는 서버에서 검사할 수
+없어 `client_side/device_check_required`로 표시한다.
+
+| HTTP 상태 | `status` | 의미 |
+|---|---|---|
+| 200 | `ok` | MongoDB 준비 완료, Ollama 정상 또는 비활성 |
+| 200 | `degraded` | MongoDB 준비 완료, 선택형 Ollama 장애·모델 미설치. 규칙 기반 문장 생성 유지 |
+| 503 | `unavailable` | 필수 MongoDB 연결 실패. 선택형 AI 상태와 구분 |
+
+MongoDB 검사에는 2초 작업 제한을 적용한다. Ollama 연결·소켓 대기 시간은 2초,
+응답 본문은 최대 65,536바이트로 제한한다. 소켓 대기 제한은 전체 요청의 절대 시간
+제한과 다르다. 검사는 동기 작업용 스레드에서 실행하며 API 이벤트 루프를 막지 않는다.
+Docker의 백엔드 헬스체크 제한은 순차 검사를 고려해 5초다. 응답은 캐시하지 않으며
+서버 주소·자격 증명·예외 원문을 반환하지 않는다.
 
 ### 성공 응답: 200 OK
 
 ```json
 {
-  "status": "ok"
+  "status": "ok",
+  "checks": {
+    "service": { "status": "ok", "required": true },
+    "mongodb": { "status": "ok", "required": true, "detail": "ready" },
+    "ollama": {
+      "status": "disabled", "required": false,
+      "detail": "disabled", "fallback": "rule"
+    },
+    "tts": {
+      "status": "client_side", "required": false,
+      "detail": "device_check_required"
+    }
+  }
 }
 ```
+
+Ollama가 활성화돼 정상일 때는 `status: ok`, `detail: ready`를 반환한다.
+장애 시 `status: unavailable`이며 `detail`은 `unreachable`, `model_missing`,
+`invalid_response` 중 하나다. MongoDB 장애 응답에도 `checks`를 유지하고
+`detail`과 `error.code: service_unavailable`, `error.request_id`를 추가한다.
 
 ## 5.3 문장 생성 모델 상태
 
@@ -963,6 +1033,28 @@ DEVICE | CONNECT | device=31d79baf | type=tablet | browser=Chrome
 DB 작업 진단이 필요한 개발 환경에서만 `DB_CRUD_LOG_ENABLED=true`로 기존 CRUD 로그를
 일시적으로 활성화한다.
 
+## HTTP 요청 로그
+
+요청 추적 로그는 `api_request` JSON으로 출력한다. 실제 경로 대신 매칭된 경로
+템플릿을 사용하고, 매칭되지 않은 요청은 `unmatched`로 기록한다. 쿼리, 헤더,
+본문, 사용자·객체 ID, 발화 내용과 예외 원문은 이 로그에 포함하지 않는다.
+
+```json
+{
+  "event": "api_request",
+  "request_id": "36b34017-f740-4a87-a21b-89d815178120",
+  "method": "POST",
+  "route": "/auth/login",
+  "status_code": 200,
+  "duration_ms": 12.4
+}
+```
+
+일반 응답은 INFO, 4xx는 WARNING, 5xx나 스트리밍 예외는 ERROR로 출력한다.
+예상하지 못한 예외는 `error_type`에 클래스명만 추가한다. 전송이 시작된 스트림은
+이미 보낸 HTTP 상태를 유지하지만 ERROR 로그로 실패를 확인할 수 있다.
+이 로그가 오류율·시간 지표의 집계나 경보를 대신하지는 않는다.
+
 # 13. 현재 제약사항
 
 1. 비밀번호 변경 및 계정 탈퇴 API는 구현되지 않았다.
@@ -971,7 +1063,7 @@ DB 작업 진단이 필요한 개발 환경에서만 `DB_CRUD_LOG_ENABLED=true`�
 4. 카드 작성 중·비활성 상태와 수정·삭제 API는 구현되지 않았다.
 5. Ollama가 실행되지 않거나 모델 응답이 60초를 초과하면 규칙 기반 문장을 사용한다.
 6. 음성 출력은 프런트엔드의 Web Speech API로 처리하므로 백엔드 TTS API는 없다.
-7. `/api/health`는 백엔드 상태만 반환하며 MongoDB 준비 상태를 응답에 포함하지 않는다.
+7. `/api/health`의 기기 TTS 상태는 실제 음성 설치·오프라인 재생 성공을 판정하지 않는다. 기기별 검수는 별도로 수행한다.
 
 
 ## 사용자 프로필 API

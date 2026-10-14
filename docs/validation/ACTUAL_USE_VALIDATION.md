@@ -87,7 +87,7 @@ loopback 바인딩을 유지한다.
 | STAFF-AUTO-03 | 연결 회수 | 비활성 연결의 모든 아동별 API 권한을 403으로 차단 | 통과 |
 | STAFF-AUTO-04 | 오프라인 전환 | 보호자·담당자 계정과 아동별 화면 상태를 기기에 보관하지 않고 즉시 폐기 | 통과 |
 
-서버 검증은 `backend/test_support_links.py`, 화면·오프라인 검증은
+서버 검증은 `backend/tests/test_support_links.py`, 화면·오프라인 검증은
 `frontend/test/supporter-task-flow.test.mjs`에서 실행한다. 실제 검증에서는 담당자
 계정으로 허용·비허용 기능을 각각 열고, 다른 기기에서 연결을 회수한 뒤 기존 화면,
 직접 URL, 새로고침 및 오프라인 재접속이 모두 차단되는지 확인한다.

@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import Annotated, Literal
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile
 from pydantic import BaseModel, Field
+from starlette.responses import JSONResponse
 from uuid import UUID
 from app.services.communication import CARDS, regenerate_session, save_session, statistics
 from app.services.accessibility_settings import save_settings as save_accessibility_settings
@@ -15,6 +16,8 @@ from app.services.privacy import (
     disconnect_caregiver, export_for, privacy_for, save_privacy,
 )
 from app.services.model import status as model_status
+from app.services.health import health_report
+from app.services.observability import error_response
 from app.services.offline_events import sync_events
 from app.services.caregiver_notes import delete_note, notes_for, save_note
 from app.services.tts_settings import save_settings, settings_for
@@ -46,8 +49,11 @@ api_router = APIRouter()
 
 
 @api_router.get("/health", tags=["health"])
-async def health_check() -> dict[str, str]:
-    return {"status": "ok"}
+def health_check(request: Request):
+    payload, status_code = health_report()
+    if status_code >= 400:
+        return error_response(request.scope, status_code, '데이터베이스 연결을 확인해 주세요.', extra=payload)
+    return JSONResponse(payload, status_code=status_code, headers={'Cache-Control': 'no-store'})
 
 
 @api_router.get('/model/status', tags=['모델'])

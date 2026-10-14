@@ -4,7 +4,7 @@
 
 화면에서 메뉴를 숨기는 것과 별개로, 인증 사용자가 다른 아동의 ID나 객체 ID를 직접
 전송해도 서버가 데이터를 반환하지 않는지 확인한다. 자동 검증은
-`backend/test_data_boundaries.py`에서 실제 FastAPI 라우트를 호출한다.
+`backend/tests/test_data_boundaries.py`에서 실제 FastAPI 라우트를 호출한다.
 
 ## 자동 검증 범위
 

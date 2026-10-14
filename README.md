@@ -8,13 +8,14 @@ PESC MATE는 실물 PECS 카드가 늘어날수록 발생하는 휴대·분류·
 ## 프로젝트 구조
 
 백엔드 테스트: `cd backend` 후 `pip install -r requirements-test.txt`를 실행하고
-`python -m unittest discover -s . -p "test_*.py"`로 전체 검증한다.
-프런트엔드 검증: `cd frontend` 후 `npm run build`.
+`python -m unittest discover -s tests -t . -p "test_*.py"`로 전체 검증한다.
+프런트엔드 검증: `cd frontend` 후 `npm test`와 `npm run build`.
 
 ### 소스 구성
 
 - `frontend`: React와 Vite 기반 웹 클라이언트
 - `backend`: FastAPI 기반 API 서버와 카드 추천·문장 생성 기능
+- `backend/tests`: 백엔드 API·서비스 회귀 테스트
 - `docs`: 기획, 개발, 기능 정책 및 검증 문서. [문서 목차](docs/README.md)에서 확인합니다.
 
 ### MongoDB 실행
@@ -37,6 +38,16 @@ MongoDB 컨테이너의 내부 로그, Uvicorn 접근 로그와 애플리케이�
 식별자와 기기·브라우저 종류만 `DEVICE | CONNECT` 형식으로 출력하며 동일 기기는
 10분간 중복 출력하지 않습니다.
 DB 진단이 꼭 필요할 때만 백엔드의 `DB_CRUD_LOG_ENABLED=true`를 설정합니다.
+
+HTTP 응답의 `X-Request-ID`로 요청을 추적할 수 있습니다. API 요청 로그는 요청 ID,
+메서드, 경로 템플릿, 상태 코드와 처리 시간을 JSON으로 남기며, 문장·아동 이름·토큰·
+실제 이미지 경로·요청 본문은 포함하지 않습니다. 오류 응답의 `error.request_id`도
+같은 ID를 사용합니다.
+
+`/api/health`는 MongoDB 준비 상태와 선택형 Ollama 상태를 구분합니다.
+MongoDB 연결 실패는 `503/unavailable`, 선택형 AI 장애는 규칙 기반 문장 생성을
+유지하며 `200/degraded`로 응답합니다. 기기 TTS는 서버에서 확인할 수 없어
+`client_side`로 표시합니다. [API 공통 규칙과 상태 확인](docs/development/API_SPECIFICATION.md)을 참고합니다.
 
 ## 로컬 실행
 
