@@ -976,4 +976,4 @@ DB 작업 진단이 필요한 개발 환경에서만 `DB_CRUD_LOG_ENABLED=true`�
 
 ## 사용자 프로필 API
 
-프로필 조회·저장·사진 접근 권한과 응답 필드는 [사용자 프로필 정책](PROFILE_POLICY.md#api)을 참고한다. 인증 응답과 연결 사용자 응답의 `profile` 필드는 미설정 계정에서 `null`이다.
+프로필 조회·저장·사진 접근 권한과 응답 필드는 [사용자 프로필 정책](../policies/PROFILE_POLICY.md#api)을 참고한다. 인증 응답과 연결 사용자 응답의 `profile` 필드는 미설정 계정에서 `null`이다.

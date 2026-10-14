@@ -13,6 +13,10 @@ PESC MATE는 실물 PECS 카드가 늘어날수록 발생하는 휴대·분류·
 
 ### 소스 구성
 
+- `frontend`: React와 Vite 기반 웹 클라이언트
+- `backend`: FastAPI 기반 API 서버와 카드 추천·문장 생성 기능
+- `docs`: 기획, 개발, 기능 정책 및 검증 문서. [문서 목차](docs/README.md)에서 확인합니다.
+
 ### MongoDB 실행
 
 Docker Compose는 MongoDB를 함께 실행하므로 별도 설치가 필요하지 않습니다.
@@ -33,11 +37,6 @@ MongoDB 컨테이너의 내부 로그, Uvicorn 접근 로그와 애플리케이�
 식별자와 기기·브라우저 종류만 `DEVICE | CONNECT` 형식으로 출력하며 동일 기기는
 10분간 중복 출력하지 않습니다.
 DB 진단이 꼭 필요할 때만 백엔드의 `DB_CRUD_LOG_ENABLED=true`를 설정합니다.
-
-- `frontend`: React와 Vite 기반 웹 클라이언트
-- `backend`: FastAPI 기반 API 서버
-- `ai`: 카드 추천 및 문장 생성 기능
-- `docs`: 기획, API, 회의 및 개발 문서
 
 ## 로컬 실행
 
@@ -122,7 +121,8 @@ npm run build:watch
 
 ## 개발 문서
 
-- [개발 TODO 및 요구사항 진행표](docs/TODO.md)
-- [커밋 메시지 규칙](docs/COMMIT_CONVENTION.md)
-- [API 명세서](docs/API_SPECIFICATION.md)
-- [실제 기기 연결 및 현장 검증 기록](docs/ACTUAL_USE_VALIDATION.md)
+- [전체 문서 목차](docs/README.md)
+- [개발 TODO 및 요구사항 진행표](docs/planning/TODO.md)
+- [커밋 메시지 규칙](docs/development/COMMIT_CONVENTION.md)
+- [API 명세서](docs/development/API_SPECIFICATION.md)
+- [실제 기기 연결 및 현장 검증 기록](docs/validation/ACTUAL_USE_VALIDATION.md)

@@ -177,7 +177,7 @@ footer { text-align: center; padding: 12px; }
   .quick-speech button, .recovery-speech button { min-width: 104px; }
 }
 
-/* Main stage: layout adapted from docs/reference/image2.png */
+/* Communication stage layout. */
 body { background: #f8fbfc; }
 body::before { width: 430px; height: 430px; left: auto; right: -180px; top: 290px; background: #dff4fc; border: 0; opacity: .72; }
 body::after { width: 360px; height: 360px; right: auto; left: -170px; bottom: -150px; background: #efedff; border: 0; opacity: .7; }
@@ -256,7 +256,7 @@ input { border-color: #d6e8ef; }
   .recommendations .card { flex: 0 0 125px; scroll-snap-align: center; }
 }
 
-/* Dashboard shell inspired by the supplied learning-home reference. */
+/* Dashboard layout. */
 :root { color: #303542; background: #eef1f8; scrollbar-gutter: stable; }
 body { background: #eef1f8; }
 body::before, body::after { display: none; }
