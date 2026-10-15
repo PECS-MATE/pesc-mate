@@ -470,8 +470,9 @@ def require_guardian_consent(user):
 
 
 @api_router.post('/auth/login', response_model=LoginResponse, tags=['인증'])
-def authenticate(request: LoginRequest):
-    return login(request.username.strip(), request.password)
+def authenticate(request: LoginRequest, http_request: Request):
+    client_ip = http_request.client.host if http_request.client else None
+    return login(request.username.strip(), request.password, client_ip)
 
 
 @api_router.post('/auth/register', response_model=LoginResponse, status_code=201, tags=['인증'])

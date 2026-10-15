@@ -8,6 +8,12 @@ from app.services.authentication import (_ensure_user, _public_user, dashboard_u
 
 
 class DemoAccountTests(unittest.TestCase):
+    def setUp(self):
+        for name in ('ensure_login_allowed', 'record_login_failure', 'clear_login_failures'):
+            patcher = patch(f'app.services.authentication.{name}')
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
     @patch.dict('os.environ', {'DEMO_ACCOUNTS_ENABLED': ''})
     @patch('app.services.communication.ensure_demo_history')
     @patch('app.services.authentication.ensure_demo_users')

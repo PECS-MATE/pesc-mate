@@ -9,6 +9,7 @@ from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pymongo.errors import DuplicateKeyError, PyMongoError
 from app.services.database import database as _database, log_crud
+from app.services.login_throttle import clear_login_failures, ensure_login_allowed, record_login_failure
 
 SESSION_HOURS = 12
 ACCOUNT_PERMISSIONS = ('content_manage',)
@@ -102,20 +103,24 @@ def ensure_demo_users():
         log_crud('UPDATE', 'caregiver_links', '데모 사용자 최초 연결')
 
 
-def login(username, password):
+def login(username, password, client_ip=None):
     try:
         _migrate_legacy_admins()
         demo_enabled = demo_accounts_enabled()
         if demo_enabled:
             ensure_demo_users()
+        ensure_login_allowed(username, client_ip)
         database = _database()
         user = database.users.find_one({'username': username})
         log_crud('READ', 'users', '로그인 계정 조회')
         if not user:
+            record_login_failure(username, client_ip)
             raise HTTPException(401, '아이디 또는 비밀번호가 올바르지 않습니다.')
         _, candidate = _password_hash(password, user['password_salt'])
         if not hmac.compare_digest(candidate, user['password_hash']):
+            record_login_failure(username, client_ip)
             raise HTTPException(401, '아이디 또는 비밀번호가 올바르지 않습니다.')
+        clear_login_failures(username, client_ip)
         token = secrets.token_urlsafe(32)
         expires_at = datetime.now(timezone.utc) + timedelta(hours=SESSION_HOURS)
         database.auth_sessions.insert_one({
