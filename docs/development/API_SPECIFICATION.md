@@ -120,8 +120,6 @@ HTTP 500은 일반 안내만 반환하고 내부 예외 문구를 응답에 포�
 | 접근성 | GET | `/api/accessibility/settings` | 필요 | 현재 사용자의 접근 설정 조회 |
 | 접근성 | PUT | `/api/accessibility/settings` | 필요 | 현재 사용자의 접근 설정 저장 |
 | 개인정보 | GET/PUT | `/api/privacy/settings` | 사용자 | 동의·보존 기간 및 삭제 상태 조회·저장 |
-| 개인정보 | GET/POST | `/api/privacy/caregivers` | 사용자 | 기록 열람 보호자 조회·연결 |
-| 개인정보 | DELETE | `/api/privacy/caregivers/{caregiver_id}` | 사용자 | 보호자 연결 해제 |
 | 개인정보 | GET | `/api/privacy/audit` | 사용자 | 연결·해제·삭제 변경 이력 조회 |
 | 개인정보 | GET | `/api/privacy/export` | 사용자 | 본인 데이터 JSON 내보내기 |
 | 개인정보 | DELETE | `/api/privacy/data` | 사용자 | 사용자 생성 데이터 삭제 |
@@ -550,13 +548,11 @@ Content-Type: application/json
 
 일반 사용자 본인의 카드 표시 방식, 한 페이지 카드 수, 카드·글자 크기, 애니메이션·장식 감소 및 고대비 설정을 조회하거나 저장한다. `display_mode`는 `image`, `image_text`, `text`, 크기는 `small`, `medium`, `large` 중 하나다. 카드 수는 6~30개이며 저장된 설정이 없으면 위 기본값을 반환한다.
 
-## 6.11 개인정보 동의·열람자·내보내기·삭제
+## 6.11 개인정보 동의·내보내기·삭제
 
 `GET/PUT /api/privacy/settings`는 법정대리인 동의 확인, 동의 정책 버전, 기록 보존 기간(30·90·365·1095일)과 최근 삭제 상태를 관리한다. 보존 기간을 저장하면 기간이 지난 문장 및 음성 이력을 즉시 정리한다.
 
-`GET/POST /api/privacy/caregivers`와 `DELETE /api/privacy/caregivers/{caregiver_id}`는 AAC 사용자가 본인의 기록 열람자를 직접 확인·연결·해제하게 한다. 연결 범위는 현황, 의사소통 기록, 프로필 이미지와 보호자 메모이며 변경은 `/api/privacy/audit`에 남는다.
-
-`GET /api/privacy/export`는 비밀번호, 프로필·카드 이미지 원본을 제외한 계정 정보, 의사소통·음성 이력, 개인 카드 메타데이터와 현재 열람자를 JSON으로 반환한다.
+`GET /api/privacy/export`는 비밀번호, 프로필·카드 이미지 원본을 제외한 계정 정보, 의사소통·음성 이력, 개인 카드 메타데이터와 현재 지원 연결을 JSON으로 반환한다.
 
 ```http
 DELETE /api/privacy/data

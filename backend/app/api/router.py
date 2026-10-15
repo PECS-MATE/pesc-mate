@@ -12,8 +12,7 @@ from app.services.authentication import (
     require_account_permission, security,
 )
 from app.services.privacy import (
-    access_audit_for, caregiver_access_for, connect_caregiver, delete_personal_data,
-    disconnect_caregiver, export_for, privacy_for, save_privacy,
+    access_audit_for, delete_personal_data, export_for, privacy_for, save_privacy,
 )
 from app.services.model import status as model_status
 from app.services.health import health_report
@@ -152,18 +151,6 @@ class PrivacySettingsResponse(PrivacySettingsRequest):
     consented_at: datetime | None = None
     deletion_status: str
     deleted_at: datetime | None = None
-
-
-class CaregiverConnectRequest(BaseModel):
-    username: str = Field(min_length=1, max_length=64)
-
-
-class CaregiverAccessResponse(BaseModel):
-    caregiver_id: str
-    username: str
-    name: str
-    scopes: list[str]
-    connected_at: datetime | None = None
 
 
 class SupportLinkRequest(BaseModel):
@@ -541,25 +528,6 @@ def get_privacy_settings(user=Depends(current_user)):
 def put_privacy_settings(request: PrivacySettingsRequest, user=Depends(current_user)):
     require_communicator(user)
     return save_privacy(user['id'], request.guardian_consent, request.retention_days)
-
-
-@api_router.get('/privacy/caregivers', response_model=list[CaregiverAccessResponse], tags=['개인정보'])
-def get_privacy_caregivers(user=Depends(current_user)):
-    require_communicator(user)
-    return caregiver_access_for(user['id'])
-
-
-@api_router.post('/privacy/caregivers', response_model=list[CaregiverAccessResponse], tags=['개인정보'])
-def post_privacy_caregiver(request: CaregiverConnectRequest, user=Depends(current_user)):
-    require_communicator(user)
-    return connect_caregiver(user['id'], request.username.strip())
-
-
-@api_router.delete('/privacy/caregivers/{caregiver_id}', status_code=204, tags=['개인정보'])
-def delete_privacy_caregiver(caregiver_id: str, user=Depends(current_user)):
-    require_communicator(user)
-    disconnect_caregiver(user['id'], caregiver_id)
-    return None
 
 
 @api_router.get('/privacy/audit', response_model=list[PrivacyAuditResponse], tags=['개인정보'])

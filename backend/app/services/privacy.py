@@ -1,4 +1,4 @@
-"""Consent, caregiver access, export, retention and deletion controls."""
+"""Consent, export, retention and deletion controls."""
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
@@ -17,7 +17,6 @@ DEFAULT_PRIVACY = {
     'deletion_status': 'none',
     'deleted_at': None,
 }
-CAREGIVER_SCOPES = ['dashboard', 'communication_history', 'profile_image', 'caregiver_notes']
 
 
 def _privacy_public(document):
@@ -67,66 +66,6 @@ def save_privacy(user_id, guardian_consent, retention_days):
         raise HTTPException(503, '개인정보 설정을 저장하지 못했습니다.') from exc
 
 
-def caregiver_access_for(user_id):
-    try:
-        database = _database()
-        result = []
-        for link in database.caregiver_links.find({'user_id': user_id}):
-            caregiver = database.users.find_one({'_id': link['caregiver_id'], 'role': 'caregiver'})
-            if caregiver:
-                result.append({
-                    'caregiver_id': str(caregiver['_id']),
-                    'username': caregiver['username'],
-                    'name': caregiver['name'],
-                    'scopes': link.get('scopes', CAREGIVER_SCOPES),
-                    'connected_at': link.get('created_at'),
-                })
-        log_crud('READ', 'caregiver_links', '기록 열람자 조회')
-        return result
-    except PyMongoError as exc:
-        raise HTTPException(503, '기록 열람자를 조회하지 못했습니다.') from exc
-
-
-def connect_caregiver(user_id, caregiver_username):
-    try:
-        database = _database()
-        caregiver = database.users.find_one({'username': caregiver_username, 'role': 'caregiver'})
-        if not caregiver:
-            raise HTTPException(404, '해당 보호자 계정을 찾을 수 없습니다.')
-        caregiver_id = str(caregiver['_id'])
-        now = datetime.now(timezone.utc)
-        database.caregiver_links.update_one(
-            {'_id': f'{caregiver_id}:{user_id}'},
-            {'$set': {'caregiver_id': caregiver_id, 'user_id': user_id,
-                      'scopes': CAREGIVER_SCOPES, 'updated_at': now},
-             '$setOnInsert': {'created_at': now}},
-            upsert=True,
-        )
-        _audit(database, user_id, user_id, 'caregiver_connected', caregiver_id)
-        log_crud('UPDATE', 'caregiver_links', '보호자 연결')
-        return caregiver_access_for(user_id)
-    except HTTPException:
-        raise
-    except PyMongoError as exc:
-        raise HTTPException(503, '보호자를 연결하지 못했습니다.') from exc
-
-
-def disconnect_caregiver(user_id, caregiver_id):
-    try:
-        database = _database()
-        result = database.caregiver_links.delete_one({
-            '_id': f'{caregiver_id}:{user_id}', 'caregiver_id': caregiver_id, 'user_id': user_id,
-        })
-        if not result.deleted_count:
-            raise HTTPException(404, '연결된 보호자를 찾을 수 없습니다.')
-        _audit(database, user_id, user_id, 'caregiver_disconnected', caregiver_id)
-        log_crud('DELETE', 'caregiver_links', '보호자 연결 해제')
-    except HTTPException:
-        raise
-    except PyMongoError as exc:
-        raise HTTPException(503, '보호자 연결을 해제하지 못했습니다.') from exc
-
-
 def access_audit_for(user_id):
     try:
         rows = _database().privacy_audit_logs.find({'user_id': user_id}).sort('created_at', -1)
@@ -154,7 +93,6 @@ def export_for(user_id):
             'account': {'id': user_id, 'username': user.get('username'), 'name': user.get('name'),
                         'role': user.get('role'), 'profile': safe_profile},
             'privacy': privacy_for(user_id),
-            'caregiver_access': caregiver_access_for(user_id),
             'support_access': support_access_for(user_id),
             'communication_sessions': list(database.communication_sessions.find({'user_id': user_id})),
             'tts_events': list(database.tts_events.find({'user_id': user_id})),
