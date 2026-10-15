@@ -37,18 +37,36 @@ def _public_user(user):
     }
 
 
+def demo_accounts_enabled():
+    return os.environ.get('DEMO_ACCOUNTS_ENABLED', '').strip().lower() in {'1', 'true', 'yes'}
+
+
 def _ensure_user(username, password, name, role, account_permissions=None):
-    salt, password_hash = _password_hash(password)
     database = _database()
+    profile = {'username': username, 'name': name, 'role': role,
+               'account_permissions': account_permissions or []}
+    if database.users.find_one({'_id': username}, {'_id': 1}):
+        database.users.update_one({'_id': username}, {'$set': profile})
+        log_crud('UPDATE', 'users', f'{role} 데모 계정 동기화')
+        return
+    salt, password_hash = _password_hash(password)
     database.users.update_one(
         {'_id': username},
-        {'$set': {'username': username, 'name': name, 'role': role,
-                  'account_permissions': account_permissions or [],
-                  'password_salt': salt, 'password_hash': password_hash},
-         '$setOnInsert': {'created_at': datetime.now(timezone.utc)}},
+        {'$set': profile,
+         '$setOnInsert': {'password_salt': salt, 'password_hash': password_hash,
+                          'created_at': datetime.now(timezone.utc)}},
         upsert=True,
     )
-    log_crud('UPDATE', 'users', f'{role} 데모 계정 동기화')
+    log_crud('CREATE', 'users', f'{role} 데모 계정 생성')
+
+
+def _migrate_legacy_admins():
+    migration = _database().users.update_many(
+        {'role': 'admin'},
+        {'$set': {'role': 'support_staff'}, '$addToSet': {'account_permissions': 'content_manage'}},
+    )
+    if migration.modified_count:
+        log_crud('UPDATE', 'users', f'기존 운영자 {migration.modified_count}명을 운영 권한 담당자로 전환')
 
 
 def ensure_demo_users():
@@ -62,12 +80,6 @@ def ensure_demo_users():
     _ensure_user(admin_id, os.environ.get('ADMIN_PASSWORD', 'admin1234'),
                  '운영 권한 담당자', 'support_staff', ['content_manage'])
     database = _database()
-    migration = database.users.update_many(
-        {'role': 'admin'},
-        {'$set': {'role': 'support_staff'}, '$addToSet': {'account_permissions': 'content_manage'}},
-    )
-    if migration.modified_count:
-        log_crud('UPDATE', 'users', f'기존 운영자 {migration.modified_count}명을 운영 권한 담당자로 전환')
     privacy = database.privacy_settings.find_one({'_id': user_id})
     latest_access_change = database.privacy_audit_logs.find_one(
         {'user_id': user_id, 'target_id': caregiver_id,
@@ -92,7 +104,10 @@ def ensure_demo_users():
 
 def login(username, password):
     try:
-        ensure_demo_users()
+        _migrate_legacy_admins()
+        demo_enabled = demo_accounts_enabled()
+        if demo_enabled:
+            ensure_demo_users()
         database = _database()
         user = database.users.find_one({'username': username})
         log_crud('READ', 'users', '로그인 계정 조회')
@@ -109,8 +124,9 @@ def login(username, password):
             'expires_at': expires_at,
         })
         log_crud('CREATE', 'auth_sessions', '로그인 세션 생성')
-        from app.services.communication import ensure_demo_history
-        ensure_demo_history(os.environ.get('DEMO_USERNAME', 'demo'))
+        if demo_enabled:
+            from app.services.communication import ensure_demo_history
+            ensure_demo_history(os.environ.get('DEMO_USERNAME', 'demo'))
         return {'access_token': token, 'token_type': 'bearer', 'expires_at': expires_at.isoformat(),
                 'user': _public_user(user)}
     except HTTPException:

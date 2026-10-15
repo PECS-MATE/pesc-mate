@@ -10,6 +10,8 @@ PESC MATE는 실물 PECS 카드가 늘어날수록 발생하는 휴대·분류·
 백엔드 테스트: `cd backend` 후 `pip install -r requirements-test.txt`를 실행하고
 `python -m unittest discover -s tests -t . -p "test_*.py"`로 전체 검증한다.
 프런트엔드 검증: `cd frontend` 후 `npm test`와 `npm run build`.
+`main` 브랜치 push와 Pull Request마다 GitHub Actions(`.github/workflows/ci.yml`)가
+위 백엔드·프런트엔드 검증을 자동으로 실행한다.
 
 ### 소스 구성
 
@@ -105,6 +107,9 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
+개별 실행에서 시연용 계정이 필요하면 실행 전에 `DEMO_ACCOUNTS_ENABLED=true`를
+설정합니다. Docker Compose는 이 값을 기본으로 켭니다.
+
 API 문서는 `http://127.0.0.1:8000/docs`에서 확인할 수 있습니다.
 
 #### 프런트엔드
@@ -126,6 +131,9 @@ npm run build:watch
 
 개발용 운영 권한 담당자 계정은 `admin` / `admin1234`이며, 일반 담당자와
 같은 역할을 사용하되 `content_manage` 권한으로 공용 카드를 승인하거나 반려할 수 있습니다.
+시연용 계정(`demo`, `caregiver`, `support`, `admin`)과 시연 기록은
+`DEMO_ACCOUNTS_ENABLED=true`일 때만 만들어지며, 이미 있는 계정의 비밀번호는
+다시 덮어쓰지 않습니다. 운영 환경에서는 이 값을 설정하지 않습니다.
 이미지 콘텐츠 안전성 검사 API를 사용하려면 `IMAGE_SAFETY_API_URL`과
 선택적으로 `IMAGE_SAFETY_API_TOKEN`을 설정합니다. 공급자가 없거나 장애가
 발생하면 운영 권한 담당자의 수동 검토 상태로 자동 전환됩니다.
