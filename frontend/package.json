@@ -3,11 +3,17 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "engines": {
+    "node": "^22.13.0 || ^24.0.0 || >=26.0.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "build:watch": "vite build --watch",
-    "test": "node --test test/*.test.mjs",
+    "test": "npm run test:unit && npm run test:components",
+    "test:unit": "node --test test/*.test.mjs",
+    "test:components": "vitest run",
+    "test:components:watch": "vitest",
     "test:e2e": "playwright test",
     "preview": "vite preview"
   },
@@ -17,7 +23,11 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.64.0",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.8",
     "@vitejs/plugin-react": "latest",
-    "vite": "latest"
+    "jsdom": "29.1.1",
+    "vite": "latest",
+    "vitest": "5.0.5"
   }
 }
