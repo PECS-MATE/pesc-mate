@@ -28,6 +28,7 @@ export function createCoreSpeechCache({
   const urls = new Map();
   const saved = new Set();
   let pending = null;
+  let onlineRequested = false;
   let generation = 0;
 
   function status() {
@@ -95,15 +96,23 @@ export function createCoreSpeechCache({
 
   return {
     prepare({ online = true } = {}) {
+      onlineRequested ||= online;
       if (pending) return pending;
       const run = generation;
-      pending = prepareBundle(online, run).finally(() => { if (run === generation) pending = null; });
+      pending = (async () => {
+        const useNetwork = online;
+        let result = await prepareBundle(useNetwork, run);
+        // A reconnect during disk restoration must also fetch any missing clips.
+        if (run === generation && !useNetwork && onlineRequested) result = await prepareBundle(true, run);
+        return result;
+      })().finally(() => { if (run === generation) { pending = null; onlineRequested = false; } });
       return pending;
     },
     urlFor(text) { return urls.get(text); },
     dispose() {
       generation += 1;
       pending = null;
+      onlineRequested = false;
       urls.forEach(revokeUrl);
       urls.clear(); clips.clear(); saved.clear(); manifest = null;
     },
