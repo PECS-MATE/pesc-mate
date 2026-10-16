@@ -9,6 +9,7 @@ export default defineConfig({
   testDir: './e2e',
   outputDir: 'test-results/artifacts',
   fullyParallel: false,
+  timeout: 60000,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
@@ -25,4 +26,15 @@ export default defineConfig({
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
   ],
+  webServer: process.env.E2E_START_SERVERS === 'true' ? [
+    {
+      command: 'python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --no-access-log',
+      cwd: '../backend', url: 'http://127.0.0.1:8000/api/health',
+      timeout: 60000, reuseExistingServer: false,
+    },
+    {
+      command: 'npm run dev -- --host 127.0.0.1 --port 5173 --strictPort',
+      url: 'http://127.0.0.1:5173', timeout: 60000, reuseExistingServer: false,
+    },
+  ] : undefined,
 });
