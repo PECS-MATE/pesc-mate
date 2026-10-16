@@ -252,7 +252,7 @@ GitHub Actions 원격 실행 결과는 다음 push/PR에서 확인한다.
 - [x] API 요청 로그에서 문장, 아동 이름, 토큰, 개인 이미지 경로 제외
 - [x] 헬스 체크를 서비스, MongoDB, 선택형 AI/TTS 상태로 분리
 - [x] 필수 서버 기능과 선택형 AI의 장애 상태 분리
-- [ ] API 오류율과 응답 시간 수집
+- [x] API 오류율과 응답 시간 수집
 - [ ] TTS 시작 지연·실패율 수집
 - [ ] 오프라인 동기화 실패·재시도·중복 제거 결과 수집
 - [ ] 공용 카드 검수 대기와 반복 실패 알림
@@ -262,6 +262,13 @@ GitHub Actions 원격 실행 결과는 다음 push/PR에서 확인한다.
 `backend/tests/test_observability.py`, 필수·선택형 의존성 상태는 `backend/tests/test_health.py`,
 클라이언트의 요청 ID 전달과 오류 처리는 `frontend/test/api.test.mjs`에서 검증한다.
 기기 TTS는 서버가 성공으로 판정하지 않고 실기 검수 필요 상태로 표시한다.
+
+API 지표 증빙: `backend/app/services/api_metrics.py`가 개별 요청 없이 15개 1분 버킷으로
+4xx·5xx·전송 오류와 지연 분포를 메모리에 집계한다. `/api/admin/metrics`는 운영 권한
+계정에만 제공하고 재시작 시 초기화한다. `backend/tests/test_api_metrics.py`와
+`frontend/e2e/api-metrics.spec.js`에서 권한·개인정보 비노출·만료·동시 요청을 검증한다.
+장기 보관·다중 프로세스 집계·자동 알림은 이번 구현 범위에 포함하지 않는다.
+자세한 정의는 [API 지표](../development/API_METRICS.md)를 따른다.
 
 완료 기준: 장애가 발생했을 때 요청 하나를 추적할 수 있고, 선택형 AI 장애와 필수 의사소통 장애를 구분할 수 있다.
 

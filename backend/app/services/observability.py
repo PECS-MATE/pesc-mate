@@ -9,6 +9,8 @@ from starlette.exceptions import HTTPException
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse
 
+from app.services.api_metrics import ApiMetrics
+
 logger = logging.getLogger('uvicorn.error')
 
 REQUEST_ID_HEADER = 'X-Request-ID'
@@ -83,8 +85,9 @@ class SafeErrorMiddleware:
 class RequestContextMiddleware:
     """Add request IDs to every HTTP response, including preflights and streams."""
 
-    def __init__(self, app):
+    def __init__(self, app, metrics):
         self.app = app
+        self.metrics = metrics
 
     async def __call__(self, scope, receive, send):
         if scope['type'] != 'http':
@@ -118,6 +121,12 @@ class RequestContextMiddleware:
             }
             if scope['state'].get('error_type'):
                 event['error_type'] = scope['state']['error_type']
+            try:
+                self.metrics.record(event['method'], event['route'], status_code,
+                                    event['duration_ms'], failed=bool(event.get('error_type')))
+            except Exception:
+                # Instrumentation must not change a successful response or leak input.
+                logger.warning('API metrics collection failed')
             log = (logger.error if status_code >= 500 or event.get('error_type')
                    else logger.warning if status_code >= 400 else logger.info)
             log('%s', json.dumps(event, ensure_ascii=True, separators=(',', ':')))
@@ -145,4 +154,5 @@ def configure_observability(app, allowed_origins=(
         CORSMiddleware, allow_origins=allowed_origins, allow_credentials=True,
         allow_methods=['*'], allow_headers=['*'], expose_headers=[REQUEST_ID_HEADER],
     )
-    app.add_middleware(RequestContextMiddleware)
+    app.state.api_metrics = ApiMetrics()
+    app.add_middleware(RequestContextMiddleware, metrics=app.state.api_metrics)

@@ -55,6 +55,12 @@ def health_check(request: Request):
     return JSONResponse(payload, status_code=status_code, headers={'Cache-Control': 'no-store'})
 
 
+@api_router.get('/admin/metrics', tags=['운영'])
+def get_api_metrics(request: Request, user=Depends(current_user)):
+    require_account_permission(user, 'content_manage')
+    return JSONResponse(request.app.state.api_metrics.snapshot(), headers={'Cache-Control': 'no-store'})
+
+
 @api_router.get('/model/status', tags=['모델'])
 def get_model_status(user=Depends(current_user)):
     return model_status()

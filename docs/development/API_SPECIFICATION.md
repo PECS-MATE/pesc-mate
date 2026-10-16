@@ -108,6 +108,7 @@ HTTP 500은 일반 안내만 반환하고 내부 예외 문구를 응답에 포�
 |---|---|---|---|---|
 | 시스템 | GET | `/` | 불필요 | API 기본 응답 |
 | 시스템 | GET | `/api/health` | 불필요 | 서버와 필수·선택형 의존성 상태 확인 |
+| 운영 | GET | `/api/admin/metrics` | `content_manage` 권한 담당자 | 프로세스별 최근 15개 1분 버킷의 API 오류율·처리 시간 조회 |
 | 모델 | GET | `/api/model/status` | 필요 | Ollama 사용 설정과 모델 이름 조회 |
 | 인증 | POST | `/api/auth/login` | 불필요 | 로그인 및 세션 생성 |
 | 인증 | POST | `/api/auth/register` | 불필요 | 일반 사용자 가입 및 로그인 |
@@ -160,6 +161,13 @@ HTTP 500은 일반 안내만 반환하고 내부 예외 문구를 응답에 포�
 예: 슬롯 저장 본문은 `{"card_ids":["help","water"],"expected_revision":0}`이다.
 감사 이력에는 `before_revision`·`after_revision`이 추가되며 과거 이력은 null일 수 있다.
 UI 동작과 배포 호환 조건은 [카드판 동시 수정 정책](../policies/BOARD_CONFLICT_POLICY.md)을 따른다.
+
+`GET /api/admin/metrics`는 `scope`, `reset_on_restart`, `window_seconds`, `bucket_seconds`,
+`uptime_seconds`, `totals`, `routes`를 반환한다. `totals`와 `routes[]`에는 요청·4xx·5xx·
+전송 오류 수와 오류율, `duration_ms`의 평균·최댓값·백분위 버킷 상한·누적 분포가 있다.
+전체 요청 URL이나 본문·토큰은 포함하지 않는다. 응답은 `Cache-Control: no-store`이며
+401·403은 기존 인증·운영 권한 규칙을 따른다. 재시작 시 초기화되고 여러 worker 간에는
+공유하지 않는다. 수치 정의와 표본·집계 한계는 [API 지표](API_METRICS.md)를 따른다.
 
 # 4. 데이터 모델
 
