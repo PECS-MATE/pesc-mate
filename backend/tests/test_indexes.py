@@ -29,6 +29,11 @@ class IndexTests(unittest.TestCase):
         for collection, index_keys in keys.items():
             self.assertTrue(any(fields[0][0] == 'user_id' for fields in index_keys), collection)
 
+    def test_tts_aggregate_has_a_request_time_index_without_user_lookup(self):
+        self.assertTrue(any(collection == 'tts_events' and keys == [('requested_at', -1)]
+                            and options['name'] == 'tts_metrics_window'
+                            for collection, keys, options in INDEXES))
+
     def test_one_failed_index_does_not_block_the_rest(self):
         self.db.__getitem__.return_value.create_index.side_effect = (
             [OperationFailure('conflict')] + [None] * (len(INDEXES) - 1))

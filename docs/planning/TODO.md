@@ -253,7 +253,7 @@ GitHub Actions 원격 실행 결과는 다음 push/PR에서 확인한다.
 - [x] 헬스 체크를 서비스, MongoDB, 선택형 AI/TTS 상태로 분리
 - [x] 필수 서버 기능과 선택형 AI의 장애 상태 분리
 - [x] API 오류율과 응답 시간 수집
-- [ ] TTS 시작 지연·실패율 수집
+- [x] TTS 시작 지연·실패율 수집
 - [ ] 오프라인 동기화 실패·재시도·중복 제거 결과 수집
 - [ ] 공용 카드 검수 대기와 반복 실패 알림
 - [ ] 장애 등급, 확인 절차, 담당자 연락 체계 문서화
@@ -269,6 +269,13 @@ API 지표 증빙: `backend/app/services/api_metrics.py`가 개별 요청 없이
 `frontend/e2e/api-metrics.spec.js`에서 권한·개인정보 비노출·만료·동시 요청을 검증한다.
 장기 보관·다중 프로세스 집계·자동 알림은 이번 구현 범위에 포함하지 않는다.
 자세한 정의는 [API 지표](../development/API_METRICS.md)를 따른다.
+
+TTS 지표 증빙: `backend/app/services/tts_metrics.py`와 `/api/admin/tts-metrics`가
+기존 클라이언트 보고만 집계하며 성공·실패·취소·결과 미수신과 유효 지연 표본을 구분한다.
+`tts_events.py`는 동일 요청 ID의 최초 완료 결과를 보존한다. 단위 검증은
+`backend/tests/test_tts_metrics.py`·`test_tts_events.py`, 실제 DB 검증은
+`frontend/e2e/tts-metrics.spec.js`에서 수행한다. 분모와 오프라인·기기 실측 한계는
+[TTS 지표](../development/TTS_METRICS.md)에 기록한다.
 
 완료 기준: 장애가 발생했을 때 요청 하나를 추적할 수 있고, 선택형 AI 장애와 필수 의사소통 장애를 구분할 수 있다.
 

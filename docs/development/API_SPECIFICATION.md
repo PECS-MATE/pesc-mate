@@ -109,6 +109,7 @@ HTTP 500은 일반 안내만 반환하고 내부 예외 문구를 응답에 포�
 | 시스템 | GET | `/` | 불필요 | API 기본 응답 |
 | 시스템 | GET | `/api/health` | 불필요 | 서버와 필수·선택형 의존성 상태 확인 |
 | 운영 | GET | `/api/admin/metrics` | `content_manage` 권한 담당자 | 프로세스별 최근 15개 1분 버킷의 API 오류율·처리 시간 조회 |
+| 운영 | GET | `/api/admin/tts-metrics` | `content_manage` 권한 담당자 | 저장된 클라이언트 보고의 TTS 시작 지연·최종 재생 실패율 집계 |
 | 모델 | GET | `/api/model/status` | 필요 | Ollama 사용 설정과 모델 이름 조회 |
 | 인증 | POST | `/api/auth/login` | 불필요 | 로그인 및 세션 생성 |
 | 인증 | POST | `/api/auth/register` | 불필요 | 일반 사용자 가입 및 로그인 |
@@ -168,6 +169,17 @@ UI 동작과 배포 호환 조건은 [카드판 동시 수정 정책](../policie
 전체 요청 URL이나 본문·토큰은 포함하지 않는다. 응답은 `Cache-Control: no-store`이며
 401·403은 기존 인증·운영 권한 규칙을 따른다. 재시작 시 초기화되고 여러 worker 간에는
 공유하지 않는다. 수치 정의와 표본·집계 한계는 [API 지표](API_METRICS.md)를 따른다.
+
+`GET /api/admin/tts-metrics?hours=24`는 `hours=1~168` 범위의 기존 TTS 이력을 요청 시각
+기준으로 집계한다. `totals`, `by_content_type`, `failure_codes`를 반환하며 사용자·요청 ID와
+원문은 포함하지 않는다. 실패율의 분모는 성공+실패 완료 수이며 취소·결과 미수신은 제외한다.
+지연 표본이 없는 경우 평균은 null이고, 성공·실패 완료가 없으면 비율도 null이다.
+`scope=stored_events`, `source=client_reported`이며 캐시를 금지한다. 입력 오류 422,
+인증·권한 오류 401·403, 집계 실패 503을 반환한다. 자세한 정의는 [TTS 지표](TTS_METRICS.md)를 따른다.
+
+TTS 시작 POST를 같은 요청 ID로 다시 보내면 실제 저장된 상태를 반환한다. 완료 PATCH를
+재전송하거나 동시에 보내면 최초 완료 결과를 반환하고 상태·지연을 덮어쓰지 않는다.
+다른 계정의 요청 ID로 시작하면 409, 완료하려 하면 404다. 실제 새 재생에는 새 UUID를 사용한다.
 
 # 4. 데이터 모델
 

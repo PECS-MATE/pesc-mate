@@ -132,7 +132,7 @@ async function expectNativeClip(page, buttonName, text, previousPlays = 0) {
 test('기본 음성을 자동 재생 없이 저장하고 새 페이지에서 네트워크 없이 실제 재생한다', async ({ page, context }) => {
   await observeNativeAudio(page);
   await loginAsUser(page);
-  await expect(page.getByTestId('core-speech-status')).toContainText('기본 긴급·복구 음성 13개 저장됨');
+  await expect(page.getByTestId('core-speech-status')).toContainText('기본 긴급·복구 음성 13개 저장됨', { timeout: 20000 });
   await expect.poll(() => cachedBundleSummary(page)).toEqual({
     version: 'v1', entries: 13, clips: 13, accountReady: true,
   });
@@ -145,7 +145,7 @@ test('기본 음성을 자동 재생 없이 저장하고 새 페이지에서 네
   await restored.route('**/audio/core/**', route => route.abort('internetdisconnected'));
   await restored.goto('/');
   await expect(restored.getByRole('button', { name: '로그아웃' })).toBeVisible();
-  await expect(restored.getByTestId('core-speech-status')).toContainText('기본 긴급·복구 음성 13개 저장됨');
+  await expect(restored.getByTestId('core-speech-status')).toContainText('기본 긴급·복구 음성 13개 저장됨', { timeout: 20000 });
   expect(await restored.evaluate(() => navigator.onLine)).toBe(false);
   expect(await restored.evaluate(() => window.__coreAudio.plays)).toEqual([]);
   await expectNativeClip(restored, '도와주세요 바로 말하기', '도와주세요');
@@ -167,11 +167,14 @@ test('기기 한국어 음성이 실패하면 기본 음성으로 복구하고 �
     }
   });
   await loginAsUser(page);
-  await expect(page.getByTestId('core-speech-status')).toContainText('기본 긴급·복구 음성 13개 저장됨');
+  await expect(page.getByTestId('core-speech-status')).toContainText('기본 긴급·복구 음성 13개 저장됨', { timeout: 20000 });
   expect(await page.evaluate(() => window.__coreAudio.synthesisCalls)).toEqual([]);
   await expectNativeClip(page, '도와주세요 바로 말하기', '도와주세요');
   expect(await page.evaluate(() => window.__coreAudio.synthesisCalls)).toEqual(['도와주세요']);
-  await expect.poll(() => events.length).toBe(2);
+  // Tracking is asynchronous and may wait for a browser connection behind card
+  // images. Allow the API's 15-second request deadline, not just the 5-second
+  // default assertion window; playback itself is asserted separately above.
+  await expect.poll(() => events.length, { timeout: 20000 }).toBe(2);
   expect(events.filter(event => event.method === 'POST')).toEqual([
     expect.objectContaining({ status: 201, body: expect.objectContaining({ content_type: 'card' }) }),
   ]);

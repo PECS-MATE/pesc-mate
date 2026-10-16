@@ -17,6 +17,7 @@ INDEXES = (
     ('login_attempts', [('expires_at', ASCENDING)], {'name': 'login_attempt_expiry_ttl', 'expireAfterSeconds': 0}),
     ('communication_sessions', [('user_id', ASCENDING), ('created_at', DESCENDING)], {'name': 'user_recent_sessions'}),
     ('tts_events', [('user_id', ASCENDING), ('requested_at', DESCENDING)], {'name': 'user_recent_tts'}),
+    ('tts_events', [('requested_at', DESCENDING)], {'name': 'tts_metrics_window'}),
     ('offline_events', [('user_id', ASCENDING), ('occurred_at', DESCENDING)], {'name': 'user_recent_offline_events'}),
     ('learning_attempts', [('user_id', ASCENDING), ('completed_at', DESCENDING)], {'name': 'user_recent_attempts'}),
     ('caregiver_notes', [('caregiver_id', ASCENDING), ('user_id', ASCENDING), ('session_id', ASCENDING)],
