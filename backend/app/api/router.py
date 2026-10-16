@@ -260,6 +260,7 @@ class BoardSlotResponse(BaseModel):
 
 class BoardLayoutResponse(BaseModel):
     user_id: str
+    revision: int
     quick_expression_ids: list[str]
     recovery_expression_ids: list[str]
     slots: list[BoardSlotResponse]
@@ -268,10 +269,12 @@ class BoardLayoutResponse(BaseModel):
 
 
 class BoardCardIdsRequest(BaseModel):
+    expected_revision: int = Field(ge=0)
     card_ids: list[Annotated[str, Field(min_length=1, max_length=100)]] = Field(min_length=1, max_length=30)
 
 
 class BoardRecoveryIdsRequest(BaseModel):
+    expected_revision: int = Field(ge=0)
     expression_ids: list[Annotated[str, Field(min_length=1, max_length=40)]] = Field(min_length=2, max_length=4)
 
 
@@ -282,6 +285,8 @@ class BoardAuditResponse(BaseModel):
     action: str
     before: list[object] | None = None
     after: list[object] | None = None
+    before_revision: int | None = None
+    after_revision: int | None = None
     created_at: datetime
 
 
@@ -664,7 +669,7 @@ def put_quick_expressions(request: BoardCardIdsRequest,
                           user_id: str = Query(min_length=1, max_length=64),
                           user=Depends(current_user)):
     target = _require_support_manager(user, user_id, 'quick_speech_manage')
-    return save_quick_expressions(target, user['id'], request.card_ids)
+    return save_quick_expressions(target, user['id'], request.card_ids, request.expected_revision)
 
 
 @api_router.put('/board/layout/recovery-expressions', response_model=BoardLayoutResponse,
@@ -673,7 +678,7 @@ def put_recovery_expressions(request: BoardRecoveryIdsRequest,
                              user_id: str = Query(min_length=1, max_length=64),
                              user=Depends(current_user)):
     target = _require_support_manager(user, user_id, 'quick_speech_manage')
-    return save_recovery_expressions(target, user['id'], request.expression_ids)
+    return save_recovery_expressions(target, user['id'], request.expression_ids, request.expected_revision)
 
 
 @api_router.put('/board/layout/slots', response_model=BoardLayoutResponse,
@@ -682,7 +687,7 @@ def put_board_slots(request: BoardCardIdsRequest,
                     user_id: str = Query(min_length=1, max_length=64),
                     user=Depends(current_user)):
     target = _require_support_manager(user, user_id, 'board_manage')
-    return save_slots(target, user['id'], request.card_ids)
+    return save_slots(target, user['id'], request.card_ids, request.expected_revision)
 
 
 @api_router.get('/board/layout/audit', response_model=list[BoardAuditResponse], tags=['카드판'])

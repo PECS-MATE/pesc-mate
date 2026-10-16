@@ -173,6 +173,8 @@ function App() {
   const [requestId, setRequestId] = useState(() => createRequestId());
   const [linkedUsers, setLinkedUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
+  const selectedUserRef = useRef(null);
+  selectedUserRef.current = selectedUser;
   const [noteDrafts, setNoteDrafts] = useState({});
   const [noteBusy, setNoteBusy] = useState('');
   const [privacy, setPrivacy] = useState(DEFAULT_PRIVACY);
@@ -188,6 +190,7 @@ function App() {
   const [recoveryDraft, setRecoveryDraft] = useState([]);
   const [slotDraft, setSlotDraft] = useState([]);
   const [boardConfigBusy, setBoardConfigBusy] = useState('');
+  const [boardConflict, setBoardConflict] = useState(false);
   const [learningSettings, setLearningSettings] = useState(null);
   const [learningProgress, setLearningProgress] = useState(null);
   const [learningBusy, setLearningBusy] = useState(false);
@@ -200,6 +203,7 @@ function App() {
     cardSubmissions.forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); });
     setLinkedUsers([]); setSelectedUser(null); setCardSubmissions([]); setStats(null); setNoteDrafts({});
     setBoardLayout(null); setBoardLayoutAudit([]); setQuickDraft([]); setRecoveryDraft([]); setSlotDraft([]);
+    setBoardConflict(false); setBoardConfigBusy('');
     setLearningSettings(null); setLearningProgress(null); setLearningGame(null);
     setTtsSettings(DEFAULT_TTS_SETTINGS); setTtsSettingsSaved(false);
     setAccessibility(DEFAULT_ACCESSIBILITY); setAccessibilitySaved(true);
@@ -510,6 +514,7 @@ function App() {
 
   async function handleLogout() {
     setBusy(true);
+    setBoardConflict(false); setBoardConfigBusy('');
     await stopSpeech();
     try { await request('/auth/logout', { method: 'POST' }); } catch { /* local logout still applies */ }
     clearBoard(user?.id);
@@ -755,13 +760,23 @@ function App() {
     setCardSubmissions(await hydrateImages(await request(`/cards/submissions${query}`)));
   }
   async function loadBoardConfiguration(target) {
+    const actorId = user.id;
     const query = `?user_id=${encodeURIComponent(target.id)}`;
     const [layout, audit] = await Promise.all([
       request(`/board/layout${query}`), request(`/board/layout/audit${query}`),
     ]);
+    if (activeUserRef.current?.id !== actorId || selectedUserRef.current?.id !== target.id) return;
+    setBoardConflict(false);
     setBoardLayout(layout); setBoardLayoutAudit(audit);
     setQuickDraft(layout.quick_expression_ids); setRecoveryDraft(layout.recovery_expression_ids);
     setSlotDraft(layout.slots.map(slot => slot.card_id));
+  }
+  async function reloadBoardConfiguration() {
+    if (!selectedUser || boardConfigBusy) return;
+    setBoardConfigBusy('reload'); setError('');
+    try { await loadBoardConfiguration(selectedUser); }
+    catch (e) { setError(e.message); }
+    finally { setBoardConfigBusy(''); }
   }
   async function loadLearning(target = null) {
     const isLinkedTarget = ['caregiver', 'support_staff'].includes(user.role);
@@ -945,7 +960,10 @@ function App() {
     else setError(`카드는 최대 ${maximum}개까지 선택할 수 있습니다.`);
   }
   async function saveBoardConfiguration(kind) {
-    if (!selectedUser) return;
+    if (!selectedUser || !boardLayout || boardConfigBusy || boardConflict) return;
+    const targetId = selectedUser.id;
+    const actorId = user.id;
+    const isCurrent = () => selectedUserRef.current?.id === targetId && activeUserRef.current?.id === actorId;
     const quick = kind === 'quick';
     const recovery = kind === 'recovery';
     const values = quick ? quickDraft : recovery ? recoveryDraft : slotDraft;
@@ -955,12 +973,21 @@ function App() {
       const path = quick ? 'quick-expressions' : recovery ? 'recovery-expressions' : 'slots';
       const query = `?user_id=${encodeURIComponent(selectedUser.id)}`;
       const layout = await request(`/board/layout/${path}${query}`, {
-        method: 'PUT', body: JSON.stringify(recovery ? { expression_ids: values } : { card_ids: values }),
+        method: 'PUT', body: JSON.stringify({
+          ...(recovery ? { expression_ids: values } : { card_ids: values }),
+          expected_revision: boardLayout.revision ?? 0,
+        }),
       });
+      if (!isCurrent()) return;
       setBoardLayout(layout);
-      setBoardLayoutAudit(await request(`/board/layout/audit${query}`));
-    } catch (e) { setError(e.message); }
-    finally { setBoardConfigBusy(''); }
+      const audit = await request(`/board/layout/audit${query}`);
+      if (isCurrent()) setBoardLayoutAudit(audit);
+    } catch (e) {
+      if (!isCurrent()) return;
+      if (e.status === 409) setBoardConflict(true);
+      else setError(e.message);
+    }
+    finally { if (isCurrent()) setBoardConfigBusy(''); }
   }
   async function saveCaregiverNote(sessionId) {
     const content = (noteDrafts[sessionId] ?? stats.recent.find(row => row.id === sessionId)?.caregiver_note ?? '').trim();
@@ -1414,11 +1441,12 @@ function App() {
     </section> : tab === 'board_settings' && isSupporter && (canManageQuick || canManageBoard) ? <section className="board-settings-panel">
       <div className="panel-heading"><span aria-hidden="true">▦</span><div><h2>복구·빠른 표현·고정 카드판</h2><p className="muted">저장한 순서가 {selectedUser?.name} 사용자의 다른 기기에도 동일하게 적용됩니다.</p></div></div>
       <label className="user-picker">설정 사용자<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)} disabled={statsBusy}>{linkedUsers.filter(person => person.permissions.some(permission => ['quick_speech_manage', 'board_manage'].includes(permission))).map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>
-      {boardLayout && <div className="board-config-grid">
+      {boardConflict && <div className="error" role="alert" data-testid="board-conflict"><span>다른 기기에서 카드판을 변경했습니다. 현재 편집 내용은 화면에 남아 있으며 저장하지 않았습니다. 최신 구성을 불러오면 현재 편집 내용이 바뀝니다.</span><button type="button" disabled={Boolean(boardConfigBusy)} onClick={reloadBoardConfiguration}>최신 카드판 불러오기</button></div>}
+      {boardLayout && <fieldset className="board-config-grid" aria-label="카드판 구성 편집" disabled={Boolean(boardConfigBusy) || statsBusy || boardConflict}>
         {canManageQuick && <article><h3>다시 말하기·고치기 <small>{recoveryDraft.length}/4</small></h3><p className="muted">필수 표현 2개는 고정하고, 나머지 표현을 선택해 최대 4개까지 구성하세요.</p><div className="config-card-options">{RECOVERY_EXPRESSIONS.map(item => <button key={item.id} aria-pressed={recoveryDraft.includes(item.id)} disabled={item.fixed && recoveryDraft.includes(item.id)} title={item.fixed ? '필수 고정 표현' : ''} onClick={() => toggleDraft(setRecoveryDraft, recoveryDraft, item.id, 4)}>{item.symbol} {item.label}{item.fixed ? ' · 필수' : ''}</button>)}</div><ol className="config-order-list">{recoveryDraft.map((id, index) => { const item = RECOVERY_EXPRESSIONS.find(expression => expression.id === id); return <li key={id}><span>{index + 1}. {item?.symbol} {item?.label}{item?.fixed ? ' · 필수' : ''}</span><div><button aria-label={`${item?.label} 앞으로`} disabled={index === 0} onClick={() => moveDraft(setRecoveryDraft, index, -1)}>↑</button><button aria-label={`${item?.label} 뒤로`} disabled={index === recoveryDraft.length - 1} onClick={() => moveDraft(setRecoveryDraft, index, 1)}>↓</button><button aria-label={`${item?.label} 제외`} disabled={item?.fixed || recoveryDraft.length <= 2} onClick={() => setRecoveryDraft(current => current.filter(expressionId => expressionId !== id))}>×</button></div></li>; })}</ol><button className="primary" disabled={boardConfigBusy === 'recovery' || recoveryDraft.length < 2} onClick={() => saveBoardConfiguration('recovery')}>{boardConfigBusy === 'recovery' ? '저장 중…' : '복구 표현 저장'}</button></article>}
         {canManageQuick && <article><h3>빠른 표현 <small>{quickDraft.length}/8</small></h3><p className="muted">카드를 선택하고 화살표로 표시 순서를 정하세요.</p><div className="config-card-options">{layoutCards.map(card => <button key={card.id} aria-pressed={quickDraft.includes(card.id)} onClick={() => toggleDraft(setQuickDraft, quickDraft, card.id, 8)}>{card.symbol} {card.label}</button>)}</div><ol className="config-order-list">{quickDraft.map((id, index) => { const card = layoutCardsById.get(id); return <li key={id}><span>{index + 1}. {card?.symbol} {card?.label || id}</span><div><button aria-label={`${card?.label || id} 앞으로`} disabled={index === 0} onClick={() => moveDraft(setQuickDraft, index, -1)}>↑</button><button aria-label={`${card?.label || id} 뒤로`} disabled={index === quickDraft.length - 1} onClick={() => moveDraft(setQuickDraft, index, 1)}>↓</button><button aria-label={`${card?.label || id} 제외`} onClick={() => setQuickDraft(current => current.filter(cardId => cardId !== id))}>×</button></div></li>; })}</ol><button className="primary" disabled={boardConfigBusy === 'quick' || !quickDraft.length} onClick={() => saveBoardConfiguration('quick')}>{boardConfigBusy === 'quick' ? '저장 중…' : '빠른 표현 저장'}</button></article>}
         {canManageBoard && <article><h3>고정 카드 슬롯 <small>{slotDraft.length}/30</small></h3><p className="muted">선택한 카드만 번호 순서대로 표시되며 이용 빈도로 위치가 바뀌지 않습니다.</p><div className="config-card-options">{layoutCards.map(card => <button key={card.id} aria-pressed={slotDraft.includes(card.id)} onClick={() => toggleDraft(setSlotDraft, slotDraft, card.id, 30)}>{card.symbol} {card.label}</button>)}</div><ol className="config-order-list">{slotDraft.map((id, index) => { const card = layoutCardsById.get(id); return <li key={id}><span>슬롯 {index + 1} · {card?.symbol} {card?.label || id}</span><div><button aria-label={`${card?.label || id} 앞으로`} disabled={index === 0} onClick={() => moveDraft(setSlotDraft, index, -1)}>↑</button><button aria-label={`${card?.label || id} 뒤로`} disabled={index === slotDraft.length - 1} onClick={() => moveDraft(setSlotDraft, index, 1)}>↓</button><button aria-label={`${card?.label || id} 제외`} onClick={() => setSlotDraft(current => current.filter(cardId => cardId !== id))}>×</button></div></li>; })}</ol><button className="primary" disabled={boardConfigBusy === 'slots' || !slotDraft.length} onClick={() => saveBoardConfiguration('slots')}>{boardConfigBusy === 'slots' ? '저장 중…' : '카드판 저장'}</button></article>}
-      </div>}
+      </fieldset>}
       <article className="board-audit"><h3>최근 구성 변경</h3>{boardLayoutAudit.length ? <ul>{boardLayoutAudit.slice(0, 10).map(item => <li key={item.id}><span>{({ recovery_expressions_changed: '복구 표현 변경', quick_expressions_changed: '빠른 표현 변경', board_slots_changed: '카드 슬롯 변경' })[item.action] || item.action} · 변경자 {item.actor_id}</span><time>{new Date(item.created_at).toLocaleString('ko-KR')}</time></li>)}</ul> : <p className="muted">아직 변경 기록이 없습니다.</p>}</article>
     </section> : tab === 'support_settings' && isSupporter && canManageVoice ? <section className="support-settings-panel">
       <div className="panel-heading"><span aria-hidden="true">♿</span><div><h2>음성·접근 설정</h2><p className="muted">{selectedUser?.name} 사용자에게 적용할 설정입니다.</p></div></div>

@@ -154,6 +154,13 @@ HTTP 500은 일반 안내만 반환하고 내부 예외 문구를 응답에 포�
 | 추천 | GET | `/api/recommendations` | 필요 | 사용자별 추천 카드 조회 |
 | 통계 | GET | `/api/dashboard` | 필요 | 본인 또는 연결 사용자 이용 통계 조회 |
 
+카드판 조회·저장 응답은 `revision`을 포함한다. 세 PUT API는 `expected_revision`을 필수로
+받으며 현재 버전과 다르거나 동시 저장에 뒤진 요청에는 `409`를 반환한다. 버전 누락·음수는
+`422`다. 신규·버전 없는 기존 문서의 조회 버전은 0이며 성공 저장마다 1 증가한다.
+예: 슬롯 저장 본문은 `{"card_ids":["help","water"],"expected_revision":0}`이다.
+감사 이력에는 `before_revision`·`after_revision`이 추가되며 과거 이력은 null일 수 있다.
+UI 동작과 배포 호환 조건은 [카드판 동시 수정 정책](../policies/BOARD_CONFLICT_POLICY.md)을 따른다.
+
 # 4. 데이터 모델
 
 ## 4.1 User

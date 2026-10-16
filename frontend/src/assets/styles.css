@@ -729,7 +729,7 @@ footer { color: #9aa0aa; }
 .privacy-connect fieldset { grid-column: 1 / -1; margin: 0; padding: 12px; border: 1px solid #e0e6eb; border-radius: 12px; }
 .privacy-connect legend { padding: 0 6px; font-size: .8rem; font-weight: 800; }
 .privacy-audit span small { display: block; margin-top: 3px; color: #858c96; font-size: .72rem; }
-.board-config-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
+.board-config-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin: 18px 0 0; padding: 0; border: 0; min-width: 0; }
 .board-config-grid > article, .board-audit { padding: 20px; border: 1px solid #e4e9ed; border-radius: 18px; background: #fff; }
 .board-config-grid h3 { margin: 0; }
 .board-config-grid h3 small { color: #858c96; }
