@@ -22,7 +22,7 @@ test('learning sessions resume and completed attempts sync with the same request
   assert.match(store, /keyPath: 'request_id'/);
   assert.match(app, /restoreLearningSession/);
   assert.match(app, /request_id: snapshot\.requestId/);
-  assert.match(app, /await request\('\/learning\/attempts'/);
+  assert.match(app, /offlineSync\.sync\(account\.id/);
   assert.match(app, /pending_sync: true/);
 });
 

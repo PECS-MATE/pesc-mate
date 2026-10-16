@@ -9,11 +9,12 @@ import { localKoreanVoices as installedKoreanVoices, selectTtsVoice } from "./se
 import { createRequestId } from "./services/requestId";
 import { createCoreSpeechCache } from './services/coreSpeech';
 import { createSpeechPlayback } from './services/speechPlayback';
+import { createOfflineSync } from './services/offlineSync';
 import {
   cacheAccount, cachedAccount, cacheLearningGame, cachedLearningGame, cacheLearningState,
   cachedLearningState, cacheSnapshot, cachedSnapshot, clearCachedAccount, clearLearningGame,
   clearOfflineUserData, pendingLearningAttempts, pendingOfflineEvents, queueLearningAttempt,
-  queueOfflineEvent, removeLearningAttempts, removeOfflineEvents,
+  queueOfflineEvent,
 } from "./services/offlineStore";
 const CARD_IMAGE_MODULES = import.meta.glob('./assets/cards/*.png', {
   eager: true,
@@ -104,6 +105,8 @@ async function cacheAccountForOffline(account, expiresAt) {
 
 function App() {
   const [user, setUser] = useState(null);
+  const activeUserRef = useRef(null);
+  activeUserRef.current = user;
   const [showProfile, setShowProfile] = useState(false);
   const [profileNotice, setProfileNotice] = useState('');
   const [authReady, setAuthReady] = useState(false);
@@ -158,6 +161,8 @@ function App() {
   const [coreSpeechCache] = useState(() => createCoreSpeechCache());
   const [coreSpeechStatus, setCoreSpeechStatus] = useState({ status: 'preparing', ready: 0, saved: 0, total: 0 });
   const [coreSpeechRetry, setCoreSpeechRetry] = useState(0);
+  const [offlineSync] = useState(() => createOfflineSync());
+  const [syncState, setSyncState] = useState('idle');
   const [ttsVoices, setTtsVoices] = useState([]);
   const [ttsSettings, setTtsSettings] = useState(DEFAULT_TTS_SETTINGS);
   const [ttsSettingsBusy, setTtsSettingsBusy] = useState(false);
@@ -285,43 +290,32 @@ function App() {
   }
 
   async function syncPendingEvents(account = user) {
-    if (!account || account.role !== 'user' || !navigator.onLine) return;
-    const [events, attempts] = await Promise.all([
-      pendingOfflineEvents(account.id).catch(() => []),
-      pendingLearningAttempts(account.id).catch(() => []),
-    ]);
-    setPendingSyncCount(events.length + attempts.length);
-    if (events.length) {
-      try {
-        const result = await request('/offline/events/sync', {
-          method: 'POST', body: JSON.stringify({ events: events.map(({ user_id: _userId, ...event }) => event) }),
-        });
-        await removeOfflineEvents(result.accepted_ids);
-      } catch { /* Retry with the same UUIDs on the next online event. */ }
-    }
-    const syncedAttempts = [];
-    for (const queued of attempts) {
-      const { user_id: _userId, ...attempt } = queued;
-      try {
-        await request('/learning/attempts', { method: 'POST', body: JSON.stringify(attempt) });
-        syncedAttempts.push(attempt.request_id);
-      } catch { /* Each learning request keeps its UUID and retries after the next reconnect. */ }
-    }
-    await removeLearningAttempts(syncedAttempts).catch(() => {});
-    if (syncedAttempts.length) {
+    if (!account || account.role !== 'user' || activeUserRef.current?.id !== account.id || !navigator.onLine) return;
+    const session = localStorage.getItem('pesc-mate-token');
+    const isCurrent = () => Boolean(session) && activeUserRef.current?.id === account.id
+      && localStorage.getItem('pesc-mate-token') === session;
+    setSyncState('syncing');
+    try {
+      const result = await offlineSync.sync(account.id, { scope: session, isCurrent });
+      if (result.cancelled || !isCurrent()) return;
+      setPendingSyncCount(result.remaining);
+      setSyncState(result.failed ? 'failed' : 'idle');
+      if (!result.syncedAttemptIds.length) return;
       setLearningGame(current => current?.attempt?.pending_sync &&
-        syncedAttempts.includes(current.attempt.request_id)
+        result.syncedAttemptIds.includes(current.attempt.request_id)
         ? { ...current, attempt: { ...current.attempt, pending_sync: false } }
         : current);
       try {
         const progress = await request('/learning/progress?days=30');
+        if (!isCurrent()) return;
         setLearningProgress(progress);
         if (learningSettings) cacheLearningState(account.id, {
           settings: learningSettings, progress,
         }).catch(() => {});
       } catch { /* The queued attempts are already safe; refresh progress on the next visit. */ }
+    } catch {
+      if (isCurrent()) setSyncState('failed');
     }
-    await updatePendingSyncCount(account.id);
   }
 
   function primeOfflineAssets() {
@@ -521,7 +515,7 @@ function App() {
     clearBoard(user?.id);
     await clearCachedAccount().catch(() => {});
     if (user?.id) await clearOfflineUserData(user.id).catch(() => {});
-    setToken(null); setUser(null); setLoaded(false); setShowProfile(false); setProfileNotice('');
+    setToken(null); setUser(null); setLoaded(false); setShowProfile(false); setProfileNotice(''); setSyncState('idle'); setPendingSyncCount(0);
     [...cards, ...recommended, ...adminSubmissions].forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); });
     setCards([]); setCardCategories([]); setRecommended([]); setStats(null); setBoard([]); setCardSubmissions([]); setAdminSubmissions([]); setAdminCategories([]); setCategoryEdits({}); setCategoryError(''); setLinkedUsers([]); setSelectedUser(null); setBoardLayout(null); setBoardLayoutAudit([]); setQuickDraft([]); setRecoveryDraft([]); setSlotDraft([]); setLearningSettings(null); setLearningProgress(null); setLearningGame(null); setPracticeCategory('all'); setText(''); setGeneratedSessionId(''); setGenerationAttempt(1); setSentenceConfirmed(false); setGenerationFailed(false); setError(''); setTab('home');
     setTtsSettings(DEFAULT_TTS_SETTINGS); setTtsSettingsSaved(false); setAccessibility(DEFAULT_ACCESSIBILITY); setAccessibilitySaved(true); setPrivacy(DEFAULT_PRIVACY); setPrivacyCaregivers([]); setPrivacyAudit([]); setSpeechFailure(null); setLastUtterance(null); setLastSentence(null); setBusy(false);
@@ -1295,6 +1289,7 @@ function App() {
       {profileNotice && <p role="status">{profileNotice}</p>}
       <header className="topbar"><div><p className="eyebrow">오늘은 {todayLabel}</p><h1>{pageTitle}</h1></div><div className="topbar-statuses"><span className={`status${offline ? ' offline' : ''}`}><b className={!offline && loaded ? 'online' : ''}></b>{offline ? '오프라인 사용 중' : loaded ? '서비스 연결됨' : '연결 대기'}</span>{speechActive && <div className={`speech-player ${speechState.status}`} role="status" aria-live="polite"><span><b aria-hidden="true">🔊</b><strong>{speechStatusLabel}</strong><small title={speechState.content}>{speechState.content}</small></span>{speechState.status === 'playing' && <button type="button" onClick={pauseSpeech}>일시 정지</button>}{speechState.status === 'paused' && <button type="button" onClick={resumeSpeech}>재개</button>}<button type="button" onClick={stopSpeech}>중지</button></div>}</div></header>
       {offline && <p className="offline-notice" role="status">인터넷 연결 없이 저장된 카드를 사용 중입니다. 즉시 발화와 선택 카드 그대로 발화는 계속 사용할 수 있습니다.{localKoreanVoices.length ? ` 기기에 저장된 한국어 음성 ${localKoreanVoices.length}개를 확인했습니다.` : ' 한국어 음성이 재생되지 않으면 기기 설정에서 음성 데이터를 설치해 주세요.'}{pendingSyncCount ? ` 재연결 후 동기화할 이력 ${pendingSyncCount}건이 있습니다.` : ''}</p>}
+      {user.role === 'user' && !offline && (pendingSyncCount > 0 || syncState === 'failed') && <div className="offline-notice" data-testid="sync-status"><span role="status">{syncState === 'syncing' ? `기기에 저장한 기록 ${pendingSyncCount}건을 동기화하고 있어요.` : syncState === 'failed' ? `저장한 기록을 모두 전송하지 못했어요. 남은 ${pendingSyncCount}건은 기기에 보관됩니다.` : `동기화할 기록 ${pendingSyncCount}건이 기기에 있습니다.`}</span> <button type="button" disabled={syncState === 'syncing'} onClick={() => syncPendingEvents(user)}>기록 동기화 다시 시도</button></div>}
       {user.role === 'user' && <section className="recovery-speech" aria-labelledby="recovery-speech-title" data-scan-group="recovery-speech"><div><strong id="recovery-speech-title">다시 말하기·고치기</strong><small>잘못 전했을 때 바로 말해요</small></div>{recoveryExpressions.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 복구 표현 말하기`} onClick={() => speakText(item.label, 'recovery')}>{expressionVisual(item)}{item.label}</button>)}<button disabled={!lastUtterance || speechState.status === 'starting'} onClick={() => lastUtterance && speakText(lastUtterance.content, lastUtterance.contentType, lastUtterance.cardIds)}><span aria-hidden="true">🔊</span>마지막 말 다시 듣기</button><button disabled={!board.length && !text} onClick={() => updateBoard([])}><span aria-hidden="true">⌫</span>현재 문장 취소</button><button disabled={!lastSentence} onClick={restoreLastSentence}><span aria-hidden="true">↶</span>직전 문장 불러오기</button></section>}
       {user.role === 'user' && <section className="quick-speech" aria-labelledby="quick-speech-title" data-scan-group="quick-speech"><div><strong id="quick-speech-title">빠른 표현</strong><small>누르면 바로 말해요</small></div>{quickExpressionCards.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 바로 말하기`} onClick={() => speakText(item.label, 'card', [item.id])}>{expressionVisual(item)}{item.label}</button>)}</section>}
       {user.role === 'user' && <div className="core-speech-status" data-testid="core-speech-status">

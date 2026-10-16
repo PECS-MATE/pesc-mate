@@ -87,22 +87,64 @@ test('발화 기록 동기화 실패 후 원문 없이 같은 이벤트를 재�
   expect(Object.keys(queued).sort()).toEqual(['card_ids', 'event_type', 'id', 'occurred_at', 'user_id']);
   expect(queued.card_ids).toEqual(['help']);
   const batches = [];
+  let allowSync = false;
   await page.route('**/api/offline/events/sync', async route => {
     batches.push(route.request().postDataJSON());
-    if (batches.length === 1) await route.fulfill({ status: 503, json: { detail: '일시적인 연결 실패' } });
+    if (!allowSync) await route.fulfill({ status: 503, json: { detail: '일시적인 연결 실패' } });
     else await route.continue();
   });
   await page.evaluate(() => window.dispatchEvent(new Event('online')));
-  await expect.poll(() => batches.length).toBe(1);
+  const retry = page.getByTestId('sync-status').getByRole('button', { name: '기록 동기화 다시 시도' });
+  await expect(retry).toBeEnabled();
+  await expect(page.getByTestId('sync-status')).toContainText('남은 1건은 기기에 보관됩니다.');
   expect(await offlineValue(page, 'events')).toHaveLength(1);
-  await page.evaluate(() => window.dispatchEvent(new Event('online')));
-  await expect.poll(async () => (await offlineValue(page, 'events')).length).toBe(0);
-  expect(batches[1]).toEqual(batches[0]);
-  const response = await request.post(apiPath('/offline/events/sync'), { headers: communicator.headers, data: batches[1] });
+  allowSync = true;
+  const acknowledged = page.waitForResponse(response => new URL(response.url()).pathname === '/api/offline/events/sync' && response.status() === 200);
+  await retry.click();
+  await acknowledged;
+  await expect.poll(async () => (await offlineValue(page, 'events')).length, { timeout: 20000 }).toBe(0);
+  expect(batches.length).toBeGreaterThanOrEqual(2);
+  expect(batches.every(batch => JSON.stringify(batch) === JSON.stringify(batches[0]))).toBe(true);
+  const response = await request.post(apiPath('/offline/events/sync'), { headers: communicator.headers, data: batches.at(-1) });
   expect(response.ok()).toBe(true);
   const exported = await (await request.get(apiPath('/privacy/export'), { headers: communicator.headers })).json();
   expect(exported.offline_events).toHaveLength(1);
   expect(exported.offline_events[0]._id).toBe(queued.id);
+});
+
+test('205건의 오프라인 이력을 API 한도에 맞춰 나누어 전송한다', async ({ page, request, communicator }) => {
+  await login(page, communicator);
+  await expect.poll(async () => Boolean(await offlineValue(page, 'snapshots', communicator.id))).toBe(true);
+  await page.evaluate(async userId => {
+    const database = await new Promise((resolve, reject) => {
+      const open = indexedDB.open('pesc-mate-offline');
+      open.onsuccess = () => resolve(open.result);
+      open.onerror = () => reject(open.error);
+    });
+    try {
+      await new Promise((resolve, reject) => {
+        const transaction = database.transaction('events', 'readwrite');
+        const store = transaction.objectStore('events');
+        for (let index = 0; index < 205; index += 1) store.put({
+          id: crypto.randomUUID(), user_id: userId, event_type: 'immediate_speech', card_ids: ['help'],
+          occurred_at: new Date(Date.now() - index * 1000).toISOString(),
+        });
+        transaction.oncomplete = resolve;
+        transaction.onerror = () => reject(transaction.error);
+      });
+    } finally { database.close(); }
+  }, communicator.id);
+  const batches = [];
+  await page.route('**/api/offline/events/sync', async route => {
+    batches.push(route.request().postDataJSON().events);
+    await route.continue();
+  });
+  await page.evaluate(() => { window.dispatchEvent(new Event('online')); window.dispatchEvent(new Event('online')); });
+  await expect.poll(async () => (await offlineValue(page, 'events')).length, { timeout: 20000 }).toBe(0);
+  expect(batches.map(batch => batch.length)).toEqual([100, 100, 5]);
+  const exported = await (await request.get(apiPath('/privacy/export'), { headers: communicator.headers })).json();
+  expect(exported.offline_events).toHaveLength(205);
+  expect(new Set(exported.offline_events.map(event => event._id)).size).toBe(205);
 });
 
 test('보호자가 등록한 개인 PNG 카드를 고정 카드판에 배치하면 아동 화면에 반영된다', async ({ page, request, communicator }) => {
