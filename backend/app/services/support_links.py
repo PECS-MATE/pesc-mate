@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from pymongo.errors import PyMongoError
 
 from app.services.database import database as _database, log_crud
+from app.services.schema_versions import SCHEMA_VERSION
 
 
 SUPPORT_ROLES = {'caregiver', 'support_staff'}
@@ -165,7 +166,7 @@ def grant_support(user_id, supporter_username, permissions, actor_id):
                 'permissions': permissions,
                 'active': True,
                 'updated_at': now,
-            }, '$setOnInsert': {'created_at': now}},
+            }, '$setOnInsert': {'schema_version': SCHEMA_VERSION, 'created_at': now}},
             upsert=True,
         )
         _audit(database, user_id, actor_id, 'support_permissions_changed' if before else 'support_granted',
@@ -224,6 +225,7 @@ def revoke_support(user_id, supporter_id, actor_id):
 
 def _audit(database, user_id, actor_id, action, supporter_id, before, after):
     database.privacy_audit_logs.insert_one({
+        'schema_version': SCHEMA_VERSION,
         '_id': str(uuid4()),
         'user_id': user_id,
         'actor_id': actor_id,

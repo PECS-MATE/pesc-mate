@@ -5,6 +5,7 @@ from fastapi import HTTPException
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from app.services.database import database as _database, log_crud
+from app.services.schema_versions import SCHEMA_VERSION
 
 
 def sync_events(user_id, events, observation=None):
@@ -23,6 +24,7 @@ def sync_events(user_id, events, observation=None):
                 result = collection.update_one(
                     {'_id': event_id, 'user_id': user_id},
                     {'$setOnInsert': {
+                        'schema_version': SCHEMA_VERSION,
                         'user_id': user_id, 'event_type': event['event_type'],
                         'card_ids': event['card_ids'], 'occurred_at': occurred_at,
                     }},

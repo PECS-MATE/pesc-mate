@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from app.services.database import database as _database, log_crud
+from app.services.schema_versions import SCHEMA_VERSION
 
 
 ACTIVITY_TYPES = {'word_picture_match'}
@@ -58,7 +59,7 @@ def save_settings(user_id, actor_id, category_ids, question_count, option_count,
         database.learning_settings.update_one(
             {'_id': user_id},
             {'$set': values | {'user_id': user_id, 'updated_at': now, 'updated_by': actor_id},
-             '$setOnInsert': {'created_at': now}},
+             '$setOnInsert': {'schema_version': SCHEMA_VERSION, 'created_at': now}},
             upsert=True,
         )
         _audit(database, user_id, actor_id, 'learning_settings_changed', before, values)
@@ -80,6 +81,7 @@ def record_attempt(user_id, request_id, activity_type, category_id,
         raise HTTPException(422, '문제별 결과와 전체 학습 결과가 일치하지 않습니다.')
     now = datetime.now(timezone.utc)
     document = {
+        'schema_version': SCHEMA_VERSION,
         '_id': request_id,
         'user_id': user_id,
         'record_type': 'learning_attempt',
@@ -205,6 +207,7 @@ def audit_for(user_id):
 
 def _audit(database, user_id, actor_id, action, before, after):
     database.learning_audit_logs.insert_one({
+        'schema_version': SCHEMA_VERSION,
         '_id': str(uuid4()), 'target_user_id': user_id, 'actor_id': actor_id,
         'action': action, 'before': before, 'after': after,
         'created_at': datetime.now(timezone.utc),

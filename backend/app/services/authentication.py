@@ -9,6 +9,7 @@ from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pymongo.errors import DuplicateKeyError, PyMongoError
 from app.services.database import database as _database, log_crud
+from app.services.schema_versions import SCHEMA_VERSION
 from app.services.login_throttle import clear_login_failures, ensure_login_allowed, record_login_failure
 
 SESSION_HOURS = 12
@@ -54,7 +55,7 @@ def _ensure_user(username, password, name, role, account_permissions=None):
     database.users.update_one(
         {'_id': username},
         {'$set': profile,
-         '$setOnInsert': {'password_salt': salt, 'password_hash': password_hash,
+         '$setOnInsert': {'schema_version': SCHEMA_VERSION, 'password_salt': salt, 'password_hash': password_hash,
                           'created_at': datetime.now(timezone.utc)}},
         upsert=True,
     )
@@ -97,7 +98,7 @@ def ensure_demo_users():
                       'permissions': ['records_read', 'notes_write', 'cards_manage', 'quick_speech_manage',
                                       'board_manage', 'voice_access_manage', 'learning_manage'],
                       'active': True},
-             '$setOnInsert': {'created_at': datetime.now(timezone.utc)}},
+             '$setOnInsert': {'schema_version': SCHEMA_VERSION, 'created_at': datetime.now(timezone.utc)}},
             upsert=True,
         )
         log_crud('UPDATE', 'caregiver_links', '데모 사용자 최초 연결')
@@ -124,6 +125,7 @@ def login(username, password, client_ip=None):
         token = secrets.token_urlsafe(32)
         expires_at = datetime.now(timezone.utc) + timedelta(hours=SESSION_HOURS)
         database.auth_sessions.insert_one({
+            'schema_version': SCHEMA_VERSION,
             '_id': hashlib.sha256(token.encode()).hexdigest(),
             'user_id': str(user['_id']),
             'expires_at': expires_at,
@@ -148,6 +150,7 @@ def register(username, password, name):
             raise HTTPException(409, '이미 사용 중인 아이디입니다.')
         salt, password_hash = _password_hash(password)
         database.users.insert_one({
+            'schema_version': SCHEMA_VERSION,
             '_id': username,
             'username': username,
             'name': name,

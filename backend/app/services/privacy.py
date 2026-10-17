@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from pymongo.errors import PyMongoError
 
 from app.services.database import database as _database, log_crud
+from app.services.schema_versions import SCHEMA_VERSION
 
 
 CONSENT_VERSION = '2026-10-09'
@@ -51,7 +52,7 @@ def save_privacy(user_id, guardian_consent, retention_days):
         database.privacy_settings.update_one(
             {'_id': user_id},
             {'$set': settings | {'updated_at': now},
-             '$setOnInsert': {'user_id': user_id, 'created_at': now}},
+             '$setOnInsert': {'schema_version': SCHEMA_VERSION, 'user_id': user_id, 'created_at': now}},
             upsert=True,
         )
         cutoff = now - timedelta(days=retention_days)
@@ -140,7 +141,7 @@ def delete_personal_data(user_id):
             'deletion_status': 'completed', 'deleted_at': now, 'updated_at': now,
         }
         database.privacy_settings.update_one(
-            {'_id': user_id}, {'$set': receipt, '$setOnInsert': {'user_id': user_id, 'created_at': now}},
+            {'_id': user_id}, {'$set': receipt, '$setOnInsert': {'schema_version': SCHEMA_VERSION, 'user_id': user_id, 'created_at': now}},
             upsert=True,
         )
         _audit(database, user_id, user_id, 'personal_data_deleted', None)
@@ -152,6 +153,7 @@ def delete_personal_data(user_id):
 
 def _audit(database, user_id, actor_id, action, target_id):
     database.privacy_audit_logs.insert_one({
+        'schema_version': SCHEMA_VERSION,
         '_id': str(uuid4()), 'user_id': user_id, 'actor_id': actor_id,
         'action': action, 'target_id': target_id, 'created_at': datetime.now(timezone.utc),
     })

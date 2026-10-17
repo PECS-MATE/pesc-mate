@@ -302,7 +302,7 @@ TTS 지표 증빙: `backend/app/services/tts_metrics.py`와 `/api/admin/tts-metr
 
 ### A1-03. 데이터 일관성과 동기화
 
-- [ ] 데이터 모델 버전 필드와 마이그레이션 실행 규칙
+- [x] 데이터 모델 버전 필드와 마이그레이션 실행 규칙
 - [ ] 마이그레이션 전 백업과 실패 시 되돌리기 절차
 - [x] 사용자, 연결, 카드, 이력의 주요 조회 조건별 MongoDB 인덱스
 - [x] 보호자와 담당자의 동시 보드 수정 충돌 정책
@@ -313,6 +313,14 @@ TTS 지표 증빙: `backend/app/services/tts_metrics.py`와 `/api/admin/tts-metr
 - [ ] 감사 로그 보관 기간과 위변조 방지 방식
 
 완료 기준: 재연결과 동시 수정 후에도 카드 위치, 설정, 이력이 중복되거나 조용히 덮어써지지 않는다.
+
+데이터 버전 증빙: 신규 MongoDB 문서의 `schema_version=1`과 기존 누락/정수 0의
+명시적 기준선 도구를 `backend/app/services/schema_versions.py`·`app/migrations.py`에
+구현한다. 기본 조회 전용, 대상 DB·쓰기 중단·백업 참조 확인, 고정 잠금·분할·재개와
+미래/잘못된 버전 차단을 단위·임시 DB 통합 시험으로 검증한다. 기존 로컬 DB에는
+조회 전용 확인만 수행했고 일괄 적용하지 않았다. 실행 규칙·미구현 범위는
+[데이터 버전·마이그레이션](../development/DATA_SCHEMA_MIGRATIONS.md)을 따른다.
+백업·복원 리허설·되돌리기 절차는 별도 미완료 항목으로 유지한다.
 
 동기화 증빙: `frontend/test/offline-sync.test.mjs`에서 205건 분할·발생 순서·부분 승인·
 실패 재시도·동시 재연결·계정 전환 중단을 검증한다. `frontend/e2e/workflows.spec.js`에서

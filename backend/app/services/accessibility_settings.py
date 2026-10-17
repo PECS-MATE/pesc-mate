@@ -5,6 +5,7 @@ from fastapi import HTTPException
 from pymongo.errors import PyMongoError
 
 from app.services.database import database as _database, log_crud
+from app.services.schema_versions import SCHEMA_VERSION
 
 
 DEFAULT_SETTINGS = {
@@ -35,7 +36,7 @@ def save_settings(user_id, settings):
         _database().accessibility_settings.update_one(
             {'_id': user_id},
             {'$set': saved | {'updated_at': now},
-             '$setOnInsert': {'user_id': user_id, 'created_at': now}},
+             '$setOnInsert': {'schema_version': SCHEMA_VERSION, 'user_id': user_id, 'created_at': now}},
             upsert=True,
         )
         log_crud('UPDATE', 'accessibility_settings', '사용자 접근 설정 저장')

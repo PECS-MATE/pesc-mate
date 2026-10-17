@@ -12,6 +12,7 @@ from pymongo.errors import DuplicateKeyError, OperationFailure, PyMongoError
 
 from app.services.card_metadata import with_inferred_metadata
 from app.services.database import database, log_crud
+from app.services.schema_versions import SCHEMA_VERSION
 from app.services.categories import active_category_names
 from app.services.image_safety import check_image_safety
 from app.services.language_review import review_language
@@ -163,6 +164,7 @@ def create_submission(owner_id, label, meaning, category, visibility,
 
     normalized_label = _compact_text(label)
     document = {
+        'schema_version': SCHEMA_VERSION,
         '_id': str(uuid4()),
         'label': label,
         'normalized_label': normalized_label,
@@ -188,6 +190,7 @@ def create_submission(owner_id, label, meaning, category, visibility,
         _ensure_unique_label(collection, normalized_label, owner_id, visibility)
         collection.insert_one(document)
         _audit_collection().insert_one({
+            'schema_version': SCHEMA_VERSION,
             '_id': str(uuid4()), 'card_submission_id': document['_id'],
             'actor_id': actor_id,
             'action': 'private_activated' if document['status'] == 'approved' else document['status'],
@@ -248,6 +251,7 @@ def review_submission(submission_id, reviewer_id, decision, reason=''):
                    'reviewer_id': reviewer_id, 'reviewed_at': reviewed_at}
         collection.update_one({'_id': submission_id, 'status': document['status']}, {'$set': changes})
         _audit_collection().insert_one({
+            'schema_version': SCHEMA_VERSION,
             '_id': str(uuid4()), 'card_submission_id': submission_id,
             'actor_id': reviewer_id, 'action': decision,
             'reason': reason or None, 'created_at': reviewed_at,
@@ -276,6 +280,7 @@ def submit_draft(submission_id, owner_id, actor_id=None):
         collection.update_one({'_id': submission_id, 'owner_id': owner_id, 'status': 'draft'},
                               {'$set': changes})
         _audit_collection().insert_one({
+            'schema_version': SCHEMA_VERSION,
             '_id': str(uuid4()), 'card_submission_id': submission_id,
             'actor_id': actor_id,
             'action': 'private_activated' if next_status == 'approved' else 'pending',
@@ -324,6 +329,7 @@ def update_submission(submission_id, owner_id, label, meaning, category, visibil
         collection.update_one({'_id': submission_id, 'owner_id': owner_id,
                                'status': document['status']}, {'$set': changes})
         _audit_collection().insert_one({
+            'schema_version': SCHEMA_VERSION,
             '_id': str(uuid4()), 'card_submission_id': submission_id,
             'actor_id': actor_id, 'action': 'updated',
             'reason': None, 'created_at': updated_at,

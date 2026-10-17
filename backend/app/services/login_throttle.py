@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException
 
 from app.services.database import database as _database, log_crud
+from app.services.schema_versions import SCHEMA_VERSION
 
 
 def _max_failures():
@@ -48,7 +49,8 @@ def record_login_failure(username, client_ip, now=None):
         collection.delete_one({'_id': key, 'expires_at': attempt['expires_at']})
     collection.update_one(
         {'_id': key},
-        {'$inc': {'failures': 1}, '$set': {'expires_at': now + _lock_window()}},
+        {'$inc': {'failures': 1}, '$set': {'expires_at': now + _lock_window()},
+         '$setOnInsert': {'schema_version': SCHEMA_VERSION}},
         upsert=True,
     )
     log_crud('UPDATE', 'login_attempts', '로그인 실패 기록')

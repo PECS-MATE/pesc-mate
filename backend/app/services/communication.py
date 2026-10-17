@@ -8,6 +8,7 @@ from fastapi import HTTPException
 from pymongo.errors import DuplicateKeyError, PyMongoError
 from app.services.card_metadata import with_inferred_metadata
 from app.services.database import database, log_crud
+from app.services.schema_versions import SCHEMA_VERSION
 from app.services.model import generate_sentence, status as model_status
 from app.services.sentence_policy import policy_versions
 from app.services.sentence_validation import validate_safety, validate_semantics
@@ -116,6 +117,7 @@ def _collection():
 
 def _public(document):
     result = dict(document)
+    result.pop('schema_version', None)
     result['id'] = str(result.pop('_id'))
     created_at = result.get('created_at')
     if isinstance(created_at, datetime):
@@ -251,7 +253,7 @@ def save_session(request, user_id, custom_cards=None, regeneration_of=None, gene
                 'reasons': fallback_reasons,
             },
         }
-        document = {'_id': request_id, 'user_id': user_id, 'cards': card_ids, 'card_metadata': snapshots,
+        document = {'schema_version': SCHEMA_VERSION, '_id': request_id, 'user_id': user_id, 'cards': card_ids, 'card_metadata': snapshots,
                     'sentence': result,
                     'generation_source': generation_source, 'generation': generation,
                     'regeneration_of': regeneration_of, 'generation_attempt': generation_attempt,
@@ -373,7 +375,7 @@ def ensure_demo_history(user_id):
     for request_id, cards, days_ago in samples:
         collection.update_one(
             {'_id': request_id},
-            {'$setOnInsert': {'user_id': user_id, 'cards': cards, 'sentence': sentence(cards),
+            {'$setOnInsert': {'schema_version': SCHEMA_VERSION, 'user_id': user_id, 'cards': cards, 'sentence': sentence(cards),
                               'created_at': now - timedelta(days=days_ago), 'source': 'demo'}},
             upsert=True,
         )

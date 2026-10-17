@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from app.services.database import database, log_crud
+from app.services.schema_versions import SCHEMA_VERSION
 
 DEFAULT_CATEGORIES = [
     {'id': 'people', 'name': '사람', 'display_order': 1, 'active': True},
@@ -27,6 +28,7 @@ def _collection():
 
 def _public(document):
     result = dict(document)
+    result.pop('schema_version', None)
     result['id'] = str(result.pop('_id'))
     return result
 
@@ -38,7 +40,7 @@ def ensure_default_categories(collection=None):
         return
     collection.create_index('name', unique=True)
     for category in DEFAULT_CATEGORIES:
-        document = dict(category)
+        document = {'schema_version': SCHEMA_VERSION, **category}
         category_id = document.pop('id')
         collection.update_one({'_id': category_id}, {'$setOnInsert': document}, upsert=True)
     log_crud('CREATE', 'card_categories', '기본 카테고리 초기화')
@@ -82,7 +84,7 @@ def create_category(name, display_order):
     try:
         collection = _collection()
         ensure_default_categories(collection)
-        document = {'_id': str(uuid4()), 'name': name, 'display_order': display_order, 'active': True}
+        document = {'schema_version': SCHEMA_VERSION, '_id': str(uuid4()), 'name': name, 'display_order': display_order, 'active': True}
         collection.insert_one(document)
         log_crud('CREATE', 'card_categories', '카테고리 추가')
         return _public(document)

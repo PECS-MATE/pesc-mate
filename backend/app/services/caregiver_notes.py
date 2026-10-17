@@ -5,6 +5,7 @@ from fastapi import HTTPException
 from pymongo.errors import PyMongoError
 
 from app.services.database import database as _database, log_crud
+from app.services.schema_versions import SCHEMA_VERSION
 
 
 def _ensure_session(database, session_id, user_id):
@@ -23,7 +24,7 @@ def save_note(caregiver_id, user_id, session_id, content):
             {'_id': note_id},
             {'$set': {'caregiver_id': caregiver_id, 'user_id': user_id, 'session_id': session_id,
                       'content': content, 'updated_at': now},
-             '$setOnInsert': {'created_at': now}},
+             '$setOnInsert': {'schema_version': SCHEMA_VERSION, 'created_at': now}},
             upsert=True,
         )
         log_crud('UPDATE', 'caregiver_notes', '보호자 메모 저장')

@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from app.services.database import database as _database, log_crud
+from app.services.schema_versions import SCHEMA_VERSION
 
 
 DEFAULT_QUICK_IDS = ['hurt', 'no', 'help', 'toilet', 'stop']
@@ -128,7 +129,7 @@ def _save(user_id, actor_id, field, value, action, expected_revision):
                    'updated_by': actor_id, 'revision': revision + 1}
         if before_document is None:
             # Competing first saves must conflict rather than upsert over each other.
-            database.board_layouts.insert_one({'_id': user_id, 'created_at': now, **changes})
+            database.board_layouts.insert_one({'schema_version': SCHEMA_VERSION, '_id': user_id, 'created_at': now, **changes})
         else:
             query = {'_id': user_id, 'revision': expected_revision}
             if expected_revision == 0:
@@ -137,6 +138,7 @@ def _save(user_id, actor_id, field, value, action, expected_revision):
             if result.matched_count != 1:
                 raise HTTPException(409, '다른 기기에서 카드판을 변경했습니다. 최신 구성을 불러온 뒤 다시 수정해 주세요.')
         database.board_audit_logs.insert_one({
+            'schema_version': SCHEMA_VERSION,
             '_id': str(uuid4()), 'target_user_id': user_id, 'actor_id': actor_id,
             'action': action, 'before': before, 'after': value, 'created_at': now,
             'before_revision': revision, 'after_revision': revision + 1,

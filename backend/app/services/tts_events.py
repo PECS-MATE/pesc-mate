@@ -6,6 +6,7 @@ from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from app.services.database import database as _database, log_crud
+from app.services.schema_versions import SCHEMA_VERSION
 
 
 def _public(document):
@@ -23,6 +24,7 @@ def start_event(user_id, request_id, content_type, char_count):
     try:
         now = datetime.now(timezone.utc)
         event = {
+            'schema_version': SCHEMA_VERSION,
             'id': request_id,
             'user_id': user_id,
             'content_type': content_type,

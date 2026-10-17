@@ -27,6 +27,7 @@ API, 데이터 구조, 카드·마스코트 자산과 협업 규칙을 관리한
 | [TTS 지표](development/TTS_METRICS.md) | 클라이언트 재생 결과·시작 지연, 중복 방지와 집계 분모 |
 | [오프라인 동기화 지표](development/OFFLINE_SYNC_METRICS.md) | 신규·중복·실패·미처리 집계, 기기 재시도 표시와 해석 한계 |
 | [운영 알림](development/OPERATIONAL_ALERTS.md) | 공용 카드 검수 대기·반복 실패 기준, 조회 실패와 갱신 정책 |
+| [데이터 버전·마이그레이션](development/DATA_SCHEMA_MIGRATIONS.md) | 저장 형식 기준선, 조회 전용 계획·명시적 적용·잠금·재개 규칙 |
 | [학습 기록 데이터 모델](development/LEARNING_DATA_MODEL.md) | 학습 컬렉션과 의사소통 기록의 구분 |
 | [카드 사진·단어 목록](development/CARD_PHOTO_WORD_LIST.md) | 카드 제작 기준, 이미지 표현과 제작 우선순위 |
 | [마스코트 자산](development/MASCOT_ASSET.md) | 자산 경로, 적용 위치와 생성 프롬프트 |
