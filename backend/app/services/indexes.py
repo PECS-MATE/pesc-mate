@@ -27,6 +27,8 @@ INDEXES = (
     ('caregiver_links', [('caregiver_id', ASCENDING), ('active', ASCENDING)], {'name': 'legacy_caregiver_links'}),
     ('caregiver_links', [('user_id', ASCENDING), ('active', ASCENDING)], {'name': 'user_links'}),
     ('card_submissions', [('owner_id', ASCENDING), ('created_at', DESCENDING)], {'name': 'owner_recent_submissions'}),
+    ('card_submissions', [('visibility', ASCENDING), ('status', ASCENDING), ('created_at', ASCENDING)],
+     {'name': 'shared_review_queue'}),
     ('privacy_audit_logs', [('user_id', ASCENDING), ('created_at', DESCENDING)], {'name': 'user_recent_privacy_audit'}),
     ('board_audit_logs', [('target_user_id', ASCENDING), ('created_at', DESCENDING)],
      {'name': 'target_recent_board_audit'}),

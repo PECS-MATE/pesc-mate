@@ -23,6 +23,7 @@ from app.services.caregiver_notes import delete_note, notes_for, save_note
 from app.services.tts_settings import save_settings, settings_for
 from app.services.tts_events import finish_event, start_event
 from app.services.tts_metrics import tts_report
+from app.services.operational_alerts import operational_report
 from app.services.support_links import (
     LINK_PERMISSIONS, SUPPORT_ROLES, change_support_permissions, grant_support,
     permissions_for, require_any_link_permission, require_link_permission,
@@ -73,6 +74,13 @@ def get_tts_metrics(hours: int = Query(default=24, ge=1, le=168), user=Depends(c
 def get_offline_sync_metrics(request: Request, user=Depends(current_user)):
     require_account_permission(user, 'content_manage')
     return JSONResponse(request.app.state.offline_sync_metrics.snapshot(), headers={'Cache-Control': 'no-store'})
+
+
+@api_router.get('/admin/alerts', tags=['운영'])
+def get_operational_alerts(request: Request, user=Depends(current_user)):
+    require_account_permission(user, 'content_manage')
+    return JSONResponse(operational_report(request.app.state.api_metrics, request.app.state.offline_sync_metrics),
+                        headers={'Cache-Control': 'no-store'})
 
 
 @api_router.get('/model/status', tags=['모델'])

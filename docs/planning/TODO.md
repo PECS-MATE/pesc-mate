@@ -255,7 +255,7 @@ GitHub Actions 원격 실행 결과는 다음 push/PR에서 확인한다.
 - [x] API 오류율과 응답 시간 수집
 - [x] TTS 시작 지연·실패율 수집
 - [x] 오프라인 동기화 실패·재시도·중복 제거 결과 수집
-- [ ] 공용 카드 검수 대기와 반복 실패 알림
+- [x] 공용 카드 검수 대기와 반복 실패 알림
 - [ ] 장애 등급, 확인 절차, 담당자 연락 체계 문서화
 
 구현 증빙: HTTP 요청 ID·공통 오류·CORS·스트리밍 개인정보 비노출은
@@ -267,7 +267,7 @@ API 지표 증빙: `backend/app/services/api_metrics.py`가 개별 요청 없이
 4xx·5xx·전송 오류와 지연 분포를 메모리에 집계한다. `/api/admin/metrics`는 운영 권한
 계정에만 제공하고 재시작 시 초기화한다. `backend/tests/test_api_metrics.py`와
 `frontend/e2e/api-metrics.spec.js`에서 권한·개인정보 비노출·만료·동시 요청을 검증한다.
-장기 보관·다중 프로세스 집계·자동 알림은 이번 구현 범위에 포함하지 않는다.
+장기 보관·다중 프로세스 집계·외부 통보는 이번 구현 범위에 포함하지 않는다.
 자세한 정의는 [API 지표](../development/API_METRICS.md)를 따른다.
 
 TTS 지표 증빙: `backend/app/services/tts_metrics.py`와 `/api/admin/tts-metrics`가
@@ -284,6 +284,13 @@ TTS 지표 증빙: `backend/app/services/tts_metrics.py`와 `/api/admin/tts-metr
 `offline-sync.test.mjs`, 실제 DB·브라우저 검증은 `offline-sync-metrics.spec.js`에서
 수행한다. 서버 미도착·기기 저장 오류의 집계 한계는
 [오프라인 동기화 지표](../development/OFFLINE_SYNC_METRICS.md)에 명시한다.
+
+운영 알림 증빙: `backend/app/services/operational_alerts.py`와 `/api/admin/alerts`가
+공용 카드 대기와 API·음성·동기화 반복 실패를 집계해 안내한다. `OperationalAlerts.jsx`는
+운영 계정에만 표시하고 조회 실패·이전 결과를 구분하며 검수 후 알림을 갱신한다.
+단위·컴포넌트 검증과 `frontend/e2e/operational-alerts.spec.js`에서 권한·임계값·조회
+실패·실제 카드 승인·좁은 화면의 숫자 비겹침을 확인한다. 초기 기준과 외부 통보가
+아닌 화면 안내라는 한계는 [운영 알림](../development/OPERATIONAL_ALERTS.md)에 기록한다.
 
 완료 기준: 장애가 발생했을 때 요청 하나를 추적할 수 있고, 선택형 AI 장애와 필수 의사소통 장애를 구분할 수 있다.
 

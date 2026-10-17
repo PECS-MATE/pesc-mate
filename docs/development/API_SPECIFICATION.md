@@ -111,6 +111,7 @@ HTTP 500은 일반 안내만 반환하고 내부 예외 문구를 응답에 포�
 | 운영 | GET | `/api/admin/metrics` | `content_manage` 권한 담당자 | 프로세스별 최근 15개 1분 버킷의 API 오류율·처리 시간 조회 |
 | 운영 | GET | `/api/admin/tts-metrics` | `content_manage` 권한 담당자 | 저장된 클라이언트 보고의 TTS 시작 지연·최종 재생 실패율 집계 |
 | 운영 | GET | `/api/admin/offline-sync-metrics` | `content_manage` 권한 담당자 | 프로세스별 오프라인 동기화 신규·중복·실패·미처리·재시도 집계 |
+| 운영 | GET | `/api/admin/alerts` | `content_manage` 권한 담당자 | 공용 카드 검수 대기와 API·음성·동기화 반복 실패 알림 |
 | 모델 | GET | `/api/model/status` | 필요 | Ollama 사용 설정과 모델 이름 조회 |
 | 인증 | POST | `/api/auth/login` | 불필요 | 로그인 및 세션 생성 |
 | 인증 | POST | `/api/auth/register` | 불필요 | 일반 사용자 가입 및 로그인 |
@@ -187,6 +188,14 @@ TTS 시작 POST를 같은 요청 ID로 다시 보내면 실제 저장된 상태�
 재시도는 기기 표시 헤더, 신규·중복은 실제 DB 처리 결과로 집계한다. 서버에 도착하지
 않은 통신·기기 저장 실패는 포함하지 않는다. 재시작 시 초기화되는 프로세스별 지표이며
 정확한 분모와 한계는 [오프라인 동기화 지표](OFFLINE_SYNC_METRICS.md)를 따른다.
+
+`GET /api/admin/alerts`는 `generated_at`, `status`, `thresholds`, `sources`, `alerts`를
+반환한다. 공개 승인 대기 1건 이상, 대기 24시간 이상, API·TTS·동기화 최종 실패
+각 3회 이상을 초기 기준으로 사용한다. API·동기화는 프로세스별 최근 최대 15분,
+TTS는 최근 1시간 요청 기준이다. 개별 출처 조회 불가 시 200·`status=partial`과
+확인 불가 알림을 반환하고 다른 출처의 알림을 유지한다. 사용자·요청·카드 ID와
+원문은 포함하지 않으며 캐시를 금지한다. 401·403은 기존 권한 규칙을 따른다.
+화면 갱신·해소·외부 통보와의 구분은 [운영 알림](OPERATIONAL_ALERTS.md)에 기록한다.
 
 # 4. 데이터 모델
 

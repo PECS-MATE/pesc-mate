@@ -537,6 +537,17 @@ footer { color: #9aa0aa; }
 .submission-list small { margin-top: 4px; color: #9299a4; }
 .submission-status { flex: 0 0 auto; padding: 6px 10px; border-radius: 999px; font-size: .76rem; }
 .submission-status.pending { color: #9b6415; background: #fff2cd; }
+.operational-alerts { margin-bottom: 20px; padding: 18px; border: 1px solid #d6deea; border-radius: 16px; background: var(--panel, #fff); }
+.operational-alerts-heading, .operational-alert-title { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.operational-alerts-heading { justify-content: space-between; }
+.operational-alerts h2 { margin: 0; font-size: 18px; }
+.operational-alerts ul { display: grid; gap: 12px; padding: 0; list-style: none; }
+.operational-alerts li { min-width: 0; padding: 14px; border-left: 4px solid #688bc4; background: #f3f7ff; overflow-wrap: anywhere; }
+.operational-alerts li.warning { border-color: #9b6415; background: #fff5df; }
+.operational-alerts p { margin: 8px 0; }
+.operational-alert-count { flex-shrink: 0; padding: 3px 8px; border: 1px solid currentColor; border-radius: 12px; font-weight: 700; }
+.operational-alerts button { min-height: 44px; }
+.operational-alerts small { display: block; line-height: 1.6; }
 .submission-status.approved { color: #267346; background: #dcf7e7; }
 .submission-status.rejected { color: #a6384a; background: #ffe1e7; }
 .submission-status.draft { color: #56616f; background: #e9edf2; }

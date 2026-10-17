@@ -39,6 +39,12 @@ class IndexTests(unittest.TestCase):
             [OperationFailure('conflict')] + [None] * (len(INDEXES) - 1))
         self.assertEqual(ensure_indexes(), len(INDEXES) - 1)
 
+    def test_shared_review_queue_has_visibility_status_and_age_lookup(self):
+        self.assertTrue(any(collection == 'card_submissions'
+                            and keys == [('visibility', 1), ('status', 1), ('created_at', 1)]
+                            and options['name'] == 'shared_review_queue'
+                            for collection, keys, options in INDEXES))
+
     def test_waits_for_mongodb_then_gives_up_without_raising(self):
         self.db.command.side_effect = ServerSelectionTimeoutError('down')
         sleep = MagicMock()

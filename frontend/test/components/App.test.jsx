@@ -80,6 +80,12 @@ async function openCommunication() {
 
 const selectedLabels = board => board.queryAllByRole('listitem').map(item => item.querySelector('span').textContent.trim());
 
+test('AAC 사용자 화면에는 운영 알림을 표시하거나 요청하지 않는다', async () => {
+  await openCommunication();
+  expect(screen.queryByRole('region', { name: '운영 알림' })).toBeNull();
+  expect(request.mock.calls.some(([path]) => path === '/admin/alerts')).toBe(false);
+});
+
 test('키보드와 버튼으로 카드를 선택하고 순서 변경·삭제해도 선택 순서가 보존된다', async () => {
   const { user, workspace, board } = await openCommunication();
   workspace.getByRole('button', { name: '나 문장에 담기', exact: true }).focus();
