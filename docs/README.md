@@ -46,6 +46,14 @@ API, 데이터 구조, 카드·마스코트 자산과 협업 규칙을 관리한
 | [사용자 프로필 정책](policies/PROFILE_POLICY.md) | 프로필 설정, 자산과 접근 권한 |
 | [개인정보 정책](policies/PRIVACY_POLICY.md) | 수집, 접근, 보관, 내보내기와 삭제 |
 
+## 운영 — `operations/`
+
+장애 판단, 현장 중단·재개와 승인된 연락 절차를 관리한다. 실제 담당자 연락처는 비공개 연락망에 보관한다.
+
+| 문서 | 내용 |
+|---|---|
+| [장애 대응 절차와 연락 체계](operations/INCIDENT_RESPONSE.md) | 등급, 읽기 전용 점검, 상태 보존, 호출·상향·복구 확인 |
+
 ## 검증 — `validation/`
 
 자동 검증 절차와 실제 기기·사용자 검수 기록을 관리한다. 실행 방법, 기대 결과와 실제 수행 결과를 구분해 기록한다.
@@ -58,6 +66,7 @@ API, 데이터 구조, 카드·마스코트 자산과 협업 규칙을 관리한
 | [기기 TTS 검수표](validation/DEVICE_TTS_VALIDATION.md) | 기기별 음성, 오프라인과 복귀 동작 확인 |
 | [접근성 사용성 평가](validation/ACCESSIBILITY_USABILITY_TEST.md) | 사용자별 접근 방식과 과업 평가 |
 | [실제 사용 환경 검증](validation/ACTUAL_USE_VALIDATION.md) | 기기 연결과 사용자·보호자·담당자 현장 검수 |
+| [장애 대응 검증 기록](validation/INCIDENT_RESPONSE_VALIDATION.md) | 절차 대조·읽기 전용 점검과 미실행 모의훈련 구분 |
 
 ## 문서 관리
 

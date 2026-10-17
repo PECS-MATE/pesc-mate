@@ -256,7 +256,7 @@ GitHub Actions 원격 실행 결과는 다음 push/PR에서 확인한다.
 - [x] TTS 시작 지연·실패율 수집
 - [x] 오프라인 동기화 실패·재시도·중복 제거 결과 수집
 - [x] 공용 카드 검수 대기와 반복 실패 알림
-- [ ] 장애 등급, 확인 절차, 담당자 연락 체계 문서화
+- [x] 장애 등급, 확인 절차, 담당자 연락 체계 문서화
 
 구현 증빙: HTTP 요청 ID·공통 오류·CORS·스트리밍 개인정보 비노출은
 `backend/tests/test_observability.py`, 필수·선택형 의존성 상태는 `backend/tests/test_health.py`,
@@ -291,6 +291,12 @@ TTS 지표 증빙: `backend/app/services/tts_metrics.py`와 `/api/admin/tts-metr
 단위·컴포넌트 검증과 `frontend/e2e/operational-alerts.spec.js`에서 권한·임계값·조회
 실패·실제 카드 승인·좁은 화면의 숫자 비겹침을 확인한다. 초기 기준과 외부 통보가
 아닌 화면 안내라는 한계는 [운영 알림](../development/OPERATIONAL_ALERTS.md)에 기록한다.
+
+장애 대응 문서 증빙: [장애 대응 절차와 연락 체계](../operations/INCIDENT_RESPONSE.md)에
+영향 기준 등급, 읽기 전용 점검, 대기 기록·요청 ID 보존, 역할별 호출·상향·복구 승인
+절차를 정리한다. 실제 담당자·대체자와 비공개 연락망은 미지정이며 연락 시험·장애
+모의훈련은 미완료다. [검증 기록](../validation/INCIDENT_RESPONSE_VALIDATION.md)에
+문서 대조·읽기 전용 확인과 미실행 훈련을 구분하며 현장 파일럿 게이트는 유지한다.
 
 완료 기준: 장애가 발생했을 때 요청 하나를 추적할 수 있고, 선택형 AI 장애와 필수 의사소통 장애를 구분할 수 있다.
 
@@ -432,6 +438,9 @@ TTS 지표 증빙: `backend/app/services/tts_metrics.py`와 `/api/admin/tts-metr
 - [ ] 다른 아동 데이터 접근 차단 검증
 - [ ] 개인정보·촬영 동의와 현장 기록 양식 준비
 - [ ] 장애 발생 시 연락·중단·복구 절차 준비
+
+장애 대응 절차는 문서화했지만 실제 담당자·대체 연락망·수신 시험·현장 중단/재개
+훈련이 미완료이므로 위 게이트는 완료 처리하지 않는다.
 
 ### 외부 운영 배포 조건
 

@@ -72,6 +72,9 @@ TTS는 기존 시간 인덱스와 제한 시간 집계를 재사용한다. 새 �
 상세 분모는 [API 지표](API_METRICS.md), [TTS 지표](TTS_METRICS.md),
 [오프라인 동기화 지표](OFFLINE_SYNC_METRICS.md)를 따른다.
 
+알림의 `info`·`warning`은 장애 등급이나 자동 중단 명령이 아니다. 영향에 따른 등급·
+담당자 호출·증거 보존·복구 확인은 [장애 대응 절차](../operations/INCIDENT_RESPONSE.md)를 따른다.
+
 ## 검증
 
 - `backend/tests/test_operational_alerts.py`: 임계값 경계, 24시간, 부분 조회 실패, 중복 알림 방지·해소, 공개 대기만 집계, 권한·캐시 금지

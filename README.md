@@ -51,6 +51,11 @@ MongoDB 연결 실패는 `503/unavailable`, 선택형 AI 장애는 규칙 기반
 유지하며 `200/degraded`로 응답합니다. 기기 TTS는 서버에서 확인할 수 없어
 `client_side`로 표시합니다. [API 공통 규칙과 상태 확인](docs/development/API_SPECIFICATION.md)을 참고합니다.
 
+장애 등급, 요청 ID 추적, 대기 기록 보존과 호출·복구 확인 순서는
+[장애 대응 절차와 연락 체계](docs/operations/INCIDENT_RESPONSE.md)에 있습니다.
+실제 담당자·비공개 연락망·모의훈련은 별도로 확정해야 하며 문서 작성만으로
+현장 대응이 준비된 것으로 판단하지 않습니다.
+
 ## 로컬 실행
 
 ### Docker Compose로 한 번에 실행
