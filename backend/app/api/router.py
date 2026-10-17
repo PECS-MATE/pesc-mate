@@ -1,6 +1,7 @@
+from contextlib import nullcontext
 from datetime import datetime
 from typing import Annotated, Literal
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, Request, Response, UploadFile
 from pydantic import BaseModel, Field
 from starlette.responses import JSONResponse
 from uuid import UUID
@@ -66,6 +67,12 @@ def get_api_metrics(request: Request, user=Depends(current_user)):
 def get_tts_metrics(hours: int = Query(default=24, ge=1, le=168), user=Depends(current_user)):
     require_account_permission(user, 'content_manage')
     return JSONResponse(tts_report(hours), headers={'Cache-Control': 'no-store'})
+
+
+@api_router.get('/admin/offline-sync-metrics', tags=['운영'])
+def get_offline_sync_metrics(request: Request, user=Depends(current_user)):
+    require_account_permission(user, 'content_manage')
+    return JSONResponse(request.app.state.offline_sync_metrics.snapshot(), headers={'Cache-Control': 'no-store'})
 
 
 @api_router.get('/model/status', tags=['모델'])
@@ -594,10 +601,15 @@ def delete_privacy_data(request: PrivacyDeleteRequest, user=Depends(current_user
 
 
 @api_router.post('/offline/events/sync', response_model=OfflineSyncResponse, tags=['오프라인'])
-def sync_offline_events(request: OfflineSyncRequest, user=Depends(current_user)):
+def sync_offline_events(request: OfflineSyncRequest, http_request: Request,
+                       retried: int = Header(default=0, alias='X-Pesc-Sync-Retried', ge=0, le=100),
+                       user=Depends(current_user)):
     require_communicator(user)
     require_guardian_consent(user)
-    return sync_events(user['id'], [event.model_dump() for event in request.events])
+    if retried > len(request.events):
+        raise HTTPException(422, '재시도 건수는 전송 건수보다 클 수 없습니다.')
+    with http_request.app.state.offline_sync_metrics.measure('communication', len(request.events), retried) as observation:
+        return sync_events(user['id'], [event.model_dump() for event in request.events], observation=observation)
 
 
 @api_router.post('/auth/logout', status_code=204, tags=['인증'])
@@ -734,14 +746,21 @@ def put_learning_settings(request: LearningSettingsRequest,
 
 @api_router.post('/learning/attempts', response_model=LearningAttemptResponse,
                  status_code=201, tags=['학습'])
-def post_learning_attempt(request: LearningAttemptRequest, user=Depends(current_user)):
+def post_learning_attempt(request: LearningAttemptRequest, http_request: Request,
+                          offline_sync: bool = Header(default=False, alias='X-Pesc-Offline-Sync'),
+                          retried: int = Header(default=0, alias='X-Pesc-Sync-Retried', ge=0, le=1),
+                          user=Depends(current_user)):
     require_communicator(user)
     require_guardian_consent(user)
-    return record_learning_attempt(
-        user['id'], str(request.request_id), request.activity_type, request.category_id,
-        request.total_questions, request.correct_answers, request.duration_seconds,
-        [item.model_dump() for item in request.items],
-    )
+    if retried and not offline_sync:
+        raise HTTPException(422, '오프라인 동기화에서만 재시도 건수를 보낼 수 있습니다.')
+    measurement = http_request.app.state.offline_sync_metrics.measure('learning', 1, retried) if offline_sync else nullcontext(None)
+    with measurement as observation:
+        return record_learning_attempt(
+            user['id'], str(request.request_id), request.activity_type, request.category_id,
+            request.total_questions, request.correct_answers, request.duration_seconds,
+            [item.model_dump() for item in request.items], observation=observation,
+        )
 
 
 @api_router.get('/learning/progress', response_model=LearningProgressResponse, tags=['학습'])

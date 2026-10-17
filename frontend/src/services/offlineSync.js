@@ -1,11 +1,20 @@
 import { request } from './api.js';
-import { pendingLearningAttempts, pendingOfflineEvents, removeLearningAttempts, removeOfflineEvents } from './offlineStore.js';
+import {
+  markLearningSyncAttempt, markOfflineSyncAttempt, pendingLearningAttempts,
+  pendingOfflineEvents, removeLearningAttempts, removeOfflineEvents,
+} from './offlineStore.js';
 
 export function createOfflineSync({
   readEvents = pendingOfflineEvents, readAttempts = pendingLearningAttempts,
   removeEvents = removeOfflineEvents, removeAttempts = removeLearningAttempts,
-  sendEvents = events => request('/offline/events/sync', { method: 'POST', body: JSON.stringify({ events }) }),
-  sendAttempt = attempt => request('/learning/attempts', { method: 'POST', body: JSON.stringify(attempt) }),
+  markEvents = markOfflineSyncAttempt, markAttempts = markLearningSyncAttempt,
+  sendEvents = (events, { retried }) => request('/offline/events/sync', {
+    method: 'POST', body: JSON.stringify({ events }), headers: { 'X-Pesc-Sync-Retried': String(retried) },
+  }),
+  sendAttempt = (attempt, { retried }) => request('/learning/attempts', {
+    method: 'POST', body: JSON.stringify(attempt),
+    headers: { 'X-Pesc-Offline-Sync': 'true', 'X-Pesc-Sync-Retried': String(retried) },
+  }),
 } = {}) {
   const pending = new Map();
 
@@ -19,9 +28,11 @@ export function createOfflineSync({
     const ordered = [...events].sort((left, right) => left.occurred_at.localeCompare(right.occurred_at) || left.id.localeCompare(right.id));
     for (let offset = 0; offset < ordered.length; offset += 100) {
       if (!isCurrent()) return { cancelled: true };
-      const batch = ordered.slice(offset, offset + 100).map(({ user_id: _userId, ...event }) => event);
+      const batch = ordered.slice(offset, offset + 100).map(({ user_id: _userId, sync_attempted: _attempted, ...event }) => event);
       try {
-        const result = await sendEvents(batch);
+        const retried = await markEvents(userId, batch.map(event => event.id));
+        if (!isCurrent()) return { cancelled: true };
+        const result = await sendEvents(batch, { retried });
         if (!isCurrent()) return { cancelled: true };
         const accepted = new Set(result.accepted_ids || []);
         const ids = batch.filter(event => accepted.has(event.id)).map(event => event.id);
@@ -30,10 +41,12 @@ export function createOfflineSync({
         failed += batch.length - ids.length;
       } catch { failed += batch.length; }
     }
-    for (const { user_id: _userId, ...attempt } of attempts) {
+    for (const { user_id: _userId, sync_attempted: _attempted, ...attempt } of attempts) {
       if (!isCurrent()) return { cancelled: true };
       try {
-        await sendAttempt(attempt);
+        const retried = await markAttempts(userId, [attempt.request_id]);
+        if (!isCurrent()) return { cancelled: true };
+        await sendAttempt(attempt, { retried });
         if (!isCurrent()) return { cancelled: true };
         await removeAttempts([attempt.request_id]);
         syncedAttemptIds.push(attempt.request_id);

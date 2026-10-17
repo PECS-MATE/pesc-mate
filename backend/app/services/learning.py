@@ -69,7 +69,7 @@ def save_settings(user_id, actor_id, category_ids, question_count, option_count,
 
 
 def record_attempt(user_id, request_id, activity_type, category_id,
-                   total_questions, correct_answers, duration_seconds, items=None):
+                   total_questions, correct_answers, duration_seconds, items=None, observation=None):
     if activity_type not in ACTIVITY_TYPES:
         raise HTTPException(422, '지원하지 않는 학습 활동입니다.')
     if correct_answers > total_questions:
@@ -99,13 +99,22 @@ def record_attempt(user_id, request_id, activity_type, category_id,
         if existing:
             if existing.get('user_id') != user_id:
                 raise HTTPException(409, '이미 사용된 학습 요청 ID입니다.')
+            if observation is not None:
+                observation.accepted(False)
             return _attempt_public(existing)
         database.learning_attempts.insert_one(document)
+        if observation is not None:
+            observation.accepted(True)
         log_crud('CREATE', 'learning_attempts', '학습 시도 결과 저장')
         return _attempt_public(document)
     except DuplicateKeyError:
-        existing = _database().learning_attempts.find_one({'_id': request_id})
+        try:
+            existing = _database().learning_attempts.find_one({'_id': request_id})
+        except PyMongoError as exc:
+            raise HTTPException(503, '학습 결과를 저장하지 못했습니다.') from exc
         if existing and existing.get('user_id') == user_id:
+            if observation is not None:
+                observation.accepted(False)
             return _attempt_public(existing)
         raise HTTPException(409, '이미 사용된 학습 요청 ID입니다.')
     except HTTPException:

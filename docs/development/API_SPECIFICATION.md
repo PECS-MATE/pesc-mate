@@ -110,6 +110,7 @@ HTTP 500은 일반 안내만 반환하고 내부 예외 문구를 응답에 포�
 | 시스템 | GET | `/api/health` | 불필요 | 서버와 필수·선택형 의존성 상태 확인 |
 | 운영 | GET | `/api/admin/metrics` | `content_manage` 권한 담당자 | 프로세스별 최근 15개 1분 버킷의 API 오류율·처리 시간 조회 |
 | 운영 | GET | `/api/admin/tts-metrics` | `content_manage` 권한 담당자 | 저장된 클라이언트 보고의 TTS 시작 지연·최종 재생 실패율 집계 |
+| 운영 | GET | `/api/admin/offline-sync-metrics` | `content_manage` 권한 담당자 | 프로세스별 오프라인 동기화 신규·중복·실패·미처리·재시도 집계 |
 | 모델 | GET | `/api/model/status` | 필요 | Ollama 사용 설정과 모델 이름 조회 |
 | 인증 | POST | `/api/auth/login` | 불필요 | 로그인 및 세션 생성 |
 | 인증 | POST | `/api/auth/register` | 불필요 | 일반 사용자 가입 및 로그인 |
@@ -180,6 +181,12 @@ UI 동작과 배포 호환 조건은 [카드판 동시 수정 정책](../policie
 TTS 시작 POST를 같은 요청 ID로 다시 보내면 실제 저장된 상태를 반환한다. 완료 PATCH를
 재전송하거나 동시에 보내면 최초 완료 결과를 반환하고 상태·지연을 덮어쓰지 않는다.
 다른 계정의 요청 ID로 시작하면 409, 완료하려 하면 404다. 실제 새 재생에는 새 UUID를 사용한다.
+
+`GET /api/admin/offline-sync-metrics`는 최근 15개 1분 버킷의 발화·학습 동기화 결과를
+`totals`, `by_kind`로 반환한다. 사용자·요청·카드 ID는 포함하지 않고 캐시를 금지한다.
+재시도는 기기 표시 헤더, 신규·중복은 실제 DB 처리 결과로 집계한다. 서버에 도착하지
+않은 통신·기기 저장 실패는 포함하지 않는다. 재시작 시 초기화되는 프로세스별 지표이며
+정확한 분모와 한계는 [오프라인 동기화 지표](OFFLINE_SYNC_METRICS.md)를 따른다.
 
 # 4. 데이터 모델
 
@@ -614,6 +621,12 @@ Content-Type: application/json
 
 동의한 사용자가 오프라인에서 실행한 즉시 발화 또는 선택 카드 그대로 발화의 UUID, 유형, 카드 ID와 기기 시각만 저장한다. 발화 원문은 전송하지 않는다. 서버는 UUID를 `_id`로 upsert하므로 같은 묶음을 재전송해도 중복 이력이 생기지 않는다. 응답의 `accepted_ids`를 받은 뒤에만 기기 대기열에서 제거한다. 한 요청은 최대 100건, 카드 ID는 이벤트당 1~12개다.
 
+선택 헤더 `X-Pesc-Sync-Retried`는 이전 기기 전송 시도 표시가 있는 항목 수이며 기본값은
+0이다. 0~100이면서 전송 건수 이하여야 하고, 잘못된 값은 422다. 로컬 `sync_attempted`
+표시는 본문에 넣지 않는다. 같은 소유자의 동시 저장 경쟁은 중복으로 수락하고 다른
+소유자의 UUID는 409다. 묶음 도중 실패하면 앞서 저장한 항목은 유지되며, 재전송 시
+최초 기록을 보존하고 `accepted_ids`로 확인한다.
+
 ## 6.13 학습 결과와 단어별 진행 조회
 
 `POST /api/learning/attempts`는 세션 합계와 함께 각 문제의 `card_id`, `label`,
@@ -624,6 +637,10 @@ Content-Type: application/json
 클라이언트는 오프라인 완료 결과를 별도 로컬 대기열에 보관한 뒤 같은
 `request_id`로 이 API를 재호출한다. 서버는 요청 ID를 학습 기록의 고유 키로
 사용하므로 응답을 받기 전에 연결이 다시 끊겨도 중복 결과를 만들지 않는다.
+
+오프라인 대기 결과 재전송은 `X-Pesc-Offline-Sync: true`와
+`X-Pesc-Sync-Retried: 0~1`로 표시한다. 일반 온라인 학습은 동기화 지표에서 제외하며,
+오프라인 표시 없이 재시도 수 1을 보내면 422다. 헤더는 학습 결과에 저장하지 않는다.
 
 `GET /api/learning/progress?days=30`은 참여 횟수와 함께 `familiar_words`,
 `repeat_words`, `practicing_words`를 반환한다. 최근 조회 기간에 두 번 이상 모두

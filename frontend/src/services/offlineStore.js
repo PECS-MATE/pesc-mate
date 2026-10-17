@@ -123,6 +123,39 @@ export async function pendingLearningAttempts(userId) {
   return (all || []).filter(attempt => attempt.user_id === userId);
 }
 
+// Mark before transport so a lost response or page reload does not turn a retry
+// into an apparent first attempt. Existing queue stores need no schema upgrade.
+async function markSyncAttempt(storeName, userId, ids) {
+  if (!ids.length) return 0;
+  const database = await openDatabase();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(storeName, 'readwrite');
+    const store = transaction.objectStore(storeName);
+    let retried = 0;
+    for (const id of ids) {
+      const request = store.get(id);
+      request.onsuccess = () => {
+        const record = request.result;
+        if (!record || record.user_id !== userId) { transaction.abort(); return; }
+        retried += Number(record.sync_attempted === true);
+        store.put({ ...record, sync_attempted: true });
+      };
+    }
+    transaction.oncomplete = () => { database.close(); resolve(retried); };
+    const fail = () => { database.close(); reject(new Error('동기화 시도 표시를 저장하지 못했습니다.')); };
+    transaction.onerror = fail;
+    transaction.onabort = fail;
+  });
+}
+
+export function markOfflineSyncAttempt(userId, ids) {
+  return markSyncAttempt('events', userId, ids);
+}
+
+export function markLearningSyncAttempt(userId, ids) {
+  return markSyncAttempt('learningAttempts', userId, ids);
+}
+
 export async function removeLearningAttempts(ids) {
   if (!ids.length) return;
   const database = await openDatabase();

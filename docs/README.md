@@ -25,6 +25,7 @@ API, 데이터 구조, 카드·마스코트 자산과 협업 규칙을 관리한
 | [API 명세서](development/API_SPECIFICATION.md) | 엔드포인트, 권한, 요청과 응답 |
 | [API 지표](development/API_METRICS.md) | 오류율·처리 시간 집계, 조회 권한과 해석 범위 |
 | [TTS 지표](development/TTS_METRICS.md) | 클라이언트 재생 결과·시작 지연, 중복 방지와 집계 분모 |
+| [오프라인 동기화 지표](development/OFFLINE_SYNC_METRICS.md) | 신규·중복·실패·미처리 집계, 기기 재시도 표시와 해석 한계 |
 | [학습 기록 데이터 모델](development/LEARNING_DATA_MODEL.md) | 학습 컬렉션과 의사소통 기록의 구분 |
 | [카드 사진·단어 목록](development/CARD_PHOTO_WORD_LIST.md) | 카드 제작 기준, 이미지 표현과 제작 우선순위 |
 | [마스코트 자산](development/MASCOT_ASSET.md) | 자산 경로, 적용 위치와 생성 프롬프트 |

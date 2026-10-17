@@ -10,6 +10,7 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse
 
 from app.services.api_metrics import ApiMetrics
+from app.services.offline_sync_metrics import OfflineSyncMetrics
 
 logger = logging.getLogger('uvicorn.error')
 
@@ -155,4 +156,5 @@ def configure_observability(app, allowed_origins=(
         allow_methods=['*'], allow_headers=['*'], expose_headers=[REQUEST_ID_HEADER],
     )
     app.state.api_metrics = ApiMetrics()
+    app.state.offline_sync_metrics = OfflineSyncMetrics()
     app.add_middleware(RequestContextMiddleware, metrics=app.state.api_metrics)

@@ -254,7 +254,7 @@ GitHub Actions 원격 실행 결과는 다음 push/PR에서 확인한다.
 - [x] 필수 서버 기능과 선택형 AI의 장애 상태 분리
 - [x] API 오류율과 응답 시간 수집
 - [x] TTS 시작 지연·실패율 수집
-- [ ] 오프라인 동기화 실패·재시도·중복 제거 결과 수집
+- [x] 오프라인 동기화 실패·재시도·중복 제거 결과 수집
 - [ ] 공용 카드 검수 대기와 반복 실패 알림
 - [ ] 장애 등급, 확인 절차, 담당자 연락 체계 문서화
 
@@ -276,6 +276,14 @@ TTS 지표 증빙: `backend/app/services/tts_metrics.py`와 `/api/admin/tts-metr
 `backend/tests/test_tts_metrics.py`·`test_tts_events.py`, 실제 DB 검증은
 `frontend/e2e/tts-metrics.spec.js`에서 수행한다. 분모와 오프라인·기기 실측 한계는
 [TTS 지표](../development/TTS_METRICS.md)에 기록한다.
+
+오프라인 동기화 지표 증빙: `backend/app/services/offline_sync_metrics.py`와
+`/api/admin/offline-sync-metrics`가 서버에서 확인한 발화·학습의 신규·중복·실패·미처리
+건수를 15개 1분 버킷으로 집계한다. 기기의 원자적 전송 시도 표시는 새로고침 후에도
+유지되며 재시도 건수만 헤더로 보낸다. 단위 검증은 `test_offline_sync_metrics.py`와
+`offline-sync.test.mjs`, 실제 DB·브라우저 검증은 `offline-sync-metrics.spec.js`에서
+수행한다. 서버 미도착·기기 저장 오류의 집계 한계는
+[오프라인 동기화 지표](../development/OFFLINE_SYNC_METRICS.md)에 명시한다.
 
 완료 기준: 장애가 발생했을 때 요청 하나를 추적할 수 있고, 선택형 AI 장애와 필수 의사소통 장애를 구분할 수 있다.
 
