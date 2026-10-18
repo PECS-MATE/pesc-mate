@@ -149,4 +149,5 @@ npm run build:watch
 - [개발 TODO 및 요구사항 진행표](docs/planning/TODO.md)
 - [커밋 메시지 규칙](docs/development/COMMIT_CONVENTION.md)
 - [API 명세서](docs/development/API_SPECIFICATION.md)
+- [마이그레이션 전 백업과 격리 복구](docs/operations/MIGRATION_BACKUP_RECOVERY.md)
 - [실제 기기 연결 및 현장 검증 기록](docs/validation/ACTUAL_USE_VALIDATION.md)

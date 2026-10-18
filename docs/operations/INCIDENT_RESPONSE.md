@@ -150,9 +150,10 @@ docker compose logs --since 15m --tail 300 backend | Select-String -SimpleMatch 
 재시작이 필요하면 증거 수집 후 TECH·LEAD가 대상 서비스·중단 영향을 확인한다.
 이 문서는 자동 재시작·DB 복구·일괄 세션 폐기·계정 잠금을 제공하지 않는다.
 `docker compose down -v`, 볼륨 삭제·초기화, 전체 데이터 삭제는 장애 해소 절차로
-사용하지 않는다. [기준선 마이그레이션 도구](../development/DATA_SCHEMA_MIGRATIONS.md)는
-제공하지만 운영 백업 복구·내용 변환·롤백 절차는 아직 미완료다. 이전 코드로 강제
-되돌리거나 임의 복구 명령을 실행하지 않고 별도 승인·계획을 받는다.
+사용하지 않는다. [기준선 마이그레이션 도구](../development/DATA_SCHEMA_MIGRATIONS.md)와
+[로컬 백업·격리 복구](MIGRATION_BACKUP_RECOVERY.md)는 제공하지만 운영 백업 정책·
+내용 변환·자동 롤백·실제 전환 리허설은 미완료다. 이전 코드로 강제 되돌리거나
+임의 복구 명령을 실행하지 않고 별도 승인·계획을 받는다.
 법적 판단·외부 통지 필요성은 PRIVACY가 필요한 별도 검토를 조정하며 이 문서로 확정하지 않는다.
 
 ## 6. 복구 확인과 종료
@@ -186,6 +187,7 @@ docker compose logs --since 15m --tail 300 backend | Select-String -SimpleMatch 
 - [ ] 앱과 독립된 비공개 연락망 전달, 수신 확인·상향 연락 시험
 - [ ] 실제 기기의 의사소통 대안과 세션 중단·재개 책임자 확인
 - [ ] 테스트 전용 환경의 장애 모의훈련 및 결과 검토
-- [ ] 백업·롤백·계정 차단 등 미구현 운영 기능을 구현 완료로 오인하지 않도록 공유
+- [ ] 로컬 백업·격리 복구 도구를 운영 백업·자동 롤백·계정 차단 완료로 오인하지 않도록 공유
 
 현재 점검 증거와 미실행 훈련은 [장애 대응 검증 기록](../validation/INCIDENT_RESPONSE_VALIDATION.md)에 구분한다.
+마이그레이션 전 백업과 실패 시 되돌리기는 [로컬 백업·격리 복구 절차](MIGRATION_BACKUP_RECOVERY.md)를 따른다.
