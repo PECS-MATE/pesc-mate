@@ -55,6 +55,7 @@ API, 데이터 구조, 카드·마스코트 자산과 협업 규칙을 관리한
 |---|---|
 | [장애 대응 절차와 연락 체계](operations/INCIDENT_RESPONSE.md) | 등급, 읽기 전용 점검, 상태 보존, 호출·상향·복구 확인 |
 | [마이그레이션 백업·격리 복구](operations/MIGRATION_BACKUP_RECOVERY.md) | 로컬 압축 BSON 백업, 새 DB 검증 복원, 실패 격리와 수동 되돌리기 절차 |
+| [감사 보관·무결성](operations/AUDIT_RETENTION_INTEGRITY.md) | 명시적 기간 정리, 외부 HMAC 체크포인트, 개인정보 삭제와 변조 탐지 한계 |
 
 ## 검증 — `validation/`
 

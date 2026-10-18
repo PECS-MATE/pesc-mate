@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from fastapi import HTTPException
 
-from app.services.authentication import (_ensure_user, _public_user, dashboard_user, login, register,
+from app.services.authentication import (_ensure_user, _public_user, dashboard_user, ensure_demo_users, login, register,
                                          require_account_permission)
 
 
@@ -61,6 +61,29 @@ class DemoAccountTests(unittest.TestCase):
         self.assertNotIn('password_hash', update['$set'])
         self.assertIn('password_hash', update['$setOnInsert'])
         self.assertTrue(database.users.update_one.call_args.kwargs['upsert'])
+
+    @patch('app.services.authentication._ensure_user')
+    @patch('app.services.authentication._database')
+    def test_expired_revocation_audit_does_not_reactivate_or_reset_existing_demo_link(self, mocked_database, _ensure_user):
+        database = mocked_database.return_value
+        database.privacy_settings.find_one.return_value = {'guardian_consent': True, 'deletion_status': 'none'}
+        database.privacy_audit_logs.find_one.return_value = None
+        for link in ({'active': False}, {'active': True, 'permissions': ['records_read']}):
+            database.caregiver_links.find_one.return_value = link
+            ensure_demo_users()
+        database.caregiver_links.update_one.assert_not_called()
+
+    @patch('app.services.authentication._ensure_user')
+    @patch('app.services.authentication._database')
+    def test_new_demo_link_uses_insert_only_update_to_preserve_concurrent_revocation(self, mocked_database, _ensure_user):
+        database = mocked_database.return_value
+        database.privacy_settings.find_one.return_value = {'guardian_consent': True, 'deletion_status': 'none'}
+        database.privacy_audit_logs.find_one.return_value = None
+        database.caregiver_links.find_one.return_value = None
+        ensure_demo_users()
+        update = database.caregiver_links.update_one.call_args.args[1]
+        self.assertEqual(set(update), {'$setOnInsert'})
+        self.assertTrue(update['$setOnInsert']['active'])
 
 
 class AuthorizationTests(unittest.TestCase):

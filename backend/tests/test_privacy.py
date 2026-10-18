@@ -42,6 +42,8 @@ class PrivacyTests(unittest.TestCase):
 
         self.assertEqual(receipt['deletion_status'], 'completed')
         database.communication_sessions.delete_many.assert_called_once_with({'user_id': 'demo'})
+        database.privacy_audit_logs.delete_many.assert_called_once_with({'user_id': 'demo'})
+        self.assertEqual(database.privacy_audit_logs.insert_one.call_args.args[0]['action'], 'personal_data_deleted')
         database.users.update_one.assert_called_once_with({'_id': 'demo'}, {'$unset': {'profile': ''}})
         self.assertTrue(database.privacy_settings.update_one.call_args.kwargs['upsert'])
 

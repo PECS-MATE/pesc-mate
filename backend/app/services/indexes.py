@@ -34,6 +34,9 @@ INDEXES = (
      {'name': 'target_recent_board_audit'}),
     ('learning_audit_logs', [('target_user_id', ASCENDING), ('created_at', DESCENDING)],
      {'name': 'target_recent_learning_audit'}),
+    # Explicit retention CLI only; never install an automatic audit TTL policy.
+    *((name, [('created_at', ASCENDING)], {'name': 'audit_retention_scan'}) for name in
+      ('privacy_audit_logs', 'board_audit_logs', 'learning_audit_logs', 'card_audit_logs')),
 )
 
 

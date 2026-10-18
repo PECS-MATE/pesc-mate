@@ -89,16 +89,18 @@ def ensure_demo_users():
                             'support_granted', 'support_permissions_changed', 'support_revoked']}},
         sort=[('created_at', -1)],
     )
+    existing_demo_link = database.caregiver_links.find_one({'_id': f'{caregiver_id}:{user_id}'})
     if (privacy and privacy.get('guardian_consent') and privacy.get('deletion_status') != 'completed'
+            and existing_demo_link is None
             and (not latest_access_change or latest_access_change['action'] not in {'caregiver_disconnected', 'support_revoked'})):
         database.caregiver_links.update_one(
             {'_id': f'{caregiver_id}:{user_id}'},
-            {'$set': {'caregiver_id': caregiver_id, 'supporter_id': caregiver_id,
+            {'$setOnInsert': {'schema_version': SCHEMA_VERSION, 'created_at': datetime.now(timezone.utc),
+                      'caregiver_id': caregiver_id, 'supporter_id': caregiver_id,
                       'supporter_role': 'caregiver', 'user_id': user_id,
                       'permissions': ['records_read', 'notes_write', 'cards_manage', 'quick_speech_manage',
                                       'board_manage', 'voice_access_manage', 'learning_manage'],
-                      'active': True},
-             '$setOnInsert': {'schema_version': SCHEMA_VERSION, 'created_at': datetime.now(timezone.utc)}},
+                      'active': True}},
             upsert=True,
         )
         log_crud('UPDATE', 'caregiver_links', '데모 사용자 최초 연결')

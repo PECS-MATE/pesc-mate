@@ -12,6 +12,11 @@ cd frontend
 npm run test:e2e
 ```
 
+실행 중 소스를 편집해 개발 서버를 자동 재시작시키지 않는다. 공유 운영 지표와
+알림을 사용하는 로컬 통합 검증을 CI와 같은 단일 worker로 확인하려면
+`npm run test:e2e -- --workers=1`을 사용한다. worker 수를 바꾼 재검증은 최초 실패
+기록과 구분해 남기고, 병렬 실행의 안전성이 검증됐다고 간주하지 않는다.
+
 Windows에서는 설치된 Chrome을 자동으로 사용한다. 다른 브라우저 실행 파일을 사용하려면 `PLAYWRIGHT_BROWSER_PATH`에 절대 경로를 지정한다. Windows 이외의 환경이나 CI에서는 `npx playwright install --with-deps chromium`으로 Playwright 브라우저를 준비한다.
 
 기본 프런트엔드 주소는 `http://127.0.0.1:5173`이며 API는 같은 출처의 `/api`를 사용한다. 다른 서버를 검증하려면 `E2E_BASE_URL`을 지정하고, API를 별도 출처로 직접 검증할 때만 `E2E_API_BASE_URL`을 지정한다.

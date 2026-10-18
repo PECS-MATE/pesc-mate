@@ -127,6 +127,7 @@ def delete_personal_data(user_id):
             (database.learning_settings, {'_id': user_id}),
             (database.learning_attempts, {'user_id': user_id}),
             (database.learning_audit_logs, {'target_user_id': user_id}),
+            (database.privacy_audit_logs, {'user_id': user_id}),
             (database.caregiver_notes, {'user_id': user_id}),
             (database.caregiver_links, {'user_id': user_id}),
             (database.card_submissions, {'owner_id': user_id}),
