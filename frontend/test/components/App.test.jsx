@@ -114,6 +114,67 @@ test('문장 생성 실패 후 선택 카드를 잃지 않고 선택한 순서 �
   expect(selectedLabels(board)).toEqual(['🙋 나', '💧 물']);
 });
 
+test('듣기는 독립된 기본 버튼이며 Space를 눌러도 카드를 선택하지 않는다', async () => {
+  const { user, workspace, board } = await openCommunication();
+  const select = workspace.getByRole('button', { name: '물 문장에 담기', exact: true });
+  const listen = workspace.getByRole('button', { name: '물 단어 듣기', exact: true });
+  expect(listen.tagName).toBe('BUTTON');
+  expect(select.contains(listen)).toBe(false);
+  expect(document.querySelector('button button, button [role="button"]')).toBeNull();
+  select.focus();
+  await user.tab();
+  expect(document.activeElement).toBe(listen);
+  await user.keyboard(' ');
+  expect(player.speak).toHaveBeenCalledTimes(1);
+  expect(player.speak.mock.calls[0][0].text).toBe('물');
+  expect(selectedLabels(board)).toEqual([]);
+  await user.tab({ shift: true });
+  expect(document.activeElement).toBe(select);
+  await user.keyboard(' ');
+  expect(selectedLabels(board)).toEqual(['💧 물']);
+});
+
+test('중복 카드도 이동·삭제 후 포커스가 이어지고 마지막 삭제는 문장 제목으로 돌아간다', async () => {
+  const { user, workspace, board } = await openCommunication();
+  const water = workspace.getByRole('button', { name: '물 문장에 담기', exact: true });
+  await user.click(water);
+  await user.click(water);
+  await user.click(workspace.getByRole('button', { name: '나 문장에 담기', exact: true }));
+  board.getByRole('button', { name: '3번째 카드 앞으로' }).focus();
+  await user.keyboard('{Enter}');
+  expect(selectedLabels(board)).toEqual(['💧 물', '🙋 나', '💧 물']);
+  expect(document.activeElement).toBe(board.getByRole('button', { name: '2번째 카드 앞으로' }));
+  await user.keyboard('{Enter}');
+  expect(selectedLabels(board)).toEqual(['🙋 나', '💧 물', '💧 물']);
+  expect(document.activeElement).toBe(board.getByRole('button', { name: '1번째 카드 뒤로' }));
+  board.getByRole('button', { name: '3번째 카드 삭제' }).focus();
+  await user.keyboard('{Enter}');
+  expect(document.activeElement).toBe(board.getByRole('button', { name: '2번째 카드 삭제' }));
+  await user.keyboard('{Enter}');
+  expect(document.activeElement).toBe(board.getByRole('button', { name: '1번째 카드 삭제' }));
+  await user.keyboard('{Enter}');
+  expect(selectedLabels(board)).toEqual([]);
+  expect(document.activeElement).toBe(board.getByRole('heading', { name: /나의 문장/ }));
+  expect(localStorage.getItem(`pesc-mate-board:${account.id}`)).toBeNull();
+});
+
+test('전체 비우기를 취소하면 선택과 포커스를 유지하고 확인하면 제목으로 돌아간다', async () => {
+  const { user, workspace, board } = await openCommunication();
+  const card = workspace.getByRole('button', { name: '물 문장에 담기', exact: true });
+  await user.click(card);
+  expect(document.activeElement).toBe(card);
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+  const clear = board.getByRole('button', { name: '비우기' });
+  clear.focus();
+  await user.keyboard('{Enter}');
+  expect(selectedLabels(board)).toEqual(['💧 물']);
+  expect(document.activeElement).toBe(clear);
+  await user.keyboard('{Enter}');
+  expect(selectedLabels(board)).toEqual([]);
+  expect(document.activeElement).toBe(board.getByRole('heading', { name: /나의 문장/ }));
+  expect(confirm).toHaveBeenCalledTimes(2);
+});
+
 test('동기적인 음성 시작 실패도 표현과 카드를 보존하고 다시 재생한다', async () => {
   const { user, workspace, board } = await openCommunication();
   await user.click(workspace.getByRole('button', { name: '물 문장에 담기', exact: true }));

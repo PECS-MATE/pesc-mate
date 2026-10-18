@@ -1,7 +1,7 @@
 import Mascot, { EmptyState } from './Mascot';
 import { Avatar, ProfileEditor } from './Profile';
 import OperationalAlerts from './OperationalAlerts';
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { hasToken, recordDeviceAccess, request, requestBlob, setToken } from "./services/api";
 import { clearBoard, loadBoard, saveBoard } from "./services/boardStorage";
@@ -121,6 +121,19 @@ function App() {
   const [cardCategories, setCardCategories] = useState([]);
   const [recommended, setRecommended] = useState([]);
   const [board, setBoard] = useState([]);
+  const boardRef = useRef(null);
+  const boardFocusRef = useRef(null);
+  useLayoutEffect(() => {
+    const pending = boardFocusRef.current;
+    boardFocusRef.current = null;
+    if (!pending || !boardRef.current) return;
+    const rows = boardRef.current.querySelectorAll('ol > li');
+    const row = rows[Math.min(pending.index, rows.length - 1)];
+    const control = row?.querySelector(`[data-board-action="${pending.action}"]:not(:disabled)`)
+      || row?.querySelector('button:not(:disabled)')
+      || boardRef.current.querySelector('h2');
+    control?.focus();
+  }, [board]);
   const [cardPage, setCardPage] = useState(0);
   const [outputMode, setOutputMode] = useState('natural');
   const [category, setCategory] = useState('전체');
@@ -536,9 +549,17 @@ function App() {
     setError(''); updateBoard([...board, card]);
   }
   function move(index, offset) {
+    rememberBoardFocus(index + offset, offset < 0 ? 'backward' : 'forward');
     const next = [...board];
     [next[index], next[index + offset]] = [next[index + offset], next[index]];
     updateBoard(next);
+  }
+  function rememberBoardFocus(index, action) {
+    if (boardRef.current?.contains(document.activeElement)) boardFocusRef.current = { index, action };
+  }
+  function removeBoardCard(index) {
+    rememberBoardFocus(index, 'remove');
+    updateBoard(board.filter((_, position) => position !== index));
   }
   async function generate() {
     setBusy(true); setError(''); setGenerationFailed(false); setSentenceConfirmed(false);
@@ -1180,11 +1201,7 @@ function App() {
     </span>;
   }
   function cardSpeaker(card) {
-    function play(event) {
-      event.preventDefault(); event.stopPropagation();
-      if (!busy) speakText(card.label, 'card', [card.id]);
-    }
-    return <span className="card-speaker" role="button" tabIndex="0" aria-label={`${card.label} 단어 듣기`} onClick={play} onKeyDown={event => { if (['Enter', ' '].includes(event.key)) play(event); }}>🔊</span>;
+    return <button type="button" className="card-speaker" disabled={busy} aria-label={`${card.label} 단어 듣기`} onClick={() => speakText(card.label, 'card', [card.id])}>🔊 듣기</button>;
   }
   function cardPicture(card, className = 'mini-card', renderKey = card.id) {
     const hasImage = Boolean(cardImage(card));
@@ -1196,10 +1213,10 @@ function App() {
   }
   function tile(card) {
     const speakOnTap = outputMode === 'word';
-    return <button className={`card${speakOnTap ? ' speak-on-tap' : ''}`} key={card.id} disabled={busy} aria-label={`${card.label} ${speakOnTap ? '바로 말하기' : '문장에 담기'}`} onClick={() => speakOnTap ? speakText(card.label, 'card', [card.id]) : add(card)}>
+    return <div className="card-tile" key={card.id}><button type="button" className={`card${speakOnTap ? ' speak-on-tap' : ''}`} disabled={busy} aria-label={`${card.label} ${speakOnTap ? '바로 말하기' : '문장에 담기'}`} onClick={() => speakOnTap ? speakText(card.label, 'card', [card.id]) : add(card)}>
       {cardArt(card)}
-      <strong>{card.label}</strong>{card.reason && <small>{card.reason}</small>}{cardSpeaker(card)}
-    </button>;
+      <strong>{card.label}</strong>{card.reason && <small>{card.reason}</small>}
+    </button>{cardSpeaker(card)}</div>;
   }
   const layoutCards = boardLayout?.available_cards || cards;
   const layoutCardsById = new Map(layoutCards.map(card => [card.id, card]));
@@ -1362,9 +1379,9 @@ function App() {
         {cardPagination()}
         {loaded && !filteredCards.length && <EmptyState>검색 결과가 없어요.</EmptyState>}
       </section>
-      <section className="board"><div className="section-title"><h2>나의 문장 <small>{board.length}/12</small></h2><button disabled={!board.length || busy} onClick={() => { if (window.confirm('선택한 카드를 모두 지울까요?')) updateBoard([]); }}>비우기</button></div>
+      <section className="board" ref={boardRef}><div className="section-title"><h2 tabIndex="-1">나의 문장 <small>{board.length}/12</small></h2><button disabled={!board.length || busy} onClick={() => { if (window.confirm('선택한 카드를 모두 지울까요?')) { rememberBoardFocus(0, 'remove'); updateBoard([]); } }}>비우기</button></div>
         {!board.length && <EmptyState>왼쪽 카드를 눌러 보세요.<br />나 → 물 → 마시다</EmptyState>}
-        <ol>{board.map((c, i) => <li key={`${c.id}-${i}`}><span>{c.symbol} {c.label}</span><div><button aria-label={`${i + 1}번째 카드 앞으로`} disabled={i === 0 || busy} onClick={() => move(i, -1)}>←</button><button aria-label={`${i + 1}번째 카드 뒤로`} disabled={i === board.length - 1 || busy} onClick={() => move(i, 1)}>→</button><button aria-label={`${i + 1}번째 카드 삭제`} disabled={busy} onClick={() => updateBoard(board.filter((_, n) => n !== i))}>×</button></div></li>)}</ol>
+        <ol aria-label="선택한 카드">{board.map((c, i) => <li key={`${c.id}-${i}`}><span>{c.symbol} {c.label}</span><div><button data-board-action="backward" aria-label={`${i + 1}번째 카드 앞으로`} disabled={i === 0 || busy} onClick={() => move(i, -1)}>←</button><button data-board-action="forward" aria-label={`${i + 1}번째 카드 뒤로`} disabled={i === board.length - 1 || busy} onClick={() => move(i, 1)}>→</button><button data-board-action="remove" aria-label={`${i + 1}번째 카드 삭제`} disabled={busy} onClick={() => removeBoardCard(i)}>×</button></div></li>)}</ol>
         {outputMode === 'word' ? <p className="mode-guide">카드 본체를 누르면 단어를 바로 말해요.</p> : outputMode === 'selection' ? <button className="primary full" disabled={!board.length || busy} onClick={speakSelection}>🔊 선택 카드 그대로 말하기</button> : <button className="primary full" disabled={!board.length || busy || offline} onClick={generate}>{offline ? '온라인 연결 후 문장 만들기' : busy ? '문장을 만드는 중…' : '자연스러운 문장 만들기 · 저장'}</button>}
         {generationFailed && <div className="generation-fallback" role="status"><strong>문장 생성 없이도 말할 수 있어요.</strong><span>선택한 카드는 그대로 유지됐습니다.</span><div><button className="primary" disabled={!board.length} onClick={speakSelection}>🔊 선택 카드 그대로 말하기</button><button onClick={() => setOutputMode('word')}>단어 즉시 발화로 전환</button></div></div>}
         <div className="sentence" aria-live="polite">{text ? <><div className="original-order"><small>선택한 카드 순서</small><div>{board.map((card, index) => <span key={`${card.id}-${index}`}>{card.symbol} {card.label}</span>)}</div></div><strong>{text}</strong><small className={`source-badge ${generationSource}`}>{generationSource === 'ollama' ? 'Qwen · Ollama 생성' : '규칙 기반 생성'}{generationAttempt > 1 ? ` · 재생성 ${generationAttempt - 1}회` : ''}</small></> : '만든 문장이 여기에 표시돼요.'}</div>
@@ -1402,10 +1419,10 @@ function App() {
       </div>
       <div className="categories" aria-label="카테고리">{['전체', ...cardCategories.map(item => item.name)].map(item => <button key={item} aria-pressed={category === item} className={category === item ? 'active' : ''} onClick={() => setCategory(item)}>{item}</button>)}</div>
       <div className="catalog-layout">
-        <div className="catalog-grid" aria-label="카드 목록">{visibleCards.map(card => <button className="catalog-card" key={card.id} aria-pressed={selectedCard?.id === card.id} onClick={() => setSelectedCard(card)}>
+        <div className="catalog-grid" aria-label="카드 목록">{visibleCards.map(card => <div className="catalog-tile" key={card.id}><button type="button" className="catalog-card" aria-pressed={selectedCard?.id === card.id} onClick={() => setSelectedCard(card)}>
           {cardArt(card)}
-          <span><strong>{card.label}</strong><small>{card.category}</small></span>{cardSpeaker(card)}
-        </button>)}</div>
+          <span><strong>{card.label}</strong><small>{card.category}</small></span>
+        </button>{cardSpeaker(card)}</div>)}</div>
         {cardPagination()}
         <aside className="card-detail" aria-live="polite">
           {selectedCard ? <>{cardArt(selectedCard, 'detail-art')}<span className="detail-category">{selectedCard.category}</span><h3>{selectedCard.label}</h3><p>{selectedCard.label}을(를) 표현하는 PECS 카드예요.</p><div className="detail-actions"><button aria-label={`${selectedCard.label} 단어 듣기`} onClick={() => speakText(selectedCard.label, 'card', [selectedCard.id])}>🔊 단어 듣기</button><button className="primary" onClick={() => { add(selectedCard); setTab('cards'); }}>문장에 사용하기</button></div></> : <div className="detail-empty"><Mascot /><strong>카드를 선택해 주세요</strong><p>선택한 카드의 그림과 뜻이 여기에 보여요.</p></div>}
