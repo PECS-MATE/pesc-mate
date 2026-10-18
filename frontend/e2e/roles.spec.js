@@ -1,4 +1,5 @@
 import { test, expect } from './fixtures.js';
+import { login } from './auth-helpers.js';
 
 const accounts = {
   user: { username: 'demo', password: 'demo1234' },
@@ -7,24 +8,6 @@ const accounts = {
   operator: { username: 'admin', password: 'admin1234' },
 };
 const apiBaseUrl = process.env.E2E_API_BASE_URL || '';
-
-async function finishInitialProfile(page) {
-  const heading = page.getByRole('heading', { name: '처음 사용할 프로필을 골라 주세요' });
-  if (!await heading.isVisible().catch(() => false)) return;
-
-  await page.getByRole('radio').first().check();
-  await page.getByRole('button', { name: '프로필 저장' }).click();
-}
-
-async function login(page, account) {
-  await page.goto('/');
-  await page.getByLabel('아이디').fill(account.username);
-  await page.getByLabel('비밀번호').fill(account.password);
-  await page.getByRole('button', { name: '로그인', exact: true }).click();
-  await expect(page.getByRole('button', { name: '로그아웃' })).toBeVisible();
-  await finishInitialProfile(page);
-  await expect(page.getByRole('navigation', { name: '주 메뉴' })).toBeVisible();
-}
 
 test.describe('역할별 접근 경계', () => {
   test('AAC 사용자는 의사소통 메뉴만 보고 다른 아동 API에 접근하지 못한다', async ({ page }) => {

@@ -1,8 +1,8 @@
-import { test, expect } from './fixtures.js';
+import { test, expect, login } from './workflow-fixtures.js';
 
 // Network blocking below deliberately leaves the dev app shell available. These
 // cases verify persisted audio across pages, not a full offline PWA cold start.
-test.use({ serviceWorkers: 'block' });
+test.use({ serviceWorkers: 'block', profilePreset: null });
 
 async function observeNativeAudio(page, { synthesis = 'missing', offline = false } = {}) {
   await page.addInitScript(({ synthesis, offline }) => {
@@ -43,20 +43,6 @@ async function observeNativeAudio(page, { synthesis = 'missing', offline = false
     Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: fakeSynthesis });
     Object.defineProperty(window, 'SpeechSynthesisUtterance', { configurable: true, value: TestUtterance });
   }, { synthesis, offline });
-}
-
-async function loginAsUser(page) {
-  await page.goto('/');
-  await page.getByLabel('아이디').fill('demo');
-  await page.getByLabel('비밀번호').fill('demo1234');
-  await page.getByRole('button', { name: '로그인', exact: true }).click();
-  const profileHeading = page.getByRole('heading', { name: '처음 사용할 프로필을 골라 주세요' });
-  await expect(page.getByRole('button', { name: '로그아웃' }).or(profileHeading)).toBeVisible();
-  if (await profileHeading.isVisible()) {
-    await page.getByRole('radio').first().check();
-    await page.getByRole('button', { name: '프로필 저장' }).click();
-  }
-  await expect(page.getByRole('navigation', { name: '주 메뉴' })).toBeVisible();
 }
 
 async function cachedBundleSummary(page) {
@@ -129,9 +115,9 @@ async function expectNativeClip(page, buttonName, text, previousPlays = 0) {
   expect(matchesSavedClip).toBe(true);
 }
 
-test('기본 음성을 자동 재생 없이 저장하고 새 페이지에서 네트워크 없이 실제 재생한다', async ({ page, context }) => {
+test('기본 음성을 자동 재생 없이 저장하고 새 페이지에서 네트워크 없이 실제 재생한다', async ({ page, context, communicator }) => {
   await observeNativeAudio(page);
-  await loginAsUser(page);
+  await login(page, communicator);
   await expect(page.getByTestId('core-speech-status')).toContainText('기본 긴급·복구 음성 13개 저장됨', { timeout: 20000 });
   await expect.poll(() => cachedBundleSummary(page)).toEqual({
     version: 'v1', entries: 13, clips: 13, accountReady: true,
@@ -153,7 +139,7 @@ test('기본 음성을 자동 재생 없이 저장하고 새 페이지에서 네
   await restored.close();
 });
 
-test('기기 한국어 음성이 실패하면 기본 음성으로 복구하고 성공 이력을 한 번 저장한다', async ({ page }) => {
+test('기기 한국어 음성이 실패하면 기본 음성으로 복구하고 성공 이력을 한 번 저장한다', async ({ page, communicator }) => {
   await observeNativeAudio(page, { synthesis: 'fails' });
   const events = [];
   page.on('response', response => {
@@ -166,7 +152,7 @@ test('기기 한국어 음성이 실패하면 기본 음성으로 복구하고 �
       });
     }
   });
-  await loginAsUser(page);
+  await login(page, communicator);
   await expect(page.getByTestId('core-speech-status')).toContainText('기본 긴급·복구 음성 13개 저장됨', { timeout: 20000 });
   expect(await page.evaluate(() => window.__coreAudio.synthesisCalls)).toEqual([]);
   await expectNativeClip(page, '도와주세요 바로 말하기', '도와주세요');

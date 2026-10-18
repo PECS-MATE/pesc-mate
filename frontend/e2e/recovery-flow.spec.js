@@ -1,4 +1,6 @@
-import { test, expect } from './fixtures.js';
+import { test, expect, login } from './workflow-fixtures.js';
+
+test.use({ serviceWorkers: 'block', profilePreset: null });
 
 async function installSpeechStub(page) {
   await page.addInitScript(() => {
@@ -29,23 +31,9 @@ async function installSpeechStub(page) {
   });
 }
 
-async function loginAsUser(page) {
-  await page.goto('/');
-  await page.getByLabel('아이디').fill('demo');
-  await page.getByLabel('비밀번호').fill('demo1234');
-  await page.getByRole('button', { name: '로그인', exact: true }).click();
-  await expect(page.getByRole('button', { name: '로그아웃' })).toBeVisible();
-
-  const profileHeading = page.getByRole('heading', { name: '처음 사용할 프로필을 골라 주세요' });
-  if (await profileHeading.isVisible().catch(() => false)) {
-    await page.getByRole('radio').first().check();
-    await page.getByRole('button', { name: '프로필 저장' }).click();
-  }
-}
-
-test('잘못 누른 표현을 취소하고 수정한 카드를 다시 말한다', async ({ page }) => {
+test('잘못 누른 표현을 취소하고 수정한 카드를 다시 말한다', async ({ page, communicator }) => {
   await installSpeechStub(page);
-  await loginAsUser(page);
+  await login(page, communicator);
   await page.getByRole('button', { name: /그림으로 말하기/ }).click();
   const workspace = page.locator('.workspace');
 

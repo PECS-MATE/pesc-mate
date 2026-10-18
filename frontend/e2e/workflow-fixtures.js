@@ -4,7 +4,8 @@ import { test as base, expect } from './fixtures.js';
 export const apiPath = path => `${process.env.E2E_API_BASE_URL || ''}/api${path}`;
 
 export const test = base.extend({
-  communicator: async ({ request }, use) => {
+  profilePreset: ['pink', { option: true }],
+  communicator: async ({ request, profilePreset }, use) => {
     const account = { username: `e2e_${randomUUID().replaceAll('-', '').slice(0, 20)}`, password: 'E2e-test-1234' };
     const registration = await request.post(apiPath('/auth/register'), {
       data: { ...account, name: '자동 검증 사용자', guardian_consent: true },
@@ -13,7 +14,9 @@ export const test = base.extend({
     const session = await registration.json();
     const headers = { Authorization: `Bearer ${session.access_token}` };
     try {
-      expect((await request.put(apiPath('/profile'), { headers, data: { preset: 'pink' } })).ok()).toBe(true);
+      if (profilePreset !== null) {
+        expect((await request.put(apiPath('/profile'), { headers, data: { preset: profilePreset } })).ok()).toBe(true);
+      } else expect(session.user.profile).toBeNull();
       await use({ ...account, id: session.user.id, headers });
     } finally {
       // Only this test's newly registered user's content is removed.
@@ -23,19 +26,7 @@ export const test = base.extend({
   },
 });
 
-export async function login(page, account) {
-  await page.goto('/');
-  await page.getByLabel('아이디').fill(account.username);
-  await page.getByLabel('비밀번호', { exact: true }).fill(account.password);
-  await page.getByRole('button', { name: '로그인', exact: true }).click();
-  await expect(page.getByRole('button', { name: '로그아웃' })).toBeVisible();
-  const profile = page.getByRole('heading', { name: '처음 사용할 프로필을 골라 주세요' });
-  if (await profile.isVisible()) {
-    await page.getByRole('radio').first().check();
-    await page.getByRole('button', { name: '프로필 저장' }).click();
-  }
-  await expect(page.getByRole('navigation', { name: '주 메뉴' })).toBeVisible();
-}
+export { login } from './auth-helpers.js';
 
 export async function linkCaregiver(request, communicator) {
   const response = await request.post(apiPath('/auth/login'), {
