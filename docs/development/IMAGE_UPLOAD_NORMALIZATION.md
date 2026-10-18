@@ -1,0 +1,95 @@
+# 업로드 이미지 형식 검증과 메타데이터 제거
+
+## 적용 범위
+
+카드 `POST /api/cards/submissions`와 프로필 `POST /api/profile/image`는 공통
+`backend/app/services/card_submissions.py::_normalize_image`를 사용한다.
+기존 5MiB 이하·가로/세로 128~4096px·전체 16,000,000픽셀 이하 제한을 유지한다.
+Pillow·WebP 지원은 현재 로컬 컨테이너의 Pillow 12.3.0에서 검증했다.
+
+이번 변경은 **신규 업로드 처리**에만 적용한다. 기존 DB 이미지·원본 파일명·백업·
+정적 카드/프로필 자산은 일괄 재인코딩하거나 삭제하지 않는다. schema_version·
+이미지 API URL·접근 권한·공개 카드 검수 상태도 변경하지 않는다.
+
+## 입력 검증
+
+| 실제 파일 계열 | 확인하는 시그니처 | 허용 선언 MIME |
+|---|---|---|
+| JPEG | `FF D8 FF` | `image/jpeg` |
+| PNG | `89 50 4E 47 0D 0A 1A 0A` | `image/png` |
+| WebP | 선두 `RIFF`, 8~11바이트 `WEBP` | `image/webp` |
+
+확장자나 짧은 헤더만으로 파일을 승인하지 않는다. 다음 단계를 모두 거친다.
+
+1. 선언 MIME·입력 크기·파일 시그니처를 확인한다. JPEG/PNG/WebP 외 형식, 빈 입력, 5MiB 초과를 거절한다.
+2. Pillow가 읽은 실제 포맷도 시그니처/MIME과 같아야 한다. `verify()`로 파일 구조를 검사하고 크기·전체 픽셀 수를 확인한다.
+3. 다시 열어 첫 프레임을 실제 디코딩한다. 헤더만 붙인 가짜 파일·중간이 잘린 파일·JPEG 끝이 손상되어 실제 디코딩이 실패하는 입력을 거절한다.
+4. Pillow의 압축 해제 폭탄 경고/오류도 거절한다. 이 경고 처리는 헤더 검사뿐 아니라 재열기·디코딩 과정에도 적용한다.
+
+불일치/손상/범위 초과는 422다. 안전성 검사 공급자에 보내거나 카드·감사 문서를
+만들지 않으며 프로필도 교체하지 않는다. 기존 프로필이 있으면 그대로 유지한다.
+카드 카테고리·동의/권한 등의 기존 검사는 이미지 처리보다 먼저 실행될 수 있다.
+
+MIME은 현재 정해진 세 문자열을 받으며 임의 MIME 파라미터·HEIC·GIF·SVG 등을
+자동 추정해 허용하지 않는다. 올바른 PNG 내용/MIME이면 파일명이 `.jpg`여도 처리하며,
+반대로 파일명이 `.png`여도 JPEG 내용에 PNG MIME을 선언하면 거절한다.
+
+## 픽셀 보존과 메타데이터 제거
+
+- EXIF 방향을 먼저 픽셀에 적용한 뒤 방향 태그를 제거한다. 사진 방향까지 버리는 것이 아니다.
+- 팔레트 PNG와 RGB 색상 키의 `tRNS` 투명도도 RGBA로 변환한다. 기존 A 채널·부분 투명도도 유지한다.
+- 변환 이미지의 EXIF와 `info`를 비우고, WebP 저장 옵션 `exif=b''`, `icc_profile=b''`, `xmp=b''`를 명시한다. 인코더 기본값에 메타데이터 제거를 맡기지 않는다.
+- EXIF GPS·촬영 기기·촬영 시각, XMP, ICC, PNG 텍스트/작성자와 JPEG 주석을 출력 이미지에 복제하지 않는다. 원본 뒤의 부가 바이트도 새 WebP에 이어 붙이지 않는다.
+- 출력은 기존과 같은 quality 88·method 4의 단일 프레임 WebP다. APNG/애니메이션 WebP도 기존 동작대로 첫 프레임만 사용한다. 나머지 프레임 전체의 콘텐츠 검수를 했다는 뜻은 아니다.
+- 신규 카드에는 사용하지 않던 `original_filename`을 저장하지 않는다. 반환/저장 표시 파일명은 기존 `card-image.webp`를 유지한다. 내부 함수 인자는 호환성을 위해 유지한다.
+
+방향 적용은 [Pillow ImageOps](https://pillow.readthedocs.io/en/stable/reference/ImageOps.html#PIL.ImageOps.exif_transpose),
+WebP의 EXIF/ICC/XMP 저장 옵션은 [Pillow 파일 형식 문서](https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html#webp)를 참고한다.
+명시 옵션과 출력 바이트 검사를 함께 사용하며 의존성 전체 버전을 고정/갱신한 작업은 아니다.
+
+안전성 검사는 **정규화된 WebP**와 `image/webp`만 받는다. 이미지가 통과하면 같은
+바이트를 DB에 저장하고 이미지 조회 API가 반환한다. 공급자 미설정/차단 시 카드의
+수동 검토 정책과 프로필의 fail-closed 정책은 기존대로 유지한다.
+
+이 작업은 보이는 픽셀 속 얼굴·이름·주소를 익명화하거나 악성 파일 전반을 검사하는
+기능이 아니다. ICC 제거 시 색상 관리 정확도나 원본 무손실 보존도 보증하지 않는다.
+외부 이미지 안전성 검사에 대한 실제 공급자/전송 동의·운영 정책은 별도 검토 사항이다.
+
+## 자동 검증
+
+`backend/tests/image_fixtures.py`가 실제 EXIF GPS/기기/방향·ICC·XMP·텍스트를 가진
+합성 JPEG/PNG/WebP를 생성한다. 개인 사진이나 바이너리 fixture를 저장소에 추가하지 않는다.
+
+`backend/tests/test_image_normalization.py`의 14개 시험은 입력에 메타데이터가 실제
+들어 있음을 먼저 확인한 뒤 출력에서 사라지는지 검사한다. Pillow로 재열어 검사할
+뿐 아니라 별도 RIFF 파서로 `EXIF`·`XMP `·`ICCP`·애니메이션 청크가 없는지도 확인한다.
+EXIF 6번 방향의 크기/색상 위치, 팔레트/색상 키/부분 투명도, MIME 교차 조합,
+시그니처와 디코더 포맷 불일치, 헤더 가짜·손상·크기·픽셀·압축 해제 제한을 포함한다.
+인코더에 전달되는 `info`/EXIF와 세 메타데이터 옵션도 직접 확인한다.
+
+`backend/integration_tests/test_image_uploads.py`의 6개 시험은 실제 multipart·Bearer
+인증·FastAPI 검증·MongoDB 저장·이미지 응답을 사용한다. 외부 안전성 HTTP 전송만
+대체하고 그 요청에도 정규화된 바이트만 전달되는지 확인한다. 다른 아동 접근 차단,
+손상/위장/과대 입력의 공급자 미호출·감사 기록 미생성·기존 프로필 보존도 검증한다.
+
+각 통합 시험은 `pesc_mate_image_test_<UUID>` DB만 생성한다. 정리 전 UUID 전체와
+원래 설정 DB와의 불일치를 확인한 뒤 자신의 합성 DB만 삭제한다. 실제 외부 공급자에
+사진을 보내지 않으며 기존 사용자 이미지에 대한 일괄 마이그레이션을 실행하지 않는다.
+CI의 기존 MongoDB 통합 단계에도 자동 포함된다.
+
+backend 의존성과 테스트 MongoDB 연결을 준비한 뒤 backend 디렉터리에서 실행한다.
+
+```powershell
+python -m unittest discover -s tests -t . -p "test_*.py"
+python -m unittest discover -s integration_tests -p "test_*.py" -v
+```
+
+원본의 최종 보관/백업 정책, 화면용·썸네일 규격, 생성/캐시/무효화, 저장량 한도,
+고아 파일과 실제 기기 검수는 별도 TODO로 유지한다.
+
+2026-10-18 로컬 컨테이너의 전체 단위 테스트 **288개**, 실제 임시 MongoDB 통합
+테스트 **32개**, Windows Chrome 브라우저 전체 **25개**(단일 worker)를 통과했다.
+신규 이미지 시험은 단위 14개·DB/API 통합 6개이며, 브라우저에서는 기존 개인 PNG
+등록과 아동 고정 카드판 반영도 다시 확인했다. 테스트용 합성 DB만 정리했고 기존
+사용자 이미지는 일괄 변경하지 않았다. 프런트엔드 소스·단위 테스트·빌드와 원격 CI,
+실제 외부 이미지 안전성 공급자·태블릿·실제 사진 검수는 이번 결과에 포함하지 않는다.

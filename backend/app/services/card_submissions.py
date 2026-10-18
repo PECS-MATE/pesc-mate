@@ -114,6 +114,15 @@ def _normalize_image(image_data, declared_content_type):
         raise HTTPException(422, 'JPG, PNG, WebP 이미지만 등록할 수 있습니다.')
     if not image_data or len(image_data) > MAX_IMAGE_BYTES:
         raise HTTPException(422, '이미지는 5MB 이하로 등록해 주세요.')
+    # Neither filename nor a short header alone proves a valid image: require
+    # signature, declared MIME, decoder format, verify and full first-frame load.
+    signature_type = (
+        'image/png' if image_data.startswith(b'\x89PNG\r\n\x1a\n') else
+        'image/jpeg' if image_data.startswith(b'\xff\xd8\xff') else
+        'image/webp' if image_data[:4] == b'RIFF' and image_data[8:12] == b'WEBP' else None
+    )
+    if signature_type != declared_content_type:
+        raise HTTPException(422, '파일 형식과 이미지 내용이 일치하지 않습니다.')
     try:
         with warnings.catch_warnings():
             warnings.simplefilter('error', Image.DecompressionBombWarning)
@@ -121,19 +130,24 @@ def _normalize_image(image_data, declared_content_type):
                 actual_content_type = IMAGE_FORMAT_TYPES.get(probe.format)
                 width, height = probe.size
                 probe.verify()
-        if actual_content_type != declared_content_type:
-            raise HTTPException(422, '파일 형식과 이미지 내용이 일치하지 않습니다.')
-        if (min(width, height) < MIN_IMAGE_EDGE or max(width, height) > MAX_IMAGE_EDGE
-                or width * height > MAX_IMAGE_PIXELS):
-            raise HTTPException(422, '이미지 해상도는 가로·세로 128~4096px 범위여야 합니다.')
-        with Image.open(BytesIO(image_data)) as source:
-            source.seek(0)
-            normalized = ImageOps.exif_transpose(source)
-            normalized.load()
-            normalized = normalized.convert('RGBA' if 'A' in normalized.getbands() else 'RGB')
-            output = BytesIO()
-            normalized.save(output, format='WEBP', quality=88, method=4)
-            return output.getvalue(), 'image/webp'
+            if actual_content_type != signature_type:
+                raise HTTPException(422, '파일 형식과 이미지 내용이 일치하지 않습니다.')
+            if (min(width, height) < MIN_IMAGE_EDGE or max(width, height) > MAX_IMAGE_EDGE
+                    or width * height > MAX_IMAGE_PIXELS):
+                raise HTTPException(422, '이미지 해상도는 가로·세로 128~4096px 범위여야 합니다.')
+            with Image.open(BytesIO(image_data)) as source:
+                source.seek(0)
+                normalized = ImageOps.exif_transpose(source)
+                normalized.load()
+                # Palette/RGB PNG can encode transparency with tRNS, not an A band.
+                alpha = 'A' in normalized.getbands() or 'transparency' in normalized.info
+                normalized = normalized.convert('RGBA' if alpha else 'RGB')
+                normalized.getexif().clear()
+                normalized.info.clear()
+                output = BytesIO()
+                normalized.save(output, format='WEBP', quality=88, method=4,
+                                exif=b'', icc_profile=b'', xmp=b'')
+                return output.getvalue(), 'image/webp'
     except HTTPException:
         raise
     except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError,
@@ -178,7 +192,6 @@ def create_submission(owner_id, label, meaning, category, visibility,
                    else 'approved' if visibility == 'private' else 'pending'),
         'image': {
             'filename': 'card-image.webp',
-            'original_filename': image_filename or 'card-image',
             'content_type': safe_content_type,
             'data': safe_image_data,
         },

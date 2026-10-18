@@ -29,6 +29,7 @@ API, 데이터 구조, 카드·마스코트 자산과 협업 규칙을 관리한
 | [운영 알림](development/OPERATIONAL_ALERTS.md) | 공용 카드 검수 대기·반복 실패 기준, 조회 실패와 갱신 정책 |
 | [데이터 버전·마이그레이션](development/DATA_SCHEMA_MIGRATIONS.md) | 저장 형식 기준선, 조회 전용 계획·명시적 적용·잠금·재개 규칙 |
 | [학습 기록 데이터 모델](development/LEARNING_DATA_MODEL.md) | 학습 컬렉션과 의사소통 기록의 구분 |
+| [업로드 이미지 정규화](development/IMAGE_UPLOAD_NORMALIZATION.md) | 시그니처/MIME/디코딩 교차 검증, 메타데이터 제거·방향·투명도 보존 |
 | [카드 사진·단어 목록](development/CARD_PHOTO_WORD_LIST.md) | 카드 제작 기준, 이미지 표현과 제작 우선순위 |
 | [마스코트 자산](development/MASCOT_ASSET.md) | 자산 경로, 적용 위치와 생성 프롬프트 |
 | [커밋 메시지 규칙](development/COMMIT_CONVENTION.md) | 커밋 유형, 제목과 본문 작성 방법 |
