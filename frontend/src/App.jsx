@@ -1,6 +1,7 @@
 import Mascot, { EmptyState } from './Mascot';
 import { Avatar, ProfileEditor } from './Profile';
 import OperationalAlerts from './OperationalAlerts';
+import AccountPermissions from './AccountPermissions';
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { hasToken, recordDeviceAccess, request, requestBlob, setToken } from "./services/api";
@@ -491,8 +492,9 @@ function App() {
   }, [user]);
 
   useEffect(() => {
-    const denySupportAccess = () => {
+    const denySupportAccess = event => {
       if (!['caregiver', 'support_staff'].includes(user?.role)) return;
+      if (event.apiPath?.startsWith('/admin/accounts/')) return;
       clearSupportTargetData();
       setTab(user?.account_permissions?.includes('content_manage') ? 'admin' : 'support_home');
       setError('지원 권한이 변경되어 사용자 정보를 닫았습니다. 다시 불러와 주세요.');
@@ -1252,6 +1254,7 @@ function App() {
   const speechActive = speechState.status !== 'idle';
   const isSupporter = ['caregiver', 'support_staff'].includes(user?.role);
   const canManageContent = user?.role === 'support_staff' && user?.account_permissions?.includes('content_manage');
+  const canManageAccounts = user?.role === 'support_staff' && user?.can_manage_account_permissions === true;
   const selectedPermissions = selectedUser?.permissions || [];
   const canReadRecords = selectedPermissions.includes('records_read');
   const canWriteNotes = selectedPermissions.includes('notes_write');
@@ -1262,7 +1265,8 @@ function App() {
   const canManageLearning = selectedPermissions.includes('learning_manage');
   const localKoreanVoices = installedKoreanVoices(ttsVoices);
   const speechStatusLabel = ({ starting: '음성 준비 중', playing: '음성 재생 중', paused: '음성 일시 정지' })[speechState.status];
-  const pageTitle = tab === 'admin' && canManageContent
+  const pageTitle = tab === 'account_permissions' && canManageAccounts ? '담당자의 운영 권한을 관리해요.'
+    : tab === 'admin' && canManageContent
     ? '카드 등록 요청을 검토해요.'
     : isSupporter
     ? tab === 'support_home' ? '연결된 사용자를 지원해요.' : `${selectedUser?.name || '연결 사용자'}의 설정과 기록을 살펴봐요.`
@@ -1308,6 +1312,7 @@ function App() {
           {canManageVoice && <button className={tab === 'support_settings' ? 'active' : ''} onClick={() => openSupportSection('support_settings')}><span aria-hidden="true">♿</span>음성·접근 설정</button>}
           {canManageLearning && <button className={tab === 'learning_progress' ? 'active' : ''} onClick={() => openLearning(selectedUser)}><span aria-hidden="true">★</span>학습 성취</button>}
           {canManageContent && <button className={tab === 'admin' ? 'active' : ''} onClick={() => setTab('admin')}><span aria-hidden="true">☑</span>공용 콘텐츠 운영<i aria-label={`승인 대기 ${adminSubmissions.filter(item => item.status === 'pending').length}개`}>{adminSubmissions.filter(item => item.status === 'pending').length}</i></button>}
+          {canManageAccounts && <button className={tab === 'account_permissions' ? 'active' : ''} onClick={() => setTab('account_permissions')}><span aria-hidden="true">⚿</span>운영 권한 관리</button>}
         </> : <>
           <button className={tab === 'home' ? 'active' : ''} onClick={() => setTab('home')}><span aria-hidden="true">⌂</span>홈</button>
           <button className={tab === 'cards' ? 'active' : ''} onClick={() => setTab('cards')}><span aria-hidden="true">▦</span>그림으로 말하기<i aria-label={`추천 카드 ${recommended.length}개`}>{recommended.length}</i></button>
@@ -1496,7 +1501,7 @@ function App() {
         <article><h3>연결 변경 이력</h3>{privacyAudit.length ? <ul className="privacy-audit">{privacyAudit.slice(0, 10).map(item => <li key={item.id}><span>{({ caregiver_connected: '보호자 연결', caregiver_disconnected: '보호자 연결 해제', support_granted: '지원 연결 및 권한 부여', support_permissions_changed: '지원 권한 변경', support_revoked: '지원 연결 해제', personal_data_deleted: '이용 데이터 삭제' })[item.action] || item.action}<small>처리자 {item.actor_id}</small></span><time>{new Date(item.created_at).toLocaleString('ko-KR')}</time></li>)}</ul> : <p className="muted">변경 이력이 없습니다.</p>}</article>
         <article className="privacy-data"><h3>다운로드와 삭제</h3><p>다운로드에는 계정 정보, 문장·음성 이력, 개인 카드와 현재 열람자가 포함됩니다. 이미지 원본과 비밀번호는 포함되지 않습니다.</p><div><button disabled={privacyBusy === 'export'} onClick={downloadPrivacyData}>{privacyBusy === 'export' ? '준비 중…' : '내 데이터 다운로드'}</button><button className="danger" disabled={privacyBusy === 'delete'} onClick={deletePrivacyData}>{privacyBusy === 'delete' ? '삭제 중…' : '이용 데이터 삭제'}</button></div><small>삭제하면 개인 카드, 의사소통·음성 기록, 보호자 연결, 프로필 이미지와 사용자 설정이 제거됩니다. 로그인 계정과 삭제 확인 기록은 유지됩니다.</small></article>
       </div>
-    </section> : tab === 'admin' && canManageContent ? <section className="admin-review">
+    </section> : tab === 'account_permissions' && canManageAccounts ? <AccountPermissions key={user.id} accountId={user.id} onSessionExpired={handleLogout} /> : tab === 'admin' && canManageContent ? <section className="admin-review">
       <div className="category-admin">
         <div className="panel-heading"><span aria-hidden="true">▦</span><div><h2>카테고리 관리</h2><p className="muted">카테고리를 추가하고 표시 순서와 활성 상태를 관리하세요.</p></div></div>
         {categoryError && <div role="alert" className="error">{categoryError}</div>}

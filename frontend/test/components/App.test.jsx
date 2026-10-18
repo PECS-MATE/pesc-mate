@@ -80,6 +80,31 @@ async function openCommunication() {
 
 const selectedLabels = board => board.queryAllByRole('listitem').map(item => item.querySelector('span').textContent.trim());
 
+test.each([false, true])('서버가 지정한 책임자 여부 %s에 따라 운영 권한 관리 메뉴를 분리한다', async allowed => {
+  const original = request.getMockImplementation();
+  request.mockImplementation((path, options) => {
+    if (path === '/auth/me') return Promise.resolve({ ...account, role: 'support_staff', can_manage_account_permissions: allowed });
+    if (path === '/care/linked-users') return Promise.resolve([]);
+    return original(path, options);
+  });
+  const user = userEvent.setup();
+  render(<StrictMode><App /></StrictMode>);
+  await screen.findByText('서비스 연결됨');
+  const menu = screen.getByRole('navigation', { name: '주 메뉴' });
+  const manage = within(menu).queryByRole('button', { name: '운영 권한 관리', exact: true });
+  expect(Boolean(manage)).toBe(allowed);
+  if (allowed) {
+    await user.click(manage);
+    expect(await screen.findByRole('heading', { name: '운영 권한 관리', exact: true })).toBeTruthy();
+    expect(screen.getByLabelText('담당자 아이디')).toBeTruthy();
+    const denied = new Event('pesc-mate:access-denied');
+    denied.apiPath = '/admin/accounts/staff/content-permission';
+    act(() => window.dispatchEvent(denied));
+    expect(screen.getByRole('heading', { name: '운영 권한 관리', exact: true })).toBeTruthy();
+  }
+  expect(request.mock.calls.some(([path]) => path.startsWith('/admin/accounts/'))).toBe(false);
+});
+
 test('AAC 사용자 화면에는 운영 알림을 표시하거나 요청하지 않는다', async () => {
   await openCommunication();
   expect(screen.queryByRole('region', { name: '운영 알림' })).toBeNull();

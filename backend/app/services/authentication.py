@@ -11,6 +11,7 @@ from pymongo.errors import DuplicateKeyError, PyMongoError
 from app.services.database import database as _database, log_crud
 from app.services.schema_versions import SCHEMA_VERSION
 from app.services.login_throttle import clear_login_failures, ensure_login_allowed, record_login_failure
+from app.services.account_permissions import can_manage_account_permissions, permission_revision
 
 SESSION_HOURS = 12
 ACCOUNT_PERMISSIONS = ('content_manage',)
@@ -35,6 +36,8 @@ def _public_user(user):
         'name': user['name'],
         'role': 'support_staff' if legacy_admin else user['role'],
         'account_permissions': [permission for permission in ACCOUNT_PERMISSIONS if permission in permissions],
+        'can_manage_account_permissions': can_manage_account_permissions(user),
+        'permission_revision': permission_revision(user),
         'profile': public_profile(user),
     }
 
@@ -48,7 +51,8 @@ def _ensure_user(username, password, name, role, account_permissions=None):
     profile = {'username': username, 'name': name, 'role': role,
                'account_permissions': account_permissions or []}
     if database.users.find_one({'_id': username}, {'_id': 1}):
-        database.users.update_one({'_id': username}, {'$set': profile})
+        # Seeding must never restore an explicitly revoked operating permission.
+        database.users.update_one({'_id': username}, {'$set': {key: value for key, value in profile.items() if key != 'account_permissions'}})
         log_crud('UPDATE', 'users', f'{role} 데모 계정 동기화')
         return
     salt, password_hash = _password_hash(password)
@@ -130,6 +134,7 @@ def login(username, password, client_ip=None):
             'schema_version': SCHEMA_VERSION,
             '_id': hashlib.sha256(token.encode()).hexdigest(),
             'user_id': str(user['_id']),
+            'permission_revision': permission_revision(user),
             'expires_at': expires_at,
         })
         log_crud('CREATE', 'auth_sessions', '로그인 세션 생성')
@@ -192,6 +197,9 @@ def current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
         log_crud('READ', 'users', '인증 사용자 조회')
         if not user:
             raise HTTPException(401, '사용자 계정을 찾을 수 없습니다.')
+        if permission_revision(session) != permission_revision(user):
+            raise HTTPException(401, '계정 권한이 변경되었습니다. 다시 로그인해 주세요.',
+                                headers={'WWW-Authenticate': 'Bearer'})
         return _public_user(user) | {'session_expires_at': expires_at}
     except HTTPException:
         raise

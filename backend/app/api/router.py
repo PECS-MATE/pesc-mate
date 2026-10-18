@@ -2,7 +2,7 @@ from contextlib import nullcontext
 from datetime import datetime
 from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, Request, Response, UploadFile
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr
 from starlette.responses import JSONResponse
 from uuid import UUID
 from app.services.communication import CARDS, regenerate_session, save_session, statistics
@@ -46,6 +46,7 @@ from app.services.card_submissions import (
 from app.services.categories import (
     active_categories, categories_for_admin, create_category, update_category,
 )
+from app.services.account_permissions import change_content_permission, permission_audit, staff_account
 
 api_router = APIRouter()
 
@@ -138,10 +139,43 @@ class UserResponse(BaseModel):
     name: str
     role: str
     account_permissions: list[str] = Field(default_factory=list)
+    can_manage_account_permissions: bool = False
+    permission_revision: int = 0
     profile: ProfileResponse | None = None
     session_expires_at: datetime | None = None
     permissions: list[str] | None = None
     link_role: str | None = None
+
+
+class AccountPermissionRequest(BaseModel):
+    model_config = {'extra': 'forbid'}
+    content_manage: bool = Field(strict=True)
+    expected_revision: int = Field(ge=0, strict=True)
+    password: SecretStr = Field(min_length=1, max_length=128)
+    reason: str = Field(min_length=3, max_length=300)
+
+
+@api_router.get('/admin/accounts/lookup', tags=['운영 권한'])
+def lookup_staff_account(username: str = Query(min_length=1, max_length=64), user=Depends(current_user)):
+    return JSONResponse(staff_account(user, username.strip()), headers={'Cache-Control': 'no-store'})
+
+
+@api_router.get('/admin/accounts/{target_id}/permission-audit', tags=['운영 권한'])
+def get_account_permission_audit(target_id: str, response: Response, user=Depends(current_user)):
+    response.headers['Cache-Control'] = 'no-store'
+    return permission_audit(user, target_id)
+
+
+@api_router.put('/admin/accounts/{target_id}/content-permission', tags=['운영 권한'])
+def update_account_permission(target_id: str, payload: AccountPermissionRequest, request: Request,
+                              response: Response, user=Depends(current_user)):
+    reason = payload.reason.strip()
+    if len(reason) < 3:
+        raise HTTPException(422, '변경 사유를 세 글자 이상 입력해 주세요.')
+    response.headers['Cache-Control'] = 'no-store'
+    return change_content_permission(user, target_id, payload.content_manage, payload.expected_revision,
+                                     payload.password.get_secret_value(), reason,
+                                     request.client.host if request.client else None)
 
 
 class TtsSettingsRequest(BaseModel):

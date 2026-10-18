@@ -8,4 +8,5 @@ VERSIONED_COLLECTIONS = (
     'board_audit_logs', 'caregiver_links', 'caregiver_notes', 'privacy_settings',
     'privacy_audit_logs', 'offline_events', 'learning_settings',
     'learning_attempts', 'learning_audit_logs',
+    'account_permission_audit_logs',
 )

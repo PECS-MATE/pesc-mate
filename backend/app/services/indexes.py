@@ -14,6 +14,8 @@ INDEXES = (
     ('users', [('username', ASCENDING)], {'name': 'username_unique', 'unique': True}),
     ('auth_sessions', [('expires_at', ASCENDING)], {'name': 'session_expiry_ttl', 'expireAfterSeconds': 0}),
     ('auth_sessions', [('user_id', ASCENDING)], {'name': 'session_user'}),
+    ('account_permission_audit_logs', [('target_id', ASCENDING), ('created_at', DESCENDING)],
+     {'name': 'account_permission_recent'}),
     ('login_attempts', [('expires_at', ASCENDING)], {'name': 'login_attempt_expiry_ttl', 'expireAfterSeconds': 0}),
     ('communication_sessions', [('user_id', ASCENDING), ('created_at', DESCENDING)], {'name': 'user_recent_sessions'}),
     ('tts_events', [('user_id', ASCENDING), ('requested_at', DESCENDING)], {'name': 'user_recent_tts'}),
@@ -36,7 +38,7 @@ INDEXES = (
      {'name': 'target_recent_learning_audit'}),
     # Explicit retention CLI only; never install an automatic audit TTL policy.
     *((name, [('created_at', ASCENDING)], {'name': 'audit_retention_scan'}) for name in
-      ('privacy_audit_logs', 'board_audit_logs', 'learning_audit_logs', 'card_audit_logs')),
+      ('privacy_audit_logs', 'board_audit_logs', 'learning_audit_logs', 'card_audit_logs', 'account_permission_audit_logs')),
 )
 
 

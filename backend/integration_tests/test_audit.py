@@ -137,9 +137,22 @@ class RealAuditTests(unittest.TestCase):
         identity = self.seal()
         result = audit.retain(self.database, 30, backup_ref='verified-synthetic-fixture',
                               seal_id=identity, **self.options)
-        self.assertEqual(sum(result['deleted'].values()), 12)
+        self.assertEqual(sum(result['deleted'].values()), 3 * len(audit.COLLECTIONS))
         verified = audit.verify(self.database, result['remaining_seal'])
         self.assertEqual(sum(row['count'] for row in verified['collections'].values()), 0)
+
+    def test_legacy_checkpoint_keeps_its_scope_but_cannot_authorize_new_collection_retention(self):
+        with patch.object(audit, 'COLLECTIONS', audit.LEGACY_COLLECTIONS):
+            identity = self.seal()
+        original = self.documents()
+        verified = audit.verify(self.database, identity)
+        self.assertEqual(verified['status'], 'verified_legacy_scope')
+        self.assertEqual(verified['uncovered_collections'], ['account_permission_audit_logs'])
+        self.assert_error('checkpoint_scope_incomplete', audit.retain, self.database, 90,
+                          backup_ref='verified-synthetic-fixture', seal_id=identity, **self.options)
+        self.assertEqual(self.documents(), original)
+        self.database.board_audit_logs.update_one({'_id': 'recent'}, {'$set': {'actor_id': 'changed'}})
+        self.assert_error('audit_checkpoint_mismatch', audit.verify, self.database, identity)
 
     def test_partial_failure_keeps_original_checkpoint_and_reports_only_fixed_counts(self):
         identity = self.seal()

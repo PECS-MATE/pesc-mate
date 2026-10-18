@@ -50,6 +50,15 @@ function jsonResponse(data, status = 200, headers = {}) {
   });
 }
 
+test('forbidden events identify the API scope without changing the error result', async () => {
+  let denied;
+  window.dispatchEvent = event => { denied = event; };
+  mockResponses(jsonResponse({ detail: '재인증을 확인해 주세요.' }, 403));
+  await assert.rejects(request('/admin/accounts/staff/content-permission'), error => error.status === 403);
+  assert.equal(denied.type, 'pesc-mate:access-denied');
+  assert.equal(denied.apiPath, '/admin/accounts/staff/content-permission');
+});
+
 test('each retry has a fresh transport UUID while preserving the idempotency body and header overrides', async () => {
   const calls = mockResponses(jsonResponse({ saved: true }), jsonResponse({ saved: true }));
   const body = JSON.stringify({ request_id: 'body-idempotency-id', cards: ['water'] });

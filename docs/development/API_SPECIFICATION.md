@@ -37,6 +37,8 @@ Authorization: Bearer {access_token}
 ```
 
 토큰은 로그인 시 생성되며 기본 12시간 동안 유효하다. 로그아웃하면 해당 토큰이 즉시 삭제된다.
+담당자 운영 권한이 변경되면 계정·세션 권한 버전을 비교해 기존 세션을 다음 요청부터 401로
+차단한다. 운영 권한 관리 API와 책임자 설정은 [운영 권한 관리](../operations/ACCOUNT_PERMISSION_MANAGEMENT.md)를 따른다.
 
 ### 요청 추적 ID
 

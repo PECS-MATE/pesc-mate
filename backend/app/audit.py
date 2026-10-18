@@ -17,7 +17,8 @@ from pymongo.errors import PyMongoError
 from app.services.database import client
 
 
-COLLECTIONS = ('privacy_audit_logs', 'board_audit_logs', 'learning_audit_logs', 'card_audit_logs')
+LEGACY_COLLECTIONS = ('privacy_audit_logs', 'board_audit_logs', 'learning_audit_logs', 'card_audit_logs')
+COLLECTIONS = (*LEGACY_COLLECTIONS, 'account_permission_audit_logs')
 RETENTION_DAYS = (30, 90, 365, 1095)
 MAX_RECORDS = 500000
 
@@ -90,10 +91,10 @@ def _json(value):
     return json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=True).encode('ascii')
 
 
-def _snapshot(database, through):
+def _snapshot(database, through, collections=None):
     rows = {}
     total = 0
-    for name in COLLECTIONS:
+    for name in COLLECTIONS if collections is None else collections:
         collection = database[name]
         # Invalid dates must not silently disappear from the integrity scope.
         invalid = collection.count_documents(
@@ -115,10 +116,10 @@ def _snapshot(database, through):
     return rows
 
 
-def _stable_snapshot(database, through):
+def _stable_snapshot(database, through, collections=None):
     with timeout(30):
-        before = _snapshot(database, through)
-        if before != _snapshot(database, through):
+        before = _snapshot(database, through, collections)
+        if before != _snapshot(database, through, collections):
             raise AuditError('audit_changed_during_scan')
     return before
 
@@ -165,7 +166,7 @@ def _read(identity, database_name):
         if (set(manifest) != {'format', 'seal_id', 'database', 'through', 'key_id', 'collections', 'hmac_sha256', 'operation'}
                 or type(manifest['format']) is not int or manifest['format'] != 1
                 or manifest['seal_id'] != identity or manifest['database'] != database_name
-                or set(manifest['collections']) != set(COLLECTIONS)):
+                or set(manifest['collections']) not in (set(COLLECTIONS), set(LEGACY_COLLECTIONS))):
             raise ValueError()
         for row in manifest['collections'].values():
             if (set(row) != {'count', 'sha256'} or type(row['count']) is not int or row['count'] < 0
@@ -188,10 +189,14 @@ def _read(identity, database_name):
 def verify(database, identity):
     _database(database.name)
     manifest, through = _read(identity, database.name)  # Authenticate before querying DB.
-    rows = _stable_snapshot(database, through)
+    legacy = set(manifest['collections']) != set(COLLECTIONS)
+    rows = (_stable_snapshot(database, through, tuple(manifest['collections'])) if legacy
+            else _stable_snapshot(database, through))
     if rows != manifest['collections']:
         raise AuditError('audit_checkpoint_mismatch')
-    return {'status': 'verified', 'seal_id': identity, 'through': through.isoformat(), 'collections': rows}
+    return {'status': 'verified_legacy_scope' if legacy else 'verified', 'seal_id': identity,
+            'through': through.isoformat(), 'collections': rows,
+            'uncovered_collections': [name for name in COLLECTIONS if name not in manifest['collections']]}
 
 
 def retain(database, days, *, apply=False, confirm_database=None, writers_stopped=False,
@@ -209,6 +214,8 @@ def retain(database, days, *, apply=False, confirm_database=None, writers_stoppe
         if not isinstance(backup_ref, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,63}', backup_ref):
             raise AuditError('backup_reference_required')
         manifest, through = _read(seal_id, database.name)
+        if set(manifest['collections']) != set(COLLECTIONS):
+            raise AuditError('checkpoint_scope_incomplete')
         if cutoff > through:
             raise AuditError('checkpoint_does_not_cover_cutoff')
         verify(database, seal_id)

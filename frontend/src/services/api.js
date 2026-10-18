@@ -6,8 +6,12 @@ const API_BASE_URL =
 const TOKEN_KEY = 'pesc-mate-token';
 const DEVICE_KEY = 'pesc-mate-device-id';
 
-function notifyAccessDenied(status) {
-  if (status === 403) window.dispatchEvent(new Event('pesc-mate:access-denied'));
+function notifyAccessDenied(status, path) {
+  if (status === 403) {
+    const event = new Event('pesc-mate:access-denied');
+    event.apiPath = path;
+    window.dispatchEvent(event);
+  }
 }
 
 function responseRequestId(response, sentRequestId, data) {
@@ -26,10 +30,10 @@ async function fetchWithRequestId(url, options) {
   }
 }
 
-async function responseError(response, requestId, fallbackMessage) {
+async function responseError(response, requestId, fallbackMessage, path) {
   let data;
   try { data = await response.json(); } catch { /* Proxies may return HTML or an empty body. */ }
-  notifyAccessDenied(response.status);
+  notifyAccessDenied(response.status, path);
   const error = new Error(typeof data?.detail === 'string' ? data.detail
     : typeof data?.error?.message === 'string' ? data.error.message : fallbackMessage);
   error.status = response.status;
@@ -61,7 +65,7 @@ export async function recordDeviceAccess() {
   const { response, requestId } = await fetchWithRequestId(`${API_BASE_URL}/api/device/access`, {
     method: 'POST', keepalive: true, headers: { 'X-Pesc-Device': deviceId },
   });
-  if (!response.ok) throw await responseError(response, requestId, '요청을 처리하지 못했습니다.');
+  if (!response.ok) throw await responseError(response, requestId, '요청을 처리하지 못했습니다.', '/device/access');
 }
 
 export async function request(path, options = {}) {
@@ -75,7 +79,7 @@ export async function request(path, options = {}) {
     signal: AbortSignal.timeout(15000),
     headers,
   });
-  if (!response.ok) throw await responseError(response, requestId, '요청을 처리하지 못했습니다.');
+  if (!response.ok) throw await responseError(response, requestId, '요청을 처리하지 못했습니다.', path);
   if (response.status === 204) return null;
   try {
     return await response.json();
@@ -94,7 +98,7 @@ export async function requestBlob(path) {
       ? { Authorization: `Bearer ${token}` }
       : {},
   });
-  if (!response.ok) throw await responseError(response, requestId, '이미지를 불러오지 못했습니다.');
+  if (!response.ok) throw await responseError(response, requestId, '이미지를 불러오지 못했습니다.', path);
   try {
     return await response.blob();
   } catch (error) {

@@ -50,6 +50,7 @@ class DemoAccountTests(unittest.TestCase):
         update = database.users.update_one.call_args.args[1]
         self.assertNotIn('password_hash', update['$set'])
         self.assertNotIn('$setOnInsert', update)
+        self.assertNotIn('account_permissions', update['$set'])
 
     @patch('app.services.authentication._database')
     def test_new_demo_account_sets_password_only_on_insert(self, mocked_database):
