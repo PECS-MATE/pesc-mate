@@ -144,7 +144,8 @@ schema_version을 바꾸는 것으로 복구했다고 처리하지 않는다.
 통합 테스트는 환경의 기존 DB가 아니라 `pesc_mate_migration_test_`와 UUID로 만든
 각자의 임시 DB만 사용한다. 정리 전 이름 전체·접두사·환경 DB와의 불일치를 확인하고
 테스트 DB만 삭제한다. 합성 fixture 참조는 실제 운영 백업·복구 검증 증빙이 아니다.
-기존 일반 단위 테스트·CI에는 이 DB 통합 시험을 자동 포함하지 않는다.
+일반 단위 테스트와 별도로 실행하며 CI의 MongoDB integration and browser workflows
+작업에서도 브라우저 시험 전에 실행한다. 호스트 백업 통합 시험은 이 실행에 포함하지 않는다.
 
 의존성을 준비한 backend 디렉터리에서, 테스트용 MongoDB 연결을 확인한 뒤 실행한다.
 

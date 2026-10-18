@@ -309,7 +309,7 @@ TTS 지표 증빙: `backend/app/services/tts_metrics.py`와 `/api/admin/tts-metr
 - [x] 서버 최신 버전, 수정 시각 또는 버전 번호 기반 충돌 감지
 - [x] 오프라인 이벤트 중복 전송과 순서 역전 테스트
 - [x] 부분 동기화 실패 시 재시도 단위와 사용자 안내
-- [ ] 의사소통 데이터와 학습 데이터의 저장소·API 경계 테스트
+- [x] 의사소통 데이터와 학습 데이터의 저장소·API 경계 테스트
 - [ ] 감사 로그 보관 기간과 위변조 방지 방식
 
 완료 기준: 재연결과 동시 수정 후에도 카드 위치, 설정, 이력이 중복되거나 조용히 덮어써지지 않는다.
@@ -326,6 +326,12 @@ TTS 지표 증빙: `backend/app/services/tts_metrics.py`와 `/api/admin/tts-metr
 검증한다. [백업·되돌리기 절차](../operations/MIGRATION_BACKUP_RECOVERY.md)에 따라
 수동 전환 승인·개인정보 삭제/권한/UUID 정합성을 별도 확인한다. 실제 사용자 DB의
 백업·복원/전환은 하지 않았고 운영 암호화·보관·정기 복구 리허설은 A2-04에 남긴다.
+
+도메인 경계 증빙: `backend/tests/test_learning_communication_boundaries.py`의 허용
+컬렉션 가드와 `backend/integration_tests/test_learning_communication_boundaries.py`의
+실제 인증·임시 DB 시험으로 통계/추천 상호 불변, UUID·오프라인 재전송·권한·객체 ID
+교차 사용 차단, 본인 내보내기/삭제 범위를 검증한다. CI의 MongoDB 작업에도 포함하며
+자세한 범위와 실제 기기 검수의 구분은 [경계 검증 기록](../validation/DATA_BOUNDARY_VALIDATION.md)을 따른다.
 
 동기화 증빙: `frontend/test/offline-sync.test.mjs`에서 205건 분할·발생 순서·부분 승인·
 실패 재시도·동시 재연결·계정 전환 중단을 검증한다. `frontend/e2e/workflows.spec.js`에서
