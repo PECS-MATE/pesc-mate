@@ -6,6 +6,7 @@ import App from '../../src/App.jsx';
 import { request } from '../../src/services/api';
 
 const player = vi.hoisted(() => ({ speak: vi.fn(), pause: vi.fn(), resume: vi.fn(), stop: vi.fn() }));
+const synchronizer = vi.hoisted(() => ({ sync: vi.fn() }));
 
 vi.mock('../../src/services/api', async importOriginal => ({
   ...await importOriginal(), request: vi.fn(), requestBlob: vi.fn(),
@@ -22,9 +23,7 @@ vi.mock('../../src/services/coreSpeech', () => ({ createCoreSpeechCache: () => (
   urlFor: vi.fn(), dispose: vi.fn(),
 }) }));
 vi.mock('../../src/services/speechPlayback', () => ({ createSpeechPlayback: () => player }));
-vi.mock('../../src/services/offlineSync', () => ({ createOfflineSync: () => ({
-  sync: vi.fn(async () => ({ cancelled: false, remaining: 0, failed: 0, syncedAttemptIds: [] })),
-}) }));
+vi.mock('../../src/services/offlineSync', () => ({ createOfflineSync: () => synchronizer }));
 
 const account = { id: 'component-child', username: 'component-child', name: '검증 사용자', role: 'user', profile: { kind: 'preset', preset: 'pink' } };
 const cards = [
@@ -43,6 +42,7 @@ beforeEach(() => {
   volume = 1;
   localStorage.setItem('pesc-mate-token', 'component-test-session');
   player.speak.mockReset().mockImplementation(options => options.onStart());
+  synchronizer.sync.mockReset().mockResolvedValue({ cancelled: false, remaining: 0, failed: 0, syncedAttemptIds: [] });
   request.mockReset().mockImplementation(async (path, options = {}) => {
     if (path === '/auth/me') return account;
     if (path === '/cards' || path === '/recommendations') return cards;
@@ -79,6 +79,32 @@ async function openCommunication() {
 }
 
 const selectedLabels = board => board.queryAllByRole('listitem').map(item => item.querySelector('span').textContent.trim());
+
+test('재연결 이벤트의 동기화가 먼저 실패해도 늦게 끝난 화면 로딩으로 다시 전송하지 않는다', async () => {
+  await openCommunication();
+  await act(async () => {});
+  synchronizer.sync.mockClear().mockResolvedValue({ cancelled: false, remaining: 2, failed: 2, syncedAttemptIds: [] });
+  const original = request.getMockImplementation();
+  let finish;
+  const delayedCards = new Promise(resolve => { finish = resolve; });
+  request.mockImplementation((path, options) => path === '/cards' ? delayedCards : original(path, options));
+  act(() => window.dispatchEvent(new Event('online')));
+  await screen.findByTestId('sync-status');
+  expect(synchronizer.sync).toHaveBeenCalledTimes(1);
+  await act(async () => finish(cards));
+  expect(synchronizer.sync).toHaveBeenCalledTimes(1);
+});
+
+test('재연결 때 화면 API가 실패해도 저장 기록은 독립적으로 한 번 동기화한다', async () => {
+  await openCommunication();
+  await act(async () => {});
+  synchronizer.sync.mockClear();
+  const original = request.getMockImplementation();
+  request.mockImplementation((path, options) => path === '/cards' ? Promise.reject(new Error('합성 화면 조회 실패')) : original(path, options));
+  act(() => window.dispatchEvent(new Event('online')));
+  expect((await screen.findByRole('alert')).textContent).toContain('합성 화면 조회 실패');
+  expect(synchronizer.sync).toHaveBeenCalledTimes(1);
+});
 
 test.each([false, true])('서버가 지정한 책임자 여부 %s에 따라 운영 권한 관리 메뉴를 분리한다', async allowed => {
   const original = request.getMockImplementation();

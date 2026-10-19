@@ -346,7 +346,7 @@ function App() {
     })).catch(() => {});
   }
 
-  async function load(account = user) {
+  async function load(account = user, { syncOffline = true } = {}) {
     const session = localStorage.getItem('pesc-mate-token');
     const isCurrentSession = () => Boolean(session) && localStorage.getItem('pesc-mate-token') === session;
     setError('');
@@ -402,7 +402,7 @@ function App() {
         caregivers, privacy_audit: privacyHistory, board_layout: layout,
       }).catch(() => {});
       primeOfflineAssets();
-      syncPendingEvents(account);
+      if (syncOffline) syncPendingEvents(account);
     } catch (e) {
       if (!isCurrentSession()) return;
       if (e.status === 401) { setToken(null); setUser(null); setLoaded(false); setError('로그인이 만료되었습니다. 다시 로그인해 주세요.'); }
@@ -489,7 +489,8 @@ function App() {
   }, [category, search, accessibility.cards_per_page, tab, cards.length, boardLayout?.updated_at]);
 
   useEffect(() => {
-    const online = () => { setOffline(false); syncPendingEvents(user); if (user) load(user); };
+    // This event owns its sync run; the parallel data refresh must not retry it again.
+    const online = () => { setOffline(false); syncPendingEvents(user); if (user) load(user, { syncOffline: false }); };
     const offlineNow = () => {
       setOffline(true);
       if (['caregiver', 'support_staff'].includes(user?.role)) {
