@@ -806,7 +806,8 @@ Content-Type: application/json
 ```json
 {
   "decision": "approved",
-  "reason": ""
+  "reason": "",
+  "password": "<로그인한 운영 담당자의 비밀번호>"
 }
 ```
 
@@ -814,6 +815,11 @@ Content-Type: application/json
 승인·반려, 승인 상태에서는 비활성, 비활성 상태에서는 재활성만 허용된다.
 반려할 때는 `reason`이 필수다. 승인된 카드만 `/api/cards`의 기본 18개 카드 뒤에 추가되며,
 개인 카드는 소유자에게만, 공개 카드는 모든 일반 사용자에게 노출된다.
+
+공용 카드 쓰기는 작업마다 본인 비밀번호를 재확인한다. 누락/잘못된 입력은 422,
+비밀번호 불일치는 403, 별도 실패 제한 초과는 429이며 재인증 실패 시 카드를 변경하지 않는다.
+성공·오류 응답은 `no-store`다. 조회에는 재인증 비밀번호가 필요하지 않다.
+자세한 범위·제약은 [운영 작업 재인증](../operations/OPERATION_REAUTHENTICATION.md)을 따른다.
 
 ## 7.6 운영 권한 담당자의 카테고리 관리
 
@@ -829,14 +835,16 @@ Content-Type: application/json
 이름과 표시 순서를 수정하거나 `active`를 변경하면 일반 사용자용 `/api/categories`에는
 활성 카테고리만 변경된 순서로 노출된다.
 
-추가 요청은 `name`, `display_order`를 전달하며, 수정 요청은 `active`를 함께 전달한다.
+추가 요청은 `name`, `display_order`, `password`를 전달하며, 수정 요청은 `active`를 함께 전달한다.
+`password`는 작업마다 본인의 현재 비밀번호를 다시 확인하는 필수 필드이며 별도 유예 세션을 만들지 않는다.
 이름은 1~30자의 한글·영문·숫자·공백을 허용하고 표시 순서는 1~999 범위다.
 
 ```json
 {
   "name": "운동",
   "display_order": 10,
-  "active": true
+  "active": true,
+  "password": "<로그인한 운영 담당자의 비밀번호>"
 }
 ```
 

@@ -67,9 +67,33 @@ test('공개 카드 검수 알림에서 승인한 뒤 대기 건수를 갱신하
     expect(countBox.x >= titleBox.x + titleBox.width || countBox.y >= titleBox.y + titleBox.height).toBe(true);
     await notice.getByRole('button', { name: '검수 목록 열기' }).click();
     const cardRow = page.locator('.review-card').filter({ has: page.getByRole('heading', { name: label, exact: true }) });
+    await cardRow.getByRole('button', { name: '승인', exact: true }).click();
+    const confirmation = page.getByRole('dialog', { name: '운영 작업 확인' });
+    await expect(confirmation).toContainText(label);
+    await expect(confirmation.getByRole('button', { name: '확인 후 실행' })).toBeDisabled();
+    await expect(confirmation.getByLabel('본인 비밀번호')).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(confirmation.getByRole('button', { name: '취소' })).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(confirmation.getByLabel('본인 비밀번호')).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(confirmation).toHaveCount(0);
+    await expect(cardRow.getByRole('button', { name: '승인', exact: true })).toBeFocused();
+    expect((await alerts(request, headers)).sources.review_queue.pending).toBe(pending + 1);
+    await cardRow.getByRole('button', { name: '승인', exact: true }).click();
+    await confirmation.getByLabel('본인 비밀번호').fill('synthetic-wrong-password');
+    const denied = page.waitForResponse(response => new URL(response.url()).pathname === `/api/admin/card-submissions/${card.id}`
+      && response.request().method() === 'PATCH');
+    await confirmation.getByRole('button', { name: '확인 후 실행' }).click();
+    expect((await denied).status()).toBe(403);
+    await expect(page.getByRole('alert')).toContainText('본인 비밀번호');
+    expect((await alerts(request, headers)).sources.review_queue.pending).toBe(pending + 1);
+    await cardRow.getByRole('button', { name: '승인', exact: true }).click();
+    await expect(confirmation.getByLabel('본인 비밀번호')).toHaveValue('');
+    await confirmation.getByLabel('본인 비밀번호').fill('admin1234');
     const reviewed = page.waitForResponse(response => new URL(response.url()).pathname === `/api/admin/card-submissions/${card.id}`
       && response.request().method() === 'PATCH');
-    await cardRow.getByRole('button', { name: '승인', exact: true }).click();
+    await confirmation.getByRole('button', { name: '확인 후 실행' }).click();
     expect((await reviewed).status()).toBe(200);
     if (pending) await expect(notice.locator('.operational-alert-count')).toHaveText(`${pending}건`);
     else await expect(notice).toHaveCount(0);

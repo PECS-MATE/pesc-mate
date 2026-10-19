@@ -1,5 +1,4 @@
 """Explicitly configured custodians manage staff content permissions, not child access."""
-import hmac
 import os
 from datetime import datetime, timezone
 from uuid import uuid4
@@ -10,6 +9,7 @@ from pymongo.errors import PyMongoError
 from app.services.database import database as _database
 from app.services.schema_versions import SCHEMA_VERSION
 from app.services.account_access import account_access_allowed, public_access_state, utc_now
+from app.services.reauthentication import verify_account_password
 
 
 def configured_manager_ids():
@@ -66,21 +66,13 @@ def permission_audit(actor, target_id):
 
 def _reauthenticate(actor, password, client_ip):
     require_manager(actor)
-    from app.services.authentication import _password_hash
-    from app.services.login_throttle import clear_login_failures, ensure_login_allowed, record_login_failure
     database = _database()
     responsible = database.users.find_one({'_id': actor['id'], 'role': 'support_staff'})
     if not responsible or not can_manage_account_permissions(responsible):
         raise HTTPException(403, '운영 권한 관리 책임자를 확인해 주세요.')
     if permission_revision(responsible) != actor.get('permission_revision', 0):
         raise HTTPException(401, '권한이 변경되었습니다. 다시 로그인해 주세요.')
-    throttle_key = 'account-permission:' + responsible['username']
-    ensure_login_allowed(throttle_key, client_ip)
-    _, candidate = _password_hash(password, responsible['password_salt'])
-    if not hmac.compare_digest(candidate, responsible['password_hash']):
-        record_login_failure(throttle_key, client_ip)
-        raise HTTPException(403, '관리 책임자 비밀번호를 확인해 주세요.')
-    clear_login_failures(throttle_key, client_ip)
+    verify_account_password(responsible, password, client_ip, 'account-permission:')
     return database
 
 

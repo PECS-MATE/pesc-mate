@@ -4,6 +4,8 @@ import { cleanup } from '@testing-library/react';
 let urlIndex = 0;
 URL.createObjectURL = vi.fn(() => `blob:component-${++urlIndex}`);
 URL.revokeObjectURL = vi.fn();
+// jsdom does not implement the native dialog top layer; Chrome E2E covers it.
+HTMLDialogElement.prototype.showModal = function () { this.open = true; };
 
 beforeEach(() => {
   localStorage.clear();

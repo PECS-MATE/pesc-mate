@@ -11,6 +11,7 @@ from uuid import uuid4
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pymongo import MongoClient
+from pymongo.errors import PyMongoError
 
 from app.api.router import api_router
 from app.services.authentication import _password_hash
@@ -72,6 +73,83 @@ class RealAccountPermissionTests(unittest.TestCase):
 
     def login(self):
         return self.http.post('/api/auth/login', json={'username': 'staff', 'password': 'Synthetic-password-123'})
+
+    def content_operation(self, kind, actor='operator', password='Synthetic-password-123', **extra):
+        fields = {} if password is None else {'password': password}
+        if kind == 'create':
+            return self.http.post('/api/admin/categories', headers=self.headers[actor],
+                                  json={'name': '합성 카테고리', 'display_order': 20, **fields, **extra})
+        if kind == 'update':
+            return self.http.patch('/api/admin/categories/synthetic-category', headers=self.headers[actor],
+                                   json={'name': '변경 카테고리', 'display_order': 21, 'active': False, **fields, **extra})
+        return self.http.patch('/api/admin/card-submissions/synthetic-card', headers=self.headers[actor],
+                               json={'decision': 'approved', **fields, **extra})
+
+    def content_fixtures(self):
+        self.db.card_categories.insert_one({'_id': 'synthetic-category', 'name': '합성 원본', 'display_order': 10, 'active': True})
+        self.db.card_submissions.insert_one({'_id': 'synthetic-card', 'owner_id': 'child', 'visibility': 'shared',
+            'status': 'pending', 'label': '합성 카드', 'meaning': '재인증 검증', 'category': '합성 원본',
+            'image': {'filename': 'synthetic.webp', 'content_type': 'image/webp'}, 'created_at': datetime.now(timezone.utc)})
+
+    def assert_content_unchanged(self):
+        self.assertEqual(self.db.card_categories.count_documents({}), 1)
+        self.assertEqual(self.db.card_categories.find_one({'_id': 'synthetic-category'})['name'], '합성 원본')
+        self.assertEqual(self.db.card_submissions.find_one({'_id': 'synthetic-card'})['status'], 'pending')
+        self.assertEqual(self.db.card_audit_logs.count_documents({}), 0)
+
+    def test_content_mutations_each_require_password_even_after_successful_verification(self):
+        self.content_fixtures()
+        for kind in ('create', 'update', 'review'):
+            self.assertEqual(self.content_operation(kind, password=None).status_code, 422)
+            response = self.content_operation(kind)
+            self.assertIn(response.status_code, (200, 201), response.text)
+            self.assertEqual(response.headers['Cache-Control'], 'no-store')
+            self.assertNotIn('password', response.text)
+            self.assertEqual(self.content_operation(kind, password=None).status_code, 422)
+        audit = self.db.card_audit_logs.find_one({'card_submission_id': 'synthetic-card'})
+        self.assertEqual(audit['actor_id'], 'operator')
+        self.assertNotIn('Synthetic-password', str(audit))
+
+    def test_wrong_content_password_is_shared_across_operations_and_never_mutates_content(self):
+        self.content_fixtures()
+        for kind in ('create', 'update'):
+            response = self.content_operation(kind, password='private-wrong-password')
+            self.assertEqual(response.status_code, 403, response.text)
+            self.assertEqual(response.headers['Cache-Control'], 'no-store')
+            self.assertNotIn('private-wrong-password', response.text)
+        self.assertEqual(self.content_operation('review').status_code, 429)
+        self.assert_content_unchanged()
+
+    def test_content_unauthorized_roles_and_invalid_input_cannot_bypass_verification(self):
+        self.content_fixtures()
+        for actor in ('manager', 'staff', 'child', 'guardian'):
+            for kind in ('create', 'update', 'review'):
+                self.assertEqual(self.content_operation(kind, actor=actor).status_code, 403)
+        for fields in ({'password': ''}, {'password': 'x' * 129}, {'password': True}, {'extra_permission': True}):
+            response = self.content_operation('create', **fields)
+            self.assertEqual(response.status_code, 422, response.text)
+            self.assertNotIn('Synthetic-password', response.text)
+        self.assert_content_unchanged()
+
+    def test_successful_content_password_resets_failures_but_never_grants_new_permissions(self):
+        self.content_fixtures()
+        self.assertEqual(self.content_operation('create', password='wrong-one').status_code, 403)
+        self.assertEqual(self.content_operation('update').status_code, 200)
+        self.assertEqual(self.content_operation('review', password='wrong-two').status_code, 403)
+        self.assertEqual(self.content_operation('review').status_code, 200)
+        self.assertEqual(self.db.users.find_one({'_id': 'operator'})['account_permissions'], ['content_manage'])
+        self.assertEqual(self.db.auth_sessions.count_documents({'user_id': 'operator'}), 1)
+        self.assertEqual(self.change(False, target='operator').status_code, 200)
+        self.assertEqual(self.content_operation('create').status_code, 401)
+
+    def test_content_reauthentication_store_failure_stops_before_all_content_writes(self):
+        self.content_fixtures()
+        with patch('app.services.reauthentication._database', side_effect=PyMongoError('private-store-error')):
+            for kind in ('create', 'update', 'review'):
+                response = self.content_operation(kind)
+                self.assertEqual(response.status_code, 503)
+                self.assertNotIn('private-store-error', response.text)
+        self.assert_content_unchanged()
 
     def test_only_configured_custodian_can_lookup_change_and_read_audit(self):
         for actor in ('operator', 'staff', 'child', 'guardian'):

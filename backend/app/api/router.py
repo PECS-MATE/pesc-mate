@@ -47,6 +47,7 @@ from app.services.categories import (
     active_categories, categories_for_admin, create_category, update_category,
 )
 from app.services.account_permissions import change_account_access, change_content_permission, permission_audit, staff_account
+from app.services.reauthentication import reauthenticate_content_operator
 
 api_router = APIRouter()
 
@@ -467,7 +468,12 @@ class CategoryResponse(BaseModel):
     active: bool
 
 
-class CategoryCreateRequest(BaseModel):
+class ReauthenticatedOperation(BaseModel):
+    model_config = {'extra': 'forbid'}
+    password: SecretStr = Field(min_length=1, max_length=128)
+
+
+class CategoryCreateRequest(ReauthenticatedOperation):
     name: str = Field(min_length=1, max_length=30)
     display_order: int = Field(ge=1, le=999)
 
@@ -497,7 +503,7 @@ class CardSubmissionResponse(BaseModel):
     created_at: datetime
 
 
-class CardReviewRequest(BaseModel):
+class CardReviewRequest(ReauthenticatedOperation):
     decision: Literal['approved', 'rejected', 'inactive']
     reason: str = Field(default='', max_length=500)
 
@@ -916,9 +922,11 @@ def admin_card_submissions(user=Depends(current_user)):
 
 
 @api_router.patch('/admin/card-submissions/{submission_id}', response_model=CardSubmissionResponse, tags=['운영'])
-def review_card_submission(submission_id: str, request: CardReviewRequest,
+def review_card_submission(submission_id: str, request: CardReviewRequest, http_request: Request, response: Response,
                            user=Depends(current_user)):
-    require_account_permission(user, 'content_manage')
+    reauthenticate_content_operator(user, request.password.get_secret_value(),
+                                    http_request.client.host if http_request.client else None)
+    response.headers['Cache-Control'] = 'no-store'
     return review_submission(submission_id, user['id'], request.decision, request.reason)
 
 
@@ -929,14 +937,19 @@ def admin_categories(user=Depends(current_user)):
 
 
 @api_router.post('/admin/categories', response_model=CategoryResponse, status_code=201, tags=['운영'])
-def add_category(request: CategoryCreateRequest, user=Depends(current_user)):
-    require_account_permission(user, 'content_manage')
+def add_category(request: CategoryCreateRequest, http_request: Request, response: Response, user=Depends(current_user)):
+    reauthenticate_content_operator(user, request.password.get_secret_value(),
+                                    http_request.client.host if http_request.client else None)
+    response.headers['Cache-Control'] = 'no-store'
     return create_category(request.name, request.display_order)
 
 
 @api_router.patch('/admin/categories/{category_id}', response_model=CategoryResponse, tags=['운영'])
-def edit_category(category_id: str, request: CategoryUpdateRequest, user=Depends(current_user)):
-    require_account_permission(user, 'content_manage')
+def edit_category(category_id: str, request: CategoryUpdateRequest, http_request: Request, response: Response,
+                  user=Depends(current_user)):
+    reauthenticate_content_operator(user, request.password.get_secret_value(),
+                                    http_request.client.host if http_request.client else None)
+    response.headers['Cache-Control'] = 'no-store'
     return update_category(category_id, request.name, request.display_order, request.active)
 
 

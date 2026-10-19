@@ -111,6 +111,64 @@ test('AAC 사용자 화면에는 운영 알림을 표시하거나 요청하지 �
   expect(request.mock.calls.some(([path]) => path === '/admin/alerts')).toBe(false);
 });
 
+async function openContentAdmin() {
+  const original = request.getMockImplementation();
+  const card = { id: 'review-card', label: '합성 공용 카드', meaning: '운영 재인증 검증', category: '사람',
+    owner_id: 'synthetic-owner', visibility: 'shared', status: 'pending', created_at: '2026-10-19T00:00:00Z' };
+  const category = { id: 'synthetic-category', name: '합성 분류', display_order: 1, active: true };
+  request.mockImplementation((path, options = {}) => {
+    if (path === '/auth/me') return Promise.resolve({ ...account, role: 'support_staff', account_permissions: ['content_manage'] });
+    if (path === '/care/linked-users') return Promise.resolve([]);
+    if (path === '/admin/alerts') return Promise.resolve({ status: 'ok', alerts: [], generated_at: '2026-10-19T00:00:00Z' });
+    if (path === '/admin/card-submissions') return Promise.resolve([card]);
+    if (path === '/admin/categories' && !options.method) return Promise.resolve([category]);
+    if (path === '/admin/categories' && options.method === 'POST') return Promise.resolve({ ...category, id: 'new-category', name: '추가 분류' });
+    if (path === '/admin/categories/synthetic-category') return Promise.resolve({ ...category, name: '변경 분류' });
+    if (path === '/admin/card-submissions/review-card') return Promise.resolve({ ...card, status: 'approved' });
+    return original(path, options);
+  });
+  const user = userEvent.setup();
+  render(<StrictMode><App /></StrictMode>);
+  await screen.findByText('서비스 연결됨');
+  await screen.findByRole('heading', { name: '카드 승인 관리', exact: true });
+  return user;
+}
+
+test('공용 카드 승인은 대상 확인과 본인 비밀번호 없이 전송하지 않고 취소 시 초안을 유지한다', async () => {
+  const user = await openContentAdmin();
+  fireEvent.change(screen.getByLabelText('합성 공용 카드 검토 사유'), { target: { value: '합성 검수 사유' } });
+  await user.click(screen.getByRole('button', { name: '승인', exact: true }));
+  expect(screen.getByRole('dialog').textContent).toContain('합성 공용 카드');
+  expect(request.mock.calls.some(([path, options]) => options?.method === 'PATCH' && path.includes('card-submissions/'))).toBe(false);
+  await user.click(screen.getByRole('button', { name: '취소' }));
+  expect(screen.getByLabelText('합성 공용 카드 검토 사유').value).toBe('합성 검수 사유');
+  await user.click(screen.getByRole('button', { name: '승인', exact: true }));
+  expect(screen.getByLabelText('본인 비밀번호').value).toBe('');
+  fireEvent.change(screen.getByLabelText('본인 비밀번호'), { target: { value: 'operator-verification' } });
+  await user.click(screen.getByRole('button', { name: '확인 후 실행' }));
+  const [, options] = request.mock.calls.find(([path]) => path === '/admin/card-submissions/review-card');
+  expect(JSON.parse(options.body)).toEqual({ decision: 'approved', reason: '합성 검수 사유', password: 'operator-verification' });
+  expect(screen.queryByLabelText('본인 비밀번호')).toBeNull();
+});
+
+test.each(['create', 'update'])('카테고리 %s도 변경 내용을 고정한 뒤 비밀번호와 함께 전송한다', async operation => {
+  const user = await openContentAdmin();
+  if (operation === 'create') {
+    fireEvent.change(screen.getByPlaceholderText('예: 운동'), { target: { value: '추가 분류' } });
+    await user.click(screen.getByRole('button', { name: '카테고리 추가', exact: true }));
+  } else {
+    const article = screen.getByDisplayValue('합성 분류').closest('article');
+    fireEvent.change(within(article).getByLabelText('이름'), { target: { value: '변경 분류' } });
+    await user.click(within(article).getByRole('button', { name: '수정 저장' }));
+  }
+  expect(screen.getByRole('dialog').textContent).toContain(operation === 'create' ? '추가 분류' : '변경 분류');
+  fireEvent.change(screen.getByLabelText('본인 비밀번호'), { target: { value: 'category-verification' } });
+  await user.click(screen.getByRole('button', { name: '확인 후 실행' }));
+  const [, options] = request.mock.calls.find(([path, settings]) => path.startsWith('/admin/categories') && settings?.method);
+  expect(JSON.parse(options.body)).toMatchObject({ password: 'category-verification', name: operation === 'create' ? '추가 분류' : '변경 분류' });
+  expect(screen.queryByRole('dialog')).toBeNull();
+});
+
 test.each(['caregiver', 'support_staff'])('%s 인증 만료는 서버 로그아웃을 기다리지 않고 지원 화면을 닫는다', async role => {
   const original = request.getMockImplementation();
   request.mockImplementation((path, options) => {

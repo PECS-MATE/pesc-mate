@@ -2,6 +2,7 @@ import Mascot, { EmptyState } from './Mascot';
 import { Avatar, ProfileEditor } from './Profile';
 import OperationalAlerts from './OperationalAlerts';
 import AccountPermissions from './AccountPermissions';
+import useReauthentication from './useReauthentication';
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { hasToken, recordDeviceAccess, request, requestBlob, setToken } from "./services/api";
@@ -153,6 +154,7 @@ function App() {
   const [reviewDrafts, setReviewDrafts] = useState({});
   const [reviewBusy, setReviewBusy] = useState('');
   const [tab, setTab] = useState('home');
+  const { askPassword, confirmation } = useReauthentication(`${user?.id || ''}:${tab}:${showProfile}`);
   const [text, setText] = useState('');
   const [generationSource, setGenerationSource] = useState('');
   const [generatedSessionId, setGeneratedSessionId] = useState('');
@@ -503,7 +505,7 @@ function App() {
   useEffect(() => {
     const denySupportAccess = event => {
       if (!['caregiver', 'support_staff'].includes(user?.role)) return;
-      if (event.apiPath?.startsWith('/admin/accounts/')) return;
+      if (event.apiPath?.startsWith('/admin/')) return;
       clearSupportTargetData();
       setTab(user?.account_permissions?.includes('content_manage') ? 'admin' : 'support_home');
       setError('지원 권한이 변경되어 사용자 정보를 닫았습니다. 다시 불러와 주세요.');
@@ -539,6 +541,7 @@ function App() {
       const body = authMode === 'register' ? { username, password, name, guardian_consent: registrationConsent } : { username, password };
       const result = await request(path, { method: 'POST', body: JSON.stringify(body) });
       setToken(result.access_token); setUser(result.user); setShowProfile(false); setProfileNotice('');
+      setPassword(''); setPasswordConfirm('');
       cacheAccountForOffline(result.user, result.expires_at).catch(() => {});
       await load(result.user);
     } catch (e) { setError(e.message); }
@@ -1176,14 +1179,31 @@ function App() {
       catch { return { ...item, image_failed: true }; }
     }));
   }
+  async function performContentOperation(title, description, path, method, fields) {
+    const actorId = user?.id;
+    const session = localStorage.getItem('pesc-mate-token');
+    const isCurrent = () => Boolean(session) && activeUserRef.current?.id === actorId
+      && localStorage.getItem('pesc-mate-token') === session;
+    if (!isCurrent() || !navigator.onLine) return null;
+    const verification = await askPassword(title, description);
+    if (!verification || !isCurrent()) return null;
+    try {
+      const saved = await request(path, { method, body: JSON.stringify({ ...fields, password: verification }) });
+      return isCurrent() ? saved : null;
+    } catch (error) {
+      if (isCurrent()) throw error;
+      return null;
+    }
+  }
   async function reviewCard(item, decision) {
     const reason = (reviewDrafts[item.id] || '').trim();
     if (decision === 'rejected' && !reason) { setError('반려 사유를 입력해 주세요.'); return; }
     setReviewBusy(item.id); setError('');
     try {
-      const saved = await request(`/admin/card-submissions/${item.id}`, {
-        method: 'PATCH', body: JSON.stringify({ decision, reason }),
-      });
+      const action = { approved: '승인·재활성', rejected: '반려', inactive: '비활성' }[decision];
+      const saved = await performContentOperation(`공용 카드 ${action}`, `대상: ${item.label} · 변경: ${action}${reason ? ` · 사유: ${reason}` : ''}`,
+        `/admin/card-submissions/${item.id}`, 'PATCH', { decision, reason });
+      if (!saved) return;
       setAdminSubmissions(current => current.map(row => row.id === item.id ? { ...row, ...saved } : row));
     } catch (e) { setError(e.message); }
     finally { setReviewBusy(''); }
@@ -1194,9 +1214,10 @@ function App() {
     const formData = new FormData(form);
     setCategoryBusy('new'); setCategoryError('');
     try {
-      const saved = await request('/admin/categories', { method: 'POST', body: JSON.stringify({
-        name: formData.get('name'), display_order: Number(formData.get('display_order')),
-      }) });
+      const fields = { name: formData.get('name'), display_order: Number(formData.get('display_order')) };
+      const saved = await performContentOperation('카테고리 추가', `이름: ${fields.name} · 표시 순서: ${fields.display_order}`,
+        '/admin/categories', 'POST', fields);
+      if (!saved) return;
       setAdminCategories(current => [...current, saved].sort((a, b) => a.display_order - b.display_order));
       setCategoryEdits(current => ({ ...current, [saved.id]: { name: saved.name, display_order: saved.display_order } }));
       form.reset();
@@ -1208,9 +1229,10 @@ function App() {
     const draft = categoryEdits[item.id] || item;
     setCategoryBusy(item.id); setCategoryError('');
     try {
-      const saved = await request(`/admin/categories/${item.id}`, { method: 'PATCH', body: JSON.stringify({
-        name: draft.name, display_order: Number(draft.display_order), active,
-      }) });
+      const fields = { name: draft.name, display_order: Number(draft.display_order), active };
+      const saved = await performContentOperation('카테고리 변경', `대상: ${item.name} → ${fields.name} · 표시 순서: ${fields.display_order} · ${active ? '활성' : '비활성'}`,
+        `/admin/categories/${item.id}`, 'PATCH', fields);
+      if (!saved) return;
       setAdminCategories(current => current.map(row => row.id === item.id ? saved : row).sort((a, b) => a.display_order - b.display_order));
       setCategoryEdits(current => ({ ...current, [saved.id]: { name: saved.name, display_order: saved.display_order } }));
     } catch (e) { setCategoryError(e.message); }
@@ -1567,6 +1589,7 @@ function App() {
         <h3>{isSupporter ? '최근 의사소통 타임라인' : '최근 문장'}</h3>{!stats.recent.length ? <EmptyState>선택한 기간에 기록이 없어요.</EmptyState> : <ul className="history">{stats.recent.map(r => <li key={r.id}>{isSupporter && <div className="history-cards">{r.cards.map((id, index) => cardPicture(CARD_META[id] || { id, label: id }, 'mini-card', `${id}-${index}`))}</div>}<span>{r.sentence}</span><time>{new Date(r.created_at).toLocaleString('ko-KR')}</time>{isSupporter && canWriteNotes && <div className="caregiver-note"><textarea aria-label={`${r.sentence} 지원 메모`} maxLength="500" placeholder="상황이나 반응을 메모해 주세요" value={noteDrafts[r.id] ?? r.caregiver_note ?? ''} onChange={event => setNoteDrafts(current => ({ ...current, [r.id]: event.target.value }))} /><div><small>{(noteDrafts[r.id] ?? r.caregiver_note ?? '').length}/500</small><button disabled={noteBusy === r.id} onClick={() => saveCaregiverNote(r.id)}>메모 저장</button>{r.caregiver_note && <button disabled={noteBusy === r.id} onClick={() => removeCaregiverNote(r.id)}>삭제</button>}</div></div>}</li>)}</ul>}</div>}
       </section>}
       <footer>실행용 프로토타입 · 실제 개인정보를 입력하지 마세요.</footer>
+      {confirmation}
     </div>
   </main>;
 }
