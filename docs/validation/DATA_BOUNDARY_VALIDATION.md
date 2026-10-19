@@ -83,7 +83,7 @@ python -m unittest discover -s integration_tests -p "test_*.py" -v
 ```
 
 단위 시험은 DB 없이 실행한다. 두 번째 명령은 기존 마이그레이션 시험도 포함하며
-CI의 `MongoDB integration and browser workflows` 작업에서 브라우저 시험 전에
+2026-10-20 원격 CI 제거 후에는 로컬 `npm run verify:full`이 브라우저 시험 전에
 동일하게 실행한다. 호스트 백업·복구 통합 시험은 별도이며 이 명령에 포함하지 않는다.
 
 도메인 통합 시험은 매번 `pesc_mate_boundary_test_<UUID>` DB만 만들고 공유 DB 연결을

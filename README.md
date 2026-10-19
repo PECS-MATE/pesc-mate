@@ -10,8 +10,8 @@ PESC MATE는 실물 PECS 카드가 늘어날수록 발생하는 휴대·분류·
 백엔드 테스트: `cd backend` 후 `pip install -r requirements-test.txt`를 실행하고
 `python -m unittest discover -s tests -t . -p "test_*.py"`로 전체 검증한다.
 프런트엔드 검증: `cd frontend` 후 `npm test`와 `npm run build`.
-`main` 브랜치 push와 Pull Request마다 GitHub Actions(`.github/workflows/ci.yml`)가
-위 백엔드·프런트엔드 검증을 자동으로 실행한다.
+GitHub Actions 원격 CI는 사용자 요청으로 제거했다. push·Pull Request에서 자동 검증을
+실행하지 않으며, 변경 범위에 맞는 아래 로컬 검증 명령을 직접 실행한다.
 
 Docker Desktop이 실행 중이면 프로젝트 루트에서 `npm run verify`로 단위 테스트와
 프런트엔드 빌드를 한 번에 실행한다. `npm run verify:full`은 별도 임시 Docker 환경의

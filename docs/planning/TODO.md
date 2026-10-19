@@ -228,7 +228,7 @@ PESC MATE는 실물 PECS 카드가 늘어날수록 발생하는 휴대·분류·
 - [x] 권한별 담당자 화면과 운영 메뉴 브라우저 E2E
 - [x] 학습 시작·중단·재개·완료 브라우저 E2E
 - [x] 오프라인 발화와 재연결 동기화 E2E
-- [x] pull request마다 백엔드·프런트엔드 테스트와 빌드를 실행하는 CI
+- [x] 사용자 요청에 따라 GitHub Actions 원격 CI 제거, 로컬 명령으로 검증 유지
 - [x] 실패한 E2E의 화면·로그·네트워크 결과 보관
 - [x] [한 명령 로컬 검증](../validation/ONE_COMMAND_VALIDATION.md): 빠른·범위별·전체 Docker 실행,
   개발 DB와 분리한 임시 환경, 의존성 캐시, 단계별 결과와 자동 정리
@@ -237,13 +237,14 @@ PESC MATE는 실물 PECS 카드가 늘어날수록 발생하는 휴대·분류·
 
 구현 증빙: `frontend/e2e/workflows.spec.js`에서 학습 새로고침 재개·오프라인 완료·
 발화 이력 503 후 재시도·보호자 PNG 등록 후 아동 고정 카드판 반영을 검증한다.
-테스트가 생성한 계정의 콘텐츠만 정리한다. `.github/workflows/ci.yml`은 MongoDB와
-실제 API·브라우저를 사용하는 E2E 작업을 포함하며 실패 산출물을 7일 보관한다.
-GitHub Actions 원격 실행 결과는 다음 push/PR에서 확인한다.
+테스트가 생성한 계정의 콘텐츠만 정리한다. 2026-10-20 사용자 요청으로 원격 CI
+워크플로우를 제거했다. `npm run verify:full`로 격리 MongoDB와 실제 API·브라우저
+검증을 실행하고 결과는 `.local-validation`에 보관한다. 인증 DB 경계는
+`npm run verify:security`로 별도 확인한다.
 
 컴포넌트 증빙: `frontend/test/components/`의 실제 React 화면 조작 테스트 16개가
 프로필 선택·사진 업로드 거절·늦은 이미지 응답·카드 순서·생성 및 TTS 실패·재시도를
-검증한다. `npm test`와 기존 프런트엔드 CI에 포함한다.
+검증한다. `npm test`와 로컬 원클릭 검증에 포함한다.
 실행 방법과 검증 경계는 [React 컴포넌트 테스트](../validation/COMPONENT_TESTS.md)를 따른다.
 
 ### A1-02. 관측성과 장애 분리

@@ -83,7 +83,7 @@ docker compose -f compose.secure-db.yaml up -d --build --wait
 기존 DB 이전은 [백업·격리 복구 절차](MIGRATION_BACKUP_RECOVERY.md)를 검토한 후 별도 승인·
 중단 계획·복원 리허설을 거쳐 진행한다. 새 구성 시작을 기존 데이터 이전으로 간주하지 않는다.
 
-## 자동 검증과 CI
+## 로컬 자동 검증
 
 Docker Desktop/Engine과 PowerShell 7이 있는 저장소 루트에서 다음을 실행한다.
 
@@ -105,9 +105,11 @@ pwsh -NoProfile -File scripts/validate-authenticated-mongodb.ps1
 정리에 실패하면 자격 증명을 보존하고 해당 UUID 프로젝트의 수동 검토를 안내한다.
 실제 운영 프로젝트·기존 개발 볼륨·실제 사용자는 정리 대상으로 선택하지 않는다.
 
-CI에 `Authenticated MongoDB boundaries` 작업을 추가해 같은 스크립트를 별도 실행한다.
+2026-10-20 사용자 요청으로 `Authenticated MongoDB boundaries`를 포함한 원격 CI
+워크플로우를 제거했다. 같은 검증은 로컬 `npm run verify:security`로 직접 실행한다.
 초기화 정책 Node 테스트는 역할·자격 증명 재사용·관리 파일의 CRLF 차단·안전한 오류를 확인한다.
-로컬 Windows 실행과 원격 Ubuntu CI 성공은 구분하며 원격 결과는 push/PR 후 확인해야 한다.
+이 검증 스크립트와 초기화 정책 테스트는 삭제하지 않았다. 과거 CI 오류의 원인을 수정하거나
+원격 실행이 성공했다고 간주하지 않으며, 아래 실행 결과는 당시의 로컬 검증 기록이다.
 
 구성 근거는 [Mongo 공식 이미지의 초기화와 파일 자격 증명](https://hub.docker.com/_/mongo),
 [MongoDB 기본 역할](https://www.mongodb.com/docs/manual/reference/built-in-roles/),

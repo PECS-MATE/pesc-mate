@@ -127,15 +127,15 @@ Windows Chrome에서 브라우저 전체 25개가 통과했다. 기존 버전 �
 5개도 통과했다. 기존 로컬 DB의 일괄 적용과 운영 백업·복원 리허설은 실행하지 않았다.
 자세한 범위는 [데이터 버전·마이그레이션](../development/DATA_SCHEMA_MIGRATIONS.md)을 따른다.
 
-## PR 자동 검사
+## 원격 CI 제거와 로컬 검사 — 2026-10-20
 
-`.github/workflows/ci.yml`은 백엔드 단위 테스트, 프런트엔드 테스트·빌드와 브라우저 E2E를 실행한다.
-E2E는 임시 MongoDB의 `pesc_mate_e2e` 데이터베이스를 쓰며 외부 모델 호출을 끈다.
-`E2E_START_SERVERS=true`일 때 Playwright가 API·프런트엔드 서버를 시작하고 종료한다.
-실패 시 `browser-test-results` 아티팩트에 보고서·화면·trace를 7일 보관한다.
-워크플로우 설정의 원격 성공 여부는 push/PR 후 GitHub Actions에서 확인한다.
+사용자 요청으로 `.github/workflows/ci.yml`을 제거했다. 이 변경을 원격에 반영한 뒤에는
+push·PR에서 이 저장소 워크플로우의 자동 검사를 실행하지 않는다. 테스트 코드와 로컬
+검증 명령은 유지하며 `npm run verify:full`로 임시 DB·API·프런트엔드·브라우저를
+함께 실행한다. 로그·리포트·실패 화면·trace는 `.local-validation/<실행>/browser` 등에 남긴다.
 
-실패하면 `frontend/test-results`에 HTML 보고서, 화면, 브라우저 콘솔, 네트워크 요청이 포함된 trace를 남긴다. 이 디렉터리는 테스트 산출물이므로 Git에는 포함하지 않는다.
+개별 `npm run test:e2e` 실행 결과는 기존 `frontend/test-results`에 남긴다. 두 결과
+디렉터리는 Git에서 제외한다. 아래 날짜별 CI 언급은 당시의 검증 이력이며 현재 실행 설정이 아니다.
 
 ## 최초 로그인·프로필 준비 회귀 수정 — 2026-10-18
 

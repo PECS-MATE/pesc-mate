@@ -19,7 +19,8 @@ npm test
 - `npm run test:components`: 컴포넌트 테스트만 한 번 실행
 - `npm run test:components:watch`: 변경한 컴포넌트를 반복 검증
 
-기존 PR의 프런트엔드 CI가 `npm test`를 호출하므로 컴포넌트 테스트도 같은 검사에 포함된다.
+원격 CI는 2026-10-20 사용자 요청으로 제거했다. 컴포넌트 검사는 기존 `npm test`와
+루트의 `npm run verify`·`npm run verify:frontend`·`npm run verify:full`에서 계속 실행한다.
 테스트 패키지는 개발 의존성이며 정확한 버전과 lockfile로 관리한다.
 
 ## 검증 범위
