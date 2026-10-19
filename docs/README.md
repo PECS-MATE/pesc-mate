@@ -58,6 +58,7 @@ API, 데이터 구조, 카드·마스코트 자산과 협업 규칙을 관리한
 | [마이그레이션 백업·격리 복구](operations/MIGRATION_BACKUP_RECOVERY.md) | 로컬 압축 BSON 백업, 새 DB 검증 복원, 실패 격리와 수동 되돌리기 절차 |
 | [감사 보관·무결성](operations/AUDIT_RETENTION_INTEGRITY.md) | 명시적 기간 정리, 외부 HMAC 체크포인트, 개인정보 삭제와 변조 탐지 한계 |
 | [운영 권한 관리](operations/ACCOUNT_PERMISSION_MANAGEMENT.md) | 책임자 지정·담당자 운영 권한·재인증·감사·세션 차단 |
+| [인증 MongoDB 운영 준비](operations/AUTHENTICATED_MONGODB.md) | 독립 인증 DB·DB별 앱 계정·파일 자격 증명·격리 검증과 이전 주의사항 |
 
 ## 검증 — `validation/`
 

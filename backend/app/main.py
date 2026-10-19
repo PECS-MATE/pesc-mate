@@ -7,10 +7,13 @@ from app.api.router import api_router
 from app.services.device_access import log_device_access
 from app.services.indexes import ensure_indexes
 from app.services.observability import configure_observability
+from app.services.database_config import connection_options
 
 
 @asynccontextmanager
 async def lifespan(_app):
+    # Required credentials must be valid before any background DB work or HTTP serving.
+    connection_options()
     # Index creation must not delay startup or fail it while MongoDB is still starting.
     Thread(target=ensure_indexes, name='mongodb-indexes', daemon=True).start()
     yield

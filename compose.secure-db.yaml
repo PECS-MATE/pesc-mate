@@ -1,0 +1,79 @@
+# Independent opt-in stack: do NOT merge into compose.yaml or attach an existing volume.
+name: pesc-mate-secure
+
+services:
+  mongodb:
+    image: mongo:8.0
+    command: ["mongod", "--auth", "--quiet"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME_FILE: /run/secrets/mongodb_root_username
+      MONGO_INITDB_ROOT_PASSWORD_FILE: /run/secrets/mongodb_root_password
+      MONGO_INITDB_DATABASE: "${SECURE_MONGODB_DATABASE:-pesc_mate_secure}"
+      MONGODB_USERNAME_FILE: /run/secrets/mongodb_app_username
+      MONGODB_PASSWORD_FILE: /run/secrets/mongodb_app_password
+    secrets:
+      - mongodb_root_username
+      - mongodb_root_password
+      - mongodb_app_username
+      - mongodb_app_password
+    volumes:
+      - mongodb_secure_data:/data/db
+      - ./deployment/mongodb/config.cjs:/opt/pesc-mate/mongodb/config.cjs:ro
+      - ./deployment/mongodb/init-app.js:/docker-entrypoint-initdb.d/10-app.js:ro
+      - ./deployment/mongodb/healthcheck.js:/opt/pesc-mate/mongodb/healthcheck.js:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--file", "/opt/pesc-mate/mongodb/healthcheck.js"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    logging:
+      driver: "none"
+    networks: [database]
+
+  backend:
+    image: "${SECURE_BACKEND_IMAGE:-pesc-mate-secure-backend:local}"
+    build: ./backend
+    environment:
+      MONGODB_REQUIRE_AUTH: "true"
+      MONGODB_HOST: mongodb
+      MONGODB_PORT: "27017"
+      MONGODB_DATABASE: "${SECURE_MONGODB_DATABASE:-pesc_mate_secure}"
+      MONGODB_USERNAME_FILE: /run/secrets/mongodb_app_username
+      MONGODB_PASSWORD_FILE: /run/secrets/mongodb_app_password
+      DEMO_ACCOUNTS_ENABLED: "false"
+      DB_CRUD_LOG_ENABLED: "false"
+      OLLAMA_ENABLED: "false"
+    secrets:
+      - mongodb_app_username
+      - mongodb_app_password
+    ports:
+      - "127.0.0.1:${SECURE_BACKEND_PORT:-8001}:8000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    networks: [database, api]
+
+networks:
+  database:
+    internal: true
+  api: {}
+
+volumes:
+  mongodb_secure_data: {}
+
+secrets:
+  mongodb_root_username:
+    file: "${PESC_SECURE_SECRETS_DIR:?Set an approved secret directory}/mongodb_root_username"
+  mongodb_root_password:
+    file: "${PESC_SECURE_SECRETS_DIR:?Set an approved secret directory}/mongodb_root_password"
+  mongodb_app_username:
+    file: "${PESC_SECURE_SECRETS_DIR:?Set an approved secret directory}/mongodb_app_username"
+  mongodb_app_password:
+    file: "${PESC_SECURE_SECRETS_DIR:?Set an approved secret directory}/mongodb_app_password"

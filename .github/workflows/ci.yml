@@ -13,6 +13,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  authenticated-mongodb:
+    name: Authenticated MongoDB boundaries
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate MongoDB initialization policy
+        run: node --test deployment/mongodb/config.test.cjs
+      - name: Validate isolated authenticated database and application
+        shell: pwsh
+        run: ./scripts/validate-authenticated-mongodb.ps1
+
   backend:
     name: Backend tests
     runs-on: ubuntu-latest

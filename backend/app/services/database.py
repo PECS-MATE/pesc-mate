@@ -4,6 +4,7 @@ import logging
 import os
 
 from pymongo import MongoClient
+from app.services.database_config import connection_options
 
 logger = logging.getLogger('uvicorn.error')
 
@@ -11,7 +12,7 @@ logger = logging.getLogger('uvicorn.error')
 @lru_cache(maxsize=1)
 def client():
     return MongoClient(
-        os.environ.get('MONGODB_URI', 'mongodb://127.0.0.1:27017'),
+        **connection_options(),
         serverSelectionTimeoutMS=3000,
         appname='pesc-mate-backend',
     )

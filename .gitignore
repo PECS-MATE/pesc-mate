@@ -6,6 +6,7 @@ frontend/test-results/
 # Local MongoDB backups (private BSON, never commit)
 .local-backups/
 .local-audit/
+.local-security-tests/
 
 # Python
 __pycache__/
