@@ -1,0 +1,14 @@
+{
+  "name": "pesc-mate-validation",
+  "private": true,
+  "type": "module",
+  "engines": { "node": "^22.13.0 || ^24.0.0 || >=26.0.0" },
+  "scripts": {
+    "verify": "node scripts/verify.mjs quick",
+    "verify:full": "node scripts/verify.mjs full",
+    "verify:frontend": "node scripts/verify.mjs frontend",
+    "verify:backend": "node scripts/verify.mjs backend",
+    "verify:security": "pwsh -NoProfile -File scripts/validate-authenticated-mongodb.ps1",
+    "test:verify": "node --test scripts/test/verify.test.mjs deployment/mongodb/config.test.cjs"
+  }
+}

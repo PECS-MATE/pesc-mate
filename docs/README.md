@@ -68,6 +68,7 @@ API, 데이터 구조, 카드·마스코트 자산과 협업 규칙을 관리한
 | 문서 | 내용 |
 |---|---|
 | [역할별 브라우저 E2E](validation/BROWSER_E2E.md) | Playwright 실행과 역할별 접근 경계 |
+| [한 명령으로 로컬 검증](validation/ONE_COMMAND_VALIDATION.md) | 빠른/범위별/전체 Docker 검사, 실행 격리·캐시·결과·정리 |
 | [React 컴포넌트 테스트](validation/COMPONENT_TESTS.md) | 화면 조작, 비동기 실패와 상태 보존 회귀 검증 |
 | [아동 데이터 경계 검증](validation/DATA_BOUNDARY_VALIDATION.md) | 다른 아동 접근 차단, 의사소통·학습 저장소/API와 권한 분리 |
 | [기기 TTS 검수표](validation/DEVICE_TTS_VALIDATION.md) | 기기별 음성, 오프라인과 복귀 동작 확인 |

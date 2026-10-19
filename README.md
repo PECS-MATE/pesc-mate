@@ -13,6 +13,12 @@ PESC MATE는 실물 PECS 카드가 늘어날수록 발생하는 휴대·분류·
 `main` 브랜치 push와 Pull Request마다 GitHub Actions(`.github/workflows/ci.yml`)가
 위 백엔드·프런트엔드 검증을 자동으로 실행한다.
 
+Docker Desktop이 실행 중이면 프로젝트 루트에서 `npm run verify`로 단위 테스트와
+프런트엔드 빌드를 한 번에 실행한다. `npm run verify:full`은 별도 임시 Docker 환경의
+MongoDB 통합·브라우저 검사까지 포함한다. 개발 DB와 포트는 사용하지 않는다.
+Windows `.ps1`·셸 `.sh` 진입점, 범위별 명령과 결과 경로는
+[한 명령으로 로컬 검증](docs/validation/ONE_COMMAND_VALIDATION.md)을 참고한다.
+
 ### 소스 구성
 
 - `frontend`: React와 Vite 기반 웹 클라이언트
