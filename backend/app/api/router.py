@@ -2,7 +2,7 @@ from contextlib import nullcontext
 from datetime import datetime
 from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, Request, Response, UploadFile
-from pydantic import BaseModel, Field, SecretStr
+from pydantic import AwareDatetime, BaseModel, Field, SecretStr
 from starlette.responses import JSONResponse
 from uuid import UUID
 from app.services.communication import CARDS, regenerate_session, save_session, statistics
@@ -46,7 +46,7 @@ from app.services.card_submissions import (
 from app.services.categories import (
     active_categories, categories_for_admin, create_category, update_category,
 )
-from app.services.account_permissions import change_content_permission, permission_audit, staff_account
+from app.services.account_permissions import change_account_access, change_content_permission, permission_audit, staff_account
 
 api_router = APIRouter()
 
@@ -141,6 +141,8 @@ class UserResponse(BaseModel):
     account_permissions: list[str] = Field(default_factory=list)
     can_manage_account_permissions: bool = False
     permission_revision: int = 0
+    account_active: bool = True
+    access_expires_at: datetime | None = None
     profile: ProfileResponse | None = None
     session_expires_at: datetime | None = None
     permissions: list[str] | None = None
@@ -150,6 +152,15 @@ class UserResponse(BaseModel):
 class AccountPermissionRequest(BaseModel):
     model_config = {'extra': 'forbid'}
     content_manage: bool = Field(strict=True)
+    expected_revision: int = Field(ge=0, strict=True)
+    password: SecretStr = Field(min_length=1, max_length=128)
+    reason: str = Field(min_length=3, max_length=300)
+
+
+class AccountAccessRequest(BaseModel):
+    model_config = {'extra': 'forbid'}
+    account_active: bool = Field(strict=True)
+    access_expires_at: AwareDatetime | None
     expected_revision: int = Field(ge=0, strict=True)
     password: SecretStr = Field(min_length=1, max_length=128)
     reason: str = Field(min_length=3, max_length=300)
@@ -176,6 +187,18 @@ def update_account_permission(target_id: str, payload: AccountPermissionRequest,
     return change_content_permission(user, target_id, payload.content_manage, payload.expected_revision,
                                      payload.password.get_secret_value(), reason,
                                      request.client.host if request.client else None)
+
+
+@api_router.put('/admin/accounts/{target_id}/access', tags=['운영 권한'])
+def update_account_access(target_id: str, payload: AccountAccessRequest, request: Request,
+                          response: Response, user=Depends(current_user)):
+    reason = payload.reason.strip()
+    if len(reason) < 3:
+        raise HTTPException(422, '변경 사유를 세 글자 이상 입력해 주세요.')
+    response.headers['Cache-Control'] = 'no-store'
+    return change_account_access(user, target_id, payload.account_active, payload.access_expires_at,
+                                 payload.expected_revision, payload.password.get_secret_value(), reason,
+                                 request.client.host if request.client else None)
 
 
 class TtsSettingsRequest(BaseModel):

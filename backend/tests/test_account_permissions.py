@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 from fastapi import HTTPException
 from pymongo.errors import PyMongoError
 
-from app.services.account_permissions import (can_manage_account_permissions, change_content_permission,
+from app.services.account_permissions import (can_manage_account_permissions, change_account_access, change_content_permission,
                                               permission_revision, require_manager)
 
 
@@ -48,12 +48,35 @@ class AccountPermissionTests(unittest.TestCase):
         db.users.update_one.return_value.modified_count = 1
         return db
 
-    def change(self, db):
+    def change(self, db, access=False):
         with patch('app.services.account_permissions._database', return_value=db), \
              patch('app.services.authentication._password_hash', return_value=('salt', 'verified')), \
              patch('app.services.login_throttle.ensure_login_allowed'), \
              patch('app.services.login_throttle.clear_login_failures'):
+            if access:
+                return change_account_access(self.actor, 'staff', False, None, 0, 'never-log-this', '합성 검증')
             return change_content_permission(self.actor, 'staff', True, 0, 'never-log-this', '합성 검증')
+
+    def test_access_failures_preserve_intent_before_write_and_never_claim_rollback(self):
+        for stage in ('intent', 'write', 'finalize'):
+            with self.subTest(stage=stage):
+                db = self.database()
+                operation = {'intent': db.account_permission_audit_logs.insert_one,
+                             'write': db.users.update_one,
+                             'finalize': db.account_permission_audit_logs.update_one}[stage]
+                operation.side_effect = PyMongoError('private-error')
+                with self.assertRaises(HTTPException) as caught:
+                    self.change(db, access=True)
+                self.assertEqual(caught.exception.status_code, 503)
+                self.assertIn('다시 조회', caught.exception.detail)
+                self.assertNotIn('private-error', caught.exception.detail)
+                if stage == 'intent':
+                    db.users.update_one.assert_not_called()
+                else:
+                    event = db.account_permission_audit_logs.insert_one.call_args.args[0]
+                    self.assertEqual(event['status'], 'prepared')
+                    self.assertEqual(event['action'], 'account_access')
+                    self.assertNotIn('never-log-this', str(event))
 
     def test_intent_failure_does_not_modify_permissions(self):
         db = self.database()

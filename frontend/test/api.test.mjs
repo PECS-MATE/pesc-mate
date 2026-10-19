@@ -59,6 +59,38 @@ test('forbidden events identify the API scope without changing the error result'
   assert.equal(denied.apiPath, '/admin/accounts/staff/content-permission');
 });
 
+test('authenticated JSON and binary 401s announce session expiry without exposing tokens', async () => {
+  const seen = [];
+  window.dispatchEvent = event => seen.push(event);
+  mockResponses(jsonResponse({}, 401), jsonResponse({}, 401));
+  await assert.rejects(request('/care/linked-users'), error => error.status === 401);
+  await assert.rejects(requestBlob('/api/profile/image'), error => error.status === 401);
+  assert.deepEqual(seen.map(event => event.type), ['pesc-mate:session-expired', 'pesc-mate:session-expired']);
+  assert.deepEqual(seen.map(event => event.apiPath), ['/care/linked-users', '/api/profile/image']);
+  assert.ok(seen.every(event => !JSON.stringify(event).includes('account-token')));
+});
+
+test('anonymous, explicit other-token and login/logout failures do not expire the current session', async () => {
+  mockResponses(...Array.from({ length: 5 }, () => jsonResponse({}, 401)));
+  for (const path of ['/auth/login', '/auth/register', '/auth/logout']) {
+    await assert.rejects(request(path), error => error.status === 401);
+  }
+  await assert.rejects(request('/cards', { headers: { Authorization: 'Bearer different-token' } }));
+  storage.delete('pesc-mate-token');
+  await assert.rejects(request('/cards'));
+  assert.deepEqual(events, []);
+});
+
+test('a late 401 from an old session never expires a newly logged-in session', async () => {
+  let finish;
+  globalThis.fetch = () => new Promise(resolve => { finish = resolve; });
+  const pending = request('/care/linked-users');
+  storage.set('pesc-mate-token', 'new-session');
+  finish(jsonResponse({}, 401));
+  await assert.rejects(pending, error => error.status === 401);
+  assert.deepEqual(events, []);
+});
+
 test('each retry has a fresh transport UUID while preserving the idempotency body and header overrides', async () => {
   const calls = mockResponses(jsonResponse({ saved: true }), jsonResponse({ saved: true }));
   const body = JSON.stringify({ request_id: 'body-idempotency-id', cards: ['water'] });

@@ -811,6 +811,7 @@ button { min-width: 44px; min-height: 44px !important; }
 .account-permissions .check-setting { display: flex; align-items: center; }
 .account-permissions input, .account-permissions textarea { min-width: 0; max-width: 100%; }
 .account-permissions textarea { min-height: 90px; resize: vertical; }
+.account-permissions fieldset { display: grid; gap: 12px; min-width: 0; }
 .account-permissions li { margin-block: 12px; overflow-wrap: anywhere; }
 
 @media (prefers-reduced-motion: reduce) {

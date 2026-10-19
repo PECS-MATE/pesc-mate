@@ -12,6 +12,7 @@ from app.services.database import database as _database, log_crud
 from app.services.schema_versions import SCHEMA_VERSION
 from app.services.login_throttle import clear_login_failures, ensure_login_allowed, record_login_failure
 from app.services.account_permissions import can_manage_account_permissions, permission_revision
+from app.services.account_access import access_state, account_access_allowed
 
 SESSION_HOURS = 12
 ACCOUNT_PERMISSIONS = ('content_manage',)
@@ -26,6 +27,7 @@ def _password_hash(password, salt=None):
 
 def _public_user(user):
     from app.services.profiles import public_profile
+    active, deadline = access_state(user)
     legacy_admin = user.get('role') == 'admin'
     permissions = list(user.get('account_permissions', []))
     if legacy_admin and 'content_manage' not in permissions:
@@ -38,6 +40,8 @@ def _public_user(user):
         'account_permissions': [permission for permission in ACCOUNT_PERMISSIONS if permission in permissions],
         'can_manage_account_permissions': can_manage_account_permissions(user),
         'permission_revision': permission_revision(user),
+        'account_active': active,
+        'access_expires_at': deadline,
         'profile': public_profile(user),
     }
 
@@ -124,12 +128,15 @@ def login(username, password, client_ip=None):
             record_login_failure(username, client_ip)
             raise HTTPException(401, '아이디 또는 비밀번호가 올바르지 않습니다.')
         _, candidate = _password_hash(password, user['password_salt'])
-        if not hmac.compare_digest(candidate, user['password_hash']):
+        if not hmac.compare_digest(candidate, user['password_hash']) or not account_access_allowed(user):
             record_login_failure(username, client_ip)
             raise HTTPException(401, '아이디 또는 비밀번호가 올바르지 않습니다.')
         clear_login_failures(username, client_ip)
         token = secrets.token_urlsafe(32)
         expires_at = datetime.now(timezone.utc) + timedelta(hours=SESSION_HOURS)
+        _, access_deadline = access_state(user)
+        if access_deadline is not None:
+            expires_at = min(expires_at, access_deadline)
         database.auth_sessions.insert_one({
             'schema_version': SCHEMA_VERSION,
             '_id': hashlib.sha256(token.encode()).hexdigest(),
@@ -197,6 +204,9 @@ def current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
         log_crud('READ', 'users', '인증 사용자 조회')
         if not user:
             raise HTTPException(401, '사용자 계정을 찾을 수 없습니다.')
+        if not account_access_allowed(user):
+            raise HTTPException(401, '계정이 비활성화되었거나 접근 기간이 만료되었습니다.',
+                                headers={'WWW-Authenticate': 'Bearer'})
         if permission_revision(session) != permission_revision(user):
             raise HTTPException(401, '계정 권한이 변경되었습니다. 다시 로그인해 주세요.',
                                 headers={'WWW-Authenticate': 'Bearer'})

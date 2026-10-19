@@ -39,6 +39,16 @@ Authorization: Bearer {access_token}
 토큰은 로그인 시 생성되며 기본 12시간 동안 유효하다. 로그아웃하면 해당 토큰이 즉시 삭제된다.
 담당자 운영 권한이 변경되면 계정·세션 권한 버전을 비교해 기존 세션을 다음 요청부터 401로
 차단한다. 운영 권한 관리 API와 책임자 설정은 [운영 권한 관리](../operations/ACCOUNT_PERMISSION_MANAGEMENT.md)를 따른다.
+담당자 계정의 `account_active`가 false이거나 `access_expires_at`에 도달하면 로그인과 모든
+다음 인증 요청을 거절한다. 신규 세션 유효 기간도 접근 만료 시각을 넘지 않는다. 누락된 접근
+설정은 기존 호환용 활성·기한 없음이다. 접근 변경도 같은 권한 버전을 증가시키므로 재활성화나
+만료 연장/해제로 과거 토큰이 되살아나지 않는다. 이 설정은 아동별 지원 연결을 삭제하지 않는다.
+
+`PUT /api/admin/accounts/{id}/access`는 책임자 재인증 후 담당자 계정의 접근을 변경한다.
+본문은 `account_active`(boolean), `access_expires_at`(시간대 포함 미래 시각 또는 명시적인 null),
+`expected_revision`(0 이상 정수), `password`, `reason`이다. 관리 책임자로 지정된 대상은
+비활성화·만료 설정을 거절한다. 상태/버전 충돌은 409, 잘못된 입력은 422이며 정상·오류 응답은
+`no-store`다. `lookup` 응답에는 현재 활성·만료와 `access_protected`도 포함된다.
 
 ### 요청 추적 ID
 

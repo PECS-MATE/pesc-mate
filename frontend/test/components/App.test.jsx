@@ -1,5 +1,5 @@
 import { StrictMode } from 'react';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, test, vi } from 'vitest';
 import App from '../../src/App.jsx';
@@ -109,6 +109,61 @@ test('AAC 사용자 화면에는 운영 알림을 표시하거나 요청하지 �
   await openCommunication();
   expect(screen.queryByRole('region', { name: '운영 알림' })).toBeNull();
   expect(request.mock.calls.some(([path]) => path === '/admin/alerts')).toBe(false);
+});
+
+test.each(['caregiver', 'support_staff'])('%s 인증 만료는 서버 로그아웃을 기다리지 않고 지원 화면을 닫는다', async role => {
+  const original = request.getMockImplementation();
+  request.mockImplementation((path, options) => {
+    if (path === '/auth/me') return Promise.resolve({ ...account, role });
+    if (path === '/care/linked-users') return Promise.resolve([]);
+    return original(path, options);
+  });
+  render(<StrictMode><App /></StrictMode>);
+  await screen.findByText('서비스 연결됨');
+  act(() => window.dispatchEvent(new Event('pesc-mate:session-expired')));
+  await waitFor(() => expect(screen.queryByRole('navigation', { name: '주 메뉴' })).toBeNull());
+  expect(localStorage.getItem('pesc-mate-token')).toBeNull();
+  expect(screen.getByRole('alert').textContent).toContain('다시 로그인');
+  expect(request.mock.calls.some(([path]) => path === '/auth/logout')).toBe(false);
+});
+
+test('AAC 인증 만료 알림은 오프라인 의사소통 보드와 로컬 음성을 지우지 않는다', async () => {
+  const { user, workspace, board } = await openCommunication();
+  await user.click(workspace.getByRole('button', { name: '물 문장에 담기', exact: true }));
+  act(() => window.dispatchEvent(new Event('pesc-mate:session-expired')));
+  expect(selectedLabels(board)).toEqual(['💧 물']);
+  expect(screen.getByRole('navigation', { name: '주 메뉴' })).toBeTruthy();
+});
+
+test.each(['success', 'unauthorized'])('만료 전 지원 조회의 늦은 %s 응답은 새 로그인 화면을 덮어쓰지 않는다', async outcome => {
+  const original = request.getMockImplementation();
+  let pending;
+  request.mockImplementation((path, options) => {
+    if (path === '/auth/me') return Promise.resolve({ ...account, role: 'support_staff' });
+    if (path === '/care/linked-users') return pending || Promise.resolve([]);
+    if (path === '/auth/login') return Promise.resolve({ user: account, access_token: 'new-child-session' });
+    return original(path, options);
+  });
+  const user = userEvent.setup();
+  render(<StrictMode><App /></StrictMode>);
+  await screen.findByText('서비스 연결됨');
+  let finish;
+  let fail;
+  pending = new Promise((resolve, reject) => { finish = resolve; fail = reject; });
+  act(() => window.dispatchEvent(new Event('online')));
+  act(() => window.dispatchEvent(new Event('pesc-mate:session-expired')));
+  await screen.findByRole('heading', { name: '로그인', exact: true });
+  fireEvent.change(screen.getByLabelText('아이디'), { target: { value: 'component-child' } });
+  fireEvent.change(screen.getByLabelText('비밀번호'), { target: { value: 'synthetic-password' } });
+  await user.click(screen.getByRole('button', { name: '로그인', exact: true }));
+  await screen.findByText('서비스 연결됨');
+  await act(async () => {
+    if (outcome === 'unauthorized') fail(Object.assign(new Error('Old session expired'), { status: 401 }));
+    else finish([{ id: 'old-child', name: '폐기할 이전 아동', permissions: [] }]);
+  });
+  expect(localStorage.getItem('pesc-mate-token')).toBe('new-child-session');
+  expect(screen.getByRole('heading', { name: '오늘은 무엇을 해볼까요?', exact: true })).toBeTruthy();
+  expect(screen.queryByText('폐기할 이전 아동')).toBeNull();
 });
 
 test('키보드와 버튼으로 카드를 선택하고 순서 변경·삭제해도 선택 순서가 보존된다', async () => {

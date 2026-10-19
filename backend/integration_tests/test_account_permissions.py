@@ -65,6 +65,14 @@ class RealAccountPermissionTests(unittest.TestCase):
             'content_manage': enabled, 'expected_revision': revision, 'reason': '합성 권한 검증',
             'password': 'Synthetic-password-123', **extra})
 
+    def access(self, active=True, deadline=None, revision=0, target='staff', actor='manager', **extra):
+        return self.http.put(f'/api/admin/accounts/{target}/access', headers=self.headers[actor], json={
+            'account_active': active, 'access_expires_at': deadline, 'expected_revision': revision,
+            'reason': '합성 접근 검증', 'password': 'Synthetic-password-123', **extra})
+
+    def login(self):
+        return self.http.post('/api/auth/login', json={'username': 'staff', 'password': 'Synthetic-password-123'})
+
     def test_only_configured_custodian_can_lookup_change_and_read_audit(self):
         for actor in ('operator', 'staff', 'child', 'guardian'):
             headers = self.headers[actor]
@@ -82,7 +90,8 @@ class RealAccountPermissionTests(unittest.TestCase):
         response = self.http.get('/api/admin/accounts/lookup?username=staff', headers=self.headers['manager'])
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers['Cache-Control'], 'no-store')
-        self.assertEqual(set(response.json()), {'id', 'username', 'name', 'content_manage', 'permission_revision'})
+        self.assertEqual(set(response.json()), {'id', 'username', 'name', 'content_manage', 'permission_revision',
+                                                'account_active', 'access_expires_at', 'access_protected'})
         me = self.http.get('/api/auth/me', headers=self.headers['manager']).json()
         self.assertTrue(me['can_manage_account_permissions'])
         self.assertEqual(me['account_permissions'], [])
@@ -152,3 +161,107 @@ class RealAccountPermissionTests(unittest.TestCase):
         user = self.db.users.find_one({'_id': 'operator'})
         self.assertEqual(user['account_permissions'], [])
         self.assertEqual(user['permission_revision'], 1)
+
+    def test_disable_blocks_login_all_existing_sessions_and_protected_routes_without_deleting_links(self):
+        second = self.session('staff')
+        self.db.caregiver_links.insert_one({'_id': 'synthetic-link', 'supporter_id': 'staff', 'user_id': 'child', 'active': True})
+        response = self.access(False)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertFalse(response.json()['account_active'])
+        self.assertEqual(response.headers['Cache-Control'], 'no-store')
+        self.assertEqual(self.login().status_code, 401)
+        for headers in (self.headers['staff'], second):
+            for path in ('/api/auth/me', '/api/care/linked-users', '/api/dashboard?user_id=child', '/api/admin/categories'):
+                self.assertEqual(self.http.get(path, headers=headers).status_code, 401, path)
+        self.assertEqual(self.db.caregiver_links.count_documents({'_id': 'synthetic-link', 'active': True}), 1)
+        for identity in ('manager', 'child', 'guardian'):
+            self.assertEqual(self.http.get('/api/auth/me', headers=self.headers[identity]).status_code, 200)
+        audit = self.http.get('/api/admin/accounts/staff/permission-audit', headers=self.headers['manager']).json()[0]
+        self.assertEqual(audit['action'], 'account_access')
+        self.assertEqual(audit['before'], {'account_active': True, 'access_expires_at': None})
+        self.assertEqual(audit['after'], {'account_active': False, 'access_expires_at': None})
+        self.assertEqual(audit['status'], 'applied')
+        self.assertNotIn('Synthetic-password', str(audit))
+
+    def test_reactivation_requires_new_login_and_never_revives_old_tokens(self):
+        self.assertEqual(self.access(False).status_code, 200)
+        self.assertEqual(self.change().status_code, 409)  # stale revision
+        self.assertEqual(self.change(revision=1).status_code, 409)  # disabled grant
+        self.assertEqual(self.access(True, revision=1).status_code, 200)
+        self.assertEqual(self.http.get('/api/auth/me', headers=self.headers['staff']).status_code, 401)
+        login = self.login()
+        self.assertEqual(login.status_code, 200, login.text)
+        fresh = {'Authorization': 'Bearer ' + login.json()['access_token']}
+        self.assertEqual(self.http.get('/api/auth/me', headers=fresh).status_code, 200)
+        self.assertEqual(self.db.users.find_one({'_id': 'staff'})['account_permissions'], [])
+
+    def test_deadline_is_utc_caps_new_sessions_and_blocks_legacy_long_sessions_at_boundary(self):
+        deadline = (datetime.now(timezone.utc) + timedelta(minutes=10)).replace(microsecond=123000)
+        local = deadline.astimezone(timezone(timedelta(hours=9))).isoformat()
+        response = self.access(deadline=local)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(datetime.fromisoformat(response.json()['access_expires_at']), deadline)
+        login = self.login()
+        self.assertEqual(login.status_code, 200, login.text)
+        self.assertEqual(datetime.fromisoformat(login.json()['expires_at']), deadline)
+        stored = self.db.auth_sessions.find_one({'_id': hashlib.sha256(login.json()['access_token'].encode()).hexdigest()})
+        self.assertEqual(stored['expires_at'].replace(tzinfo=timezone.utc), deadline)
+        legacy_long_session = self.session('staff', revision=1)
+        self.assertEqual(self.http.get('/api/auth/me', headers=legacy_long_session).status_code, 200)
+        with patch('app.services.account_access.utc_now', return_value=deadline):
+            self.assertEqual(self.http.get('/api/auth/me', headers=legacy_long_session).status_code, 401)
+            self.assertEqual(self.login().status_code, 401)
+        # Clearing the deadline advances the same revision; no old token comes back.
+        self.assertEqual(self.access(revision=1).status_code, 200)
+        self.assertEqual(self.http.get('/api/auth/me', headers=legacy_long_session).status_code, 401)
+        self.assertEqual(self.login().status_code, 200)
+        self.assertIsNone(self.db.users.find_one({'_id': 'staff'})['access_expires_at'])
+
+    def test_access_noop_stale_revision_and_content_access_race(self):
+        self.assertFalse(self.access().json()['changed'])
+        self.assertEqual(self.db.account_permission_audit_logs.count_documents({}), 0)
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            responses = list(pool.map(lambda operation: operation(), [lambda: self.change(), lambda: self.access(False)]))
+        self.assertEqual(sorted(response.status_code for response in responses), [200, 409])
+        self.assertEqual(self.access(revision=0).status_code, 409)
+        self.assertEqual(self.db.users.find_one({'_id': 'staff'})['permission_revision'], 1)
+        self.assertEqual(self.db.account_permission_audit_logs.count_documents({'status': 'applied'}), 1)
+
+    def test_access_is_staff_only_and_configured_managers_cannot_be_locked(self):
+        for actor in ('operator', 'staff', 'child', 'guardian'):
+            self.assertEqual(self.access(False, actor=actor).status_code, 403)
+        for target in ('child', 'guardian', 'missing'):
+            self.assertEqual(self.access(False, target=target).status_code, 404)
+        future = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
+        with patch.dict(os.environ, ACCOUNT_PERMISSION_MANAGER_IDS='manager, operator'):
+            for target in ('manager', 'operator'):
+                self.assertEqual(self.access(False, target=target).status_code, 409)
+                self.assertEqual(self.access(deadline=future, target=target).status_code, 409)
+                lookup = self.http.get('/api/admin/accounts/lookup', params={'username': target}, headers=self.headers['manager'])
+                self.assertTrue(lookup.json()['access_protected'])
+        self.assertEqual(self.db.account_permission_audit_logs.count_documents({}), 0)
+
+    def test_access_rejects_ambiguous_past_dates_and_coerced_or_unexpected_fields(self):
+        for extra in ({'account_active': 'false'}, {'expected_revision': True}, {'expected_revision': -1},
+                      {'access_expires_at': '2030-01-01T00:00:00'}, {'access_expires_at': '2000-01-01T00:00:00Z'},
+                      {'access_expires_at': 'invalid'}, {'reason': '   '}, {'password': ''}, {'content_manage': True}):
+            response = self.access(**extra)
+            self.assertEqual(response.status_code, 422, response.text)
+            self.assertNotIn('Synthetic-password', response.text)
+        response = self.http.put('/api/admin/accounts/staff/access', headers=self.headers['manager'], json={
+            'account_active': True, 'expected_revision': 0, 'password': 'Synthetic-password-123', 'reason': '합성 검증'})
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(self.db.account_permission_audit_logs.count_documents({}), 0)
+
+    def test_access_requires_reauthentication_and_demo_seed_does_not_restore_disabled_account(self):
+        from app.services.authentication import _ensure_user
+        self.assertEqual(self.access(False, password='wrong-password').status_code, 403)
+        self.assertEqual(self.db.account_permission_audit_logs.count_documents({}), 0)
+        deadline = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+        self.assertEqual(self.access(False, deadline=deadline, target='operator').status_code, 200)
+        _ensure_user('operator', 'unused-password', '합성 운영자', 'support_staff', ['content_manage'])
+        stored = self.db.users.find_one({'_id': 'operator'})
+        self.assertFalse(stored['account_active'])
+        self.assertIsNotNone(stored['access_expires_at'])
+        self.assertEqual(stored['account_permissions'], ['content_manage'])
+        self.assertEqual(stored['permission_revision'], 1)

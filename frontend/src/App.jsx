@@ -345,6 +345,8 @@ function App() {
   }
 
   async function load(account = user) {
+    const session = localStorage.getItem('pesc-mate-token');
+    const isCurrentSession = () => Boolean(session) && localStorage.getItem('pesc-mate-token') === session;
     setError('');
     if (account?.role === 'user' && !navigator.onLine) {
       const snapshot = await cachedSnapshot(account.id).catch(() => null);
@@ -360,13 +362,19 @@ function App() {
           canOperateContent ? request('/admin/categories') : Promise.resolve([]),
           request('/categories'),
         ]);
+        if (!isCurrentSession()) return;
         const target = people[0] || null;
         const targetCards = target?.permissions.includes('cards_manage')
           ? await request(`/cards/submissions?user_id=${encodeURIComponent(target.id)}`)
           : [];
+        const [targetImages, adminImages] = await Promise.all([hydrateImages(targetCards), hydrateImages(submissions)]);
+        if (!isCurrentSession()) {
+          [...targetImages, ...adminImages].forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); });
+          return;
+        }
         setLinkedUsers(people); setSelectedUser(target); setCards([]); setCardCategories(activeCategories); setRecommended([]);
-        setCardSubmissions(await hydrateImages(targetCards));
-        setAdminSubmissions(await hydrateImages(submissions));
+        setCardSubmissions(targetImages);
+        setAdminSubmissions(adminImages);
         setAdminCategories(categories);
         setCategoryEdits(Object.fromEntries(categories.map(item => [item.id, { name: item.name, display_order: item.display_order }])));
         setTab(people.length ? 'support_home' : canOperateContent ? 'admin' : 'support_home');
@@ -394,6 +402,7 @@ function App() {
       primeOfflineAssets();
       syncPendingEvents(account);
     } catch (e) {
+      if (!isCurrentSession()) return;
       if (e.status === 401) { setToken(null); setUser(null); setLoaded(false); setError('로그인이 만료되었습니다. 다시 로그인해 주세요.'); }
       else if (account?.role === 'user' && await applyOfflineSnapshot(account, await cachedSnapshot(account.id).catch(() => null))) {
         setError('');
@@ -504,6 +513,14 @@ function App() {
   }, [user]);
 
   useEffect(() => {
+    const expireSupportSession = () => {
+      if (['caregiver', 'support_staff'].includes(activeUserRef.current?.role)) handleLogout({ sessionExpired: true });
+    };
+    window.addEventListener('pesc-mate:session-expired', expireSupportSession);
+    return () => window.removeEventListener('pesc-mate:session-expired', expireSupportSession);
+  }, [user]);
+
+  useEffect(() => {
     if (user?.role !== 'user' || learningGame?.phase !== 'playing' || !learningSettings) return;
     cacheLearningGame(user.id, {
       game: cacheableLearningGame(learningGame),
@@ -528,18 +545,25 @@ function App() {
     finally { setBusy(false); setAuthReady(true); }
   }
 
-  async function handleLogout() {
+  async function handleLogout({ sessionExpired = false } = {}) {
     setBusy(true);
     setBoardConflict(false); setBoardConfigBusy('');
-    await stopSpeech();
-    try { await request('/auth/logout', { method: 'POST' }); } catch { /* local logout still applies */ }
+    if (sessionExpired) {
+      activeUserRef.current = null;
+      stopSpeech().catch(() => {});
+    } else {
+      await stopSpeech();
+      try { await request('/auth/logout', { method: 'POST' }); } catch { /* local logout still applies */ }
+    }
     clearBoard(user?.id);
-    await clearCachedAccount().catch(() => {});
-    if (user?.id) await clearOfflineUserData(user.id).catch(() => {});
+    const clearCache = clearCachedAccount().catch(() => {});
+    const clearUserData = user?.id ? clearOfflineUserData(user.id).catch(() => {}) : Promise.resolve();
     setToken(null); setUser(null); setLoaded(false); setShowProfile(false); setProfileNotice(''); setSyncState('idle'); setPendingSyncCount(0);
     [...cards, ...recommended, ...adminSubmissions].forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); });
     setCards([]); setCardCategories([]); setRecommended([]); setStats(null); setBoard([]); setCardSubmissions([]); setAdminSubmissions([]); setAdminCategories([]); setCategoryEdits({}); setCategoryError(''); setLinkedUsers([]); setSelectedUser(null); setBoardLayout(null); setBoardLayoutAudit([]); setQuickDraft([]); setRecoveryDraft([]); setSlotDraft([]); setLearningSettings(null); setLearningProgress(null); setLearningGame(null); setPracticeCategory('all'); setText(''); setGeneratedSessionId(''); setGenerationAttempt(1); setSentenceConfirmed(false); setGenerationFailed(false); setError(''); setTab('home');
     setTtsSettings(DEFAULT_TTS_SETTINGS); setTtsSettingsSaved(false); setAccessibility(DEFAULT_ACCESSIBILITY); setAccessibilitySaved(true); setPrivacy(DEFAULT_PRIVACY); setPrivacyCaregivers([]); setPrivacyAudit([]); setSpeechFailure(null); setLastUtterance(null); setLastSentence(null); setBusy(false);
+    if (sessionExpired) setError('계정 접근 또는 로그인 상태가 변경되었습니다. 다시 로그인해 주세요.');
+    await Promise.all([clearCache, clearUserData]);
   }
 
   function updateBoard(next) {
