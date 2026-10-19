@@ -2,6 +2,7 @@ import Mascot, { EmptyState } from './Mascot';
 import { Avatar, ProfileEditor } from './Profile';
 import OperationalAlerts from './OperationalAlerts';
 import AccountPermissions from './AccountPermissions';
+import SupportRecordTabs from './SupportRecordTabs';
 import useReauthentication from './useReauthentication';
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
@@ -98,7 +99,7 @@ const SUPPORT_PERMISSION_LABELS = {
   quick_speech_manage: '빠른 표현 관리',
   board_manage: '보드 구성 관리',
   voice_access_manage: '음성·접근 설정 관리',
-  learning_manage: '학습 설정 관리',
+  learning_manage: '학습 기록 조회·설정 관리',
 };
 
 async function cacheAccountForOffline(account, expiresAt) {
@@ -192,6 +193,7 @@ function App() {
   const [selectedUser, setSelectedUser] = useState(null);
   const selectedUserRef = useRef(null);
   selectedUserRef.current = selectedUser;
+  const supportRecordRequestRef = useRef(0);
   const [noteDrafts, setNoteDrafts] = useState({});
   const [noteBusy, setNoteBusy] = useState('');
   const [privacy, setPrivacy] = useState(DEFAULT_PRIVACY);
@@ -217,11 +219,14 @@ function App() {
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
 
   function clearSupportTargetData() {
+    supportRecordRequestRef.current += 1;
+    selectedUserRef.current = null;
     cardSubmissions.forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); });
     setLinkedUsers([]); setSelectedUser(null); setCardSubmissions([]); setStats(null); setNoteDrafts({});
     setBoardLayout(null); setBoardLayoutAudit([]); setQuickDraft([]); setRecoveryDraft([]); setSlotDraft([]);
     setBoardConflict(false); setBoardConfigBusy('');
     setLearningSettings(null); setLearningProgress(null); setLearningGame(null);
+    setStatsBusy(false); setLearningBusy(false);
     setTtsSettings(DEFAULT_TTS_SETTINGS); setTtsSettingsSaved(false);
     setAccessibility(DEFAULT_ACCESSIBILITY); setAccessibilitySaved(true);
   }
@@ -769,6 +774,10 @@ function App() {
     finally { setAccessibilityBusy(false); }
   }
   async function changePeriod(value) {
+    if (['caregiver', 'support_staff'].includes(user.role)) {
+      setPeriod(value);
+      return loadSupportRecords('dashboard', selectedUser, value);
+    }
     setPeriod(value); setStatsBusy(true); setError('');
     try { setStats(await request(dashboardPath(value))); }
     catch (e) { setError(e.message); }
@@ -777,27 +786,62 @@ function App() {
   async function changeLinkedUser(value) {
     const target = linkedUsers.find(person => person.id === value);
     if (!target) return;
-    setSelectedUser(target); setStatsBusy(true); setLearningBusy(tab === 'learning_progress'); setError(''); setStats(null);
+    supportRecordRequestRef.current += 1;
+    selectedUserRef.current = target;
+    setSelectedUser(target); setStats(null); setLearningSettings(null); setLearningProgress(null); setNoteDrafts({});
+    if (['dashboard', 'learning_progress'].includes(tab)) return loadSupportRecords(tab, target);
+    setStatsBusy(true); setError('');
     try {
-      if (tab === 'dashboard' && target.permissions.includes('records_read')) setStats(await request(dashboardPath(period, target)));
       if (tab === 'support_settings' && target.permissions.includes('voice_access_manage')) await loadSupportSettings(target);
       if (tab === 'card_settings' && target.permissions.includes('cards_manage')) await loadSupportCards(target);
       if (tab === 'board_settings' && target.permissions.some(permission => ['quick_speech_manage', 'board_manage'].includes(permission))) await loadBoardConfiguration(target);
-      if (tab === 'learning_progress' && target.permissions.includes('learning_manage')) await loadLearning(target);
     }
     catch (e) { setError(e.message); }
     finally { setStatsBusy(false); setLearningBusy(false); }
   }
   async function openSupportSection(nextTab) {
     if (!selectedUser) return;
+    if (nextTab === 'dashboard') {
+      if (!selectedUser.permissions.includes('records_read')) return;
+      setTab(nextTab);
+      return loadSupportRecords(nextTab, selectedUser);
+    }
     setTab(nextTab); setStatsBusy(true); setError('');
     try {
-      if (nextTab === 'dashboard') setStats(await request(dashboardPath(period, selectedUser)));
       if (nextTab === 'support_settings') await loadSupportSettings(selectedUser);
       if (nextTab === 'card_settings') await loadSupportCards(selectedUser);
       if (nextTab === 'board_settings') await loadBoardConfiguration(selectedUser);
     } catch (e) { setError(e.message); }
     finally { setStatsBusy(false); }
+  }
+  async function loadSupportRecords(nextTab, target, value = period) {
+    const permission = nextTab === 'dashboard' ? 'records_read' : 'learning_manage';
+    const sequence = ++supportRecordRequestRef.current;
+    const session = localStorage.getItem('pesc-mate-token');
+    const actorId = user.id;
+    const isCurrent = () => supportRecordRequestRef.current === sequence
+      && Boolean(session) && localStorage.getItem('pesc-mate-token') === session
+      && activeUserRef.current?.id === actorId && selectedUserRef.current?.id === target?.id
+      && selectedUserRef.current?.permissions.includes(permission) && navigator.onLine;
+    setStats(null); setLearningSettings(null); setLearningProgress(null);
+    setStatsBusy(nextTab === 'dashboard'); setLearningBusy(nextTab === 'learning_progress'); setError('');
+    if (!target?.permissions.includes(permission) || !navigator.onLine) {
+      setStatsBusy(false); setLearningBusy(false);
+      return;
+    }
+    try {
+      if (nextTab === 'dashboard') {
+        const result = await request(dashboardPath(value, target));
+        if (isCurrent()) setStats(result);
+      } else {
+        const query = `?user_id=${encodeURIComponent(target.id)}`;
+        const [settings, progress] = await Promise.all([
+          request(`/learning/settings${query}`), request(`/learning/progress${query}&days=30`),
+        ]);
+        if (isCurrent()) { setLearningSettings(settings); setLearningProgress(progress); }
+      }
+    } catch (e) { if (isCurrent()) setError(e.message); }
+    finally { if (isCurrent()) { setStatsBusy(false); setLearningBusy(false); } }
   }
   async function loadSupportSettings(target) {
     const query = `?user_id=${encodeURIComponent(target.id)}`;
@@ -867,7 +911,12 @@ function App() {
     finally { setLearningBusy(false); }
   }
   async function openLearning(target = selectedUser) {
-    setTab(['caregiver', 'support_staff'].includes(user.role) ? 'learning_progress' : 'practice');
+    if (['caregiver', 'support_staff'].includes(user.role)) {
+      if (!target?.permissions.includes('learning_manage')) return;
+      setTab('learning_progress');
+      return loadSupportRecords('learning_progress', target);
+    }
+    setTab('practice');
     setLearningBusy(true); setError('');
     try {
       if (!navigator.onLine) {
@@ -1316,7 +1365,10 @@ function App() {
     : tab === 'admin' && canManageContent
     ? '카드 등록 요청을 검토해요.'
     : isSupporter
-    ? tab === 'support_home' ? '연결된 사용자를 지원해요.' : `${selectedUser?.name || '연결 사용자'}의 설정과 기록을 살펴봐요.`
+    ? tab === 'support_home' ? '연결된 사용자를 지원해요.'
+      : tab === 'dashboard' ? `${selectedUser?.name || '연결 사용자'}의 의사소통 기록을 살펴봐요.`
+      : tab === 'learning_progress' ? `${selectedUser?.name || '연결 사용자'}의 학습 기록을 살펴봐요.`
+      : `${selectedUser?.name || '연결 사용자'}의 설정과 기록을 살펴봐요.`
     : tab === 'home'
       ? '오늘은 무엇을 해볼까요?'
       : tab === 'cards'
@@ -1357,7 +1409,7 @@ function App() {
           {canManageCards && <button className={tab === 'card_settings' ? 'active' : ''} onClick={() => openSupportSection('card_settings')}><span aria-hidden="true">▤</span>개인 카드 관리</button>}
           {(canManageQuick || canManageBoard) && <button className={tab === 'board_settings' ? 'active' : ''} onClick={() => openSupportSection('board_settings')}><span aria-hidden="true">▦</span>빠른 표현·카드판</button>}
           {canManageVoice && <button className={tab === 'support_settings' ? 'active' : ''} onClick={() => openSupportSection('support_settings')}><span aria-hidden="true">♿</span>음성·접근 설정</button>}
-          {canManageLearning && <button className={tab === 'learning_progress' ? 'active' : ''} onClick={() => openLearning(selectedUser)}><span aria-hidden="true">★</span>학습 성취</button>}
+          {canManageLearning && <button className={tab === 'learning_progress' ? 'active' : ''} onClick={() => openLearning(selectedUser)}><span aria-hidden="true">★</span>학습 기록</button>}
           {canManageContent && <button className={tab === 'admin' ? 'active' : ''} onClick={() => setTab('admin')}><span aria-hidden="true">☑</span>공용 콘텐츠 운영<i aria-label={`승인 대기 ${adminSubmissions.filter(item => item.status === 'pending').length}개`}>{adminSubmissions.filter(item => item.status === 'pending').length}</i></button>}
           {canManageAccounts && <button className={tab === 'account_permissions' ? 'active' : ''} onClick={() => setTab('account_permissions')}><span aria-hidden="true">⚿</span>운영 권한 관리</button>}
         </> : <>
@@ -1397,15 +1449,18 @@ function App() {
       {error && <div role="alert" className="error">{error} <button disabled={busy} onClick={() => load(user)}>다시 연결</button></div>}
       {speechFailure && <div role="alert" className="speech-error"><span aria-hidden="true">🔇</span><div><strong>음성을 재생하지 못했어요.</strong><p>전달할 표현: <strong>{speechFailure.content}</strong></p><p>{speechFailureMessage(speechFailure.errorCode)} 선택한 카드와 문장은 그대로 유지됩니다.</p></div><div className="speech-error-actions">{speechFailure.retryable && <button className="primary" onClick={() => speakText(speechFailure.content, speechFailure.contentType, speechFailure.cardIds || [])}>다시 재생</button>}<button onClick={() => setSpeechFailure(null)}>닫기</button></div></div>}
       {!loaded && !error && <p role="status">카드를 불러오는 중입니다…</p>}
+      {isSupporter && selectedUser && ['dashboard', 'learning_progress'].includes(tab) && <SupportRecordTabs
+        active={tab} permissions={selectedPermissions}
+        onSelect={nextTab => nextTab === 'dashboard' ? openSupportSection(nextTab) : openLearning(selectedUser)} />}
       {tab === 'support_home' && isSupporter ? <section className="support-home">
         <div className="panel-heading"><span aria-hidden="true">🤝</span><div><h2>{user.role === 'caregiver' ? '보호자 지원 홈' : '담당자 지원 홈'}</h2><p className="muted">연결 사용자를 선택하면 부여된 권한 범위의 메뉴만 표시됩니다.</p></div></div>
         {linkedUsers.length ? <><label className="user-picker">지원할 사용자<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)}>{linkedUsers.map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>
           <div className="support-action-grid">
-            {canReadRecords && <button onClick={() => openSupportSection('dashboard')}><span>📊</span><strong>의사소통 기록</strong><small>사용 기록과 안전 관련 표현 확인</small></button>}
+            {canReadRecords && <button onClick={() => openSupportSection('dashboard')}><span>📊</span><strong>의사소통 기록</strong><small>문장 저장·카드 사용 · 의사소통 기록 조회 권한</small></button>}
             {canManageCards && <button onClick={() => openSupportSection('card_settings')}><span>▤</span><strong>개인 카드 관리</strong><small>연결 사용자 전용 카드 등록과 수정</small></button>}
             {(canManageQuick || canManageBoard) && <button onClick={() => openSupportSection('board_settings')}><span>▦</span><strong>빠른 표현·카드판</strong><small>표현과 카드 위치를 사용자별로 고정</small></button>}
             {canManageVoice && <button onClick={() => openSupportSection('support_settings')}><span>♿</span><strong>음성·접근 설정</strong><small>목소리와 화면 표시 방식 조정</small></button>}
-            {canManageLearning && <button onClick={() => openLearning(selectedUser)}><span>★</span><strong>학습 성취</strong><small>최근 연습 결과와 카테고리별 성취 확인</small></button>}
+            {canManageLearning && <button onClick={() => openLearning(selectedUser)}><span>★</span><strong>학습 기록</strong><small>최근 30일 연습 참여·단어별 기록 · 학습 관리 권한</small></button>}
             {selectedPermissions.includes('notes_write') && <article><span>✓</span><strong>{SUPPORT_PERMISSION_LABELS.notes_write}</strong><small>의사소통 기록 화면에서 사용할 수 있습니다.</small></article>}
           </div></> : <EmptyState>연결된 사용자가 없습니다.</EmptyState>}
       </section> : tab === 'home' && user.role === 'user' ? <section className="home-screen">
@@ -1502,10 +1557,12 @@ function App() {
       <label className="user-picker">관리 사용자<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)} disabled={cardFormBusy}>{linkedUsers.filter(person => person.permissions.includes('cards_manage')).map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>
       <div className="submission-list"><h3>등록 카드</h3>{cardSubmissions.length ? <ul>{cardSubmissions.map(item => <li key={item.id}><span><strong>{item.label}</strong><small>{item.category} · {item.sharing_notice || (item.visibility === 'private' ? '연결 사용자만 사용' : '공개 요청')}</small></span><div className="submission-actions"><b className={`submission-status ${item.status}`}>{item.visibility === 'private' && item.status === 'approved' ? '사용 중' : ({ draft: '작성 중', pending: '승인 대기', approved: '공개 승인', rejected: '반려', inactive: '비활성' })[item.status] || item.status}</b>{['draft', 'rejected'].includes(item.status) && <button disabled={reviewBusy === item.id} onClick={() => { setEditingSubmission(item); setCardFormError(''); setShowCardForm(true); }}>수정</button>}{item.status === 'draft' && <button className="primary" disabled={reviewBusy === item.id} onClick={() => submitDraft(item)}>{item.visibility === 'private' ? '사용 시작' : '공개 승인 요청'}</button>}</div></li>)}</ul> : <p className="muted">등록된 개인 카드가 없습니다.</p>}</div>
       {showCardForm && <div className="modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setShowCardForm(false); }}><section className="card-form-modal" role="dialog" aria-modal="true" aria-labelledby="support-card-form-title"><div className="modal-heading"><div><h2 id="support-card-form-title">{editingSubmission ? '개인 카드 수정' : '개인 카드 등록'}</h2><p className="muted">{selectedUser?.name}님 계정에 저장할 카드입니다.</p></div><button type="button" aria-label="등록 폼 닫기" onClick={() => { setShowCardForm(false); setEditingSubmission(null); }}>×</button></div><form key={editingSubmission?.id || 'support-new'} className="card-form" onSubmit={submitCard}>{cardFormError && <div role="alert" className="error">{cardFormError}</div>}<label>카드명<input name="label" required maxLength="30" placeholder="예: 연필" defaultValue={editingSubmission?.label || ''} /></label><label>카드 뜻<textarea name="meaning" required maxLength="120" rows="3" placeholder="카드가 나타내는 뜻을 적어 주세요." defaultValue={editingSubmission?.meaning || ''} /></label><label>카테고리<select name="category" required defaultValue={editingSubmission?.category || ''}><option value="" disabled>카테고리 선택</option>{cardCategories.map(item => <option key={item.id} value={item.name}>{item.name}</option>)}</select></label><input name="visibility" type="hidden" value="private" />{!editingSubmission && <label>카드 이미지<input name="image" required type="file" accept="image/jpeg,image/png,image/webp" capture="environment" /></label>}<p className="form-notice">개인 카드는 연결 사용자에게만 표시되며 운영 담당자의 공개 승인 목록에는 나타나지 않습니다.</p><div className="modal-actions"><button type="button" disabled={cardFormBusy} onClick={() => { setShowCardForm(false); setEditingSubmission(null); }}>취소</button>{!editingSubmission && <button type="submit" value="draft" disabled={cardFormBusy}>임시 저장</button>}<button type="submit" value="submit" className="primary" disabled={cardFormBusy}>{cardFormBusy ? '저장 중…' : editingSubmission ? '수정 저장' : '카드 저장'}</button></div></form></section></div>}
-    </section> : tab === 'learning_progress' && isSupporter && canManageLearning ? <section className="learning-hub">
-      <div className="panel-heading"><span aria-hidden="true">★</span><div><h2>연결 사용자 학습 성취</h2><p className="muted">학습 결과는 의사소통 기록과 분리된 최근 30일 집계입니다.</p></div></div>
+    </section> : tab === 'learning_progress' && isSupporter && canManageLearning ? <section className="learning-hub"
+      role="tabpanel" id="support-record-panel-learning_progress" aria-labelledby="support-record-tab-learning_progress" tabIndex="0">
+      <div className="panel-heading"><span aria-hidden="true">★</span><div><h2>연결 사용자 학습 기록</h2><p className="muted">{selectedUser?.name} · 최근 30일 · 완료한 연습 기준 · 학습 기록 조회·설정 관리 권한</p></div></div>
+      <p className="record-scope-note">연습 참여 횟수와 단어별 연습 결과만 표시합니다. 문장 저장·카드 사용 횟수에는 합산하지 않으며, 의사소통 능력의 평가나 진단이 아닙니다.</p>
       <label className="user-picker">조회 사용자<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)} disabled={learningBusy}>{linkedUsers.filter(person => person.permissions.includes('learning_manage')).map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>
-      {learningBusy ? <p role="status">학습 성취를 불러오는 중입니다…</p> : <div className="learning-overview-grid">
+      {learningBusy ? <p role="status">학습 기록을 불러오는 중입니다…</p> : learningProgress && <div className="learning-overview-grid">
         <article><h3>{selectedUser?.name}님의 학습 설정</h3>{learningSettings ? <form className="learning-settings-form" onSubmit={saveLearningConfiguration}><fieldset><legend>학습 카테고리</legend><div className="learning-category-options">{cardCategories.map(item => <label key={item.id}><input type="checkbox" checked={learningSettings.category_ids.includes(item.id)} onChange={event => updateLearningSetting({ category_ids: event.target.checked ? [...learningSettings.category_ids, item.id] : learningSettings.category_ids.filter(id => id !== item.id) })} />{item.name}</label>)}</div></fieldset><div className="learning-setting-fields"><label>문제 수<select value={learningSettings.question_count} onChange={event => updateLearningSetting({ question_count: Number(event.target.value) })}>{[5, 10, 15, 20, 30].map(value => <option key={value} value={value}>{value}개</option>)}</select></label><label>단어 보기 수<select value={learningSettings.option_count} onChange={event => updateLearningSetting({ option_count: Number(event.target.value) })}>{[2, 3, 4].map(value => <option key={value} value={value}>{value}개</option>)}</select></label><label>카드 반복<select value={learningSettings.repeat_frequency} onChange={event => updateLearningSetting({ repeat_frequency: Number(event.target.value) })}>{[1, 2, 3].map(value => <option key={value} value={value}>{value}회</option>)}</select></label><label>권장 시간<select value={learningSettings.time_limit_seconds} onChange={event => updateLearningSetting({ time_limit_seconds: Number(event.target.value) })}>{[30, 60, 120, 300, 600].map(value => <option key={value} value={value}>{value}초</option>)}</select></label></div><label className="privacy-check"><input type="checkbox" checked={learningSettings.retry_enabled} onChange={event => updateLearningSetting({ retry_enabled: event.target.checked })} />오답을 다시 선택할 수 있게 해요</label><button className="primary" disabled={!learningSettings.category_ids.length}>학습 설정 저장</button></form> : <p className="muted">기본 학습 설정을 사용합니다.</p>}</article>
         <article className="learning-word-progress"><h3>최근 30일 학습 흐름</h3><div className="learning-metrics"><div><strong>{learningProgress?.attempts || 0}</strong><span>참여 횟수</span></div><div><strong>{learningProgress?.familiar_words?.length || 0}</strong><span>익숙해진 단어</span></div><div><strong>{learningProgress?.repeat_words?.length || 0}</strong><span>다시 연습할 단어</span></div></div>{learningProgress?.last_completed_at ? <p className="muted">최근 참여 {new Date(learningProgress.last_completed_at).toLocaleString('ko-KR')}</p> : <p className="muted">아직 완료한 연습이 없습니다.</p>}<div className="learning-word-groups"><section><h4>익숙해진 단어</h4>{learningProgress?.familiar_words?.length ? <ul>{learningProgress.familiar_words.map(item => <li key={item.card_id}><strong>{item.label}</strong><span>{item.practice_count}번 연습</span></li>)}</ul> : <p className="muted">두 번 이상 편안하게 찾은 단어가 여기에 표시됩니다.</p>}</section><section><h4>다시 만나볼 단어</h4>{learningProgress?.repeat_words?.length ? <ul>{learningProgress.repeat_words.map(item => <li key={item.card_id}><strong>{item.label}</strong><span>{item.needs_repeat_count}번 어려웠어요</span></li>)}</ul> : <p className="muted">조금 더 연습할 단어가 없습니다.</p>}</section></div></article>
       </div>}
@@ -1571,7 +1628,11 @@ function App() {
         </div>
       </article>)}</div>
       {!adminSubmissions.length && <EmptyState>아직 제출된 카드가 없습니다.</EmptyState>}
-    </section> : <section className="dashboard"><div className="panel-heading"><span aria-hidden="true">🏆</span><div><h2>{isSupporter ? '연결 사용자 의사소통 기록' : '나의 의사소통 기록'}</h2><p className="muted">{(selectedUser || user).name} · {period === 'all' ? '전체 기간' : `최근 ${period}일`} · 문장 저장 기준</p></div></div>
+    </section> : tab === 'dashboard' && (!isSupporter || canReadRecords) ? <section className="dashboard"
+      role={isSupporter ? 'tabpanel' : undefined} id={isSupporter ? 'support-record-panel-dashboard' : undefined}
+      aria-labelledby={isSupporter ? 'support-record-tab-dashboard' : undefined} tabIndex={isSupporter ? 0 : undefined}>
+      <div className="panel-heading"><span aria-hidden="true">▥</span><div><h2>{isSupporter ? '연결 사용자 의사소통 기록' : '나의 의사소통 기록'}</h2><p className="muted">{(selectedUser || user).name} · {period === 'all' ? '전체 기간' : `최근 ${period}일`} · 문장 저장 기준{isSupporter ? ' · 의사소통 기록 조회 권한' : ''}</p></div></div>
+      <p className="record-scope-note">저장한 문장과 그 문장에 포함된 카드만 집계합니다. 연습 결과와 실제 음성 재생 성공 횟수는 이 지표에 포함하지 않습니다.</p>
       {isSupporter && selectedUser && <div className="profile"><Avatar user={selectedUser} /><strong>{selectedUser.name}</strong></div>}
       {isSupporter && <label className="user-picker">조회 사용자<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)} disabled={statsBusy}>{linkedUsers.filter(person => person.permissions.includes('records_read')).map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>}
       <div className="period-filter" aria-label="조회 기간">{[['7', '최근 7일'], ['30', '최근 30일'], ['all', '전체']].map(([value, label]) => <button key={value} className={period === value ? 'active' : ''} aria-pressed={period === value} disabled={statsBusy} onClick={() => changePeriod(value)}>{label}</button>)}</div>
@@ -1588,7 +1649,7 @@ function App() {
         <h3>카테고리별 사용</h3>{Object.entries(stats.categories).map(([name, count]) => <div className="bar" key={name}><span>{name}</span><meter min="0" max={Math.max(stats.selections, 1)} value={count} /> {count}회</div>)}
         <h3>자주 사용한 카드</h3><div className="categories">{stats.top_cards.slice(0, 8).map(c => <span className="status" key={c.id}>{c.symbol} {c.label} · {c.count}회</span>)}</div>
         <h3>{isSupporter ? '최근 의사소통 타임라인' : '최근 문장'}</h3>{!stats.recent.length ? <EmptyState>선택한 기간에 기록이 없어요.</EmptyState> : <ul className="history">{stats.recent.map(r => <li key={r.id}>{isSupporter && <div className="history-cards">{r.cards.map((id, index) => cardPicture(CARD_META[id] || { id, label: id }, 'mini-card', `${id}-${index}`))}</div>}<span>{r.sentence}</span><time>{new Date(r.created_at).toLocaleString('ko-KR')}</time>{isSupporter && canWriteNotes && <div className="caregiver-note"><textarea aria-label={`${r.sentence} 지원 메모`} maxLength="500" placeholder="상황이나 반응을 메모해 주세요" value={noteDrafts[r.id] ?? r.caregiver_note ?? ''} onChange={event => setNoteDrafts(current => ({ ...current, [r.id]: event.target.value }))} /><div><small>{(noteDrafts[r.id] ?? r.caregiver_note ?? '').length}/500</small><button disabled={noteBusy === r.id} onClick={() => saveCaregiverNote(r.id)}>메모 저장</button>{r.caregiver_note && <button disabled={noteBusy === r.id} onClick={() => removeCaregiverNote(r.id)}>삭제</button>}</div></div>}</li>)}</ul>}</div>}
-      </section>}
+      </section> : <EmptyState>이 화면을 볼 수 있는 연결 권한이 없습니다. 지원 홈에서 사용자를 다시 선택해 주세요.</EmptyState>}
       <footer>실행용 프로토타입 · 실제 개인정보를 입력하지 마세요.</footer>
       {confirmation}
     </div>
