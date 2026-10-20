@@ -5,7 +5,7 @@ from uuid import uuid4
 from fastapi import HTTPException
 from pymongo.errors import PyMongoError
 
-from app.services.database import database as _database, log_crud
+from app.services.database import database as _database
 from app.services.schema_versions import SCHEMA_VERSION
 
 
@@ -29,7 +29,6 @@ def _privacy_public(document):
 def privacy_for(user_id):
     try:
         document = _database().privacy_settings.find_one({'_id': user_id})
-        log_crud('READ', 'privacy_settings', '개인정보 설정 조회')
         return _privacy_public(document)
     except PyMongoError as exc:
         raise HTTPException(503, '개인정보 설정을 불러오지 못했습니다.') from exc
@@ -61,7 +60,6 @@ def save_privacy(user_id, guardian_consent, retention_days):
         database.offline_events.delete_many({'user_id': user_id, 'occurred_at': {'$lt': cutoff}})
         database.caregiver_notes.delete_many({'user_id': user_id, 'updated_at': {'$lt': cutoff}})
         database.learning_attempts.delete_many({'user_id': user_id, 'completed_at': {'$lt': cutoff}})
-        log_crud('UPDATE', 'privacy_settings', '동의 및 보존 기간 저장')
         return settings
     except PyMongoError as exc:
         raise HTTPException(503, '개인정보 설정을 저장하지 못했습니다.') from exc
@@ -70,7 +68,6 @@ def save_privacy(user_id, guardian_consent, retention_days):
 def access_audit_for(user_id):
     try:
         rows = _database().privacy_audit_logs.find({'user_id': user_id}).sort('created_at', -1)
-        log_crud('READ', 'privacy_audit_logs', '개인정보 변경 이력 조회')
         return [{
             'id': str(row['_id']), 'action': row['action'], 'actor_id': row['actor_id'],
             'target_id': row.get('target_id'), 'created_at': row['created_at'],
@@ -104,7 +101,6 @@ def export_for(user_id):
                        ('_id', 'label', 'meaning', 'category', 'visibility', 'status', 'created_at')}
                       for row in cards],
         }
-        log_crud('READ', 'users', '본인 개인정보 내보내기')
         return payload
     except PyMongoError as exc:
         raise HTTPException(503, '개인정보를 내보내지 못했습니다.') from exc
@@ -146,7 +142,6 @@ def delete_personal_data(user_id):
             upsert=True,
         )
         _audit(database, user_id, user_id, 'personal_data_deleted', None)
-        log_crud('DELETE', 'user_data', '사용자 생성 개인정보 삭제')
         return _privacy_public(receipt)
     except PyMongoError as exc:
         raise HTTPException(503, '개인정보를 삭제하지 못했습니다.') from exc
@@ -158,4 +153,3 @@ def _audit(database, user_id, actor_id, action, target_id):
         '_id': str(uuid4()), 'user_id': user_id, 'actor_id': actor_id,
         'action': action, 'target_id': target_id, 'created_at': datetime.now(timezone.utc),
     })
-    log_crud('CREATE', 'privacy_audit_logs', '개인정보 변경 기록')

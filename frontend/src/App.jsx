@@ -6,7 +6,7 @@ import SupportRecordTabs from './SupportRecordTabs';
 import useReauthentication from './useReauthentication';
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { hasToken, recordDeviceAccess, request, requestBlob, setToken } from "./services/api";
+import { hasToken, request, requestBlob, setToken } from "./services/api";
 import { clearBoard, loadBoard, saveBoard } from "./services/boardStorage";
 import { learningQuestions } from "./services/learningGame";
 import { localKoreanVoices as installedKoreanVoices, selectTtsVoice } from "./services/ttsVoice";
@@ -419,10 +419,6 @@ function App() {
       }
     }
   }
-  useEffect(() => {
-    recordDeviceAccess().catch(() => {});
-  }, []);
-
   useEffect(() => {
     async function restoreLogin() {
       if (!hasToken()) { setAuthReady(true); return; }

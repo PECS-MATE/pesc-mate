@@ -1,10 +1,9 @@
 from contextlib import asynccontextmanager
 from threading import Thread
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI
 
 from app.api.router import api_router
-from app.services.device_access import log_device_access
 from app.services.indexes import ensure_indexes
 from app.services.observability import configure_observability
 from app.services.database_config import connection_options
@@ -29,12 +28,6 @@ app = FastAPI(
 configure_observability(app)
 
 app.include_router(api_router, prefix="/api")
-
-
-@app.post('/api/device/access', status_code=204, include_in_schema=False)
-async def device_access(request: Request):
-    log_device_access(request)
-    return Response(status_code=204)
 
 
 @app.get("/")

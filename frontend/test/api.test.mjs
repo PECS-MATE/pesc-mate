@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { afterEach, beforeEach } from 'node:test';
 import test from 'node:test';
 
-import { recordDeviceAccess, request, requestBlob } from '../src/services/api.js';
+import { request, requestBlob } from '../src/services/api.js';
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const originalGlobals = new Map(['fetch', 'localStorage', 'window'].map(name =>
@@ -208,36 +208,28 @@ test('image errors read structured server failures without decoding the image as
   });
 });
 
-test('device access retains its device identity across fresh transport IDs and reports HTTP failures', async () => {
+test('API requests neither create a device identity nor send device tracking headers', async () => {
   const calls = mockResponses(
-    new Response(null, { status: 204 }),
-    jsonResponse({ detail: '기기 접근 오류' }, 503, { 'X-Request-ID': 'device-response-id' }),
+    jsonResponse([]), new Response('synthetic image'),
   );
-  assert.equal(await recordDeviceAccess(), undefined);
-  await assert.rejects(recordDeviceAccess(), error => {
-    assert.equal(error.message, '기기 접근 오류');
-    assert.equal(error.status, 503);
-    assert.equal(error.requestId, 'device-response-id');
-    return true;
-  });
-  const deviceId = storage.get('pesc-mate-device-id');
-  assert.match(deviceId, uuidPattern);
+  const before = new Map(storage);
+  await request('/cards');
+  await requestBlob('/api/profile/image');
+  assert.deepEqual(storage, before);
+  assert.equal(storage.has('pesc-mate-device-id'), false);
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls.map(call => call.url), ['/api/cards', '/api/profile/image']);
   assert.notEqual(calls[0].headers.get('X-Request-ID'), calls[1].headers.get('X-Request-ID'));
   for (const call of calls) {
-    assert.equal(call.url, '/api/device/access');
-    assert.equal(call.method, 'POST');
-    assert.equal(call.keepalive, true);
-    assert.equal(call.headers.get('X-Pesc-Device'), deviceId);
-    assert.equal(call.headers.has('Authorization'), false);
+    assert.equal(call.headers.has('X-Pesc-Device'), false);
     assert.match(call.headers.get('X-Request-ID'), uuidPattern);
-    assert.notEqual(call.headers.get('X-Request-ID'), deviceId);
   }
 });
 
 test('network failures retain the sent transport ID on all request paths', async () => {
-  const failures = [new TypeError('fetch failed'), new TypeError('image fetch failed'), new TypeError('device fetch failed')];
+  const failures = [new TypeError('fetch failed'), new TypeError('image fetch failed')];
   const calls = mockResponses(...failures);
-  const actions = [() => request('/cards'), () => requestBlob('/api/profile/image'), () => recordDeviceAccess()];
+  const actions = [() => request('/cards'), () => requestBlob('/api/profile/image')];
   for (const [index, action] of actions.entries()) {
     await assert.rejects(action, error => {
       assert.equal(error, failures[index]);

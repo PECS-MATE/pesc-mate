@@ -1098,21 +1098,16 @@ curl "http://127.0.0.1:8000/api/dashboard?days=7" \
 | 추천 | `communication_sessions` | 로그인 사용자 전체 기록 조회 |
 | 이용 현황 | `communication_sessions` | 사용자 및 기간 조건 조회 |
 
-백엔드 기본 로그는 DB 조회·변경 작업을 출력하지 않는다. 앱 진입 로그는 브라우저가
-로컬 저장소에서 만든 짧은 익명 기기 식별자, 기기 종류와 브라우저 종류만 출력하며
-동일한 기기는 10분간 중복 출력하지 않는다. IP 주소, 문장, 사용자 이름, 비밀번호,
-토큰과 전체 User-Agent는 기록하지 않는다.
+DB 조회·변경의 콘솔 로그와 해당 로그를 활성화하는 환경 변수는 제거했다.
+브라우저 기기 접속 정보 수집·전송 코드와 `/api/device/access`도 제거했으므로
+기기 식별자를 새로 만들거나 접속을 별도 전송하지 않는다. 개인정보·권한·카드판 등의
+감사 이력과 기능별 운영 지표 집계는 유지한다.
 
-```text
-DEVICE | CONNECT | device=31d79baf | type=tablet | browser=Chrome
-```
+## 장애 HTTP 요청 로그
 
-DB 작업 진단이 필요한 개발 환경에서만 `DB_CRUD_LOG_ENABLED=true`로 기존 CRUD 로그를
-일시적으로 활성화한다.
-
-## HTTP 요청 로그
-
-요청 추적 로그는 `api_request` JSON으로 출력한다. 실제 경로 대신 매칭된 경로
+5xx 응답과 스트림 전송 예외만 `api_request` JSON으로 출력한다. 정상 응답·4xx·CORS
+preflight는 요청 ID와 지표 집계를 유지하지만 콘솔 요청 로그를 출력하지 않는다.
+오류 로그에는 실제 경로 대신 매칭된 경로
 템플릿을 사용하고, 매칭되지 않은 요청은 `unmatched`로 기록한다. 쿼리, 헤더,
 본문, 사용자·객체 ID, 발화 내용과 예외 원문은 이 로그에 포함하지 않는다.
 
@@ -1121,13 +1116,13 @@ DB 작업 진단이 필요한 개발 환경에서만 `DB_CRUD_LOG_ENABLED=true`�
   "event": "api_request",
   "request_id": "36b34017-f740-4a87-a21b-89d815178120",
   "method": "POST",
-  "route": "/auth/login",
-  "status_code": 200,
+  "route": "/sentences",
+  "status_code": 500,
   "duration_ms": 12.4
 }
 ```
 
-일반 응답은 INFO, 4xx는 WARNING, 5xx나 스트리밍 예외는 ERROR로 출력한다.
+5xx나 스트리밍 예외는 ERROR로 출력한다.
 예상하지 못한 예외는 `error_type`에 클래스명만 추가한다. 전송이 시작된 스트림은
 이미 보낸 HTTP 상태를 유지하지만 ERROR 로그로 실패를 확인할 수 있다.
 이 로그가 오류율·시간 지표의 집계나 경보를 대신하지는 않는다.

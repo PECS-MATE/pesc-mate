@@ -25,7 +25,6 @@ services:
       MONGODB_URI: mongodb://mongodb:27017
       MONGODB_DATABASE: pesc_mate_verification
       OLLAMA_ENABLED: "false"
-      DB_CRUD_LOG_ENABLED: "false"
       DEMO_ACCOUNTS_ENABLED: "true"
       DEMO_USERNAME: demo
       DEMO_PASSWORD: demo1234

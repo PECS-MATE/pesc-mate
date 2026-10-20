@@ -7,7 +7,7 @@ from types import SimpleNamespace
 from fastapi import HTTPException
 from pymongo.errors import DuplicateKeyError, PyMongoError
 from app.services.card_metadata import with_inferred_metadata
-from app.services.database import database, log_crud
+from app.services.database import database
 from app.services.schema_versions import SCHEMA_VERSION
 from app.services.model import generate_sentence, status as model_status
 from app.services.sentence_policy import policy_versions
@@ -227,7 +227,6 @@ def save_session(request, user_id, custom_cards=None, regeneration_of=None, gene
     try:
         collection = _collection()
         existing = collection.find_one({'_id': request_id, 'user_id': user_id})
-        log_crud('READ', 'communication_sessions', '중복 요청 확인')
         if existing:
             if (existing['cards'] != card_ids or
                     existing.get('regeneration_of') != regeneration_of):
@@ -260,10 +259,8 @@ def save_session(request, user_id, custom_cards=None, regeneration_of=None, gene
                     'created_at': datetime.now(timezone.utc)}
         try:
             collection.insert_one(document)
-            log_crud('CREATE', 'communication_sessions', '문장 기록 저장')
         except DuplicateKeyError:
             existing = collection.find_one({'_id': request_id, 'user_id': user_id})
-            log_crud('READ', 'communication_sessions', '동시 요청 결과 확인')
             if (not existing or existing['cards'] != card_ids or
                     existing.get('regeneration_of') != regeneration_of):
                 raise HTTPException(409, '같은 요청 번호에 다른 카드가 전달되었습니다.')
@@ -282,12 +279,10 @@ def regenerate_session(session_id, request_id, user_id, custom_cards=None):
     try:
         collection = _collection()
         previous = collection.find_one({'_id': session_id, 'user_id': user_id})
-        log_crud('READ', 'communication_sessions', '재생성 대상 조회')
         if not previous:
             raise HTTPException(404, '재생성할 문장 기록을 찾을 수 없습니다.')
         root_id = previous.get('regeneration_of') or session_id
         existing = collection.find_one({'_id': request_id, 'user_id': user_id})
-        log_crud('READ', 'communication_sessions', '재생성 중복 요청 확인')
         if existing:
             if existing.get('regeneration_of') != root_id or existing.get('cards') != previous['cards']:
                 raise HTTPException(409, '같은 요청 번호가 다른 문장 재생성에 사용되었습니다.')
@@ -311,8 +306,6 @@ def statistics(user_id, days=None, now=None):
         query['created_at'] = {'$gte': reference_time - timedelta(days=days)}
     try:
         rows = [_public(row) for row in _collection().find(query).sort('created_at', -1)]
-        period = f'최근 {days}일' if days is not None else '전체 기간'
-        log_crud('READ', 'communication_sessions', f'사용자 통계 조회 ({period})')
     except PyMongoError as exc:
         raise HTTPException(503, 'MongoDB에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.') from exc
     counts = Counter(key for row in rows for key in row['cards'])
@@ -379,4 +372,3 @@ def ensure_demo_history(user_id):
                               'created_at': now - timedelta(days=days_ago), 'source': 'demo'}},
             upsert=True,
         )
-    log_crud('CREATE', 'communication_sessions', '시연용 기록 생성')

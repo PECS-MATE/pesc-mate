@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pymongo.errors import DuplicateKeyError, PyMongoError
-from app.services.database import database as _database, log_crud
+from app.services.database import database as _database
 from app.services.schema_versions import SCHEMA_VERSION
 from app.services.login_throttle import clear_login_failures, ensure_login_allowed, record_login_failure
 from app.services.account_permissions import can_manage_account_permissions, permission_revision
@@ -57,7 +57,6 @@ def _ensure_user(username, password, name, role, account_permissions=None):
     if database.users.find_one({'_id': username}, {'_id': 1}):
         # Seeding must never restore an explicitly revoked operating permission.
         database.users.update_one({'_id': username}, {'$set': {key: value for key, value in profile.items() if key != 'account_permissions'}})
-        log_crud('UPDATE', 'users', f'{role} 데모 계정 동기화')
         return
     salt, password_hash = _password_hash(password)
     database.users.update_one(
@@ -67,16 +66,13 @@ def _ensure_user(username, password, name, role, account_permissions=None):
                           'created_at': datetime.now(timezone.utc)}},
         upsert=True,
     )
-    log_crud('CREATE', 'users', f'{role} 데모 계정 생성')
 
 
 def _migrate_legacy_admins():
-    migration = _database().users.update_many(
+    _database().users.update_many(
         {'role': 'admin'},
         {'$set': {'role': 'support_staff'}, '$addToSet': {'account_permissions': 'content_manage'}},
     )
-    if migration.modified_count:
-        log_crud('UPDATE', 'users', f'기존 운영자 {migration.modified_count}명을 운영 권한 담당자로 전환')
 
 
 def ensure_demo_users():
@@ -111,7 +107,6 @@ def ensure_demo_users():
                       'active': True}},
             upsert=True,
         )
-        log_crud('UPDATE', 'caregiver_links', '데모 사용자 최초 연결')
 
 
 def login(username, password, client_ip=None):
@@ -123,7 +118,6 @@ def login(username, password, client_ip=None):
         ensure_login_allowed(username, client_ip)
         database = _database()
         user = database.users.find_one({'username': username})
-        log_crud('READ', 'users', '로그인 계정 조회')
         if not user:
             record_login_failure(username, client_ip)
             raise HTTPException(401, '아이디 또는 비밀번호가 올바르지 않습니다.')
@@ -144,7 +138,6 @@ def login(username, password, client_ip=None):
             'permission_revision': permission_revision(user),
             'expires_at': expires_at,
         })
-        log_crud('CREATE', 'auth_sessions', '로그인 세션 생성')
         if demo_enabled:
             from app.services.communication import ensure_demo_history
             ensure_demo_history(os.environ.get('DEMO_USERNAME', 'demo'))
@@ -160,7 +153,6 @@ def register(username, password, name):
     try:
         database = _database()
         if database.users.find_one({'username': username}):
-            log_crud('READ', 'users', '회원가입 아이디 중복 확인')
             raise HTTPException(409, '이미 사용 중인 아이디입니다.')
         salt, password_hash = _password_hash(password)
         database.users.insert_one({
@@ -173,7 +165,6 @@ def register(username, password, name):
             'password_hash': password_hash,
             'created_at': datetime.now(timezone.utc),
         })
-        log_crud('CREATE', 'users', '일반 사용자 회원가입')
         return login(username, password)
     except DuplicateKeyError as exc:
         raise HTTPException(409, '이미 사용 중인 아이디입니다.') from exc
@@ -190,7 +181,6 @@ def current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
         database = _database()
         session = database.auth_sessions.find_one({'_id': token_hash})
-        log_crud('READ', 'auth_sessions', '로그인 세션 확인')
         now = datetime.now(timezone.utc)
         expires_at = session.get('expires_at') if session else None
         if expires_at and expires_at.tzinfo is None:
@@ -198,10 +188,8 @@ def current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
         if not session or not expires_at or expires_at <= now:
             if session:
                 database.auth_sessions.delete_one({'_id': token_hash})
-                log_crud('DELETE', 'auth_sessions', '만료 세션 삭제')
             raise HTTPException(401, '로그인 시간이 만료되었습니다.', headers={'WWW-Authenticate': 'Bearer'})
         user = database.users.find_one({'_id': session['user_id']})
-        log_crud('READ', 'users', '인증 사용자 조회')
         if not user:
             raise HTTPException(401, '사용자 계정을 찾을 수 없습니다.')
         if not account_access_allowed(user):
@@ -221,7 +209,6 @@ def logout(credentials: HTTPAuthorizationCredentials = Depends(security)):
     if credentials:
         try:
             _database().auth_sessions.delete_one({'_id': hashlib.sha256(credentials.credentials.encode()).hexdigest()})
-            log_crud('DELETE', 'auth_sessions', '로그아웃 세션 삭제')
         except PyMongoError as exc:
             raise HTTPException(503, '로그아웃을 처리하지 못했습니다.') from exc
 

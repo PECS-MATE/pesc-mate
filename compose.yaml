@@ -23,7 +23,6 @@ services:
     environment:
       MONGODB_URI: mongodb://mongodb:27017
       MONGODB_DATABASE: pesc_mate
-      DB_CRUD_LOG_ENABLED: "false"
       DEMO_ACCOUNTS_ENABLED: "true"
       ACCOUNT_PERMISSION_MANAGER_IDS: "${ACCOUNT_PERMISSION_MANAGER_IDS:-}"
       DEMO_USERNAME: demo

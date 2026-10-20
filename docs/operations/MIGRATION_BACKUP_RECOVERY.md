@@ -122,19 +122,13 @@ API를 멈춰도 TTL 삭제는 계속될 수 있고 복원한 TTL 인덱스도 �
 
 `backend/tests/test_mongo_backup.py`는 기본 무변경, 확인 인자, 대상 이름/경로,
 체크섬·manifest, 기존 DB 차단, namespace 매핑, 실패 격리, 오류 비노출을 검증한다.
-`backend/host_integration_tests/test_mongo_backup.py`는 실행 중인 로컬 MongoDB에
-별도의 합성 DB를 만들어 Binary·ObjectId·Date·Int64·빈 컬렉션·복합 unique/TTL
-인덱스·validator를 실제 백업/복원한다. 원본을 변경한 뒤 과거 상태가 새 DB에만
-복원되는지, 아카이브 손상과 기존 대상이 차단되는지도 확인한다.
+이 단위 검사는 `npm run verify`·`npm run verify:backend`·`npm run verify:full`에 포함한다.
+별도 호스트 백업·복구 통합 테스트는 npm 실행 경로에 연결되지 않아 2026-10-20 사용자
+요청으로 제거했다. 테스트 코드는 Git 이력에서 복원할 수 있다. 실제 백업·복구 CLI,
+단위 검사와 기존 백업 자료는 유지한다. 별도 테스트 제거를 실제 복구 리허설 완료로
+간주하지 않으며 운영 자료·설정 전환 리허설은 승인된 절차로 별도 수행해야 한다.
 
-```powershell
-python -m unittest discover -s backend/host_integration_tests -p "test_*.py" -v
-```
-
-이 테스트는 일반 단위 테스트·CI에 자동 포함하지 않는다. 테스트가 만든 정확한
-`pesc_mate_backup_test_<UUID>`, `pesc_mate_restore_<UUID>`와 자신의 백업 디렉터리만
-이름·경로를 검증한 뒤 정리한다. 실제 `pesc_mate`를 백업/마이그레이션/복구하거나
-writer를 중단하지 않는다. 실제 운영 자료·태블릿·설정 전환 리허설을 검증한 결과가 아니다.
+다음은 제거 전 당시의 실행 기록이다.
 
 2026-10-18 백엔드 전체 단위 테스트 **252개**, 기존 마이그레이션 실제 DB 통합
 테스트 **5개**, 호스트 백업·복원 통합 테스트 **4개**를 통과했다. 호스트 Windows의

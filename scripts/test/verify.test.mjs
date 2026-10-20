@@ -137,4 +137,5 @@ test('validation Compose policy has no published ports, development volumes or e
   // Browser/dependency installation stays above the source COPY for reusable build cache.
   assert.ok(dockerfile.indexOf('RUN npx playwright install') < dockerfile.lastIndexOf('COPY . .'));
   assert.match(await readFile(path.join(repository, 'frontend', '.dockerignore'), 'utf8'), /^test-results\/\r?$/m);
+  assert.match(await readFile(path.join(repository, 'backend', 'Dockerfile'), 'utf8'), /"--no-access-log"/);
 });

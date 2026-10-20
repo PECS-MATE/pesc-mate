@@ -5,7 +5,7 @@ from uuid import uuid4
 from fastapi import HTTPException
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
-from app.services.database import database as _database, log_crud
+from app.services.database import database as _database
 from app.services.schema_versions import SCHEMA_VERSION
 
 
@@ -69,7 +69,6 @@ def layout_for(user_id):
         document = _database().board_layouts.find_one({'_id': user_id})
         result = _public(document, available)
         result['user_id'] = user_id
-        log_crud('READ', 'board_layouts', '사용자 카드판 구성 조회')
         return result
     except PyMongoError as exc:
         raise HTTPException(503, '카드판 구성을 불러오지 못했습니다.') from exc
@@ -143,8 +142,6 @@ def _save(user_id, actor_id, field, value, action, expected_revision):
             'action': action, 'before': before, 'after': value, 'created_at': now,
             'before_revision': revision, 'after_revision': revision + 1,
         })
-        log_crud('UPDATE', 'board_layouts', '사용자 카드판 구성 저장')
-        log_crud('CREATE', 'board_audit_logs', '카드판 변경 기록')
         # Return the version this write committed, not a later concurrent write.
         return _public({**(before_document or {}), **changes}, available)
     except DuplicateKeyError as exc:

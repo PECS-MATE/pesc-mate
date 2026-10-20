@@ -42,7 +42,6 @@ services:
       MONGODB_USERNAME_FILE: /run/secrets/mongodb_app_username
       MONGODB_PASSWORD_FILE: /run/secrets/mongodb_app_password
       DEMO_ACCOUNTS_ENABLED: "false"
-      DB_CRUD_LOG_ENABLED: "false"
       OLLAMA_ENABLED: "false"
     secrets:
       - mongodb_app_username

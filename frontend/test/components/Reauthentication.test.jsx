@@ -9,6 +9,22 @@ function Harness({ context = 'operator:admin', onResult }) {
   return <><button onClick={async () => onResult(await askPassword('공용 카드 승인', '대상: 합성 카드'))}>작업 시작</button>{confirmation}</>;
 }
 
+test('StrictMode의 임시 정리는 열린 확인창의 포커스를 빼앗지 않고 실제 닫힐 때만 복귀한다', async () => {
+  const frames = [];
+  vi.stubGlobal('requestAnimationFrame', callback => { frames.push(callback); return frames.length; });
+  const flushFrames = () => act(() => { for (const callback of frames.splice(0)) callback(0); });
+  const user = userEvent.setup();
+  render(<StrictMode><Harness onResult={vi.fn()} /></StrictMode>);
+  const trigger = screen.getByRole('button', { name: '작업 시작' });
+  await user.click(trigger);
+  expect(frames.length).toBeGreaterThan(0);
+  flushFrames();
+  expect(document.activeElement).toBe(screen.getByLabelText('본인 비밀번호'));
+  await user.click(screen.getByRole('button', { name: '취소' }));
+  flushFrames();
+  expect(document.activeElement).toBe(trigger);
+});
+
 test('대상과 작업을 표시하고 비밀번호는 제출 뒤 폐기해 다음 작업에서 다시 묻는다', async () => {
   const onResult = vi.fn();
   const user = userEvent.setup();

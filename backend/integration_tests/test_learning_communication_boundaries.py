@@ -26,7 +26,7 @@ class RealLearningCommunicationBoundaryTests(unittest.TestCase):
         self.addCleanup(self.drop_owned_database)
         self.database = self.mongo[self.name]
         environment = patch.dict(os.environ, MONGODB_DATABASE=self.name, OLLAMA_ENABLED='false',
-                                 DEMO_ACCOUNTS_ENABLED='false', DB_CRUD_LOG_ENABLED='false')
+                                 DEMO_ACCOUNTS_ENABLED='false')
         environment.start()
         self.addCleanup(environment.stop)
         # Every imported database() alias resolves through this shared client function.

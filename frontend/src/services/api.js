@@ -4,7 +4,6 @@ const API_BASE_URL =
   import.meta.env?.VITE_API_BASE_URL ?? "";
 
 const TOKEN_KEY = 'pesc-mate-token';
-const DEVICE_KEY = 'pesc-mate-device-id';
 
 function notifyAccessDenied(status, path, authorization) {
   if (status === 403) {
@@ -57,23 +56,6 @@ export function setToken(token) {
 
 export function hasToken() {
   return Boolean(localStorage.getItem(TOKEN_KEY));
-}
-
-export async function recordDeviceAccess() {
-  let deviceId;
-  try {
-    deviceId = localStorage.getItem(DEVICE_KEY);
-    if (!deviceId) {
-      deviceId = createRequestId();
-      localStorage.setItem(DEVICE_KEY, deviceId);
-    }
-  } catch {
-    deviceId = createRequestId();
-  }
-  const { response, requestId } = await fetchWithRequestId(`${API_BASE_URL}/api/device/access`, {
-    method: 'POST', keepalive: true, headers: { 'X-Pesc-Device': deviceId },
-  });
-  if (!response.ok) throw await responseError(response, requestId, '요청을 처리하지 못했습니다.', '/device/access');
 }
 
 export async function request(path, options = {}) {

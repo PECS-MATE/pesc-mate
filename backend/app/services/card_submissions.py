@@ -11,7 +11,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from pymongo.errors import DuplicateKeyError, OperationFailure, PyMongoError
 
 from app.services.card_metadata import with_inferred_metadata
-from app.services.database import database, log_crud
+from app.services.database import database
 from app.services.schema_versions import SCHEMA_VERSION
 from app.services.categories import active_category_names
 from app.services.image_safety import check_image_safety
@@ -209,8 +209,6 @@ def create_submission(owner_id, label, meaning, category, visibility,
             'action': 'private_activated' if document['status'] == 'approved' else document['status'],
             'reason': None, 'created_at': document['created_at'],
         })
-        log_crud('CREATE', 'card_submissions', '개인 카드 활성화' if visibility == 'private' else '공개 카드 요청 저장')
-        log_crud('CREATE', 'card_audit_logs', '카드 등록 작업 기록')
         return _public(document)
     except DuplicateKeyError as exc:
         raise HTTPException(409, '이미 등록되었거나 승인 대기 중인 카드명입니다.') from exc
@@ -223,7 +221,6 @@ def create_submission(owner_id, label, meaning, category, visibility,
 def submissions_for(owner_id):
     try:
         rows = _collection().find({'owner_id': owner_id}).sort('created_at', -1)
-        log_crud('READ', 'card_submissions', '본인 카드 요청 조회')
         return [_public(row) for row in rows]
     except PyMongoError as exc:
         raise HTTPException(503, '카드 등록 내역을 불러오지 못했습니다.') from exc
@@ -232,7 +229,6 @@ def submissions_for(owner_id):
 def submissions_for_review():
     try:
         rows = _collection().find({}).sort('created_at', -1)
-        log_crud('READ', 'card_submissions', '운영 담당자 승인 목록 조회')
         return [_public(row) for row in rows
                 if row['visibility'] == 'shared' and row['status'] != 'draft']
     except PyMongoError as exc:
@@ -269,8 +265,6 @@ def review_submission(submission_id, reviewer_id, decision, reason=''):
             'actor_id': reviewer_id, 'action': decision,
             'reason': reason or None, 'created_at': reviewed_at,
         })
-        log_crud('UPDATE', 'card_submissions', f'카드 {decision}')
-        log_crud('CREATE', 'card_audit_logs', '카드 승인 작업 기록')
         return _public(document | changes)
     except HTTPException:
         raise
@@ -299,9 +293,6 @@ def submit_draft(submission_id, owner_id, actor_id=None):
             'action': 'private_activated' if next_status == 'approved' else 'pending',
             'reason': None, 'created_at': submitted_at,
         })
-        log_crud('UPDATE', 'card_submissions',
-                 '개인 카드 활성화' if next_status == 'approved' else '공개 카드 승인 요청')
-        log_crud('CREATE', 'card_audit_logs', '카드 제출 작업 기록')
         return _public(document | changes)
     except HTTPException:
         raise
@@ -347,8 +338,6 @@ def update_submission(submission_id, owner_id, label, meaning, category, visibil
             'actor_id': actor_id, 'action': 'updated',
             'reason': None, 'created_at': updated_at,
         })
-        log_crud('UPDATE', 'card_submissions', '카드 정보 수정')
-        log_crud('CREATE', 'card_audit_logs', '카드 수정 작업 기록')
         return _public(document | changes)
     except HTTPException:
         raise

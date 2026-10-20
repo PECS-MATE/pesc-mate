@@ -7,7 +7,7 @@ import { request } from '../../src/services/api';
 import { cacheLearningState, cacheSnapshot } from '../../src/services/offlineStore';
 
 vi.mock('../../src/services/api', async original => ({
-  ...await original(), request: vi.fn(), recordDeviceAccess: vi.fn(async () => {}),
+  ...await original(), request: vi.fn(),
 }));
 vi.mock('../../src/services/offlineStore', async original => Object.fromEntries(
   Object.keys(await original()).map(name => [name, vi.fn(async () => null)]),

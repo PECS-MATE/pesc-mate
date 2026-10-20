@@ -10,7 +10,6 @@ const synchronizer = vi.hoisted(() => ({ sync: vi.fn() }));
 
 vi.mock('../../src/services/api', async importOriginal => ({
   ...await importOriginal(), request: vi.fn(), requestBlob: vi.fn(),
-  recordDeviceAccess: vi.fn(async () => {}),
 }));
 vi.mock('../../src/services/offlineStore', async importOriginal => {
   const actual = await importOriginal();

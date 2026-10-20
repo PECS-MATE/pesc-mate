@@ -5,7 +5,7 @@ from uuid import uuid4
 from fastapi import HTTPException
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
-from app.services.database import database, log_crud
+from app.services.database import database
 from app.services.schema_versions import SCHEMA_VERSION
 
 DEFAULT_CATEGORIES = [
@@ -43,7 +43,6 @@ def ensure_default_categories(collection=None):
         document = {'schema_version': SCHEMA_VERSION, **category}
         category_id = document.pop('id')
         collection.update_one({'_id': category_id}, {'$setOnInsert': document}, upsert=True)
-    log_crud('CREATE', 'card_categories', '기본 카테고리 초기화')
 
 
 def _validate_name(name):
@@ -58,7 +57,6 @@ def categories_for_admin():
         collection = _collection()
         ensure_default_categories(collection)
         rows = collection.find({}).sort('display_order', 1)
-        log_crud('READ', 'card_categories', '운영 담당자 카테고리 조회')
         return [_public(row) for row in rows]
     except PyMongoError as exc:
         raise HTTPException(503, '카테고리를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.') from exc
@@ -69,7 +67,6 @@ def active_categories():
         collection = _collection()
         ensure_default_categories(collection)
         rows = collection.find({'active': True}).sort('display_order', 1)
-        log_crud('READ', 'card_categories', '활성 카테고리 조회')
         return [_public(row) for row in rows]
     except PyMongoError as exc:
         raise HTTPException(503, '카테고리를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.') from exc
@@ -86,7 +83,6 @@ def create_category(name, display_order):
         ensure_default_categories(collection)
         document = {'schema_version': SCHEMA_VERSION, '_id': str(uuid4()), 'name': name, 'display_order': display_order, 'active': True}
         collection.insert_one(document)
-        log_crud('CREATE', 'card_categories', '카테고리 추가')
         return _public(document)
     except DuplicateKeyError as exc:
         raise HTTPException(409, '같은 이름의 카테고리가 이미 있습니다.') from exc
@@ -104,7 +100,6 @@ def update_category(category_id, name, display_order, active):
             raise HTTPException(404, '카테고리를 찾을 수 없습니다.')
         changes = {'name': name, 'display_order': display_order, 'active': active}
         collection.update_one({'_id': category_id}, {'$set': changes})
-        log_crud('UPDATE', 'card_categories', '카테고리 수정')
         return _public(document | changes)
     except DuplicateKeyError as exc:
         raise HTTPException(409, '같은 이름의 카테고리가 이미 있습니다.') from exc

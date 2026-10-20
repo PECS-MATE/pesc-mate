@@ -4,7 +4,7 @@ from datetime import timezone
 from fastapi import HTTPException
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
-from app.services.database import database as _database, log_crud
+from app.services.database import database as _database
 from app.services.schema_versions import SCHEMA_VERSION
 
 
@@ -40,8 +40,6 @@ def sync_events(user_id, events, observation=None):
             if observation is not None:
                 observation.accepted(inserted)
             accepted.append(event_id)
-        if accepted:
-            log_crud('CREATE', 'offline_events', f'오프라인 이력 동기화 {len(accepted)}건')
         return {'accepted_ids': accepted}
     except HTTPException:
         raise

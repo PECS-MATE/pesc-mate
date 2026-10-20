@@ -5,7 +5,7 @@ from uuid import uuid4
 from fastapi import HTTPException
 from pymongo.errors import PyMongoError
 
-from app.services.database import database as _database, log_crud
+from app.services.database import database as _database
 from app.services.schema_versions import SCHEMA_VERSION
 
 
@@ -114,7 +114,6 @@ def linked_users_for(supporter_id):
                     'permissions': _permissions(link),
                     'link_role': link.get('supporter_role'),
                 })
-        log_crud('READ', 'caregiver_links', '연결 사용자 및 권한 조회')
         return result
     except PyMongoError as exc:
         raise HTTPException(503, '연결 사용자 정보를 조회하지 못했습니다.') from exc
@@ -137,7 +136,6 @@ def support_access_for(user_id):
                     'connected_at': link.get('created_at'),
                     'updated_at': link.get('updated_at'),
                 })
-        log_crud('READ', 'caregiver_links', '지원 연결 조회')
         return result
     except PyMongoError as exc:
         raise HTTPException(503, '지원 연결을 조회하지 못했습니다.') from exc
@@ -171,7 +169,6 @@ def grant_support(user_id, supporter_username, permissions, actor_id):
         )
         _audit(database, user_id, actor_id, 'support_permissions_changed' if before else 'support_granted',
                supporter_id, _permissions(before) if before else [], permissions)
-        log_crud('UPDATE', 'caregiver_links', '지원 연결 및 권한 저장')
         return support_access_for(user_id)
     except HTTPException:
         raise
@@ -194,7 +191,6 @@ def change_support_permissions(user_id, supporter_id, permissions, actor_id):
         )
         _audit(database, user_id, actor_id, 'support_permissions_changed', supporter_id,
                _permissions(link), permissions)
-        log_crud('UPDATE', 'caregiver_links', '지원 권한 변경')
         return support_access_for(user_id)
     except HTTPException:
         raise
@@ -216,7 +212,6 @@ def revoke_support(user_id, supporter_id, actor_id):
             {'$set': {'active': False, 'updated_at': now, 'revoked_at': now}},
         )
         _audit(database, user_id, actor_id, 'support_revoked', supporter_id, _permissions(link), [])
-        log_crud('UPDATE', 'caregiver_links', '지원 연결 해제')
     except HTTPException:
         raise
     except PyMongoError as exc:
@@ -235,4 +230,3 @@ def _audit(database, user_id, actor_id, action, supporter_id, before, after):
         'after_permissions': after,
         'created_at': datetime.now(timezone.utc),
     })
-    log_crud('CREATE', 'privacy_audit_logs', '지원 권한 변경 기록')

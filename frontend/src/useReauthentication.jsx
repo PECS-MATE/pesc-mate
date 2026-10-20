@@ -6,11 +6,15 @@ function PasswordConfirmation({ operation, onComplete }) {
   const [password, setPassword] = useState('');
   useEffect(() => {
     const previous = operation.trigger;
-    dialog.current.showModal();
+    const currentDialog = dialog.current;
+    currentDialog.showModal();
     input.current.focus();
     return () => {
       // The triggering button can remain disabled until its async cancellation settles.
-      requestAnimationFrame(() => { if (previous?.isConnected) previous.focus(); });
+      requestAnimationFrame(() => {
+        // StrictMode probes effect cleanup while the same modal is still mounted.
+        if (!currentDialog.isConnected && previous?.isConnected) previous.focus();
+      });
     };
   }, []);
   function keepFocusInside(event) {

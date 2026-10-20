@@ -89,6 +89,10 @@ class ObservabilityTests(unittest.TestCase):
         self.assertEqual(len(request_entries), 1)
         return response, request_entries[0], captured.output
 
+    def request_without_log(self, method, path, **kwargs):
+        with self.assertNoLogs(observability.logger, level='DEBUG'):
+            return getattr(self.client, method)(path, **kwargs)
+
     def assert_error(self, response, code):
         request_id = self.assert_request_id(response)
         body = response.json()
@@ -99,8 +103,8 @@ class ObservabilityTests(unittest.TestCase):
         self.assertTrue(body['error']['message'])
         return body
 
-    def test_success_preserves_uuid_and_logs_template_without_private_values(self):
-        response, entry, output = self.request_with_log(
+    def test_success_preserves_uuid_without_request_logging(self):
+        response = self.request_without_log(
             'get', f'/success/{PRIVATE_MARKER}?token={PRIVATE_MARKER}',
             headers={'X-Request-ID': REQUEST_ID, 'Authorization': f'Bearer {PRIVATE_MARKER}'},
         )
@@ -108,13 +112,6 @@ class ObservabilityTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {'ok': True})
         self.assertEqual(self.assert_request_id(response), REQUEST_ID)
-        self.assertEqual(entry['request_id'], REQUEST_ID)
-        self.assertEqual(entry['method'], 'GET')
-        self.assertEqual(entry['route'], '/success/{user_id}')
-        self.assertEqual(entry['status_code'], 200)
-        self.assertIsInstance(entry['duration_ms'], (int, float))
-        self.assertGreaterEqual(entry['duration_ms'], 0)
-        self.assertNotIn(PRIVATE_MARKER, '\n'.join(output))
 
     def test_uppercase_canonical_uuid_is_accepted(self):
         response = self.client.get('/success/one', headers={'X-Request-ID': REQUEST_ID.upper()})
@@ -138,7 +135,7 @@ class ObservabilityTests(unittest.TestCase):
                 generated.add(request_id)
 
     def test_duplicate_request_id_headers_are_rejected(self):
-        response, entry, _output = self.request_with_log(
+        response = self.request_without_log(
             'get', '/success/one',
             headers=[('X-Request-ID', REQUEST_ID), ('x-request-id', REQUEST_ID)],
         )
@@ -146,7 +143,6 @@ class ObservabilityTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         request_id = self.assert_request_id(response)
         self.assertNotEqual(request_id, REQUEST_ID)
-        self.assertEqual(entry['request_id'], request_id)
 
     def test_handled_http_errors_preserve_safe_details_and_headers(self):
         statuses = {
@@ -167,20 +163,16 @@ class ObservabilityTests(unittest.TestCase):
                 self.assertEqual(response.headers['Retry-After'], '5')
                 self.assertEqual(response.headers['X-Request-ID'], REQUEST_ID)
 
-    def test_unknown_path_has_request_id_and_logs_no_path_or_query_value(self):
-        response, entry, output = self.request_with_log(
+    def test_unknown_path_has_request_id_without_request_logging(self):
+        response = self.request_without_log(
             'get', f'/unknown/{PRIVATE_MARKER}?token={PRIVATE_MARKER}',
         )
 
         self.assertEqual(response.status_code, 404)
         self.assert_error(response, 'not_found')
-        self.assertEqual(entry['route'], 'unmatched')
-        self.assertEqual(entry['request_id'], response.headers['X-Request-ID'])
-        self.assertEqual(entry['status_code'], 404)
-        self.assertNotIn(PRIVATE_MARKER, '\n'.join(output))
 
     def test_validation_omits_submitted_input_and_context_from_response_and_logs(self):
-        response, entry, output = self.request_with_log(
+        response = self.request_without_log(
             'post', f'/validate/{PRIVATE_MARKER}?token={PRIVATE_MARKER}',
             json={'count': PRIVATE_MARKER, 'label': 'a'},
             headers={'Authorization': f'Bearer {PRIVATE_MARKER}'},
@@ -197,9 +189,6 @@ class ObservabilityTests(unittest.TestCase):
             self.assertNotIn('input', error)
             self.assertNotIn('ctx', error)
         self.assertNotIn(PRIVATE_MARKER, json.dumps(body))
-        self.assertEqual(entry['route'], '/validate/{user_id}')
-        self.assertEqual(entry['status_code'], 422)
-        self.assertNotIn(PRIVATE_MARKER, '\n'.join(output))
 
     def test_unhandled_exception_is_generic_and_logs_only_exception_class(self):
         response, entry, output = self.request_with_log(
@@ -279,7 +268,7 @@ class ObservabilityTests(unittest.TestCase):
                 self.assertIn('x-request-id', exposed)
 
     def test_cors_preflight_is_traced_without_changing_its_response(self):
-        response, entry, _output = self.request_with_log(
+        response = self.request_without_log(
             'options', '/success/one', headers={
                 'Origin': ORIGIN,
                 'Access-Control-Request-Method': 'GET',
@@ -293,9 +282,6 @@ class ObservabilityTests(unittest.TestCase):
         self.assertEqual(response.headers['Access-Control-Allow-Origin'], ORIGIN)
         self.assertIn('GET', response.headers['Access-Control-Allow-Methods'])
         self.assertEqual(response.text, 'OK')
-        self.assertEqual(entry['method'], 'OPTIONS')
-        self.assertEqual(entry['status_code'], 200)
-        self.assertEqual(entry['request_id'], REQUEST_ID)
 
 
 if __name__ == '__main__':

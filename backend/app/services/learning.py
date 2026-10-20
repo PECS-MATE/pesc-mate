@@ -6,7 +6,7 @@ from uuid import uuid4
 from fastapi import HTTPException
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
-from app.services.database import database as _database, log_crud
+from app.services.database import database as _database
 from app.services.schema_versions import SCHEMA_VERSION
 
 
@@ -33,7 +33,6 @@ def _settings_public(document, user_id):
 def settings_for(user_id):
     try:
         document = _database().learning_settings.find_one({'_id': user_id})
-        log_crud('READ', 'learning_settings', '사용자 학습 설정 조회')
         return _settings_public(document, user_id)
     except PyMongoError as exc:
         raise HTTPException(503, '학습 설정을 불러오지 못했습니다.') from exc
@@ -63,7 +62,6 @@ def save_settings(user_id, actor_id, category_ids, question_count, option_count,
             upsert=True,
         )
         _audit(database, user_id, actor_id, 'learning_settings_changed', before, values)
-        log_crud('UPDATE', 'learning_settings', '사용자 학습 설정 저장')
         return _settings_public(values | {'updated_at': now, 'updated_by': actor_id}, user_id)
     except PyMongoError as exc:
         raise HTTPException(503, '학습 설정을 저장하지 못했습니다.') from exc
@@ -107,7 +105,6 @@ def record_attempt(user_id, request_id, activity_type, category_id,
         database.learning_attempts.insert_one(document)
         if observation is not None:
             observation.accepted(True)
-        log_crud('CREATE', 'learning_attempts', '학습 시도 결과 저장')
         return _attempt_public(document)
     except DuplicateKeyError:
         try:
@@ -144,7 +141,6 @@ def progress_for(user_id, days=None, now=None):
     try:
         rows = [_attempt_public(row) for row in
                 _database().learning_attempts.find(query).sort('completed_at', -1)]
-        log_crud('READ', 'learning_attempts', '사용자 학습 성취 조회')
     except PyMongoError as exc:
         raise HTTPException(503, '학습 성취를 불러오지 못했습니다.') from exc
     category_totals = defaultdict(lambda: {'attempts': 0, 'questions': 0, 'correct_answers': 0})
@@ -212,4 +208,3 @@ def _audit(database, user_id, actor_id, action, before, after):
         'action': action, 'before': before, 'after': after,
         'created_at': datetime.now(timezone.utc),
     })
-    log_crud('CREATE', 'learning_audit_logs', '학습 설정 변경 기록')

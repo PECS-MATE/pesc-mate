@@ -61,5 +61,4 @@ def ensure_indexes(attempts=10, retry_seconds=3, sleep=time.sleep):
             created += 1
         except PyMongoError as exc:
             logger.warning('DB INDEX | %s.%s | %s', collection, options['name'], type(exc).__name__)
-    logger.info('DB INDEX | ready %d/%d', created, len(INDEXES))
     return created

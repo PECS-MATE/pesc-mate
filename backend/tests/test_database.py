@@ -1,26 +1,28 @@
 import unittest
 from unittest.mock import patch
 
-from app.services.database import log_crud
+from app.services import database
 
 
-class DatabaseLoggingTests(unittest.TestCase):
-    @patch('app.services.database.logger')
-    def test_database_logging_is_disabled_by_default(self, mocked_logger):
-        log_crud('READ', 'users', '인증 사용자 조회')
+class DatabaseConnectionTests(unittest.TestCase):
+    def setUp(self):
+        database.client.cache_clear()
+        self.addCleanup(database.client.cache_clear)
 
-        mocked_logger.debug.assert_not_called()
-        mocked_logger.info.assert_not_called()
+    def test_application_reuses_one_client_with_validated_connection_options(self):
+        with patch.object(database, 'connection_options', return_value={'host': 'mongodb://synthetic.invalid'}), \
+                patch.object(database, 'MongoClient') as mongo:
+            first = database.client()
+            self.assertIs(database.client(), first)
+        mongo.assert_called_once_with(host='mongodb://synthetic.invalid',
+                                      serverSelectionTimeoutMS=3000, appname='pesc-mate-backend')
 
-    @patch('app.services.database.logger')
-    @patch.dict('os.environ', {'DB_CRUD_LOG_ENABLED': 'true'})
-    def test_database_logging_can_be_enabled_for_diagnostics(self, mocked_logger):
-        log_crud('CREATE', 'users', '사용자 생성')
-
-        mocked_logger.info.assert_called_once_with(
-            'DB CRUD | %s | %s%s', 'CREATE', 'users', ' | 사용자 생성',
-        )
-        mocked_logger.debug.assert_not_called()
+    def test_database_selection_uses_configured_name_without_extra_connections(self):
+        selected = object()
+        with patch.dict('os.environ', {'MONGODB_DATABASE': 'synthetic_database'}), \
+                patch.object(database, 'client', return_value={'synthetic_database': selected}) as client:
+            self.assertIs(database.database(), selected)
+        client.assert_called_once_with()
 
 
 if __name__ == '__main__':

@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
-from app.services.database import database as _database, log_crud
+from app.services.database import database as _database
 from app.services.schema_versions import SCHEMA_VERSION
 
 
@@ -39,7 +39,6 @@ def start_event(user_id, request_id, content_type, char_count):
             {'$setOnInsert': {'_id': request_id, **{key: value for key, value in event.items() if key != 'id'}}},
             upsert=True, return_document=ReturnDocument.AFTER,
         )
-        log_crud('CREATE', 'tts_events', 'TTS 요청 기록')
         return _public(document)
     except DuplicateKeyError as exc:
         raise HTTPException(409, '이미 사용된 음성 재생 요청 ID입니다.') from exc
@@ -65,7 +64,6 @@ def finish_event(user_id, request_id, status, error_code='', startup_ms=None):
             if existing and existing.get('status') in {'succeeded', 'failed', 'cancelled'}:
                 return _public(existing)
             raise HTTPException(404, '음성 재생 요청 이력을 찾을 수 없습니다.')
-        log_crud('UPDATE', 'tts_events', f'TTS 결과 기록: {status}')
         return _public(document)
     except HTTPException:
         raise

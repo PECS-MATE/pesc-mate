@@ -51,7 +51,6 @@ def generate_sentence(labels, fallback):
         text = str(result.get('response', '')).strip().strip('"')
         if not _valid_response(text, labels):
             raise ValueError('유효하지 않은 모델 응답')
-        logger.info('MODEL | OLLAMA | %s | 문장 생성 성공', model)
         return text, 'ollama'
     except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError, OSError) as exc:
         logger.warning('MODEL | FALLBACK | 규칙 기반 문장 사용 (%s)', type(exc).__name__)

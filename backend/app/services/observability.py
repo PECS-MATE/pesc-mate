@@ -128,9 +128,8 @@ class RequestContextMiddleware:
             except Exception:
                 # Instrumentation must not change a successful response or leak input.
                 logger.warning('API metrics collection failed')
-            log = (logger.error if status_code >= 500 or event.get('error_type')
-                   else logger.warning if status_code >= 400 else logger.info)
-            log('%s', json.dumps(event, ensure_ascii=True, separators=(',', ':')))
+            if status_code >= 500 or event.get('error_type'):
+                logger.error('%s', json.dumps(event, ensure_ascii=True, separators=(',', ':')))
 
 
 async def http_error_handler(request, exc):

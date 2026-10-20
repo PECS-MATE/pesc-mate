@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException
 
-from app.services.database import database as _database, log_crud
+from app.services.database import database as _database
 from app.services.schema_versions import SCHEMA_VERSION
 
 
@@ -29,7 +29,6 @@ def _aware(value):
 def ensure_login_allowed(username, client_ip, now=None):
     now = now or datetime.now(timezone.utc)
     attempt = _database().login_attempts.find_one({'_id': _key(username, client_ip)})
-    log_crud('READ', 'login_attempts', '로그인 시도 제한 확인')
     expires_at = _aware(attempt.get('expires_at')) if attempt else None
     if not attempt or not expires_at or expires_at <= now or attempt.get('failures', 0) < _max_failures():
         return
@@ -53,9 +52,7 @@ def record_login_failure(username, client_ip, now=None):
          '$setOnInsert': {'schema_version': SCHEMA_VERSION}},
         upsert=True,
     )
-    log_crud('UPDATE', 'login_attempts', '로그인 실패 기록')
 
 
 def clear_login_failures(username, client_ip):
     _database().login_attempts.delete_one({'_id': _key(username, client_ip)})
-    log_crud('DELETE', 'login_attempts', '로그인 실패 기록 초기화')
