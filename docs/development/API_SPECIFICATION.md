@@ -169,6 +169,9 @@ HTTP 500은 일반 안내만 반환하고 내부 예외 문구를 응답에 포�
 | 문장 | POST | `/api/sentences/{session_id}/regenerate` | 필요 | 기존 카드로 문장 재생성 및 별도 저장 |
 | 추천 | GET | `/api/recommendations` | 필요 | 사용자별 추천 카드 조회 |
 | 통계 | GET | `/api/dashboard` | 필요 | 본인 또는 연결 사용자 이용 통계 조회 |
+| 기록 | GET | `/api/records/export` | 본인 또는 영역별 연결 권한 | 의사소통·학습 기록을 기간별 CSV/JSON으로 다운로드 |
+| 기록 | GET | `/api/records/activity` | 본인 또는 `records_read` | 카드 선택·기기 재생·상황별 추이·복구 표현 인접 흐름 |
+| 메모 | GET | `/api/care/notes/{session_id}/history` | `notes_write` | 작성자 자신의 메모 수정·삭제 이력 |
 
 카드판 조회·저장 응답은 `revision`을 포함한다. 세 PUT API는 `expected_revision`을 필수로
 받으며 현재 버전과 다르거나 동시 저장에 뒤진 요청에는 `409`를 반환한다. 버전 누락·음수는
@@ -995,6 +998,7 @@ Authorization: Bearer {access_token}
 | `top_cards` | Card[] | 사용 횟수 순 카드 목록. `count` 포함 |
 | `categories` | object | 카테고리 이름별 사용 횟수 |
 | `recent` | CommunicationSession[] | 최신순 기록 최대 10개 |
+| `top_combinations` | object[] | 최초 저장 문장의 두 카드 조합 상위 10개. `cards: Card[]`, `count` 포함. 순서·반복·재생성 중복 제외 |
 | `period_days` | integer 또는 null | 적용된 기간. 전체 기간이면 `null` |
 | `today_sessions` | integer | 오늘 생성한 문장 수 |
 | `today_selections` | integer | 오늘 선택한 카드 수 |
@@ -1052,6 +1056,67 @@ Authorization: Bearer {access_token}
 - `401`: 인증 실패
 - `422`: `days`가 정수가 아니거나 1~365 범위를 벗어남
 - `503`: MongoDB 연결 실패
+
+## 10.2 영역별 기록 다운로드
+
+```http
+GET /api/records/export?domain=communication&format=csv&days=7&user_id=demo
+GET /api/records/export?domain=learning&format=json&days=30&user_id=demo
+Authorization: Bearer {access_token}
+```
+
+`domain`은 필수 `communication`, `learning`, `activity` 중 하나이며 `format`은 `json`(기본) 또는 `csv`다.
+`days`는 1~365, 생략 시 전체이며 요청 시각까지의 기록을 읽는다. `user_id`는 본인 또는
+의사소통·활동은 `records_read`, 학습은 `learning_manage` 연결 권한이 있는 아동만 허용한다. 계정 운영 권한은
+이 경계를 우회하지 않는다. 지원 메모·다른 영역·계정 비밀 정보는 포함하지 않는다.
+
+JSON은 `export_version`, `domain`, `user_id`, `period_days`, `from_inclusive`, `to_inclusive`,
+`count`, `scope_note`, `records`를 반환한다. 의사소통 행은 `id`, `saved_at`, `cards`,
+`card_labels`, `sentence`, `generation_source`, `generation_attempt`, `regeneration_of`,
+`card_selected_at`(기록된 ISO 선택 시각 배열 또는 null), `speech_status: "unknown"`을 담는다.
+문장 파일은 재생 결과를 조인하지 않으며 명시적 연결 결과는 활동 파일의 `session_id`로 확인한다.
+저장 시각을 선택 시각이나 재생 결과로 해석하지 않는다. 학습 행은 완료 시각·활동·카테고리·문제 수·첫 시도
+결과·소요 시간과 단어별 결과만 담는다. CSV는 같은 행 필드의 UTF-8 BOM 파일이며 복합 필드는
+JSON 셀, 수식 시작 문자는 작은따옴표 접두사로 보호한다.
+
+응답은 `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, 첨부 파일명을 포함한다.
+10,000개 초과 시 잘린 파일 대신 413으로 기간 축소를 안내하고 조회 실패는 503이다.
+대시보드 `recent[].card_details`에는 순서를 보존한 카드 메타데이터(개인 카드 저장 스냅샷 우선)를
+추가한다. 자세한 해석·보관 안내는 [지원 기록 화면](SUPPORT_RECORD_DASHBOARD.md)을 따른다.
+
+## 10.3 선택·발화·상황 기록
+
+`GET /api/records/activity?user_id=…&days=7`은 의사소통 기록 권한만 사용하며 학습 권한으로
+우회하지 않는다. `days=1~365`, 생략 시 전체다. 응답은 `total`, `recent`(최근 최대 100개),
+`situations`, `daily`(UTC 날짜·상황별), `recovery_flows`(최근 최대 20개)를 포함한다.
+각 이벤트는 `id`, `event_type`, `card_ids`, `occurred_at`, `situation`, `stream_id`, `sequence`,
+`selection_id`, `session_id`, `speech_status`, `completed_at`, `recovery_id`의 허용 목록만 반환한다.
+최대 10,000개, 초과 시 413, 조회 실패 503이며 `no-store`다.
+
+기존 `POST /api/offline/events/sync`에 새 `card_selection`, `speech_result`, `recovery_speech`
+유형을 추가한다. 새 형식은 흐름 UUID와 1 이상의 순서를 요구한다. 발화 결과에는
+`succeeded|failed|cancelled`와 시작보다 빠르지 않은 완료 시각, 복구 표현에는 정해진
+`recovery_id`가 필요하다. 선택 이벤트의 빈 배열은 비우기이며 발화 결과를 붙일 수 없다.
+상황은 `unspecified|home|school|therapy|outside|meal|hospital` 중 직접 선택한다. 미래 5분을
+넘는 기기 시각은 422다. 문장 `session_id` 연결은 동일 사용자 소유일 때만 허용한다.
+동의·본인 권한·동일 ID 재시도의 기존 규칙은 유지하며 본문·녹음·기기 지문은 저장하지 않는다.
+
+`POST /sentences`의 선택적 `selected_at`은 카드 수와 같은 길이의 timezone-aware 시각/null
+배열이다. 대시보드는 `card_selected_at`과 정확한 문장 ID에 연결된 최근 10개 `speech_results`를
+추가한다. 기기 재생 완료는 실제 청취·의사 전달 성공을 보증하지 않는다. 복구 전후는 같은
+페이지 흐름의 5분 이내 인접 관찰이며 인과·의도를 추론하지 않는다.
+
+## 10.4 메모 이력과 삭제 결과
+
+메모 저장은 선택적 `expected_revision`을 받고 작성자·증가 버전·수정 시각을 반환한다.
+삭제도 쿼리 `expected_revision`을 지원하며 기존 204 응답을 유지한다. 버전 충돌은 409이고
+서버 내부의 읽기-쓰기 사이 충돌도 차단한다. `/care/notes/{id}/history?user_id=…`는 `notes_write`
+연결과 작성자 본인 범위를 검사해 현재 상태와 `history`(버전·작성자·행위·본문·시각)를 반환한다.
+삭제 시 모든 과거 본문은 null로 지우며 메타데이터만 남긴다. 개인정보 전체 삭제는 문서 자체를 제거한다.
+
+개인정보 응답의 `deletion_receipt`는 요청 ID·요청/완료 시각·`in_progress|completed|failed`·
+컬렉션별 삭제 건수·프로필 처리·유지 항목·별도 파일/백업의 한계를 포함한다. 부분 실패는 503과
+실패 영수증으로 남기며 성공으로 표시하지 않는다. 계정 본인만 개인정보 설정에서 확인할 수 있다.
 
 # 11. 호출 예시
 

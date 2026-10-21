@@ -1,5 +1,7 @@
 import unittest
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
+from pymongo.errors import PyMongoError
 
 from fastapi import HTTPException
 
@@ -46,6 +48,32 @@ class PrivacyTests(unittest.TestCase):
         self.assertEqual(database.privacy_audit_logs.insert_one.call_args.args[0]['action'], 'personal_data_deleted')
         database.users.update_one.assert_called_once_with({'_id': 'demo'}, {'$unset': {'profile': ''}})
         self.assertTrue(database.privacy_settings.update_one.call_args.kwargs['upsert'])
+
+    @patch('app.services.privacy._database')
+    def test_deletion_failure_keeps_partial_counts_and_never_reports_completed(self, mocked_database):
+        database = mocked_database.return_value
+        database.card_submissions.find.return_value = []
+        database.communication_sessions.delete_many.return_value.deleted_count = 3
+        database.tts_events.delete_many.side_effect = PyMongoError('synthetic failure')
+        with self.assertRaises(HTTPException) as caught:
+            delete_personal_data('child')
+        self.assertEqual(caught.exception.status_code, 503)
+        update = database.privacy_settings.update_one.call_args.args[1]['$set']
+        self.assertEqual(update['deletion_status'], 'failed')
+        self.assertEqual(update['deletion_receipt']['status'], 'failed')
+        self.assertEqual(update['deletion_receipt']['counts'], {'communication_sessions': 3})
+        self.assertFalse(update['guardian_consent'])
+
+    @patch('app.services.privacy._database')
+    def test_persisted_receipt_utc_times_keep_timezone(self, mocked_database):
+        mocked_database.return_value.privacy_settings.find_one.return_value = {
+            'deleted_at': datetime(2026, 10, 21),
+            'deletion_receipt': {'requested_at': datetime(2026, 10, 21), 'finished_at': datetime(2026, 10, 21, 0, 1)},
+        }
+        result = privacy_for('child')
+        self.assertEqual(result['deleted_at'].tzinfo, timezone.utc)
+        self.assertEqual(result['deletion_receipt']['requested_at'].tzinfo, timezone.utc)
+        self.assertEqual(result['deletion_receipt']['finished_at'].tzinfo, timezone.utc)
 
 
 if __name__ == '__main__':

@@ -263,6 +263,37 @@ class CommunicationTests(unittest.TestCase):
         self.assertEqual(result['frequent_emotion_state']['id'], 'hurt')
         self.assertNotEqual(result['frequent_emotion_state']['id'], 'no')
 
+    def test_combinations_ignore_order_repeated_cards_regeneration_and_other_users(self):
+        first = save_session(SentenceRequest(cards=['water', 'drink', 'water'], request_id=uuid4()), 'demo')
+        save_session(SentenceRequest(cards=['drink', 'water'], request_id=uuid4()), 'demo')
+        regenerate_session(first['id'], uuid4(), 'demo')
+        save_session(SentenceRequest(cards=['water', 'drink'], request_id=uuid4()), 'another-user')
+        result = statistics('demo')
+        self.assertEqual(result['sessions'], 3)  # Existing saved-row metrics stay unchanged.
+        self.assertEqual(len(result['top_combinations']), 1)
+        pair = result['top_combinations'][0]
+        self.assertEqual([card['id'] for card in pair['cards']], ['drink', 'water'])
+        self.assertEqual(pair['count'], 2)
+        self.assertEqual(len(statistics('another-user')['top_combinations']), 1)
+
+    def test_combinations_use_filtered_period_and_empty_or_single_card_has_no_pair(self):
+        save_session(SentenceRequest(cards=['water'], request_id=uuid4()), 'demo')
+        old = save_session(SentenceRequest(cards=['water', 'drink'], request_id=uuid4()), 'demo')
+        self.collection.documents[old['id']]['created_at'] -= timedelta(days=40)
+        self.assertEqual(statistics('demo', days=7)['top_combinations'], [])
+        self.assertEqual(len(statistics('demo')['top_combinations']), 1)
+        self.assertEqual(statistics('empty')['top_combinations'], [])
+
+    def test_recent_card_details_keep_personal_snapshot_and_duplicate_order(self):
+        custom = {'id': 'custom:pencil', 'label': '내 연필', 'symbol': '🖼️', 'category': '학습'}
+        save_session(SentenceRequest(cards=['custom:pencil', 'water', 'custom:pencil'], request_id=uuid4()),
+                     'demo', [custom])
+        result = statistics('demo')
+        cards = result['recent'][0]['card_details']
+        self.assertEqual([card['label'] for card in cards], ['내 연필', '물', '내 연필'])
+        self.assertEqual([card['label'] for card in result['top_combinations'][0]['cards']], ['내 연필', '물'])
+        CommunicationSessionResponse(**result['recent'][0])
+
     @patch('app.services.communication.database')
     def test_demo_history_is_seeded_once(self, mocked_database):
         mocked_database.return_value.privacy_settings.find_one.return_value = {

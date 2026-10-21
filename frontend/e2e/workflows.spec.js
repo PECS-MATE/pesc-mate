@@ -108,8 +108,10 @@ test('발화 기록 동기화 실패 후 원문 없이 같은 이벤트를 재�
   const response = await request.post(apiPath('/offline/events/sync'), { headers: communicator.headers, data: batches.at(-1) });
   expect(response.ok()).toBe(true);
   const exported = await (await request.get(apiPath('/privacy/export'), { headers: communicator.headers })).json();
-  expect(exported.offline_events).toHaveLength(1);
-  expect(exported.offline_events[0]._id).toBe(queued.id);
+  const retriedLegacy = exported.offline_events.filter(event => event._id === queued.id);
+  expect(retriedLegacy).toHaveLength(1);
+  expect(retriedLegacy[0].event_type).toBe(queued.event_type);
+  expect(exported.offline_events.every(event => !('content' in event) && !('sentence' in event))).toBe(true);
 });
 
 test('205건의 오프라인 이력을 API 한도에 맞춰 나누어 전송한다', async ({ page, request, communicator }) => {

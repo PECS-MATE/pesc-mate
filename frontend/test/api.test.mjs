@@ -50,6 +50,20 @@ function jsonResponse(data, status = 200, headers = {}) {
   });
 }
 
+test('record download keeps the API path, authorization, binary data and export-specific fallback', async () => {
+  const path = '/api/records/export?domain=communication&format=csv&days=7&user_id=child';
+  const calls = mockResponses(new Response('\ufeffid,sentence\r\n1,물 주세요', {
+    headers: { 'Content-Type': 'text/csv; charset=utf-8' },
+  }), new Response('proxy error', { status: 502 }));
+  const blob = await requestBlob(path, '기록을 내보내지 못했습니다.');
+  assert.equal(calls[0].url, path);
+  assert.equal(calls[0].headers.get('Authorization'), 'Bearer account-token');
+  assert.match(calls[0].headers.get('X-Request-ID'), uuidPattern);
+  assert.match(await blob.text(), /물 주세요/);
+  await assert.rejects(requestBlob(path, '기록을 내보내지 못했습니다.'), error =>
+    error.status === 502 && error.message === '기록을 내보내지 못했습니다.');
+});
+
 test('forbidden events identify the API scope without changing the error result', async () => {
   let denied;
   window.dispatchEvent = event => { denied = event; };

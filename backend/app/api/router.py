@@ -2,10 +2,11 @@ from contextlib import nullcontext
 from datetime import datetime
 from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, Request, Response, UploadFile
-from pydantic import AwareDatetime, BaseModel, Field, SecretStr
+from pydantic import AwareDatetime, BaseModel, Field, SecretStr, model_validator
 from starlette.responses import JSONResponse
 from uuid import UUID
 from app.services.communication import CARDS, regenerate_session, save_session, statistics
+from app.services.record_exports import export_records, records_csv
 from app.services.accessibility_settings import save_settings as save_accessibility_settings
 from app.services.accessibility_settings import settings_for as accessibility_settings_for
 from app.services.authentication import (
@@ -19,7 +20,8 @@ from app.services.model import status as model_status
 from app.services.health import health_report
 from app.services.observability import error_response
 from app.services.offline_events import sync_events
-from app.services.caregiver_notes import delete_note, notes_for, save_note
+from app.services.caregiver_notes import delete_note, note_history, notes_for, save_note
+from app.services.communication_activity import activity_report, speech_for_sessions
 from app.services.tts_settings import save_settings, settings_for
 from app.services.tts_events import finish_event, start_event
 from app.services.tts_metrics import tts_report
@@ -93,6 +95,13 @@ def get_model_status(user=Depends(current_user)):
 class SentenceRequest(BaseModel):
     cards: list[str] = Field(min_length=1, max_length=12)
     request_id: UUID
+    selected_at: list[AwareDatetime | None] | None = Field(default=None, max_length=12)
+
+    @model_validator(mode='after')
+    def validate_selection_times(self):
+        if self.selected_at is not None and len(self.selected_at) != len(self.cards):
+            raise ValueError('선택 시각과 카드 수가 일치해야 합니다.')
+        return self
 
 
 class RegenerateSentenceRequest(BaseModel):
@@ -114,6 +123,7 @@ class RegisterRequest(BaseModel):
 class CaregiverNoteRequest(BaseModel):
     user_id: str = Field(min_length=1, max_length=64)
     content: str = Field(min_length=1, max_length=500)
+    expected_revision: int | None = Field(default=None, ge=0)
 
 
 class CaregiverNoteResponse(BaseModel):
@@ -122,6 +132,8 @@ class CaregiverNoteResponse(BaseModel):
     user_id: str
     content: str
     updated_at: datetime
+    author_id: str | None = None
+    revision: int = 0
 
 
 class ProfileResponse(BaseModel):
@@ -237,6 +249,7 @@ class PrivacySettingsResponse(PrivacySettingsRequest):
     consented_at: datetime | None = None
     deletion_status: str
     deleted_at: datetime | None = None
+    deletion_receipt: dict[str, object] | None = None
 
 
 class SupportLinkRequest(BaseModel):
@@ -280,9 +293,39 @@ class PrivacyDeleteRequest(BaseModel):
 
 class OfflineEventRequest(BaseModel):
     id: UUID
-    event_type: Literal['immediate_speech', 'selection_speech']
-    card_ids: list[Annotated[str, Field(min_length=1, max_length=100)]] = Field(min_length=1, max_length=12)
+    event_type: Literal['immediate_speech', 'selection_speech', 'card_selection', 'speech_result', 'recovery_speech']
+    card_ids: list[Annotated[str, Field(min_length=1, max_length=100)]] = Field(max_length=12)
     occurred_at: datetime
+    situation: Literal['unspecified', 'home', 'school', 'therapy', 'outside', 'meal', 'hospital'] = 'unspecified'
+    stream_id: UUID | None = None
+    sequence: int | None = Field(default=None, ge=1, le=1000000000)
+    selection_id: UUID | None = None
+    session_id: UUID | None = None
+    speech_status: Literal['succeeded', 'failed', 'cancelled'] | None = None
+    completed_at: AwareDatetime | None = None
+    recovery_id: Literal['hold_on', 'wrong_tap', 'not_that', 'say_again', 'please_wait', 'dont_understand', 'yes', 'no'] | None = None
+
+    @model_validator(mode='after')
+    def validate_activity(self):
+        if self.event_type in {'immediate_speech', 'selection_speech'}:
+            if not self.card_ids:
+                raise ValueError('기존 발화 기록에는 카드가 필요합니다.')
+            return self
+        if self.stream_id is None or self.sequence is None:
+            raise ValueError('새 활동 기록에는 기기 흐름 번호와 순서가 필요합니다.')
+        if self.event_type in {'speech_result', 'recovery_speech'}:
+            if self.speech_status is None or self.completed_at is None:
+                raise ValueError('발화 결과와 완료 시각이 필요합니다.')
+            occurred = self.occurred_at.replace(tzinfo=self.occurred_at.tzinfo or self.completed_at.tzinfo)
+            if self.completed_at < occurred:
+                raise ValueError('완료 시각은 시작 시각보다 빠를 수 없습니다.')
+        if self.event_type == 'recovery_speech' and self.recovery_id is None:
+            raise ValueError('복구 표현 번호가 필요합니다.')
+        if self.event_type == 'speech_result' and not self.card_ids:
+            raise ValueError('발화한 카드가 필요합니다.')
+        if self.event_type == 'card_selection' and (self.speech_status or self.completed_at or self.recovery_id):
+            raise ValueError('카드 선택을 발화 결과로 기록할 수 없습니다.')
+        return self
 
 
 class OfflineSyncRequest(BaseModel):
@@ -519,12 +562,16 @@ class CommunicationSessionResponse(BaseModel):
     id: UUID
     user_id: str
     cards: list[str]
+    card_details: list[CardResponse] = Field(default_factory=list)
+    card_selected_at: list[datetime | None] | None = None
+    speech_results: list[dict[str, object]] = Field(default_factory=list)
     sentence: str
     generation_source: str | None = None
     generation: dict[str, object] | None = None
     regeneration_of: UUID | None = None
     generation_attempt: int = 1
     caregiver_note: str | None = None
+    caregiver_note_details: dict[str, object] | None = None
     created_at: datetime
 
 
@@ -538,12 +585,18 @@ class SafetyExpressionResponse(CardResponse):
     last_used_at: datetime
 
 
+class CardCombinationResponse(BaseModel):
+    cards: list[CardResponse]
+    count: int
+
+
 class DashboardResponse(BaseModel):
     sessions: int
     selections: int
     top_cards: list[CardResponse]
     categories: dict[str, int]
     recent: list[CommunicationSessionResponse]
+    top_combinations: list[CardCombinationResponse] = Field(default_factory=list)
     period_days: int | None
     today_sessions: int
     today_selections: int
@@ -601,17 +654,27 @@ def put_caregiver_note(session_id: UUID, request: CaregiverNoteRequest, user=Dep
     content = request.content.strip()
     if not content:
         raise HTTPException(422, '메모 내용을 입력해 주세요.')
-    return save_note(user['id'], target, str(session_id), content)
+    return save_note(user['id'], target, str(session_id), content, request.expected_revision)
+
+
+@api_router.get('/care/notes/{session_id}/history', tags=['보호자'])
+def get_note_history(session_id: UUID, user_id: str = Query(min_length=1, max_length=64),
+                     user=Depends(current_user)):
+    if user['role'] not in SUPPORT_ROLES:
+        raise HTTPException(403, '보호자 또는 담당자만 메모 이력을 조회할 수 있습니다.')
+    target = dashboard_user(user, user_id, 'notes_write')
+    return note_history(user['id'], target, str(session_id))
 
 
 @api_router.delete('/care/notes/{session_id}', status_code=204, tags=['보호자'])
 def remove_caregiver_note(session_id: UUID,
                           user_id: str = Query(min_length=1, max_length=64),
+                          expected_revision: int | None = Query(default=None, ge=0),
                           user=Depends(current_user)):
     if user['role'] not in SUPPORT_ROLES:
         raise HTTPException(403, '보호자 또는 담당자만 메모를 삭제할 수 있습니다.')
     target = dashboard_user(user, user_id, 'notes_write')
-    delete_note(user['id'], target, str(session_id))
+    delete_note(user['id'], target, str(session_id), expected_revision)
     return None
 
 
@@ -680,7 +743,7 @@ def sync_offline_events(request: OfflineSyncRequest, http_request: Request,
     if retried > len(request.events):
         raise HTTPException(422, '재시도 건수는 전송 건수보다 클 수 없습니다.')
     with http_request.app.state.offline_sync_metrics.measure('communication', len(request.events), retried) as observation:
-        return sync_events(user['id'], [event.model_dump() for event in request.events], observation=observation)
+        return sync_events(user['id'], [event.model_dump(exclude_none=True) for event in request.events], observation=observation)
 
 
 @api_router.post('/auth/logout', status_code=204, tags=['인증'])
@@ -989,11 +1052,40 @@ def dashboard(days: int | None = Query(default=None, ge=1, le=365),
               user=Depends(current_user)):
     target = dashboard_user(user, user_id)
     result = statistics(target, days=days)
+    speech = speech_for_sessions(target, [row['id'] for row in result['recent']])
+    for row in result['recent']:
+        row['speech_results'] = speech.get(row['id'], [])
     if user['role'] in SUPPORT_ROLES and 'notes_write' in permissions_for(user['id'], target):
-        notes = notes_for(user['id'], target, [row['id'] for row in result['recent']])
+        notes = notes_for(user['id'], target, [row['id'] for row in result['recent']], include_details=True)
         for row in result['recent']:
-            row['caregiver_note'] = notes.get(row['id'])
+            details = notes.get(row['id'])
+            row['caregiver_note'] = details.get('content') if details else None
+            row['caregiver_note_details'] = details
     return result
+
+
+@api_router.get('/records/export', tags=['기록'])
+def download_records(domain: Literal['communication', 'learning', 'activity'],
+                     format: Literal['json', 'csv'] = 'json',
+                     days: int | None = Query(default=None, ge=1, le=365),
+                     user_id: str | None = Query(default=None, min_length=1, max_length=64),
+                     user=Depends(current_user)):
+    permission = 'learning_manage' if domain == 'learning' else 'records_read'
+    target = dashboard_user(user, user_id, permission)
+    exported = export_records(target, domain, days)
+    headers = {'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
+               'Content-Disposition': f'attachment; filename="pesc-mate-{domain}-{days or "all"}.{format}"'}
+    if format == 'csv':
+        return Response(records_csv(exported), media_type='text/csv', headers=headers)
+    return JSONResponse(exported, headers=headers)
+
+
+@api_router.get('/records/activity', tags=['기록'])
+def get_communication_activity(days: int | None = Query(default=None, ge=1, le=365),
+                               user_id: str | None = Query(default=None, max_length=64),
+                               user=Depends(current_user)):
+    target = dashboard_user(user, user_id, 'records_read')
+    return JSONResponse(activity_report(target, days), headers={'Cache-Control': 'no-store'})
 
 
 @api_router.get('/profile/presets', tags=['프로필'])

@@ -1,6 +1,7 @@
 """Curated PECS cards, rule-based sentences, and MongoDB history."""
 from collections import Counter
 from datetime import datetime, timedelta, timezone
+from itertools import combinations
 import logging
 from types import SimpleNamespace
 
@@ -125,6 +126,14 @@ def _public(document):
             created_at = created_at.replace(tzinfo=timezone.utc)
         result['created_at'] = created_at.isoformat()
     return result
+
+
+def session_cards(row):
+    """Resolve saved personal-card snapshots without consulting another user's cards."""
+    snapshots = row.get('card_metadata') or {}
+    return [snapshots.get(key) or INDEX.get(key) or {
+        'id': key, 'label': key, 'symbol': '🖼️', 'category': '기록 카드',
+    } for key in row['cards']]
 
 
 def attach_particle(card, kind):
@@ -253,6 +262,7 @@ def save_session(request, user_id, custom_cards=None, regeneration_of=None, gene
             },
         }
         document = {'schema_version': SCHEMA_VERSION, '_id': request_id, 'user_id': user_id, 'cards': card_ids, 'card_metadata': snapshots,
+                    'card_selected_at': getattr(request, 'selected_at', None),
                     'sentence': result,
                     'generation_source': generation_source, 'generation': generation,
                     'regeneration_of': regeneration_of, 'generation_attempt': generation_attempt,
@@ -294,7 +304,8 @@ def regenerate_session(session_id, request_id, user_id, custom_cards=None):
         raise HTTPException(503, 'MongoDB에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.') from exc
     available_custom_cards = {card['id']: card for card in (custom_cards or [])}
     available_custom_cards.update(previous.get('card_metadata') or {})
-    request = SimpleNamespace(cards=previous['cards'], request_id=request_id)
+    request = SimpleNamespace(cards=previous['cards'], request_id=request_id,
+                              selected_at=previous.get('card_selected_at'))
     return save_session(request, user_id, list(available_custom_cards.values()), regeneration_of=root_id,
                         generation_attempt=attempt)
 
@@ -339,9 +350,20 @@ def statistics(user_id, days=None, now=None):
                 'last_used_at': matching[0]['created_at'],
             })
     recent_safety_expressions.sort(key=lambda item: item['last_used_at'], reverse=True)
+    # A regeneration is another wording of the same selection, not another co-use.
+    pairs = Counter(pair for row in rows if not row.get('regeneration_of')
+                    for pair in combinations(sorted(set(row['cards'])), 2))
+    top_combinations = [
+        {'cards': [card_index.get(key) or {
+            'id': key, 'label': key, 'symbol': '🖼️', 'category': '기록 카드',
+        } for key in pair], 'count': count}
+        for pair, count in sorted(pairs.items(), key=lambda item: (-item[1], item[0]))[:10]
+    ]
+    recent = [row | {'card_details': session_cards(row)} for row in rows[:10]]
     return dict(sessions=len(rows), selections=sum(counts.values()),
                 top_cards=[card_index[key] | {'count': count} for key, count in counts.most_common() if key in card_index],
-                categories=dict(categories), recent=rows[:10], period_days=days,
+                categories=dict(categories), recent=recent, period_days=days,
+                top_combinations=top_combinations,
                 today_sessions=len(today_rows),
                 today_selections=sum(len(row['cards']) for row in today_rows),
                 frequent_emotion_state=frequent_emotion_state,

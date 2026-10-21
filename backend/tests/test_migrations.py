@@ -181,7 +181,7 @@ class VersionedWriteCoverageTests(unittest.TestCase):
         functions = {
             'authentication': ('_ensure_user', 'ensure_demo_users', 'login', 'register'),
             'accessibility_settings': ('save_settings',), 'tts_settings': ('save_settings',),
-            'caregiver_notes': ('save_note',), 'board_layout': ('_save',),
+            'caregiver_notes': ('_change_note',), 'board_layout': ('_save',),
             'card_submissions': ('create_submission', 'review_submission', 'submit_draft', 'update_submission'),
             'categories': ('ensure_default_categories', 'create_category'),
             'communication': ('save_session', 'ensure_demo_history'),

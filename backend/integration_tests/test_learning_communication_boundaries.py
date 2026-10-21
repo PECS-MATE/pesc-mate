@@ -1,6 +1,8 @@
 """Real authenticated HTTP routes + MongoDB, isolated in each test's UUID database."""
 from datetime import datetime, timedelta, timezone
 import hashlib
+import csv
+import io
 import os
 import re
 import unittest
@@ -80,6 +82,121 @@ class RealLearningCommunicationBoundaryTests(unittest.TestCase):
 
     def sentence(self, request_id=None, **extra):
         return {'request_id': request_id or str(uuid4()), 'cards': ['help'], **extra}
+
+    def test_record_download_includes_full_period_and_keeps_domains_and_users_separate(self):
+        now = datetime.now(timezone.utc)
+        for index in range(12):
+            self.database.communication_sessions.insert_one({
+                '_id': str(uuid4()), 'user_id': 'child-a', 'created_at': now - timedelta(hours=1),
+                'cards': ['water', 'water', 'help'], 'sentence': '합성 문장 ' + str(index),
+            })
+        old = str(uuid4())
+        self.database.communication_sessions.insert_one({
+            '_id': old, 'user_id': 'child-a', 'created_at': now - timedelta(days=40),
+            'cards': ['no'], 'sentence': '기간 밖 합성 문장',
+        })
+        self.request('POST', '/sentences', json=self.sentence(), actor='child-b')
+        self.request('POST', '/learning/attempts', json=self.attempt(), expected=201)
+        recent = self.request('GET', '/dashboard?days=7&user_id=child-a', actor='guardian')
+        self.assertEqual(len(recent['recent']), 10)
+        self.assertEqual(recent['top_combinations'][0]['count'], 12)
+        self.assertEqual([card['id'] for card in recent['recent'][0]['card_details']], ['water', 'water', 'help'])
+        exported = self.request('GET', '/records/export?domain=communication&days=7&user_id=child-a', actor='guardian')
+        self.assertEqual(exported['count'], 12)
+        self.assertNotIn(old, [row['id'] for row in exported['records']])
+        self.assertTrue(all(row['speech_status'] == 'unknown' for row in exported['records']))
+        all_records = self.request('GET', '/records/export?domain=communication&user_id=child-a', actor='guardian')
+        self.assertEqual(all_records['count'], 13)
+        learning = self.request('GET', '/records/export?domain=learning&days=30&user_id=child-a', actor='staff')
+        self.assertEqual(learning['count'], 1)
+        self.assertNotIn('sentence', learning['records'][0])
+
+    def test_download_rechecks_link_and_domain_permissions_for_each_request(self):
+        for actor in ('guardian', 'staff'):
+            for permission, allowed, blocked in [('records_read', 'communication', 'learning'),
+                                                 ('learning_manage', 'learning', 'communication')]:
+                self.set_permissions(actor, [permission])
+                self.request('GET', f'/records/export?domain={allowed}&user_id=child-a', actor=actor)
+                self.request('GET', f'/records/export?domain={blocked}&user_id=child-a', actor=actor, expected=403)
+            self.set_permissions(actor, ['records_read', 'learning_manage'], active=False)
+            self.request('GET', '/records/export?domain=communication&user_id=child-a', actor=actor, expected=404)
+        for actor in ('child-b', 'operator'):
+            self.request('GET', '/records/export?domain=communication&user_id=child-a', actor=actor, expected=403 if actor == 'child-b' else 404)
+
+    def test_csv_download_headers_korean_text_and_formula_protection(self):
+        self.database.communication_sessions.insert_one({
+            '_id': str(uuid4()), 'user_id': 'child-a', 'created_at': datetime.now(timezone.utc),
+            'cards': ['water'], 'sentence': '=HYPERLINK("synthetic")',
+        })
+        response = self.http.get('/api/records/export?domain=communication&format=csv&user_id=child-a',
+                                 headers=self.headers['guardian'])
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers['cache-control'], 'no-store')
+        self.assertIn('attachment;', response.headers['content-disposition'])
+        rows = list(csv.DictReader(io.StringIO(response.content.decode('utf-8-sig'))))
+        self.assertEqual(rows[0]['sentence'], '\'=HYPERLINK("synthetic")')
+        self.assertEqual(rows[0]['card_labels'], '["물"]')
+
+    def test_b1_activity_selection_speech_context_and_recovery_keep_permissions_and_exports(self):
+        now = datetime.now(timezone.utc) - timedelta(seconds=10)
+        identity, stream = str(uuid4()), str(uuid4())
+        sentence = self.request('POST', '/sentences', json=self.sentence(cards=['water'], selected_at=[now.isoformat()]))
+        events = [
+            {'id': identity, 'event_type': 'card_selection', 'card_ids': ['water'], 'sequence': 1},
+            {'id': str(uuid4()), 'event_type': 'recovery_speech', 'card_ids': [], 'sequence': 2,
+             'recovery_id': 'not_that', 'speech_status': 'succeeded', 'completed_at': now.isoformat()},
+            {'id': str(uuid4()), 'event_type': 'speech_result', 'card_ids': ['water'], 'sequence': 3,
+             'speech_status': 'succeeded', 'completed_at': now.isoformat(), 'session_id': sentence['id'], 'selection_id': identity},
+        ]
+        events = [dict(event, occurred_at=now.isoformat(), stream_id=stream, situation='school') for event in events]
+        for _ in range(2):
+            self.request('POST', '/offline/events/sync', json={'events': events})
+        self.assertEqual(self.database.offline_events.count_documents({'user_id': 'child-a'}), 3)
+        report = self.request('GET', '/records/activity?user_id=child-a&days=7', actor='guardian')
+        self.assertEqual(report['total'], 3)
+        self.assertEqual(report['situations'][0]['succeeded'], 2)
+        flow = report['recovery_flows'][0]
+        self.assertEqual(flow['before']['id'], identity)
+        self.assertEqual(flow['after']['session_id'], sentence['id'])
+        dashboard = self.request('GET', '/dashboard?user_id=child-a', actor='staff')
+        self.assertIsNotNone(dashboard['recent'][0]['card_selected_at'][0])
+        self.assertEqual(dashboard['recent'][0]['speech_results'][0]['speech_status'], 'succeeded')
+        downloaded = self.request('GET', '/records/export?domain=activity&days=7&user_id=child-a', actor='guardian')
+        self.assertEqual(downloaded['count'], 3)
+        self.assertFalse(any('content' in row for row in downloaded['records']))
+        self.set_permissions('staff', ['learning_manage'])
+        self.request('GET', '/records/activity?user_id=child-a', actor='staff', expected=403)
+        self.request('GET', '/records/export?domain=activity&user_id=child-a', actor='staff', expected=403)
+        events[2]['id'] = str(uuid4())
+        self.request('POST', '/offline/events/sync', actor='child-b', json={'events': [events[2]]}, expected=404)
+        self.assertEqual(self.request('GET', '/learning/progress')['attempts'], 0)
+
+    def test_b1_note_history_conflict_delete_receipt_and_personal_deletion(self):
+        sentence = self.request('POST', '/sentences', json=self.sentence())
+        path = '/care/notes/' + sentence['id']
+        def save(content, revision, expected=200):
+            return self.request('PUT', path, actor='guardian', expected=expected,
+                json={'user_id': 'child-a', 'content': content, 'expected_revision': revision})
+        first = save('합성 최초 메모', 0)
+        self.assertEqual(first['author_id'], 'guardian')
+        save('합성 수정 메모', 1)
+        save('충돌 메모', 1, 409)
+        history = self.request('GET', path + '/history?user_id=child-a', actor='guardian')
+        self.assertEqual([row['content'] for row in history['history']], ['합성 최초 메모', '합성 수정 메모'])
+        other = self.request('GET', path + '/history?user_id=child-a', actor='staff')
+        self.assertEqual(other['history'], [])  # Another author cannot inspect private notes.
+        self.request('DELETE', path + '?user_id=child-a&expected_revision=2', actor='guardian', expected=204)
+        deleted = self.request('GET', path + '/history?user_id=child-a', actor='guardian')
+        self.assertTrue(deleted['deleted'])
+        self.assertTrue(all(row['content'] is None for row in deleted['history']))
+        receipt = self.request('DELETE', '/privacy/data', json={'confirmation': 'DELETE'})
+        self.assertEqual(receipt['deletion_receipt']['status'], 'completed')
+        self.assertEqual(receipt['deletion_receipt']['counts']['caregiver_notes'], 1)
+        self.assertEqual(self.database.caregiver_notes.count_documents({'user_id': 'child-a'}), 0)
+        self.assertIsNotNone(self.database.users.find_one({'_id': 'child-a'}))
+        self.request('GET', '/records/activity?user_id=child-a', actor='guardian', expected=404)
+        self.request('GET', path + '/history?user_id=child-a', actor='guardian', expected=404)
+        self.assertEqual(self.request('GET', '/privacy/settings')['deletion_receipt']['id'], receipt['deletion_receipt']['id'])
 
     def test_each_domain_write_leaves_other_statistics_recommendations_and_history_unchanged(self):
         dashboard = self.request('GET', '/dashboard')

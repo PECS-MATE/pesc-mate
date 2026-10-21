@@ -17,13 +17,24 @@ DEFAULT_PRIVACY = {
     'retention_days': 365,
     'deletion_status': 'none',
     'deleted_at': None,
+    'deletion_receipt': None,
 }
 
 
 def _privacy_public(document):
     if not document:
         return DEFAULT_PRIVACY.copy()
-    return {key: document.get(key, default) for key, default in DEFAULT_PRIVACY.items()}
+    result = {key: document.get(key, default) for key, default in DEFAULT_PRIVACY.items()}
+    for key in ('consented_at', 'deleted_at'):
+        if isinstance(result[key], datetime) and result[key].tzinfo is None:
+            result[key] = result[key].replace(tzinfo=timezone.utc)
+    if result['deletion_receipt']:
+        receipt = dict(result['deletion_receipt'])
+        for key in ('requested_at', 'finished_at'):
+            if isinstance(receipt.get(key), datetime) and receipt[key].tzinfo is None:
+                receipt[key] = receipt[key].replace(tzinfo=timezone.utc)
+        result['deletion_receipt'] = receipt
+    return result
 
 
 def privacy_for(user_id):
@@ -109,41 +120,62 @@ def export_for(user_id):
 def delete_personal_data(user_id):
     """Delete user-generated content while retaining login credentials and the deletion receipt."""
     now = datetime.now(timezone.utc)
+    confirmation = {'id': str(uuid4()), 'status': 'in_progress', 'requested_at': now,
+                    'finished_at': None, 'counts': {}, 'profile_removed': False,
+                    'preserved': ['로그인 계정', '삭제 확인 기록'],
+                    'limitations': '이미 내려받은 파일과 별도 백업은 이 요청으로 자동 삭제되지 않습니다.'}
     try:
         database = _database()
+        database.privacy_settings.update_one({'_id': user_id}, {'$set': {
+            'guardian_consent': False, 'deletion_status': 'in_progress', 'deletion_receipt': confirmation,
+        }, '$setOnInsert': {'schema_version': SCHEMA_VERSION, 'user_id': user_id, 'created_at': now}}, upsert=True)
         card_ids = [row['_id'] for row in database.card_submissions.find({'owner_id': user_id})]
-        for collection, query in (
-            (database.communication_sessions, {'user_id': user_id}),
-            (database.tts_events, {'user_id': user_id}),
-            (database.offline_events, {'user_id': user_id}),
-            (database.tts_settings, {'_id': user_id}),
-            (database.accessibility_settings, {'_id': user_id}),
-            (database.board_layouts, {'_id': user_id}),
-            (database.board_audit_logs, {'target_user_id': user_id}),
-            (database.learning_settings, {'_id': user_id}),
-            (database.learning_attempts, {'user_id': user_id}),
-            (database.learning_audit_logs, {'target_user_id': user_id}),
-            (database.privacy_audit_logs, {'user_id': user_id}),
-            (database.caregiver_notes, {'user_id': user_id}),
-            (database.caregiver_links, {'user_id': user_id}),
-            (database.card_submissions, {'owner_id': user_id}),
+        for name, query in (
+            ('communication_sessions', {'user_id': user_id}),
+            ('tts_events', {'user_id': user_id}),
+            ('offline_events', {'user_id': user_id}),
+            ('tts_settings', {'_id': user_id}),
+            ('accessibility_settings', {'_id': user_id}),
+            ('board_layouts', {'_id': user_id}),
+            ('board_audit_logs', {'target_user_id': user_id}),
+            ('learning_settings', {'_id': user_id}),
+            ('learning_attempts', {'user_id': user_id}),
+            ('learning_audit_logs', {'target_user_id': user_id}),
+            ('privacy_audit_logs', {'user_id': user_id}),
+            ('caregiver_notes', {'user_id': user_id}),
+            ('caregiver_links', {'user_id': user_id}),
+            ('card_submissions', {'owner_id': user_id}),
         ):
-            collection.delete_many(query)
+            collection = getattr(database, name)
+            result = collection.delete_many(query)
+            count = result.deleted_count
+            confirmation['counts'][name] = count if isinstance(count, int) else 0
         if card_ids:
-            database.card_audit_logs.delete_many({'card_submission_id': {'$in': card_ids}})
+            result = database.card_audit_logs.delete_many({'card_submission_id': {'$in': card_ids}})
+            confirmation['counts']['card_audit_logs'] = result.deleted_count if isinstance(result.deleted_count, int) else 0
         database.users.update_one({'_id': user_id}, {'$unset': {'profile': ''}})
+        confirmation['profile_removed'] = True
+        _audit(database, user_id, user_id, 'personal_data_deleted', None)
+        confirmation.update(status='completed', finished_at=datetime.now(timezone.utc))
         receipt = {
             'guardian_consent': False, 'consent_version': CONSENT_VERSION,
             'consented_at': None, 'retention_days': 365,
             'deletion_status': 'completed', 'deleted_at': now, 'updated_at': now,
+            'deletion_receipt': confirmation,
         }
         database.privacy_settings.update_one(
             {'_id': user_id}, {'$set': receipt, '$setOnInsert': {'schema_version': SCHEMA_VERSION, 'user_id': user_id, 'created_at': now}},
             upsert=True,
         )
-        _audit(database, user_id, user_id, 'personal_data_deleted', None)
         return _privacy_public(receipt)
     except PyMongoError as exc:
+        confirmation.update(status='failed', finished_at=datetime.now(timezone.utc))
+        try:
+            _database().privacy_settings.update_one({'_id': user_id}, {'$set': {
+                'guardian_consent': False, 'deletion_status': 'failed', 'deletion_receipt': confirmation,
+            }})
+        except PyMongoError:
+            pass  # Never report success when even the failure receipt cannot be saved.
         raise HTTPException(503, '개인정보를 삭제하지 못했습니다.') from exc
 
 

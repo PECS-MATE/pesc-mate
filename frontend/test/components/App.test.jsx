@@ -61,6 +61,7 @@ beforeEach(() => {
     };
     if (path === '/tts/events') return { id: JSON.parse(options.body).request_id, status: 'requested' };
     if (path.startsWith('/tts/events/')) return { id: path.split('/').at(-1), ...JSON.parse(options.body) };
+    if (path === '/offline/events/sync') return { accepted_ids: JSON.parse(options.body).events.map(event => event.id) };
     if (path === '/sentences') throw new Error('문장 생성 서버에 연결하지 못했습니다.');
     throw new Error(`Unexpected API path: ${path}`);
   });
@@ -385,4 +386,35 @@ test('이전 발화의 늦은 종료 콜백이 현재 발화 상태와 이력을
   const completions = request.mock.calls.filter(([path]) => path.startsWith('/tts/events/'));
   expect(completions).toHaveLength(2);
   expect(completions.map(([, options]) => JSON.parse(options.body).status).sort()).toEqual(['cancelled', 'succeeded']);
+});
+
+test('선택 시각·순서와 직접 지정한 상황을 기록하되 카드 위치를 바꾸지 않는다', async () => {
+  const { user, workspace, board } = await openCommunication();
+  await user.selectOptions(screen.getByLabelText('기록 상황 (선택)'), 'school');
+  await user.click(workspace.getByRole('button', { name: '물 문장에 담기', exact: true }));
+  await user.click(workspace.getByRole('button', { name: '나 문장에 담기', exact: true }));
+  await user.click(board.getByRole('button', { name: '2번째 카드 앞으로' }));
+  const events = request.mock.calls.filter(([path]) => path === '/offline/events/sync')
+    .flatMap(([, options]) => JSON.parse(options.body).events);
+  expect(events.map(event => event.card_ids)).toEqual([['water'], ['water', 'me'], ['me', 'water']]);
+  expect(events.every(event => event.situation === 'school' && event.event_type === 'card_selection')).toBe(true);
+  expect(events.map(event => event.sequence)).toEqual([1, 2, 3]);
+  expect(new Date(events[0].occurred_at).toISOString()).toBe(events[0].occurred_at);
+  expect(selectedLabels(board)).toEqual(['🙋 나', '💧 물']);
+});
+
+test('음성 완료·복구 표현 결과를 원문 없이 기록하고 중복 종료 콜백은 무시한다', async () => {
+  await openCommunication();
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: '도와주세요 바로 말하기', exact: true }));
+  const first = player.speak.mock.calls.at(-1)[0];
+  await act(async () => { first.onEnd(); first.onEnd(); });
+  await user.click(screen.getByRole('button', { name: '잘못 눌렀어요 복구 표현 말하기' }));
+  await act(async () => player.speak.mock.calls.at(-1)[0].onEnd());
+  const events = request.mock.calls.filter(([path]) => path === '/offline/events/sync')
+    .flatMap(([, options]) => JSON.parse(options.body).events);
+  expect(events).toHaveLength(2);
+  expect(events[0]).toMatchObject({ event_type: 'speech_result', card_ids: ['help'], speech_status: 'succeeded' });
+  expect(events[1]).toMatchObject({ event_type: 'recovery_speech', recovery_id: 'wrong_tap', speech_status: 'succeeded' });
+  expect(events.every(event => !('content' in event) && !('sentence' in event))).toBe(true);
 });

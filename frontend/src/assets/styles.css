@@ -126,6 +126,33 @@ small { font-family: "Malgun Gothic", sans-serif; font-size: .75rem; color: #9a8
 .mini-card { display: inline-block; flex: 0 0 54px; width: 54px; aspect-ratio: 1; border-radius: 10px; background-size: 600% 300%; background-repeat: no-repeat; box-shadow: 0 2px 7px #65778526; }
 .history-cards { display: flex; gap: 5px; flex: 1 0 100%; }
 .history-cards .mini-card { flex-basis: 46px; width: 46px; }
+.session-details { display: grid; gap: 8px; flex: 1 0 100%; min-width: 0; overflow-wrap: anywhere; }
+.session-details small { color: #52616f; }
+.history .session-card-order { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; list-style: none; }
+.history .session-card-order li { display: flex; align-items: center; justify-content: flex-start; gap: 6px; border: 1px solid #dce8ed; border-radius: 10px; padding: 6px 10px; }
+.session-card-order .mini-card { width: 40px; flex-basis: 40px; }
+.record-export { padding: 14px; margin-bottom: 16px; background: #fff; border: 1px solid #dce8ed; border-radius: 12px; }
+.record-export p, .card-combinations p { line-height: 1.65; overflow-wrap: anywhere; }
+.record-export > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.record-export small { display: block; margin-top: 8px; }
+.card-combinations ul { list-style: none; display: grid; gap: 8px; padding: 0; }
+.card-combinations li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 10px; border-bottom: 1px solid #dce8ed; overflow-wrap: anywhere; }
+.communication-activity, .deletion-receipt { margin: 20px 0; padding: 16px; border: 1px solid #dce8ed; border-radius: 14px; background: #fff; overflow-wrap: anywhere; }
+.communication-activity p, .deletion-receipt p { line-height: 1.65; }
+.communication-activity details { margin: 14px 0; }
+.communication-activity summary { cursor: pointer; padding: 12px; }
+.activity-event-list > li, .recovery-flow-list > li { margin: 14px 0; padding: 12px; border-bottom: 1px solid #dce8ed; }
+.activity-event-list small, .activity-event-list time, .recovery-flow-list time, .note-history small { display: block; margin-top: 6px; }
+.recovery-flow-list > li > div { display: grid; gap: 8px; margin: 12px 0; }
+.record-table { max-width: 100%; overflow-x: auto; }
+.record-table th, .record-table td { padding: 10px; text-align: left; border-bottom: 1px solid #dce8ed; }
+.note-history { width: 100%; overflow-wrap: anywhere; }
+.note-history > button { margin-top: 10px; }
+.history .note-history li { display: block; }
+.note-history p { white-space: pre-wrap; }
+.situation-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0; }
+.situation-picker select { min-height: 44px; }
+.situation-picker small { flex: 1 0 100%; }
 .caregiver-note { flex: 1 0 100%; display: grid; gap: 7px; padding-top: 8px; }
 .caregiver-note textarea { width: 100%; min-height: 74px; resize: vertical; padding: 11px 13px; border: 2px solid #dce8ed; border-radius: 13px; color: #52616f; background: #fbfdff; }
 .caregiver-note > div { display: flex; justify-content: flex-end; align-items: center; gap: 7px; }
@@ -284,6 +311,11 @@ body::before, body::after { display: none; }
   top: 0;
   z-index: 5;
   height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block: 16px;
   display: flex;
   flex-direction: column;
   padding: 28px 22px 22px;
@@ -293,6 +325,7 @@ body::before, body::after { display: none; }
   border-radius: 0;
   box-shadow: none;
 }
+.sidebar > * { flex-shrink: 0; }
 .sidebar-brand { display: flex; align-items: center; gap: 12px; color: #262b35; letter-spacing: .05em; line-height: 1.05; }
 .sidebar-brand .mascot-brand { width: 46px; height: 46px; object-fit: contain; }
 .profile { display: flex; align-items: center; gap: 12px; padding: 30px 2px 24px; }

@@ -80,7 +80,7 @@ export async function request(path, options = {}) {
   }
 }
 
-export async function requestBlob(path) {
+export async function requestBlob(path, fallbackMessage = '이미지를 불러오지 못했습니다.') {
   const token = localStorage.getItem(TOKEN_KEY);
   const { response, requestId } = await fetchWithRequestId(`${API_BASE_URL}${path}`, {
     signal: AbortSignal.timeout(15000),
@@ -88,7 +88,7 @@ export async function requestBlob(path) {
       ? { Authorization: `Bearer ${token}` }
       : {},
   });
-  if (!response.ok) throw await responseError(response, requestId, '이미지를 불러오지 못했습니다.', path, token ? `Bearer ${token}` : null);
+  if (!response.ok) throw await responseError(response, requestId, fallbackMessage, path, token ? `Bearer ${token}` : null);
   try {
     return await response.blob();
   } catch (error) {

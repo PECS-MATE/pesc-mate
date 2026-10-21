@@ -21,6 +21,8 @@ INDEXES = (
     ('tts_events', [('user_id', ASCENDING), ('requested_at', DESCENDING)], {'name': 'user_recent_tts'}),
     ('tts_events', [('requested_at', DESCENDING)], {'name': 'tts_metrics_window'}),
     ('offline_events', [('user_id', ASCENDING), ('occurred_at', DESCENDING)], {'name': 'user_recent_offline_events'}),
+    ('offline_events', [('user_id', ASCENDING), ('session_id', ASCENDING), ('occurred_at', DESCENDING)],
+     {'name': 'user_session_speech'}),
     ('learning_attempts', [('user_id', ASCENDING), ('completed_at', DESCENDING)], {'name': 'user_recent_attempts'}),
     ('caregiver_notes', [('caregiver_id', ASCENDING), ('user_id', ASCENDING), ('session_id', ASCENDING)],
      {'name': 'caregiver_session_notes'}),

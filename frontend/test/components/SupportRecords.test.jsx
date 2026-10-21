@@ -3,11 +3,11 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, test, vi } from 'vitest';
 import App from '../../src/App.jsx';
-import { request } from '../../src/services/api';
+import { request, requestBlob } from '../../src/services/api';
 import { cacheLearningState, cacheSnapshot } from '../../src/services/offlineStore';
 
 vi.mock('../../src/services/api', async original => ({
-  ...await original(), request: vi.fn(),
+  ...await original(), request: vi.fn(), requestBlob: vi.fn(),
 }));
 vi.mock('../../src/services/offlineStore', async original => Object.fromEntries(
   Object.keys(await original()).map(name => [name, vi.fn(async () => null)]),
@@ -28,12 +28,14 @@ let people;
 
 beforeEach(() => {
   people = [child('합성-아동-A'), child('합성-아동-B')];
+  requestBlob.mockReset().mockResolvedValue(new Blob(['synthetic export']));
   localStorage.setItem('pesc-mate-token', 'synthetic-record-session');
   request.mockReset().mockImplementation(async path => {
     if (path === '/auth/me') return staff;
     if (path === '/care/linked-users') return people;
     if (path === '/categories') return [{ id: 'food', name: '음식' }];
     if (path.startsWith('/dashboard?')) return dashboard();
+    if (path.startsWith('/records/activity?')) return { total: 0, recent_limit: 100, recent: [], situations: [], daily: [], recovery_flows: [] };
     if (path.startsWith('/learning/settings?')) return settings;
     if (path.startsWith('/learning/progress?')) return learning;
     throw new Error(`Unexpected API path: ${path}`);
@@ -182,4 +184,37 @@ test('학습 조회 실패는 이전 지표를 0회로 바꿔 보여주지 않�
   await user.click(screen.getByRole('tab', { name: '의사소통 기록' }));
   expect(await panel('의사소통 기록').findByText('합성 문장')).toBeTruthy();
   expect(screen.queryByRole('alert')).toBeNull();
+});
+
+test('타임라인은 개인 카드 순서와 재생성 원본을 표시하고 발화를 추정하지 않는다', async () => {
+  const original = request.getMockImplementation();
+  request.mockImplementation((path, options) => path.startsWith('/dashboard?') ? Promise.resolve({
+    ...dashboard(), top_combinations: [{ cards: [{ id: 'water', label: '물' }, { id: 'custom:pencil', label: '내 연필' }], count: 3 }],
+    recent: [{ id: 'regenerated', sentence: '내 연필과 물', cards: ['custom:pencil', 'water', 'custom:pencil'],
+      card_details: [{ id: 'custom:pencil', label: '내 연필' }, { id: 'water', label: '물' }, { id: 'custom:pencil', label: '내 연필' }],
+      created_at: '2026-10-21T00:00:00Z', generation_source: 'rule', regeneration_of: 'original-record', generation_attempt: 3 }],
+  }) : original(path, options));
+  await openRecords();
+  expect(await screen.findByText('재생성 2회차 · 규칙 기반')).toBeTruthy();
+  expect(screen.getByText('원본 기록 번호: original-record')).toBeTruthy();
+  const order = screen.getByText('저장된 카드 순서').nextElementSibling;
+  expect(within(order).getAllByRole('listitem').map(item => within(item).getByRole('img').getAttribute('aria-label')))
+    .toEqual(['내 연필', '물', '내 연필']);
+  expect(screen.getByText('카드 선택 시각: 기록 없음')).toBeTruthy();
+  expect(screen.getByText('실제 발화 여부: 연결된 결과 기록 없음')).toBeTruthy();
+  expect(screen.getByText('물 + 내 연필')).toBeTruthy();
+  expect(screen.getByText('3개 문장')).toBeTruthy();
+  expect(requestBlob).not.toHaveBeenCalled();
+});
+
+test.each(['offline', 'denied', 'expired'])('%s로 기록 권한이 닫히면 늦은 다운로드도 차단한다', async reason => {
+  const user = await openRecords();
+  let finish;
+  requestBlob.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  const objectURL = vi.spyOn(URL, 'createObjectURL');
+  await user.click(screen.getByRole('button', { name: 'JSON 내보내기' }));
+  act(() => window.dispatchEvent(new Event(reason === 'offline' ? 'offline'
+    : reason === 'denied' ? 'pesc-mate:access-denied' : 'pesc-mate:session-expired')));
+  await act(async () => finish(new Blob(['must not download'])));
+  expect(objectURL).not.toHaveBeenCalled();
 });
