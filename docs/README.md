@@ -30,6 +30,7 @@ API, 데이터 구조, 카드·마스코트 자산과 협업 규칙을 관리한
 | [데이터 버전·마이그레이션](development/DATA_SCHEMA_MIGRATIONS.md) | 저장 형식 기준선, 조회 전용 계획·명시적 적용·잠금·재개 규칙 |
 | [학습 기록 데이터 모델](development/LEARNING_DATA_MODEL.md) | 학습 컬렉션과 의사소통 기록의 구분 |
 | [의사소통·학습 기록 화면 분리](development/SUPPORT_RECORD_DASHBOARD.md) | 기록 탭·연결 권한·집계 기준과 늦은 응답 차단 |
+| [추천 통제·탐색 보조](development/RECOMMENDATION_POLICY.md) | 추천 근거·승인·숨김·노출 기록과 장애 격리 |
 | [업로드 이미지 정규화](development/IMAGE_UPLOAD_NORMALIZATION.md) | 시그니처/MIME/디코딩 교차 검증, 메타데이터 제거·방향·투명도 보존 |
 | [카드 사진·단어 목록](development/CARD_PHOTO_WORD_LIST.md) | 카드 제작 기준, 이미지 표현과 제작 우선순위 |
 | [마스코트 자산](development/MASCOT_ASSET.md) | 자산 경로, 적용 위치와 생성 프롬프트 |

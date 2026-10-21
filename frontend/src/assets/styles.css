@@ -153,6 +153,23 @@ small { font-family: "Malgun Gothic", sans-serif; font-size: .75rem; color: #9a8
 .situation-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0; }
 .situation-picker select { min-height: 44px; }
 .situation-picker small { flex: 1 0 100%; }
+.recommend-panel > .stage-title { display: block; margin-bottom: 12px; }
+.recommend-panel > .stage-title p { line-height: 1.6; }
+.recommendations > [data-recommendation-card] { min-width: 0; scroll-snap-align: center; }
+.recommendations [data-recommendation-card] > .card-tile { height: 100%; }
+.recommend-panel .recommendations .card > small { display: block; position: relative; padding: 6px 10px 12px; color: #374d62; opacity: 1; line-height: 1.5; white-space: normal; }
+.recommendation-library-link { display: inline-flex; align-items: center; min-height: 44px; margin: 12px 0; padding: 8px 12px; border-radius: 8px; background: #fff; color: #234e75; }
+.recommendation-settings { padding: 16px; margin: 18px 0; border: 1px solid #dce8ed; border-radius: 14px; background: #fff; }
+.recommendation-settings p { line-height: 1.65; overflow-wrap: anywhere; }
+.recommendation-settings fieldset { display: grid; gap: 12px; border: 0; min-width: 0; padding: 12px 0; }
+.recommendation-settings label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 44px; }
+.recommendation-settings input[type="checkbox"] { width: 22px; height: 22px; }
+.recommendation-settings select { min-height: 44px; max-width: 100%; }
+.recommendation-policy-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; max-height: 420px; overflow-y: auto; padding: 8px; }
+.recommendation-policy-cards > div { border: 1px solid #dce8ed; border-radius: 10px; padding: 10px; }
+@media (max-width: 800px) {
+  .recommendations > [data-recommendation-card] { flex: 0 0 145px; }
+}
 .caregiver-note { flex: 1 0 100%; display: grid; gap: 7px; padding-top: 8px; }
 .caregiver-note textarea { width: 100%; min-height: 74px; resize: vertical; padding: 11px 13px; border: 2px solid #dce8ed; border-radius: 13px; color: #52616f; background: #fbfdff; }
 .caregiver-note > div { display: flex; justify-content: flex-end; align-items: center; gap: 7px; }
@@ -406,9 +423,9 @@ body::before, body::after { display: none; }
 .recommendations .card::before { display: none; }
 .recommendations .card > .card-art { flex: 1 1 auto; width: min(100%, 178px); margin: 10px auto 4px; border-radius: 0; box-shadow: none; }
 .recommendations .card > strong { width: 100%; padding: 16px 13px; text-align: left; background: #ec317a; font-size: .95rem; }
-.recommendations .card-tile:nth-child(4n+2) > .card > strong { background: #7bbd00; }
-.recommendations .card-tile:nth-child(4n+3) > .card > strong { background: #9224b3; }
-.recommendations .card-tile:nth-child(4n) > .card > strong { background: #1874a2; }
+.recommendations > [data-recommendation-card]:nth-child(4n+2) .card > strong { background: #7bbd00; }
+.recommendations > [data-recommendation-card]:nth-child(4n+3) .card > strong { background: #9224b3; }
+.recommendations > [data-recommendation-card]:nth-child(4n) .card > strong { background: #1874a2; }
 .recommendations .card > small { display: none; }
 .recommendations .card:hover:not(:disabled) { background: #fff !important; transform: translateY(-5px); box-shadow: 0 14px 26px #5261742c; }
 

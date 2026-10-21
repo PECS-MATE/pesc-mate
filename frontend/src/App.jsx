@@ -8,6 +8,8 @@ import { CardCombinations, SessionDetails } from './CommunicationInsights';
 import CommunicationActivity, { SITUATIONS } from './CommunicationActivity';
 import NoteHistory from './NoteHistory';
 import DeletionReceipt from './DeletionReceipt';
+import RecommendationsPanel from './RecommendationsPanel';
+import RecommendationSettings from './RecommendationSettings';
 import useReauthentication from './useReauthentication';
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
@@ -431,7 +433,7 @@ function App() {
         setStats(null); setLoaded(true);
         return;
       }
-      const [rawCards, rawCategories, rawRecommended, dashboard, submissions, voiceSettings, accessibilitySettings, privacySettings, caregivers, privacyHistory, layout] = await Promise.all([request('/cards'), request('/categories'), request('/recommendations'), request(dashboardPath()), request('/cards/submissions'), request('/tts/settings'), request('/accessibility/settings'), request('/privacy/settings'), request('/support/links'), request('/privacy/audit'), request('/board/layout')]);
+      const [rawCards, rawCategories, rawRecommended, dashboard, submissions, voiceSettings, accessibilitySettings, privacySettings, caregivers, privacyHistory, layout] = await Promise.all([request('/cards'), request('/categories'), Promise.resolve([]), request(dashboardPath()), request('/cards/submissions'), request('/tts/settings'), request('/accessibility/settings'), request('/privacy/settings'), request('/support/links'), request('/privacy/audit'), request('/board/layout')]);
       if (privacySettings.deletion_status === 'completed' && !privacySettings.guardian_consent) {
         await clearOfflineUserData(account.id);
       }
@@ -652,8 +654,7 @@ function App() {
       setGeneratedSessionId(result.id);
       setGenerationAttempt(result.generation_attempt || 1);
       try {
-        const [rec, dashboard] = await Promise.all([request('/recommendations'), request(dashboardPath())]);
-        setRecommended(rec); setStats(dashboard);
+        setStats(await request(dashboardPath()));
       } catch { setError('문장은 저장되었습니다. 통계 갱신은 다시 연결을 눌러 주세요.'); }
     } catch (e) { setGenerationFailed(true); setError(`${e.message} 선택한 카드는 유지되며 로컬 음성은 계속 사용할 수 있어요.`); }
     finally { setBusy(false); }
@@ -670,8 +671,7 @@ function App() {
       setGeneratedSessionId(result.id);
       setGenerationAttempt(result.generation_attempt || generationAttempt + 1);
       try {
-        const [rec, dashboard] = await Promise.all([request('/recommendations'), request(dashboardPath())]);
-        setRecommended(rec); setStats(dashboard);
+        setStats(await request(dashboardPath()));
       } catch { setError('재생성 문장은 저장되었습니다. 통계 갱신은 다시 연결을 눌러 주세요.'); }
     } catch (e) { setGenerationFailed(true); setError(`${e.message} 선택한 카드는 유지되며 로컬 음성은 계속 사용할 수 있어요.`); }
     finally { setBusy(false); }
@@ -1396,9 +1396,12 @@ function App() {
     const hasImage = Boolean(cardImage(item));
     return <span className={`expression-visual${hasImage ? ' has-image' : ''}`} aria-hidden="true" style={hasImage ? artStyle(item) : undefined}>{!hasImage && item.symbol}</span>;
   }
-  function tile(card) {
+  function tile(card, recommendationSelected) {
     const speakOnTap = outputMode === 'word';
-    return <div className="card-tile" key={card.id}><button type="button" className={`card${speakOnTap ? ' speak-on-tap' : ''}`} disabled={busy} aria-label={`${card.label} ${speakOnTap ? '바로 말하기' : '문장에 담기'}`} onClick={() => speakOnTap ? speakText(card.label, 'card', [card.id]) : add(card)}>
+    return <div className="card-tile" key={card.id}><button type="button" className={`card${speakOnTap ? ' speak-on-tap' : ''}`} disabled={busy} aria-label={`${card.label} ${speakOnTap ? '바로 말하기' : '문장에 담기'}`} onClick={() => {
+      if ((speakOnTap || board.length < 12) && typeof recommendationSelected === 'function') recommendationSelected();
+      if (speakOnTap) speakText(card.label, 'card', [card.id]); else add(card);
+    }}>
       {cardArt(card)}
       <strong>{card.label}</strong>{card.reason && <small>{card.reason}</small>}
     </button>{cardSpeaker(card)}</div>;
@@ -1565,8 +1568,10 @@ function App() {
         <nav className="home-secondary-actions" aria-label="추가 활동"><button onClick={() => setTab('catalog')}>🖼️ 카드 살펴보기</button><button onClick={() => setTab('dashboard')}>📊 나의 이용 기록</button></nav>
         <div className="home-note"><Avatar user={user} /><div><strong>{user.name}님, 반가워요!</strong><p>그림 카드를 눌러 오늘의 이야기를 시작해 보세요.</p></div></div>
       </section> : tab === 'cards' && user.role === 'user' ? <div className="communication-layout">
-      <section className="recommend-panel"><div className="stage-title"><span className="stage-back" aria-hidden="true">‹‹</span><div><strong>오늘의 추천 카드</strong><i aria-hidden="true"><b></b><b></b><b></b></i><p>자주 쓰는 카드를 골라 문장을 시작해요</p></div><span className="stage-helper" aria-hidden="true">🌱</span></div><div className="cards recommendations">{recommended.map(tile)}</div><div className="stage-ground" aria-hidden="true">▲　▲　　▲　　　▲　▲</div></section>
-      <div className="workspace"><section><div className="section-title"><h2>무엇을 말하고 싶나요?</h2><input aria-label="카드 검색" placeholder="카드 이름 검색" value={search} onChange={e => setSearch(e.target.value)} /></div>
+      <RecommendationsPanel key={user.id} accountId={user.id} selectedIds={board.map(card => card.id)} cards={cards}
+        offline={offline} renderCard={tile} onCards={setRecommended} historyKey={generatedSessionId}
+        onOpenLibrary={() => { setCategory('전체'); setSearch(''); setTab('catalog'); }} />
+      <div className="workspace"><section id="card-library" tabIndex="-1"><div className="section-title"><h2>무엇을 말하고 싶나요?</h2><input aria-label="카드 검색" placeholder="카드 이름 검색" value={search} onChange={e => setSearch(e.target.value)} /></div>
         <label className="situation-picker">기록 상황 (선택)<select aria-label="기록 상황 (선택)" value={situation} onChange={event => setSituation(event.target.value)}>
           {Object.entries(SITUATIONS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
         </select><small>기록에만 사용하며 카드 위치·추천·학습 범위는 바꾸지 않습니다.</small></label>
@@ -1667,7 +1672,9 @@ function App() {
         {canManageQuick && <article><h3>빠른 표현 <small>{quickDraft.length}/8</small></h3><p className="muted">카드를 선택하고 화살표로 표시 순서를 정하세요.</p><div className="config-card-options">{layoutCards.map(card => <button key={card.id} aria-pressed={quickDraft.includes(card.id)} onClick={() => toggleDraft(setQuickDraft, quickDraft, card.id, 8)}>{card.symbol} {card.label}</button>)}</div><ol className="config-order-list">{quickDraft.map((id, index) => { const card = layoutCardsById.get(id); return <li key={id}><span>{index + 1}. {card?.symbol} {card?.label || id}</span><div><button aria-label={`${card?.label || id} 앞으로`} disabled={index === 0} onClick={() => moveDraft(setQuickDraft, index, -1)}>↑</button><button aria-label={`${card?.label || id} 뒤로`} disabled={index === quickDraft.length - 1} onClick={() => moveDraft(setQuickDraft, index, 1)}>↓</button><button aria-label={`${card?.label || id} 제외`} onClick={() => setQuickDraft(current => current.filter(cardId => cardId !== id))}>×</button></div></li>; })}</ol><button className="primary" disabled={boardConfigBusy === 'quick' || !quickDraft.length} onClick={() => saveBoardConfiguration('quick')}>{boardConfigBusy === 'quick' ? '저장 중…' : '빠른 표현 저장'}</button></article>}
         {canManageBoard && <article><h3>고정 카드 슬롯 <small>{slotDraft.length}/30</small></h3><p className="muted">선택한 카드만 번호 순서대로 표시되며 이용 빈도로 위치가 바뀌지 않습니다.</p><div className="config-card-options">{layoutCards.map(card => <button key={card.id} aria-pressed={slotDraft.includes(card.id)} onClick={() => toggleDraft(setSlotDraft, slotDraft, card.id, 30)}>{card.symbol} {card.label}</button>)}</div><ol className="config-order-list">{slotDraft.map((id, index) => { const card = layoutCardsById.get(id); return <li key={id}><span>슬롯 {index + 1} · {card?.symbol} {card?.label || id}</span><div><button aria-label={`${card?.label || id} 앞으로`} disabled={index === 0} onClick={() => moveDraft(setSlotDraft, index, -1)}>↑</button><button aria-label={`${card?.label || id} 뒤로`} disabled={index === slotDraft.length - 1} onClick={() => moveDraft(setSlotDraft, index, 1)}>↓</button><button aria-label={`${card?.label || id} 제외`} onClick={() => setSlotDraft(current => current.filter(cardId => cardId !== id))}>×</button></div></li>; })}</ol><button className="primary" disabled={boardConfigBusy === 'slots' || !slotDraft.length} onClick={() => saveBoardConfiguration('slots')}>{boardConfigBusy === 'slots' ? '저장 중…' : '카드판 저장'}</button></article>}
       </fieldset>}
-      <article className="board-audit"><h3>최근 구성 변경</h3>{boardLayoutAudit.length ? <ul>{boardLayoutAudit.slice(0, 10).map(item => <li key={item.id}><span>{({ recovery_expressions_changed: '복구 표현 변경', quick_expressions_changed: '빠른 표현 변경', board_slots_changed: '카드 슬롯 변경' })[item.action] || item.action} · 변경자 {item.actor_id}</span><time>{new Date(item.created_at).toLocaleString('ko-KR')}</time></li>)}</ul> : <p className="muted">아직 변경 기록이 없습니다.</p>}</article>
+      {canManageBoard && selectedUser && <RecommendationSettings key={`${user.id}-${selectedUser.id}`}
+        targetId={selectedUser.id} canReadRecords={canReadRecords} />}
+      <article className="board-audit"><h3>최근 구성 변경</h3>{boardLayoutAudit.length ? <ul>{boardLayoutAudit.slice(0, 10).map(item => <li key={item.id}><span>{({ recovery_expressions_changed: '복구 표현 변경', quick_expressions_changed: '빠른 표현 변경', board_slots_changed: '카드 슬롯 변경', recommendation_settings_changed: '추천 설정 변경' })[item.action] || item.action} · 변경자 {item.actor_id}</span><time>{new Date(item.created_at).toLocaleString('ko-KR')}</time></li>)}</ul> : <p className="muted">아직 변경 기록이 없습니다.</p>}</article>
     </section> : tab === 'support_settings' && isSupporter && canManageVoice ? <section className="support-settings-panel">
       <div className="panel-heading"><span aria-hidden="true">♿</span><div><h2>음성·접근 설정</h2><p className="muted">{selectedUser?.name} 사용자에게 적용할 설정입니다.</p></div></div>
       <label className="user-picker">설정 사용자<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)} disabled={statsBusy}>{linkedUsers.filter(person => person.permissions.includes('voice_access_manage')).map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>

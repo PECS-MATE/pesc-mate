@@ -168,6 +168,11 @@ HTTP 500은 일반 안내만 반환하고 내부 예외 문구를 응답에 포�
 | 문장 | POST | `/api/sentences` | 필요 | 문장 생성 및 기록 저장 |
 | 문장 | POST | `/api/sentences/{session_id}/regenerate` | 필요 | 기존 카드로 문장 재생성 및 별도 저장 |
 | 추천 | GET | `/api/recommendations` | 필요 | 사용자별 추천 카드 조회 |
+| 추천 | POST | `/api/recommendations/feed` | AAC 사용자 | 선택 맥락별 후보·근거·버전 스냅샷 |
+| 추천 | POST | `/api/recommendations/batches/{batch_id}/exposures` | AAC 사용자·동의 | 실제 보인 후보 기록 |
+| 추천 | POST | `/api/recommendations/batches/{batch_id}/selections` | AAC 사용자·동의 | 실제 표시 후 선택 기록 |
+| 추천 | GET / PUT | `/api/recommendations/settings?user_id={id}` | 자기 조회 / 연결 `board_manage` | 추천 정책 조회·비교 저장 |
+| 추천 | GET | `/api/recommendations/monitoring?user_id={id}` | 본인 또는 `records_read` | 카테고리·카드별 노출/선택 표본 점검 |
 | 통계 | GET | `/api/dashboard` | 필요 | 본인 또는 연결 사용자 이용 통계 조회 |
 | 기록 | GET | `/api/records/export` | 본인 또는 영역별 연결 권한 | 의사소통·학습 기록을 기간별 CSV/JSON으로 다운로드 |
 | 기록 | GET | `/api/records/activity` | 본인 또는 `records_read` | 카드 선택·기기 재생·상황별 추이·복구 표현 인접 흐름 |
@@ -254,7 +259,7 @@ MongoDB 신규 문서의 내부 `schema_version=1`은 저장 형식 기준선이
 | `sentence_role` | string | 예 | `subject`, `object`, `destination`, `predicate`, `response` 등 문장 역할 |
 | `semantic_group` | string 또는 null | 아니요 | `emotion`, `physical_state`, `sensory_state`, `rejection`, `affirmation` 등 의미 분류 |
 | `safety_relevant` | boolean | 아니요 | 보호자가 최근 사용을 확인할 안전 관련 표현 여부 |
-| `count` | integer | 아니요 | 추천·통계 응답의 사용자 사용 횟수 |
+| `count` | integer | 아니요 | 통계 응답의 사용자 사용 횟수 |
 | `reason` | string | 아니요 | 추천 응답에 표시할 추천 근거 |
 
 ```json
@@ -939,11 +944,13 @@ GET /api/recommendations
 Authorization: Bearer {access_token}
 ```
 
-로그인 사용자의 전체 기간 카드 사용 횟수를 집계하여 최대 6개를 반환한다. 사용 이력이 부족하면 기본 카드 순서로 채우며 각 카드에 추천 근거인 `reason`을 포함한다.
+호환용 읽기 전용 조회다. 현재 추천 정책을 적용한 최대 6개 후보를 반환하고 노출 기록은 만들지 않는다.
+선택 맥락·기기 시간대를 전달하는 새 화면은 아래 feed API를 사용한다. 알고리즘의 표본·상한·정책은
+[추천 통제·탐색 보조](RECOMMENDATION_POLICY.md)를 따른다. 학습 결과나 메모는 사용하지 않는다.
 
 ### 성공 응답: 200 OK
 
-응답 형식은 `Card[]`이다. 사용 이력으로 추천된 카드에는 `count`가 포함되고 기본으로 채운 카드에는 포함되지 않는다.
+응답 형식은 `Card[]`이며 `reason`을 포함한다. 사용 횟수 `count`는 더 이상 반환하지 않는다.
 
 ```json
 [
@@ -952,7 +959,7 @@ Authorization: Bearer {access_token}
     "label": "물",
     "symbol": "💧",
     "category": "음식",
-    "count": 3
+    "reason": "최근 저장한 문장에 포함"
   },
   {
     "id": "me",
@@ -976,6 +983,92 @@ Authorization: Bearer {access_token}
 GET /api/dashboard
 GET /api/dashboard?days=7
 GET /api/dashboard?days=30
+## 9.2 맥락별 후보 묶음
+
+```http
+POST /api/recommendations/feed
+```
+
+```json
+{
+  "request_id": "e7cb2bb1-b2bb-4bd3-b880-55d55fca6606",
+  "selected_card_ids": ["me"],
+  "hour": 12,
+  "utc_offset_minutes": -540
+}
+```
+
+AAC 사용자만 호출하며 다른 사용자 ID를 받지 않는다. UUID는 논리 요청마다 새로 생성한다.
+선택 카드는 최대 12개, 시각은 0~23, UTC 오프셋은 -840~840분이다.
+응답은 `Cache-Control: no-store`이고 다음 필드를 가진다.
+
+| 필드 | 의미 |
+|---|---|
+| `batch_id` | 동의 유효·후보 존재 시 요청 UUID, 기록하지 않으면 null |
+| `algorithm_version` | 현재 `aac-candidates-v1` |
+| `cards` | 최대 6개 카드, 각 `reason`, `algorithm_version`, `evidence` 포함 |
+| `settings_revision`, `enabled`, `mode`, `situation` | 계산에 적용한 보호자 정책 |
+| `diagnostics` | 카테고리 분포, 반복 카드, 표본 수·기간·상한과 해석 제한 |
+
+동의가 없거나 삭제 진행·실패·완료 상태이면 개인 기록을 사용·저장하지 않고 현재 정책의 기본 후보만
+제공한다. 추천 꺼짐·빈 승인 목록은 빈 배열이며 전체 카드 API나 고정 보드를 제한하지 않는다.
+같은 UUID·맥락의 재시도는 저장된 후보와 근거를 그대로 반환한다. 다른 소유자·맥락으로 재사용,
+정책 또는 제공 가능한 카드 변경은 409다. 사용할 수 없는 선택 카드는 422, 추천 장애는 503이다.
+
+## 9.3 실제 노출·선택 확인
+
+```http
+POST /api/recommendations/batches/{batch_id}/exposures
+{ "card_ids": ["water"] }
+
+POST /api/recommendations/batches/{batch_id}/selections
+{ "card_id": "water" }
+```
+
+자기 묶음만 기록할 수 있으며 보호자 동의가 필요하다. 노출은 1~6개, 선택은 카드 하나를 받는다.
+제공되지 않은 카드나 노출 전 선택은 422, 다른 사용자의 묶음은 404, 정책 변경은 409다.
+200 응답은 `{ "recorded": true }`다. 묶음당 카드별 여부를 멱등 기록하며 클릭 횟수가 아니다.
+UI는 문서·뷰포트에서 실제 보이는 후보만 노출로 전송한다. 조회 성공만으로 노출을 가정하지 않는다.
+후보 클릭의 기록 전송과 실패는 실제 카드 선택·말하기를 막지 않는다.
+
+## 9.4 보호자 정책과 반복 노출 점검
+
+```http
+GET /api/recommendations/settings?user_id={id}
+PUT /api/recommendations/settings?user_id={id}
+```
+
+조회는 본인 또는 연결 `board_manage`, 변경은 보호자·담당자의 연결 `board_manage`가 필요하다.
+조회는 no-store이며 정책, 현재 `available_cards`, 최근 추천 설정 감사 `history`를 반환한다.
+
+```json
+{
+  "expected_revision": 0,
+  "enabled": true,
+  "mode": "approval",
+  "approved_card_ids": ["water"],
+  "hidden_card_ids": ["help"],
+  "situation": "school",
+  "use_time_of_day": true
+}
+```
+
+모드는 `automatic` 또는 `approval`, 상황은 `unspecified`, `home`, `school`, `therapy`,
+`outside`, `meal`, `hospital` 중 하나다. 승인·숨김 각각 최대 100개이며 중복·교집합은 422다.
+`expected_revision`은 필수이고 충돌은 409다. 저장 응답은 해당 저장의 증가한 revision과 정책,
+updated_by/updated_at이다. 고정 보드 revision과 배치는 바꾸지 않는다.
+`board_audit_logs`에 전후 정책을 기록하므로 카드판 감사 응답의 before/after는 배열 외 객체도 허용한다.
+빠른 표현 관리 권한만으로 카드판 감사 API를 조회할 때는 추천 정책 변경 이력을 제외한다.
+
+```http
+GET /api/recommendations/monitoring?user_id={id}
+```
+
+본인 또는 별도 `records_read` 연결 권한만 허용한다. 보드·학습·공용 콘텐츠 관리만으로 조회할 수 없다.
+최근 90일의 실제 노출 묶음 최대 50개를 집계한 no-store 응답으로 `sampled_batches`, `limit`,
+`window_days`, `algorithm_versions`, `categories`, `repeated_card_ids`, `cards`, `notice`를 제공한다.
+cards 항목은 id/exposed_batches/selected_batches다. 미선택을 거절·지원 불필요로 해석하지 않는다.
+
 GET /api/dashboard?days=30&user_id=demo
 Authorization: Bearer {access_token}
 ```
@@ -1160,7 +1253,9 @@ curl "http://127.0.0.1:8000/api/dashboard?days=7" \
 | 카드 등록 | `card_submissions` | 제출, 승인·반려 저장 및 사용자 카드 조회 |
 | 카드 감사 | `card_audit_logs` | 등록·제출·수정·승인·반려·비활성 행위자와 시각 저장 |
 | 문장 생성 | `communication_sessions` | 중복 확인 및 문장 기록 생성 |
-| 추천 | `communication_sessions` | 로그인 사용자 전체 기록 조회 |
+| 추천 | `communication_sessions`, `offline_events` | 동의한 본인의 최근 90일 문장·선택 관찰 표본 조회 |
+| 추천 정책 | `recommendation_settings`, `board_audit_logs` | 연결 권한·revision 확인, 전후 정책 감사 |
+| 추천 노출·선택 | `recommendation_batches` | 계산 근거 스냅샷과 실제 표시·선택 여부; 개인 내보내기·보존·삭제에 포함 |
 | 이용 현황 | `communication_sessions` | 사용자 및 기간 조건 조회 |
 
 DB 조회·변경의 콘솔 로그와 해당 로그를 활성화하는 환경 변수는 제거했다.

@@ -6,6 +6,12 @@ from pydantic import AwareDatetime, BaseModel, Field, SecretStr, model_validator
 from starlette.responses import JSONResponse
 from uuid import UUID
 from app.services.communication import CARDS, regenerate_session, save_session, statistics
+from app.services.recommendations import (
+    available_cards as recommendation_cards, create_feed, monitoring_for as recommendation_monitoring,
+    preview as recommendation_preview,
+    record_interaction, save_settings as save_recommendation_settings,
+    settings_for as recommendation_settings_for,
+)
 from app.services.record_exports import export_records, records_csv
 from app.services.accessibility_settings import save_settings as save_accessibility_settings
 from app.services.accessibility_settings import settings_for as accessibility_settings_for
@@ -106,6 +112,31 @@ class SentenceRequest(BaseModel):
 
 class RegenerateSentenceRequest(BaseModel):
     request_id: UUID
+
+
+class RecommendationFeedRequest(BaseModel):
+    request_id: UUID
+    selected_card_ids: list[Annotated[str, Field(min_length=1, max_length=100)]] = Field(default_factory=list, max_length=12)
+    hour: int = Field(ge=0, le=23)
+    utc_offset_minutes: int = Field(ge=-840, le=840)
+
+
+class RecommendationExposureRequest(BaseModel):
+    card_ids: list[Annotated[str, Field(min_length=1, max_length=100)]] = Field(min_length=1, max_length=6)
+
+
+class RecommendationSelectionRequest(BaseModel):
+    card_id: str = Field(min_length=1, max_length=100)
+
+
+class RecommendationSettingsRequest(BaseModel):
+    enabled: bool
+    mode: Literal['automatic', 'approval']
+    approved_card_ids: list[Annotated[str, Field(min_length=1, max_length=100)]] = Field(max_length=100)
+    hidden_card_ids: list[Annotated[str, Field(min_length=1, max_length=100)]] = Field(max_length=100)
+    situation: Literal['unspecified', 'home', 'school', 'therapy', 'outside', 'meal', 'hospital']
+    use_time_of_day: bool
+    expected_revision: int = Field(ge=0)
 
 
 class LoginRequest(BaseModel):
@@ -412,8 +443,8 @@ class BoardAuditResponse(BaseModel):
     target_user_id: str
     actor_id: str
     action: str
-    before: list[object] | None = None
-    after: list[object] | None = None
+    before: list[object] | dict[str, object] | None = None
+    after: list[object] | dict[str, object] | None = None
     before_revision: int | None = None
     after_revision: int | None = None
     created_at: datetime
@@ -854,7 +885,11 @@ def get_board_audit(user_id: str | None = Query(default=None, max_length=64),
                     user=Depends(current_user)):
     target = user_id or user['id']
     require_any_link_permission(user, target, {'quick_speech_manage', 'board_manage'})
-    return board_audit_for(target)
+    rows = board_audit_for(target)
+    # Sharing the audit store must not grant quick-speech-only supporters recommendation policy access.
+    if user['role'] in SUPPORT_ROLES and 'board_manage' not in permissions_for(user['id'], target):
+        rows = [row for row in rows if row['action'] != 'recommendation_settings_changed']
+    return rows
 
 
 @api_router.get('/learning/settings', response_model=LearningSettingsResponse, tags=['학습'])
@@ -1036,14 +1071,56 @@ def regenerate_sentence(session_id: UUID, request: RegenerateSentenceRequest,
 @api_router.get('/recommendations', response_model=list[CardResponse], response_model_exclude_none=True, tags=['추천'])
 def recommendations(user=Depends(current_user)):
     require_communicator(user)
-    used = statistics(user['id'])['top_cards']
-    keys = {c['id'] for c in used}
-    available = CARDS + approved_cards_for(user['id'])
-    available_by_id = {card['id']: card for card in available}
-    frequent = [available_by_id.get(card['id'], {}) | card |
-                {'reason': f"자주 사용함 · {card['count']}회"} for card in used]
-    defaults = [card | {'reason': '처음 시작하기 좋은 카드'} for card in available if card['id'] not in keys]
-    return (frequent + defaults)[:6]
+    return recommendation_preview(user['id'])
+
+
+@api_router.post('/recommendations/feed', tags=['추천'])
+def recommendation_feed(request: RecommendationFeedRequest, response: Response, user=Depends(current_user)):
+    require_communicator(user)
+    response.headers['Cache-Control'] = 'no-store'
+    return create_feed(user['id'], str(request.request_id), request.selected_card_ids,
+                       request.hour, request.utc_offset_minutes)
+
+
+@api_router.post('/recommendations/batches/{batch_id}/exposures', tags=['추천'])
+def recommendation_exposures(batch_id: UUID, request: RecommendationExposureRequest, user=Depends(current_user)):
+    require_communicator(user)
+    require_guardian_consent(user)
+    return record_interaction(user['id'], str(batch_id), request.card_ids)
+
+
+@api_router.post('/recommendations/batches/{batch_id}/selections', tags=['추천'])
+def recommendation_selection(batch_id: UUID, request: RecommendationSelectionRequest, user=Depends(current_user)):
+    require_communicator(user)
+    require_guardian_consent(user)
+    return record_interaction(user['id'], str(batch_id), [request.card_id], selected=True)
+
+
+@api_router.get('/recommendations/settings', tags=['추천'])
+def get_recommendation_settings(response: Response, user_id: str | None = Query(default=None, max_length=64), user=Depends(current_user)):
+    target = user_id or user['id']
+    require_link_permission(user, target, 'board_manage')
+    response.headers['Cache-Control'] = 'no-store'
+    settings = recommendation_settings_for(target)
+    # Reuse the existing support-configuration audit store and its retention/deletion policy.
+    history = [row for row in board_audit_for(target) if row['action'] == 'recommendation_settings_changed'][:10]
+    return {**settings, 'available_cards': recommendation_cards(target), 'history': history}
+
+
+@api_router.get('/recommendations/monitoring', tags=['추천'])
+def get_recommendation_monitoring(user_id: str | None = Query(default=None, max_length=64), user=Depends(current_user)):
+    target = dashboard_user(user, user_id, 'records_read')
+    return JSONResponse(recommendation_monitoring(target), headers={'Cache-Control': 'no-store'})
+
+
+@api_router.put('/recommendations/settings', tags=['추천'])
+def put_recommendation_settings(request: RecommendationSettingsRequest,
+                                user_id: str = Query(min_length=1, max_length=64), user=Depends(current_user)):
+    if user['role'] not in SUPPORT_ROLES:
+        raise HTTPException(403, '보호자·담당자의 연결 권한으로 추천을 설정해 주세요.')
+    require_link_permission(user, user_id, 'board_manage')
+    return save_recommendation_settings(user_id, user['id'], request.model_dump(exclude={'expected_revision'}),
+                                         request.expected_revision)
 
 
 @api_router.get('/dashboard', response_model=DashboardResponse, tags=['통계'])

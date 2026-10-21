@@ -185,6 +185,7 @@ class VersionedWriteCoverageTests(unittest.TestCase):
             'card_submissions': ('create_submission', 'review_submission', 'submit_draft', 'update_submission'),
             'categories': ('ensure_default_categories', 'create_category'),
             'communication': ('save_session', 'ensure_demo_history'),
+            'recommendations': ('save_settings', 'create_feed'),
             'learning': ('save_settings', 'record_attempt', '_audit'),
             'login_throttle': ('record_login_failure',), 'offline_events': ('sync_events',),
             'privacy': ('save_privacy', 'delete_personal_data', '_audit'),

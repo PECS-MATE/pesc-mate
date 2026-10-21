@@ -159,7 +159,7 @@ def audit_for(user_id):
             'id': str(row['_id']), 'target_user_id': row['target_user_id'],
             'actor_id': row['actor_id'], 'action': row['action'],
             'before': row.get('before'), 'after': row.get('after'),
-            'created_at': row['created_at'],
+            'created_at': row['created_at'].replace(tzinfo=timezone.utc) if row['created_at'].tzinfo is None else row['created_at'],
             'before_revision': row.get('before_revision'),
             'after_revision': row.get('after_revision'),
         } for row in rows]

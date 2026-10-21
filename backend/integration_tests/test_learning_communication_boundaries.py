@@ -383,5 +383,167 @@ class RealLearningCommunicationBoundaryTests(unittest.TestCase):
             self.assertEqual(list(self.database[name].find({'user_id': 'child-b'})), rows)
 
 
+    def recommendation_feed(self, actor='child-a', **extra):
+        return self.request('POST', '/recommendations/feed', actor=actor, json={
+            'request_id': str(uuid4()), 'selected_card_ids': [], 'hour': 12, 'utc_offset_minutes': -540, **extra})
+
+    def recommendation_policy(self, revision=0, actor='guardian', expected=200, **extra):
+        return self.request('PUT', '/recommendations/settings?user_id=child-a', actor=actor, expected=expected,
+            json={'expected_revision': revision, 'enabled': True, 'mode': 'automatic',
+                  'approved_card_ids': [], 'hidden_card_ids': [], 'situation': 'unspecified',
+                  'use_time_of_day': True, **extra})
+
+    def test_recommendation_configuration_and_monitoring_have_separate_link_permissions(self):
+        for actor in ('guardian', 'staff'):
+            self.set_permissions(actor, ['board_manage'])
+            self.request('GET', '/recommendations/settings?user_id=child-a', actor=actor)
+            self.request('GET', '/recommendations/monitoring?user_id=child-a', actor=actor, expected=403)
+            self.set_permissions(actor, ['records_read'])
+            self.request('GET', '/recommendations/monitoring?user_id=child-a', actor=actor)
+            self.request('GET', '/recommendations/settings?user_id=child-a', actor=actor, expected=403)
+            self.recommendation_policy(actor=actor, expected=403)
+            self.set_permissions(actor, ['learning_manage'])
+            self.request('GET', '/recommendations/monitoring?user_id=child-a', actor=actor, expected=403)
+        self.recommendation_policy(actor='child-a', expected=403)
+        self.recommendation_policy(actor='operator', expected=403)
+        self.request('GET', '/recommendations/settings?user_id=child-a', actor='child-b', expected=403)
+        self.set_permissions('guardian', ['board_manage'], active=False)
+        self.recommendation_policy(expected=403)
+
+    def test_recommendations_approval_hide_disable_conflict_audit_and_board_independence(self):
+        self.set_permissions('guardian', ['board_manage'])
+        board = self.request('GET', '/board/layout')
+        dashboard = self.request('GET', '/dashboard')
+        progress = self.request('GET', '/learning/progress')
+        self.recommendation_policy(mode='approval', approved_card_ids=['water'], hidden_card_ids=['help'])
+        feed = self.recommendation_feed()
+        self.assertEqual([card['id'] for card in feed['cards']], ['water'])
+        self.assertIn('reason', feed['cards'][0])
+        self.assertEqual(feed['cards'][0]['algorithm_version'], feed['algorithm_version'])
+        self.recommendation_policy(expected=409)
+        self.recommendation_policy(1, mode='approval', approved_card_ids=[])
+        self.assertEqual(self.recommendation_feed()['cards'], [])
+        self.recommendation_policy(2, enabled=False)
+        self.assertFalse(self.recommendation_feed()['enabled'])
+        self.assertEqual(self.request('GET', '/recommendations'), [])
+        self.assertEqual(self.request('GET', '/board/layout'), board)
+        self.assertEqual(self.request('GET', '/dashboard'), dashboard)
+        self.assertEqual(self.request('GET', '/learning/progress'), progress)
+        self.assertIn('help', [card['id'] for card in self.request('GET', '/cards')])
+        audit = self.request('GET', '/recommendations/settings?user_id=child-a', actor='guardian')['history']
+        self.assertEqual(len(audit), 3)
+        self.assertEqual(len(self.request('GET', '/board/layout/audit')), 3)
+        self.set_permissions('staff', ['quick_speech_manage'])
+        self.assertEqual(self.request('GET', '/board/layout/audit?user_id=child-a', actor='staff'), [])
+        self.request('GET', '/recommendations/settings?user_id=child-a', actor='staff', expected=403)
+        self.assertEqual({row['actor_id'] for row in audit}, {'guardian'})
+        self.assertTrue(all(row['created_at'].endswith('Z') or row['created_at'].endswith('+00:00') for row in audit))
+
+    def test_recommendation_batch_replay_owner_context_policy_and_actual_visible_selection(self):
+        identity = str(uuid4())
+        feed = self.recommendation_feed(request_id=identity)
+        self.assertEqual(self.recommendation_feed(request_id=identity), feed)
+        self.assertEqual(self.database.recommendation_batches.count_documents({}), 1)
+        for actor, context in [('child-b', []), ('child-a', ['water'])]:
+            self.request('POST', '/recommendations/feed', actor=actor, expected=409, json={
+                'request_id': identity, 'selected_card_ids': context, 'hour': 12, 'utc_offset_minutes': -540})
+        path = '/recommendations/batches/' + identity
+        card = feed['cards'][0]['id']
+        self.request('POST', path + '/selections', expected=422, json={'card_id': card})
+        self.request('POST', path + '/exposures', expected=422, json={'card_ids': []})
+        self.request('POST', path + '/exposures', expected=422, json={'card_ids': ['not-offered']})
+        self.request('POST', path + '/exposures', actor='child-b', expected=404, json={'card_ids': [card]})
+        self.assertEqual(self.database.recommendation_batches.find_one({'_id': identity})['exposed_card_ids'], [])
+        for _ in range(2):
+            self.request('POST', path + '/exposures', json={'card_ids': [card, card]})
+            self.request('POST', path + '/selections', json={'card_id': card})
+        stored = self.database.recommendation_batches.find_one({'_id': identity})
+        self.assertEqual(stored['exposed_card_ids'], [card])
+        self.assertEqual(stored['selected_card_ids'], [card])
+        self.assertEqual(stored['response'], feed)
+        self.assertEqual(self.database.communication_sessions.count_documents({}), 0)
+        self.assertEqual(self.database.offline_events.count_documents({}), 0)
+        self.set_permissions('guardian', ['board_manage'])
+        self.recommendation_policy(hidden_card_ids=[card])
+        self.request('POST', path + '/exposures', expected=409, json={'card_ids': [card]})
+        self.request('POST', '/recommendations/feed', expected=409, json={
+            'request_id': identity, 'selected_card_ids': [], 'hour': 12, 'utc_offset_minutes': -540})
+
+    def test_recommendation_uses_own_recent_communication_context_not_learning_or_other_child(self):
+        self.set_permissions('guardian', ['board_manage'])
+        self.recommendation_policy(situation='school')
+        now = datetime.now(timezone.utc) - timedelta(seconds=1)
+        for actor, ids, age, extra in [('child-a', ['me', 'water'], 0, {}),
+                                     ('child-b', ['me', 'rice'], 0, {}),
+                                     ('child-a', ['rice'], 100, {}),
+                                     ('child-a', ['rice'], 0, {'regeneration_of': 'original'})]:
+            self.database.communication_sessions.insert_one({'_id': str(uuid4()), 'user_id': actor,
+                'cards': ids, 'created_at': now - timedelta(days=age), **extra})
+        self.database.offline_events.insert_many([
+            {'_id': str(uuid4()), 'user_id': 'child-a', 'event_type': 'card_selection',
+             'situation': 'school', 'card_ids': ['water'], 'occurred_at': now},
+            {'_id': str(uuid4()), 'user_id': 'child-a', 'event_type': 'speech_result',
+             'situation': 'school', 'card_ids': ['rice'], 'occurred_at': now}])
+        self.request('POST', '/learning/attempts', json=self.attempt(), expected=201)
+        feed = self.recommendation_feed(selected_card_ids=['me'])
+        self.assertEqual(feed['cards'][0]['id'], 'water')
+        self.assertEqual(feed['cards'][0]['evidence']['combination'], 4)
+        self.assertEqual(feed['cards'][0]['evidence']['situation'], 3)
+        rice = next(card for card in feed['cards'] if card['id'] == 'rice')
+        self.assertEqual(sum(rice['evidence'].values()), 0)
+        self.assertNotIn('me', [card['id'] for card in feed['cards']])
+
+    def test_recommendation_monitoring_counts_actual_exposure_and_selection_without_inference(self):
+        for _ in range(3):
+            feed = self.recommendation_feed()
+            path = '/recommendations/batches/' + feed['batch_id']
+            self.request('POST', path + '/exposures', json={'card_ids': [feed['cards'][0]['id']]})
+        fetched = self.recommendation_feed()
+        path = '/recommendations/batches/' + fetched['batch_id']
+        self.request('POST', path + '/exposures', json={'card_ids': [fetched['cards'][0]['id']]})
+        self.request('POST', path + '/selections', json={'card_id': fetched['cards'][0]['id']})
+        self.recommendation_feed()  # Fetched-only does not count as shown.
+        report = self.request('GET', '/recommendations/monitoring?user_id=child-a', actor='guardian')
+        self.assertEqual(report['sampled_batches'], 4)
+        self.assertEqual(sum(card['exposed_batches'] for card in report['cards']), 4)
+        self.assertEqual(sum(card['selected_batches'] for card in report['cards']), 1)
+        self.assertIn('미선택은 거절', report['notice'])
+        self.assertEqual(self.request('GET', '/recommendations/monitoring', actor='child-b')['sampled_batches'], 0)
+
+    def test_recommendation_consent_and_retention_export_deletion_are_user_scoped(self):
+        self.set_permissions('guardian', ['board_manage'])
+        self.recommendation_policy()
+        feed = self.recommendation_feed()
+        other = self.recommendation_feed(actor='child-b')
+        exported = self.request('GET', '/privacy/export')
+        self.assertEqual(exported['recommendation_settings']['revision'], 1)
+        self.assertEqual(exported['recommendation_batches'][0]['_id'], feed['batch_id'])
+        self.database.recommendation_batches.update_one({'_id': feed['batch_id']},
+            {'$set': {'created_at': datetime.now(timezone.utc) - timedelta(days=40)}})
+        self.request('PUT', '/privacy/settings', json={'guardian_consent': True, 'retention_days': 30})
+        self.assertIsNone(self.database.recommendation_batches.find_one({'_id': feed['batch_id']}))
+        self.assertIsNotNone(self.database.recommendation_batches.find_one({'_id': other['batch_id']}))
+        feed = self.recommendation_feed()
+        self.request('PUT', '/privacy/settings', json={'guardian_consent': False, 'retention_days': 30})
+        no_consent = self.recommendation_feed()
+        self.assertIsNone(no_consent['batch_id'])
+        self.assertFalse(no_consent['diagnostics']['personal_history_used'])
+        self.request('POST', '/recommendations/batches/' + feed['batch_id'] + '/exposures', expected=403,
+            json={'card_ids': [feed['cards'][0]['id']]})
+        receipt = self.request('DELETE', '/privacy/data', json={'confirmation': 'DELETE'})
+        self.assertEqual(receipt['deletion_receipt']['counts']['recommendation_settings'], 1)
+        self.assertEqual(receipt['deletion_receipt']['counts']['recommendation_batches'], 1)
+        self.assertIsNotNone(self.database.recommendation_batches.find_one({'_id': other['batch_id']}))
+        self.assertEqual(self.database.recommendation_batches.count_documents({'user_id': 'child-a'}), 0)
+
+    def test_recommendation_failure_does_not_block_cardbook_fixed_board_or_sentence(self):
+        with patch('app.services.recommendations.database', side_effect=PyMongoError('synthetic outage')):
+            self.request('POST', '/recommendations/feed', expected=503,
+                json={'request_id': str(uuid4()), 'selected_card_ids': [], 'hour': 12, 'utc_offset_minutes': -540})
+            self.assertTrue(self.request('GET', '/cards'))
+            self.assertTrue(self.request('GET', '/board/layout')['slots'])
+            self.assertTrue(self.request('POST', '/sentences', json=self.sentence())['sentence'])
+
+
 if __name__ == '__main__':
     unittest.main()

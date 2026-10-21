@@ -8,7 +8,9 @@ test('AAC user can find an expression by search, category, and card list', () =>
   assert.match(app, /aria-label="카드 검색"/);
   assert.match(app, /aria-label="카테고리" data-scan-group="categories"/);
   assert.match(app, /visibleCards\.map\(tile\)/);
-  assert.match(app, /onClick=\{\(\) => speakOnTap \? speakText\(card\.label/);
+  const tile = app.slice(app.indexOf('function tile('), app.indexOf('const layoutCards ='));
+  assert.match(tile, /if \(speakOnTap\) speakText\(card\.label, 'card', \[card\.id\]\); else add\(card\)/);
+  assert.doesNotMatch(tile, /\bawait\b/); // Recommendation telemetry must never delay speaking/selection.
 });
 
 test('AAC user can build a sentence without losing the selected card order', () => {

@@ -9,4 +9,5 @@ VERSIONED_COLLECTIONS = (
     'privacy_audit_logs', 'offline_events', 'learning_settings',
     'learning_attempts', 'learning_audit_logs',
     'account_permission_audit_logs',
+    'recommendation_settings', 'recommendation_batches',
 )

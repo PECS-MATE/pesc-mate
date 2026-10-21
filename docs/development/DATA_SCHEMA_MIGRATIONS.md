@@ -4,7 +4,7 @@
 
 신규 MongoDB 문서는 정수 `schema_version=1`로 현재 저장 형식의 기준선을 표시한다.
 정의는 `backend/app/services/schema_versions.py`의 `SCHEMA_VERSION`과
-`VERSIONED_COLLECTIONS`에서 관리한다. 대상은 다음 20개 컬렉션이다.
+`VERSIONED_COLLECTIONS`에서 관리한다. 대상은 다음 23개 컬렉션이다.
 
 - 계정·세션: `users`, `auth_sessions`, `login_attempts`
 - 카드·감사: `card_categories`, `card_submissions`, `card_audit_logs`
@@ -13,6 +13,8 @@
 - 연결·지원: `caregiver_links`, `caregiver_notes`
 - 개인정보: `privacy_settings`, `privacy_audit_logs`
 - 오프라인·학습: `offline_events`, `learning_settings`, `learning_attempts`, `learning_audit_logs`
+- 운영 권한 감사: `account_permission_audit_logs`
+- 추천 정책·노출: `recommendation_settings`, `recommendation_batches`
 
 | 값 | 판정 | 처리 |
 |---|---|---|
@@ -28,6 +30,7 @@
 | 다른 버전 | 구분 |
 |---|---|
 | 카드판 `revision` | 동시 편집 충돌 감지. schema_version과 별개이며 마이그레이션이 증가시키지 않음 |
+| 추천 설정 `revision` / `aac-candidates-v1` | 정책 동시 편집 / 후보 계산 버전. 카드판 revision·문서 스키마 버전과 독립 |
 | IndexedDB 버전 3 | 브라우저 스토어 구조. 이번 MongoDB 기준선과 무관하며 변경하지 않음 |
 | 문장 정책·동의 버전 | 정책 적용 근거. 저장 형식 버전과 교체하거나 일괄 갱신하지 않음 |
 

@@ -71,6 +71,7 @@ def save_privacy(user_id, guardian_consent, retention_days):
         database.offline_events.delete_many({'user_id': user_id, 'occurred_at': {'$lt': cutoff}})
         database.caregiver_notes.delete_many({'user_id': user_id, 'updated_at': {'$lt': cutoff}})
         database.learning_attempts.delete_many({'user_id': user_id, 'completed_at': {'$lt': cutoff}})
+        database.recommendation_batches.delete_many({'user_id': user_id, 'created_at': {'$lt': cutoff}})
         return settings
     except PyMongoError as exc:
         raise HTTPException(503, '개인정보 설정을 저장하지 못했습니다.') from exc
@@ -108,6 +109,8 @@ def export_for(user_id):
             'offline_events': list(database.offline_events.find({'user_id': user_id})),
             'learning_settings': database.learning_settings.find_one({'_id': user_id}),
             'learning_attempts': list(database.learning_attempts.find({'user_id': user_id})),
+            'recommendation_settings': database.recommendation_settings.find_one({'_id': user_id}),
+            'recommendation_batches': list(database.recommendation_batches.find({'user_id': user_id})),
             'cards': [{key: row.get(key) for key in
                        ('_id', 'label', 'meaning', 'category', 'visibility', 'status', 'created_at')}
                       for row in cards],
@@ -132,6 +135,8 @@ def delete_personal_data(user_id):
         card_ids = [row['_id'] for row in database.card_submissions.find({'owner_id': user_id})]
         for name, query in (
             ('communication_sessions', {'user_id': user_id}),
+            ('recommendation_settings', {'_id': user_id}),
+            ('recommendation_batches', {'user_id': user_id}),
             ('tts_events', {'user_id': user_id}),
             ('offline_events', {'user_id': user_id}),
             ('tts_settings', {'_id': user_id}),

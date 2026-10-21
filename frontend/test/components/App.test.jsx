@@ -45,6 +45,7 @@ beforeEach(() => {
   request.mockReset().mockImplementation(async (path, options = {}) => {
     if (path === '/auth/me') return account;
     if (path === '/cards' || path === '/recommendations') return cards;
+    if (path === '/recommendations/feed') return { cards, enabled: true, mode: 'automatic', algorithm_version: 'aac-candidates-v1', batch_id: null };
     if (path === '/categories') return categories;
     if (path === '/dashboard') return { sessions: 0, selections: 0, unique_cards: 0, categories: {}, recent: [] };
     if (['/cards/submissions', '/support/links', '/privacy/audit'].includes(path)) return [];

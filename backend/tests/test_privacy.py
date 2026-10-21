@@ -61,7 +61,8 @@ class PrivacyTests(unittest.TestCase):
         update = database.privacy_settings.update_one.call_args.args[1]['$set']
         self.assertEqual(update['deletion_status'], 'failed')
         self.assertEqual(update['deletion_receipt']['status'], 'failed')
-        self.assertEqual(update['deletion_receipt']['counts'], {'communication_sessions': 3})
+        self.assertEqual(update['deletion_receipt']['counts'], {'communication_sessions': 3,
+            'recommendation_settings': 0, 'recommendation_batches': 0})
         self.assertFalse(update['guardian_consent'])
 
     @patch('app.services.privacy._database')
