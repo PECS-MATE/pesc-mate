@@ -15,7 +15,7 @@ OPERATOR = {
 
 
 class SubmissionCollection:
-    def find_one(self, query):
+    def find_one(self, query, projection=None):
         if query.get('_id') != 'private-card-b':
             return None
         return {

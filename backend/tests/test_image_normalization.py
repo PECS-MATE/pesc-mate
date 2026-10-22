@@ -1,4 +1,5 @@
 from io import BytesIO
+from hashlib import sha256
 import unittest
 from unittest.mock import patch
 
@@ -11,6 +12,23 @@ from tests.image_fixtures import FORMATS, ICC, PRIVATE, assert_clean_webp, metad
 
 
 class ImageNormalizationTests(unittest.TestCase):
+    def test_archive_preserves_exact_validated_bytes_and_integrity_metadata_not_filename(self):
+        for format, mime in FORMATS.items():
+            original = metadata_image(format)
+            display, _ = cards._normalize_image(original, mime)
+            archived = cards._preserve_original(original, mime, display)
+            self.assertEqual(archived, {'data': original, 'content_type': mime,
+                'size_bytes': len(original), 'sha256': sha256(original).hexdigest()})
+            assert_clean_webp(self, display)
+
+    def test_archive_budget_is_checked_before_profile_storage(self):
+        with patch.object(cards, 'MAX_STORED_IMAGE_BYTES', 1), patch('app.services.profiles.database') as db, \
+                patch('app.services.profiles.check_image_safety', return_value={'status': 'passed'}):
+            with self.assertRaises(HTTPException) as caught:
+                save_profile('child', image_data=metadata_image(), content_type='image/png')
+            self.assertEqual(caught.exception.status_code, 422)
+            db.assert_not_called()
+
     def rejected(self, data, mime):
         with self.assertRaises(HTTPException) as caught:
             cards._normalize_image(data, mime)

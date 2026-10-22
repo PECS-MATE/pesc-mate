@@ -768,6 +768,24 @@ AAC 사용자 본인 또는 `cards_manage` 권한이 있는 연결 보호자·�
 시그니처·디코더 포맷도 교차 확인하며 EXIF 방향과 투명도는 픽셀에 반영한다.
 신규 카드에서 원본 파일명은 보관하지 않는다. 프로필 이미지 업로드에도 같은
 [정규화·메타데이터 제거 규칙](IMAGE_UPLOAD_NORMALIZATION.md)을 적용한다.
+
+2026-10-22부터 검증·안전성 처리를 통과한 신규 업로드의 원본 바이트를 로컬 MongoDB에
+화면용 이미지와 함께 보관한다. 카드의 `original_image`, 사용자 프로필의 `original_image`는
+보관용 DB 필드이며 API 응답·안전성 전송·개인정보 JSON 내보내기에 포함하지 않는다.
+원본 다운로드 API와 클라우드 저장소는 추가하지 않는다. 화면용 WebP의 메타데이터 제거와
+기존 접근 권한은 유지한다. 원본+WebP 합계가 15MiB를 넘으면 문서 크기 안전 여유를 위해 422다.
+프로필 교체·기본 캐릭터 전환·개인정보 삭제 시 관련 원본도 함께 제거한다. 별도 백업 사본의
+보존·파기 정책은 별도이며 기존 DB에서 버린 원본은 복원하지 않는다.
+
+A1-04 후속 구현은 [로컬 이미지 저장 안정화](LOCAL_IMAGE_STORAGE.md)를 따른다.
+카드 화면용은 1280px 이내, 썸네일은 256px 이내로 비율을 보존한다. 카드 응답의
+`thumbnail_url`은 `?variant=thumbnail&v={콘텐츠해시}`이며 기본 image URL은 화면용이다.
+프로필 화면용/썸네일은 512/128px 이내다. 새 필드는 선택적이고 기존 데이터는 화면용으로 대체한다.
+이미지 GET은 인증·현재 권한 확인 후 ETag/304와 `private, no-cache`, `Vary: Authorization`을
+적용한다. 원본 variant는 422다. 목록·중복 검사·인증·일반 메타데이터 조회는 원본 바이너리를 제외한다.
+DB 이미지 합계는 기본 사용자 200MiB/전체 2048MiB이며 초과는 무변경 413, 동시 이미지 쓰기는
+409다. 삭제 이전 또는 생성 30일이 지난 관리 백업은 복원 도구에서 거절하며 파기는 명시적
+계획·확인 절차로 연결한다. 기존 백업 파일을 이번 개발 중 자동 삭제하지 않는다.
 카드명은 한글·영문·숫자와 공백만, 뜻은 일반적인 문장부호를 추가로 허용한다.
 공개 카드의 금칙어는 Unicode 정규화 후 공백과 특수문자를 제거해 변형 표현까지 검사한다. 개인 카드의 욕설·위기 표현은 의사표현을 막지 않기 위해 이 공개 제한을 적용하지 않는다.
 기본 카드와 동일하거나 승인 대기·승인 요청에 동일한 카드명이 있으면
@@ -975,14 +993,6 @@ Authorization: Bearer {access_token}
 - `401`: 인증 실패
 - `503`: MongoDB 연결 실패
 
-# 10. 이용 현황 API
-
-## 10.1 사용자 통계 조회
-
-```http
-GET /api/dashboard
-GET /api/dashboard?days=7
-GET /api/dashboard?days=30
 ## 9.2 맥락별 후보 묶음
 
 ```http
@@ -1069,6 +1079,14 @@ GET /api/recommendations/monitoring?user_id={id}
 `window_days`, `algorithm_versions`, `categories`, `repeated_card_ids`, `cards`, `notice`를 제공한다.
 cards 항목은 id/exposed_batches/selected_batches다. 미선택을 거절·지원 불필요로 해석하지 않는다.
 
+# 10. 이용 현황 API
+
+## 10.1 사용자 통계 조회
+
+```http
+GET /api/dashboard
+GET /api/dashboard?days=7
+GET /api/dashboard?days=30
 GET /api/dashboard?days=30&user_id=demo
 Authorization: Bearer {access_token}
 ```

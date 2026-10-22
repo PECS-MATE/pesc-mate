@@ -23,12 +23,13 @@ class ProfileTests(unittest.TestCase):
             stored.update(changes['$set'])
             return MagicMock(matched_count=1)
         database.users.update_one.side_effect = update
-        database.users.find_one.side_effect = lambda query: dict(stored)
+        database.users.find_one.side_effect = lambda query, projection=None: dict(stored)
         database.auth_sessions.find_one.return_value = dict(user_id='u', expires_at=datetime.now(timezone.utc)+timedelta(hours=1))
         save_profile('u', preset='pink')
         for token in ('first-device', 'second-device'):
             account = current_user(HTTPAuthorizationCredentials(scheme='Bearer', credentials=token))
             self.assertEqual(account['profile'], dict(kind='preset', preset='pink'))
+        database.users.find_one.assert_called_with({'_id': 'u'}, {'profile.image_data': 0, 'profile.thumbnail_data': 0, 'profile.original_image': 0})
         database.caregiver_links.find.return_value = [dict(user_id='u', permissions=['records_read'])]
         self.assertEqual(linked_users('caregiver')[0]['profile'], account['profile'])
 
@@ -76,6 +77,8 @@ class ProfileTests(unittest.TestCase):
         self.assertNotIn('image_data', result)
         stored = db().users.update_one.call_args.args[1]['$set']['profile']
         self.assertEqual(stored['content_type'], 'image/webp')
+        self.assertEqual(stored['original_image']['data'], out.getvalue())
+        self.assertEqual(stored['original_image']['content_type'], 'image/png')
         self.assertEqual(public_profile({'profile': stored}), result)
 
     @patch('app.services.profiles.check_image_safety')

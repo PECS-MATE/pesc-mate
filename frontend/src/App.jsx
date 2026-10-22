@@ -1312,7 +1312,7 @@ function App() {
   async function hydrateImages(items) {
     return Promise.all(items.map(async item => {
       if (!item.image_url) return item;
-      try { const imageBlob = await requestBlob(item.image_url); return { ...item, image_blob: imageBlob, image_src: URL.createObjectURL(imageBlob) }; }
+      try { const imageBlob = await requestBlob(item.thumbnail_url || item.image_url); return { ...item, image_blob: imageBlob, image_src: URL.createObjectURL(imageBlob) }; }
       catch { return { ...item, image_failed: true }; }
     }));
   }

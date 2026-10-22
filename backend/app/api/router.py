@@ -1,5 +1,6 @@
 from contextlib import nullcontext
 from datetime import datetime
+from hashlib import sha256
 from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, Request, Response, UploadFile
 from pydantic import AwareDatetime, BaseModel, Field, SecretStr, model_validator
@@ -171,6 +172,7 @@ class ProfileResponse(BaseModel):
     kind: Literal['preset', 'custom']
     preset: str | None = None
     image_url: str | None = None
+    thumbnail_url: str | None = None
 
 
 class ProfileRequest(BaseModel):
@@ -408,6 +410,7 @@ class CardResponse(BaseModel):
     semantic_group: str | None = None
     safety_relevant: bool | None = None
     image_url: str | None = None
+    thumbnail_url: str | None = None
     custom: bool | None = None
     count: int | None = None
     reason: str | None = None
@@ -569,6 +572,7 @@ class CardSubmissionResponse(BaseModel):
     image_filename: str
     image_content_type: str
     image_url: str
+    thumbnail_url: str | None = None
     review_reason: str | None = None
     reviewer_id: str | None = None
     reviewed_at: datetime | None = None
@@ -1007,10 +1011,18 @@ def edit_card_submission(submission_id: str, request: CardUpdateRequest,
 
 
 @api_router.get('/cards/submissions/{submission_id}/image', tags=['카드'])
-def card_submission_image(submission_id: str, user=Depends(current_user)):
-    content, content_type = image_for(submission_id, user)
-    return Response(content=content, media_type=content_type,
-                    headers={'Cache-Control': 'private, max-age=300'})
+def card_submission_image(submission_id: str, request: Request, variant: Literal['display', 'thumbnail'] = 'display', user=Depends(current_user)):
+    content, content_type = image_for(submission_id, user, variant)
+    return _image_response(request, content, content_type)
+
+
+def _image_response(request, content, content_type):
+    etag = '"' + sha256(content).hexdigest() + '"'
+    headers = {'Cache-Control': 'private, no-cache', 'ETag': etag, 'Vary': 'Authorization'}
+    # Authorization and current document lookup have already happened, including on 304.
+    if request.headers.get('if-none-match') == etag:
+        return Response(status_code=304, headers=headers)
+    return Response(content=content, media_type=content_type, headers=headers)
 
 
 @api_router.get('/admin/card-submissions', response_model=list[CardSubmissionResponse], tags=['운영'])
@@ -1185,7 +1197,7 @@ async def upload_profile(image: UploadFile = File(), user=Depends(current_user))
 
 
 @api_router.get('/profile/{user_id}/image', tags=['프로필'])
-def get_profile_image(user_id: str, user=Depends(current_user)):
+def get_profile_image(user_id: str, request: Request, variant: Literal['display', 'thumbnail'] = 'display', user=Depends(current_user)):
     from app.services.profiles import profile_image
-    content, mime = profile_image(user_id, user)
-    return Response(content=content, media_type=mime, headers={'Cache-Control': 'private, no-store'})
+    content, mime = profile_image(user_id, user, variant)
+    return _image_response(request, content, mime)

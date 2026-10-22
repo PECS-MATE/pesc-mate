@@ -137,6 +137,18 @@ API를 멈춰도 TTL 삭제는 계속될 수 있고 복원한 TTL 인덱스도 �
 합성 DB와 백업 파일만 정리했다. 프런트엔드 코드·빌드·브라우저 E2E·원격 CI와 실제
 사용자 DB의 백업·적용·복구는 이번에 실행하지 않았다.
 
+## 이미지 삭제·30일 수명 보강 — A1-04
+
+이미지 원본이 전체 DB 백업에 포함되므로 [로컬 이미지 저장 정책](../development/LOCAL_IMAGE_STORAGE.md)의
+삭제 시각 확인과 30일 보존 상한을 적용한다. `restore`는 소스의 최신 삭제 시각보다 오래된 백업과
+만료된 백업을 계획 단계부터 거절한다. 소스 상태를 확인할 수 없을 때도 우회 복원하지 않는다.
+`inspect`의 체크섬 유효 결과만으로 복원 가능 상태를 승인한 것은 아니다.
+
+`python backend/app/mongo_backup.py purge --database pesc_mate`는 만료/삭제 이전 백업 목록만
+보여 준다. 실제 파기는 작성자 중단·정확한 백업 루트 확인·`--apply`를 모두 요구한다.
+안전하게 검증된 관리 archive·manifest·검증 영수증만 제거하고 알 수 없는 파일이나 링크가
+있으면 중단한다. 파기된 백업은 복구할 수 없으며 외부에 복사한 사본은 별도 관리해야 한다.
+
 ## MongoDB 공식 근거
 
 - [mongodump 예시와 일관성 주의](https://www.mongodb.com/docs/database-tools/mongodump/mongodump-examples/): gzip archive, 동시 쓰기 시 시점 일관성 제한.

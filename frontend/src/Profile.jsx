@@ -15,7 +15,7 @@ const PRESET_IMAGES = {
 
 export function Avatar({ user }) {
   const [image, setImage] = useState(null);
-  const url = user?.profile?.image_url;
+  const url = user?.profile?.thumbnail_url || user?.profile?.image_url;
   useEffect(() => {
     let active = true;
     let objectUrl;
@@ -92,6 +92,7 @@ export function ProfileEditor({ user, onSaved, onCancel }) {
           }
           setFile(chosen);
         }} /></label><p>JPG·PNG·WebP, 5MB 이하, 가로·세로 128~4096px (총 1600만 픽셀 이하). 안전성 검사를 통과한 사진만 저장됩니다. 검사 서비스를 사용할 수 없으면 기본 캐릭터를 선택해 주세요.</p>
+        <p>원본은 로컬 DB에 보관하며 촬영 위치·기기 정보가 남을 수 있습니다. 화면에는 메타데이터를 제거한 축소 이미지만 사용합니다.</p>
         {preview && <img className="profile-preview" src={preview} alt="선택한 프로필 미리 보기" />}</div>}
       </fieldset>
       {error && <p role="alert" className="error">{error}</p>}

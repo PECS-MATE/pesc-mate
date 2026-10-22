@@ -117,7 +117,7 @@ def login(username, password, client_ip=None):
             ensure_demo_users()
         ensure_login_allowed(username, client_ip)
         database = _database()
-        user = database.users.find_one({'username': username})
+        user = database.users.find_one({'username': username}, {'profile.image_data': 0, 'profile.thumbnail_data': 0, 'profile.original_image': 0})
         if not user:
             record_login_failure(username, client_ip)
             raise HTTPException(401, '아이디 또는 비밀번호가 올바르지 않습니다.')
@@ -189,7 +189,7 @@ def current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
             if session:
                 database.auth_sessions.delete_one({'_id': token_hash})
             raise HTTPException(401, '로그인 시간이 만료되었습니다.', headers={'WWW-Authenticate': 'Bearer'})
-        user = database.users.find_one({'_id': session['user_id']})
+        user = database.users.find_one({'_id': session['user_id']}, {'profile.image_data': 0, 'profile.thumbnail_data': 0, 'profile.original_image': 0})
         if not user:
             raise HTTPException(401, '사용자 계정을 찾을 수 없습니다.')
         if not account_access_allowed(user):

@@ -1,7 +1,7 @@
 import unittest
 from copy import deepcopy
 from io import BytesIO
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from fastapi import HTTPException
 from PIL import Image
@@ -21,6 +21,7 @@ class Cursor(list):
 class Collection:
     def __init__(self):
         self.documents = []
+        self.database = MagicMock()
 
     def insert_one(self, document):
         self.documents.append(deepcopy(document))
@@ -28,7 +29,7 @@ class Collection:
     def create_index(self, *_args, **_kwargs):
         return 'normalized_label_1'
 
-    def find_one(self, query):
+    def find_one(self, query, projection=None):
         return next((deepcopy(document) for document in self.documents
                      if all(document.get(key) == value for key, value in query.items())), None)
 
@@ -38,7 +39,7 @@ class Collection:
                 document.update(deepcopy(update['$set']))
                 return
 
-    def find(self, query):
+    def find(self, query, projection=None):
         return Cursor(deepcopy([
             document for document in self.documents
             if all(document.get(key) == value for key, value in query.items())

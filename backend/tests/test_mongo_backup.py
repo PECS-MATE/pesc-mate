@@ -1,4 +1,5 @@
 from contextlib import redirect_stdout
+from datetime import datetime, timedelta, timezone
 import hashlib
 from io import StringIO
 import json
@@ -24,12 +25,17 @@ class BackupTests(unittest.TestCase):
         self.root_patch = patch.object(backup, 'BACKUP_ROOT', self.root)
         self.root_patch.start()
         self.addCleanup(self.root_patch.stop)
+        cutoff_patch = patch.object(backup, '_deletion_cutoff', return_value=None)
+        self.real_cutoff = backup._deletion_cutoff
+        self.cutoff = cutoff_patch.start()
+        self.addCleanup(cutoff_patch.stop)
 
     def fixture(self):
         directory = backup._directory(ID, create=True)
         archive = directory / 'database.archive.gz'
         archive.write_bytes(b'synthetic archive, not private data')
         manifest = {'format': 1, 'backup_id': ID, 'source_database': 'fixture',
+                    'created_at': datetime.now(timezone.utc).isoformat(),
                     'archive_sha256': hashlib.sha256(archive.read_bytes()).hexdigest(),
                     'archive_bytes': archive.stat().st_size, 'fingerprint': FINGERPRINT}
         backup._write_json(directory / 'manifest.json', manifest)
@@ -196,6 +202,56 @@ class BackupTests(unittest.TestCase):
         with redirect_stdout(output):
             self.assertEqual(backup.main(['create', '--database', 'fixture']), 1)
         self.assertEqual(json.loads(output.getvalue()), {'status': 'failed', 'error': 'local_io_or_internal_error'})
+
+    def test_retention_has_hard_thirty_day_cap_and_deletion_invalidates_older_backups(self):
+        _, manifest = self.fixture()
+        now = datetime.now(timezone.utc)
+        old = {**manifest, 'created_at': (now - timedelta(days=31)).isoformat(),
+               'expires_at': (now + timedelta(days=365)).isoformat()}
+        self.assertEqual(backup._retirement_reason(old, None), 'backup_retention_expired')
+        self.assertEqual(backup._retirement_reason(manifest, (now + timedelta(seconds=1)).isoformat()),
+                         'backup_predates_image_deletion')
+        self.assertIsNone(backup._retirement_reason(manifest, None))
+        with self.assertRaises(backup.BackupError):
+            backup._retirement_reason({**manifest, 'created_at': 'invalid'}, None)
+
+    def test_restore_rejects_deleted_image_backup_before_target_or_docker_access(self):
+        self.fixture()
+        self.cutoff.return_value = (datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat()
+        with patch.object(backup, '_target') as target, patch.object(backup, '_compose') as compose:
+            self.error('backup_predates_image_deletion', backup.restore, ID, TARGET)
+            target.assert_not_called(); compose.assert_not_called()
+
+    @patch.object(backup, '_shell', return_value={'cutoff': None})
+    def test_cutoff_includes_legacy_deletions_and_checks_source_existence(self, shell):
+        self.assertIsNone(self.real_cutoff('fixture'))
+        script = shell.call_args.args[1]
+        self.assertIn("'$deleted_at'", script)
+        self.assertIn("getCollectionInfos({name:'users'})", script)
+        shell.return_value = {'cutoff': 'malformed-private-value'}
+        self.error('invalid_backup_policy_timestamp', self.real_cutoff, 'fixture')
+
+    def test_purge_is_dry_run_by_default_and_apply_removes_only_confirmed_managed_files(self):
+        directory, _ = self.fixture()
+        self.cutoff.return_value = (datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat()
+        unrelated = self.root / 'user-photos'; unrelated.mkdir()
+        (unrelated / 'keep.txt').write_text('synthetic, not an image')
+        report = backup.purge('fixture')
+        self.assertEqual(len(report['candidates']), 1)
+        self.assertTrue(directory.exists())
+        self.error('backup_root_and_stopped_writers_confirmation_required', backup.purge, 'fixture', apply=True)
+        report = backup.purge('fixture', apply=True, confirm_backup_root=str(self.root), writers_stopped=True)
+        self.assertEqual(report['removed'], 1)
+        self.assertFalse(directory.exists())
+        self.assertTrue((unrelated / 'keep.txt').exists())
+
+    def test_purge_refuses_unknown_files_or_symlinks_in_an_owned_backup(self):
+        directory, _ = self.fixture()
+        self.cutoff.return_value = (datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat()
+        (directory / 'unexpected-user-file').write_text('must not be removed')
+        self.error('unknown_file_in_backup', backup.purge, 'fixture', apply=True,
+                   confirm_backup_root=str(self.root), writers_stopped=True)
+        self.assertTrue((directory / 'database.archive.gz').exists())
 
 
 if __name__ == '__main__':

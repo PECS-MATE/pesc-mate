@@ -23,6 +23,28 @@ beforeEach(() => {
   requestBlob.mockReset();
 });
 
+test('프로필은 버전별 썸네일을 우선 읽고 교체 후 늦은 이전 응답을 무시한다', async () => {
+  const previous = deferred();
+  requestBlob.mockReturnValueOnce(previous.promise).mockResolvedValue(new Blob(['synthetic new thumbnail']));
+  const view = render(<Avatar user={{ ...account, profile: { kind: 'custom', image_url: '/display-old', thumbnail_url: '/thumb?v=old' } }} />);
+  expect(requestBlob).toHaveBeenLastCalledWith('/thumb?v=old');
+  view.rerender(<Avatar user={{ ...account, profile: { kind: 'custom', image_url: '/display-new', thumbnail_url: '/thumb?v=new' } }} />);
+  await act(async () => {});
+  const current = screen.getByRole('img', { name: '검증 사용자 프로필' }).querySelector('img').src;
+  await act(async () => previous.resolve(new Blob(['synthetic obsolete thumbnail'])));
+  expect(screen.getByRole('img', { name: '검증 사용자 프로필' }).querySelector('img').src).toBe(current);
+  expect(requestBlob.mock.calls.map(([url]) => url)).toEqual(['/thumb?v=old', '/thumb?v=new']);
+});
+
+test('기본 프로필로 바꾸면 이전 썸네일 URL을 해제한다', async () => {
+  requestBlob.mockResolvedValue(new Blob(['synthetic thumbnail']));
+  const view = render(<Avatar user={{ ...account, profile: { kind: 'custom', thumbnail_url: '/thumb?v=1' } }} />);
+  await act(async () => {});
+  const old = screen.getByRole('img', { name: '검증 사용자 프로필' }).querySelector('img').getAttribute('src');
+  view.rerender(<Avatar user={{ ...account, profile: { kind: 'preset', preset: 'blue' } }} />);
+  expect(URL.revokeObjectURL).toHaveBeenCalledWith(old);
+});
+
 describe('프로필 선택과 저장', () => {
   test('선택 전에는 저장할 수 없고 키보드로 선택한 프리셋만 저장한다', async () => {
     const user = userEvent.setup();

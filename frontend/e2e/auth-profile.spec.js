@@ -24,7 +24,7 @@ test('최초 로그인은 지연된 프로필 목록을 기다리고 순서와 �
   }
   const stored = await request.get(apiPath('/auth/me'), { headers: communicator.headers });
   expect(stored.ok()).toBe(true);
-  expect((await stored.json()).profile).toEqual({ kind: 'preset', preset: 'pink', image_url: null });
+  expect((await stored.json()).profile).toEqual({ kind: 'preset', preset: 'pink', image_url: null, thumbnail_url: null });
 });
 
 test.describe('프로필이 이미 저장된 계정', () => {
@@ -39,7 +39,7 @@ test.describe('프로필이 이미 저장된 계정', () => {
     await expect(page.getByRole('heading', { name: '처음 사용할 프로필을 골라 주세요' })).toHaveCount(0);
     const stored = await request.get(apiPath('/auth/me'), { headers: communicator.headers });
     expect(stored.ok()).toBe(true);
-    expect((await stored.json()).profile).toEqual({ kind: 'preset', preset: 'blue', image_url: null });
+    expect((await stored.json()).profile).toEqual({ kind: 'preset', preset: 'blue', image_url: null, thumbnail_url: null });
     expect(profileRequests).toEqual([]);
   });
 });

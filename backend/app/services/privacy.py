@@ -93,10 +93,11 @@ def access_audit_for(user_id):
 def export_for(user_id):
     try:
         database = _database()
-        user = database.users.find_one({'_id': user_id}) or {}
+        user = database.users.find_one({'_id': user_id}, {
+            'profile.original_image': 0, 'profile.image_data': 0, 'profile.thumbnail_data': 0}) or {}
         profile = user.get('profile') or {}
-        safe_profile = {key: value for key, value in profile.items() if key != 'image_data'}
-        cards = database.card_submissions.find({'owner_id': user_id})
+        safe_profile = {key: value for key, value in profile.items() if key not in {'image_data', 'thumbnail_data', 'original_image'}}
+        cards = database.card_submissions.find({'owner_id': user_id}, {'image': 0, 'original_image': 0, 'thumbnail': 0})
         from app.services.support_links import support_access_for
         payload = {
             'exported_at': datetime.now(timezone.utc),
@@ -121,6 +122,20 @@ def export_for(user_id):
 
 
 def delete_personal_data(user_id):
+    from app.services.image_storage import deletion_watermark, image_write_lock
+    try:
+        db = _database()
+        with image_write_lock(db):
+            deletion_watermark(db)
+            db.privacy_settings.update_one({'_id': user_id}, {
+                '$max': {'image_deleted_before': datetime.now(timezone.utc)},
+                '$setOnInsert': {'schema_version': SCHEMA_VERSION, 'user_id': user_id}}, upsert=True)
+            return _delete_personal_data(user_id)
+    except PyMongoError as exc:
+        raise HTTPException(503, '이미지 삭제 상태를 저장하지 못했습니다.') from exc
+
+
+def _delete_personal_data(user_id):
     """Delete user-generated content while retaining login credentials and the deletion receipt."""
     now = datetime.now(timezone.utc)
     confirmation = {'id': str(uuid4()), 'status': 'in_progress', 'requested_at': now,
@@ -132,7 +147,7 @@ def delete_personal_data(user_id):
         database.privacy_settings.update_one({'_id': user_id}, {'$set': {
             'guardian_consent': False, 'deletion_status': 'in_progress', 'deletion_receipt': confirmation,
         }, '$setOnInsert': {'schema_version': SCHEMA_VERSION, 'user_id': user_id, 'created_at': now}}, upsert=True)
-        card_ids = [row['_id'] for row in database.card_submissions.find({'owner_id': user_id})]
+        card_ids = [row['_id'] for row in database.card_submissions.find({'owner_id': user_id}, {'_id': 1})]
         for name, query in (
             ('communication_sessions', {'user_id': user_id}),
             ('recommendation_settings', {'_id': user_id}),

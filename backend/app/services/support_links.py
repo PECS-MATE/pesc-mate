@@ -108,7 +108,8 @@ def linked_users_for(supporter_id):
         result = []
         from app.services.authentication import _public_user
         for link in links:
-            linked = database.users.find_one({'_id': link['user_id'], 'role': 'user'})
+            linked = database.users.find_one({'_id': link['user_id'], 'role': 'user'}, {
+                'profile.original_image': 0, 'profile.image_data': 0, 'profile.thumbnail_data': 0})
             if linked:
                 result.append(_public_user(linked) | {
                     'permissions': _permissions(link),

@@ -86,12 +86,19 @@ class RealImageUploadTests(unittest.TestCase):
         self.assertEqual(response.status_code, expected or (201 if kind == 'card' else 200), response.text)
         return response
 
-    def test_card_formats_store_and_serve_only_clean_webp_and_drop_original_filename(self):
+    def test_card_formats_archive_original_but_serve_only_clean_webp_and_drop_original_filename(self):
         for format, mime in FORMATS.items():
             with self.subTest(format=format):
                 original = metadata_image(format)
                 response = self.upload('card', original, mime).json()
-                stored = self.database.card_submissions.find_one({'_id': response['id']})['image']
+                document = self.database.card_submissions.find_one({'_id': response['id']})
+                archived = document['original_image']
+                self.assertEqual(archived['data'], original)
+                self.assertEqual(archived['content_type'], mime)
+                self.assertEqual(archived['size_bytes'], len(original))
+                self.assertEqual(archived['sha256'], hashlib.sha256(original).hexdigest())
+                self.assertNotIn('original_image', response)
+                stored = document['image']
                 self.assertEqual(set(stored), {'data', 'filename', 'content_type'})
                 self.assertEqual(stored['filename'], 'card-image.webp')
                 self.assertEqual(stored['content_type'], 'image/webp')
@@ -115,12 +122,42 @@ class RealImageUploadTests(unittest.TestCase):
                 stored = self.database.users.find_one({'_id': 'child-a'})['profile']
                 self.assertEqual(stored['content_type'], 'image/webp')
                 self.assertEqual(stored['image_data'], self.sent_images[-1])
+                self.assertEqual(stored['original_image']['data'], original)
+                self.assertEqual(stored['original_image']['content_type'], mime)
+                self.assertEqual(stored['original_image']['sha256'], hashlib.sha256(original).hexdigest())
+                self.assertNotIn('original_image', response)
                 self.assertNotEqual(stored['image_data'], original)
                 served = self.http.get(response['image_url'], headers=self.headers['child-a'])
                 self.assertEqual(served.status_code, 200)
                 self.assertEqual(served.content, stored['image_data'])
                 self.assertEqual(served.headers['content-type'], 'image/webp')
                 assert_clean_webp(self, served.content)
+
+    def test_originals_are_not_in_auth_list_export_and_are_removed_with_profile_replacement_or_deletion(self):
+        card = self.upload('card', metadata_image('JPEG'), 'image/jpeg').json()
+        self.upload('profile', metadata_image(), 'image/png')
+        for path in ('/api/auth/me', '/api/cards/submissions', '/api/privacy/export'):
+            response = self.http.get(path, headers=self.headers['child-a'])
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assertNotIn('original_image', response.text)
+            self.assertNotIn(PRIVATE.decode(), response.text)
+        # An approved shared card must also expose only its clean display image to another user.
+        self.database.card_submissions.update_one({'_id': card['id']}, {'$set': {'visibility': 'shared'}})
+        served = self.http.get(card['image_url'], headers=self.headers['child-b'])
+        self.assertEqual(served.status_code, 200)
+        assert_clean_webp(self, served.content)
+        preset = self.http.put('/api/profile', headers=self.headers['child-a'], json={'preset': 'pink'})
+        self.assertEqual(preset.status_code, 200)
+        self.assertEqual(self.database.users.find_one({'_id': 'child-a'})['profile'], {'kind': 'preset', 'preset': 'pink'})
+        self.upload('profile', metadata_image('WEBP'), 'image/webp')
+        self.upload('profile', metadata_image('JPEG'), 'image/jpeg')
+        self.assertEqual(self.database.users.find_one({'_id': 'child-a'})['profile']['original_image']['content_type'], 'image/jpeg')
+        self.database.users.update_one({'_id': 'child-b'}, {'$set': {'profile': {'kind': 'preset', 'preset': 'sky'}}})
+        deletion = self.http.request('DELETE', '/api/privacy/data', headers=self.headers['child-a'], json={'confirmation': 'DELETE'})
+        self.assertEqual(deletion.status_code, 200, deletion.text)
+        self.assertIsNone(self.database.card_submissions.find_one({'_id': card['id']}))
+        self.assertNotIn('profile', self.database.users.find_one({'_id': 'child-a'}))
+        self.assertEqual(self.database.users.find_one({'_id': 'child-b'})['profile']['preset'], 'sky')
 
     def test_mismatches_and_bad_content_do_not_call_provider_write_audit_or_replace_profile(self):
         self.upload('profile', metadata_image(), 'image/png')
@@ -162,6 +199,111 @@ class RealImageUploadTests(unittest.TestCase):
         self.assertEqual(self.database.card_submissions.count_documents({}), 0)
         self.assertEqual(self.database.card_audit_logs.count_documents({}), 0)
         self.assertEqual(len(self.sent_images), 3)  # All three requests were normalized first.
+
+
+    def test_display_thumbnail_sizes_cache_revalidation_and_private_authorization(self):
+        from io import BytesIO
+        from PIL import Image
+        output = BytesIO(); Image.new('RGBA', (1800, 900), (200, 10, 50, 120)).save(output, format='PNG')
+        for kind, display_edge, thumb_edge in [('card', 1280, 256), ('profile', 512, 128)]:
+            saved = self.upload(kind, output.getvalue(), 'image/png').json()
+            display = self.http.get(saved['image_url'], headers=self.headers['child-a'])
+            thumb = self.http.get(saved['thumbnail_url'], headers=self.headers['child-a'])
+            self.assertEqual(thumb.status_code, 200)
+            self.assertEqual(display.headers['cache-control'], 'private, no-cache')
+            with Image.open(BytesIO(display.content)) as image:
+                self.assertEqual(image.size, (display_edge, display_edge // 2))
+            with Image.open(BytesIO(thumb.content)) as image:
+                self.assertEqual(image.size, (thumb_edge, thumb_edge // 2))
+            assert_clean_webp(self, thumb.content)
+            cached_headers = self.headers['child-a'] | {'If-None-Match': thumb.headers['etag']}
+            cached = self.http.get(saved['thumbnail_url'], headers=cached_headers)
+            self.assertEqual(cached.status_code, 304)
+            self.assertEqual(cached.content, b'')
+            denied = self.http.get(saved['thumbnail_url'], headers=self.headers['child-b'] | {'If-None-Match': thumb.headers['etag']})
+            self.assertEqual(denied.status_code, 403)
+            original = self.http.get(saved['image_url'].split('?')[0] + '?variant=original', headers=self.headers['child-a'])
+            self.assertEqual(original.status_code, 422)
+
+    def test_quotas_measure_all_variants_charge_owner_and_reject_without_mutation(self):
+        from app.services.image_storage import byte_count, usage
+        with patch.dict(os.environ, IMAGE_USER_LIMIT_MIB='1', IMAGE_TOTAL_LIMIT_MIB='2'):
+            self.database.users.update_one({'_id': 'child-a'}, {'$set': {'profile': {
+                'kind': 'preset', 'preset': 'pink', 'original_image': {'data': b'x' * (1024 * 1024)}}}})
+            self.upload('card', metadata_image(), 'image/png', expected=413)
+            self.assertEqual(self.database.card_submissions.count_documents({}), 0)
+            self.assertEqual(self.database.card_audit_logs.count_documents({}), 0)
+            # Shrinking an over-quota legacy profile is allowed instead of trapping the user.
+            self.upload('profile', metadata_image(), 'image/png')
+            saved = self.database.users.find_one({'_id': 'child-a'})['profile']
+            measured = usage(self.database, 'child-a')
+            self.assertEqual(measured['user_bytes'], byte_count(saved))
+            self.database.users.update_one({'_id': 'child-b'}, {'$set': {'profile': {
+                'kind': 'preset', 'preset': 'sky', 'original_image': {'data': b'x' * (2 * 1024 * 1024)}}}})
+            self.upload('card', metadata_image(), 'image/png', expected=413)
+            self.assertEqual(self.database.users.find_one({'_id': 'child-a'})['profile'], saved)
+
+    def test_global_lock_blocks_another_writer_but_not_card_reads_and_requires_exact_recovery_token(self):
+        from app.image_maintenance import maintain
+        from app.services.image_storage import LOCK_ID, image_write_lock
+        with image_write_lock(self.database):
+            self.upload('card', metadata_image(), 'image/png', expected=409)
+            self.assertEqual(self.http.get('/api/cards', headers=self.headers['child-a']).status_code, 200)
+        self.database.image_storage_state.insert_one({'_id': LOCK_ID, 'token': 'simulated-stopped-writer'})
+        report = maintain(self.database, 'clear-lock')
+        self.assertTrue(report['lock_present'])
+        with self.assertRaises(ValueError):
+            maintain(self.database, 'clear-lock', apply=True, confirm_database=self.name,
+                writers_stopped=True, lock_token='not-the-owned-token')
+        maintain(self.database, 'clear-lock', apply=True, confirm_database=self.name,
+            writers_stopped=True, lock_token=report['lock_token'])
+        self.upload('card', metadata_image(), 'image/png')
+
+    def test_deletion_between_normalization_and_storage_cannot_resurrect_originals(self):
+        from app.services.privacy import delete_personal_data
+        for kind, target in [('card', 'app.services.card_submissions.check_image_safety'),
+                             ('profile', 'app.services.profiles.check_image_safety')]:
+            def remove_then_pass(*args):
+                delete_personal_data('child-a')
+                return {'status': 'passed', 'provider': 'synthetic', 'reasons': []}
+            self.database.privacy_settings.update_one({'_id': 'child-a'}, {'$set': {'guardian_consent': True, 'deletion_status': 'none'}})
+            with patch(target, side_effect=remove_then_pass):
+                self.upload(kind, metadata_image(), 'image/png', expected=409)
+            self.assertEqual(self.database.card_submissions.count_documents({}), 0)
+            self.assertNotIn('profile', self.database.users.find_one({'_id': 'child-a'}))
+        self.assertIsNotNone(self.database.image_storage_state.find_one({'_id': 'deletion-cutoff'}))
+
+    def test_orphan_cleanup_is_bounded_dry_run_and_removes_only_owned_image_payloads(self):
+        from app.image_maintenance import maintain
+        card = self.upload('card', metadata_image(), 'image/png').json()
+        self.database.card_submissions.update_one({'_id': card['id']}, {'$set': {'owner_id': 'nonexistent-synthetic-owner'}})
+        self.database.users.update_one({'_id': 'child-b'}, {'$set': {'profile': {'kind': 'preset',
+            'preset': 'sky', 'original_image': {'data': b'synthetic unused bytes'}}}})
+        report = maintain(self.database)
+        self.assertEqual((report['orphan_cards'], report['stale_preset_images'], report['changed']), (1, 1, 0))
+        self.assertIsNotNone(self.database.card_submissions.find_one({'_id': card['id']}))
+        report = maintain(self.database, apply=True, confirm_database=self.name, writers_stopped=True)
+        self.assertEqual(report['changed'], 2)
+        self.assertIsNone(self.database.card_submissions.find_one({'_id': card['id']}))
+        self.assertEqual(self.database.users.find_one({'_id': 'child-b'})['profile'], {'kind': 'preset', 'preset': 'sky'})
+        self.assertIsNotNone(self.database.users.find_one({'_id': 'child-a'}))
+        self.assertIsNotNone(self.database.image_storage_state.find_one({'_id': 'deletion-cutoff'}))
+
+    def test_legacy_thumbnail_fallback_backfill_and_idempotence_keep_originals_unchanged(self):
+        from app.image_maintenance import maintain
+        card = self.upload('card', metadata_image(), 'image/png').json()
+        profile = self.upload('profile', metadata_image(), 'image/png').json()
+        original = self.database.card_submissions.find_one({'_id': card['id']})['original_image']
+        self.database.card_submissions.update_one({'_id': card['id']}, {'$unset': {'thumbnail': ''}})
+        self.database.users.update_one({'_id': 'child-a'}, {'$unset': {
+            'profile.thumbnail_data': '', 'profile.thumbnail_url': '', 'profile.thumbnail_version': ''}})
+        for url in (card['thumbnail_url'], profile['image_url'] + '&variant=thumbnail'):
+            self.assertEqual(self.http.get(url, headers=self.headers['child-a']).status_code, 200)
+        self.assertEqual(maintain(self.database, 'backfill')['missing_thumbnails'], 2)
+        report = maintain(self.database, 'backfill', apply=True, confirm_database=self.name, writers_stopped=True)
+        self.assertEqual(report['changed'], 2)
+        self.assertEqual(self.database.card_submissions.find_one({'_id': card['id']})['original_image'], original)
+        self.assertEqual(maintain(self.database, 'backfill', apply=True, confirm_database=self.name, writers_stopped=True)['changed'], 0)
 
 
 if __name__ == '__main__':

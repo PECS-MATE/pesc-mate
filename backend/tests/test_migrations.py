@@ -186,6 +186,7 @@ class VersionedWriteCoverageTests(unittest.TestCase):
             'categories': ('ensure_default_categories', 'create_category'),
             'communication': ('save_session', 'ensure_demo_history'),
             'recommendations': ('save_settings', 'create_feed'),
+            'image_storage': ('image_write_lock', 'deletion_watermark'),
             'learning': ('save_settings', 'record_attempt', '_audit'),
             'login_throttle': ('record_login_failure',), 'offline_events': ('sync_events',),
             'privacy': ('save_privacy', 'delete_personal_data', '_audit'),

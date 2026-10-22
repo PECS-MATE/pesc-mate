@@ -4,7 +4,7 @@ Run from the repository: python backend/app/mongo_backup.py --help
 Only the Python standard library and the running local MongoDB container are used.
 """
 import argparse
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 from pathlib import Path
@@ -18,6 +18,7 @@ BACKUP_ROOT = REPO / '.local-backups'
 LOCK = '_pesc_mate_restore_lock'
 BACKUP_PATTERN = r'backup_[a-f0-9]{32}'
 RESTORE_PATTERN = r'pesc_mate_restore_[a-f0-9]{32}'
+RETENTION_DAYS = 30
 
 
 class BackupError(Exception):
@@ -178,7 +179,9 @@ def create(database, *, apply=False, confirm_database=None, writers_stopped=Fals
             raise BackupError('source_changed_during_backup')
         manifest = {'format': 1, 'backup_id': backup_id, 'source_database': database,
                     'created_at': _now(), 'archive_sha256': _checksum(archive),
-                    'archive_bytes': archive.stat().st_size, 'fingerprint': before}
+                    'archive_bytes': archive.stat().st_size, 'fingerprint': before,
+                    'contains_images': True, 'retention_days': RETENTION_DAYS,
+                    'expires_at': (datetime.now(timezone.utc) + timedelta(days=RETENTION_DAYS)).isoformat()}
         if manifest['archive_bytes'] == 0:
             raise BackupError('empty_archive')
         _write_json(directory / 'manifest.json', manifest)
@@ -228,6 +231,9 @@ def _target(database, source):
 def restore(backup_id, target_database, *, apply=False, confirm_database=None):
     manifest = inspect(backup_id)  # Hash check precedes all DB access, even the plan.
     source = manifest['source_database']
+    reason = _retirement_reason(manifest, _deletion_cutoff(source))
+    if reason:
+        raise BackupError(reason)
     _target(target_database, source)
     if not apply:
         return {'mode': 'dry_run', 'status': 'planned', 'backup_id': backup_id,
@@ -272,6 +278,87 @@ c.drop(); print(JSON.stringify({released:true}));
             'container_temporary_removed': cleaned}
 
 
+def _timestamp(value):
+    try:
+        parsed = datetime.fromisoformat(value.replace('Z', '+00:00'))
+        if parsed.tzinfo is None:
+            raise ValueError()
+        return parsed.astimezone(timezone.utc)
+    except (ValueError, TypeError, AttributeError):
+        raise BackupError('invalid_backup_policy_timestamp') from None
+
+
+def _deletion_cutoff(database):
+    result = _shell(database, '''
+if (d.getCollectionInfos({name:'users'}).length !== 1) throw Error('source_state_unavailable');
+const row = d.privacy_settings.aggregate([{$group:{_id:null, cutoff:{$max:{$ifNull:['$image_deleted_before','$deleted_at']}}}}]).toArray()[0];
+const state = d.image_storage_state.findOne({_id:'deletion-cutoff'});
+const values = [row && row.cutoff, state && state.image_deleted_before].filter(x => x != null);
+if (values.some(x => !(x instanceof Date))) throw Error('invalid_cutoff');
+print(JSON.stringify({cutoff:values.length ? new Date(Math.max(...values.map(x => x.getTime()))).toISOString() : null}));
+''')
+    if not isinstance(result, dict) or set(result) != {'cutoff'}:
+        raise BackupError('invalid_deletion_cutoff')
+    if result['cutoff'] is not None:
+        _timestamp(result['cutoff'])
+    return result['cutoff']
+
+
+def _retirement_reason(manifest, cutoff, now=None):
+    created = _timestamp(manifest.get('created_at'))
+    now = now or datetime.now(timezone.utc)
+    if created > now:
+        raise BackupError('backup_timestamp_in_future')
+    # An editable manifest cannot extend the hard maximum of 30 days.
+    expiry = created + timedelta(days=RETENTION_DAYS)
+    if manifest.get('expires_at'):
+        expiry = min(expiry, _timestamp(manifest['expires_at']))
+    if now >= expiry:
+        return 'backup_retention_expired'
+    if cutoff and created <= _timestamp(cutoff):
+        return 'backup_predates_image_deletion'
+    return None
+
+
+def purge(database, *, apply=False, confirm_backup_root=None, writers_stopped=False):
+    """Retire only checksum-verified managed backups, never arbitrary directories."""
+    _database(database)
+    if BACKUP_ROOT.resolve() != BACKUP_ROOT.absolute():
+        raise BackupError('unsafe_backup_path')
+    if apply and (confirm_backup_root != str(BACKUP_ROOT.resolve()) or not writers_stopped):
+        raise BackupError('backup_root_and_stopped_writers_confirmation_required')
+    candidates = []
+    if BACKUP_ROOT.exists():
+        cutoff = _deletion_cutoff(database)
+        for path in sorted(BACKUP_ROOT.iterdir()):
+            if not re.fullmatch(BACKUP_PATTERN, path.name):
+                continue
+            manifest = inspect(path.name)
+            if manifest['source_database'] != database:
+                continue
+            reason = _retirement_reason(manifest, cutoff)
+            if reason:
+                # No rmtree/globs: validate every exact file and refuse unknown entries.
+                files = list(_directory(path.name).iterdir())
+                for item in files:
+                    if item.name not in {'manifest.json', 'database.archive.gz'} and not re.fullmatch(
+                            RESTORE_PATTERN + r'\.verified\.json', item.name):
+                        raise BackupError('unknown_file_in_backup')
+                    _file(item)
+                candidates.append((path.name, reason, files))
+    removed = 0
+    if apply:
+        for identity, _, files in candidates:
+            directory = _directory(identity)
+            for path in files:
+                _file(path).unlink()
+            directory.rmdir()
+            removed += 1
+    return {'mode': 'apply' if apply else 'dry_run', 'retention_days': RETENTION_DAYS,
+            'candidates': [{'backup_id': identity, 'reason': reason} for identity, reason, _ in candidates],
+            'removed': removed}
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest='command', required=True)
@@ -289,6 +376,11 @@ def main(argv=None):
         command.add_argument('--confirm-database')
     command = commands.add_parser('inspect')
     command.add_argument('--backup-id', required=True)
+    command = commands.add_parser('purge')
+    command.add_argument('--database', required=True)
+    command.add_argument('--apply', action='store_true')
+    command.add_argument('--confirm-backup-root')
+    command.add_argument('--writers-stopped', action='store_true')
     args = parser.parse_args(argv)
     try:
         if args.command == 'create':
@@ -297,6 +389,9 @@ def main(argv=None):
         elif args.command == 'restore':
             result = restore(args.backup_id, args.target_database, apply=args.apply,
                              confirm_database=args.confirm_database)
+        elif args.command == 'purge':
+            result = purge(args.database, apply=args.apply, confirm_backup_root=args.confirm_backup_root,
+                           writers_stopped=args.writers_stopped)
         else:
             manifest = inspect(args.backup_id)
             result = {'status': 'archive_checksum_valid', 'backup_id': manifest['backup_id'],

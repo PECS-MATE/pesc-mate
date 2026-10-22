@@ -10,4 +10,5 @@ VERSIONED_COLLECTIONS = (
     'learning_attempts', 'learning_audit_logs',
     'account_permission_audit_logs',
     'recommendation_settings', 'recommendation_batches',
+    'image_storage_state',
 )
