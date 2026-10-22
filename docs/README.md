@@ -33,6 +33,7 @@ API, 데이터 구조, 카드·마스코트 자산과 협업 규칙을 관리한
 | [추천 통제·탐색 보조](development/RECOMMENDATION_POLICY.md) | 추천 근거·승인·숨김·노출 기록과 장애 격리 |
 | [업로드 이미지 정규화·원본 보관](development/IMAGE_UPLOAD_NORMALIZATION.md) | 로컬 원본 보관과 화면용 WebP 분리, 형식 검증·메타데이터 제거·삭제 연동 |
 | [로컬 이미지 저장 안정화](development/LOCAL_IMAGE_STORAGE.md) | 화면·썸네일 규격, ETag, 저장 한도, 고아 정리·보강·백업 삭제 연동 |
+| [개인 카드 사진 일괄 등록](development/BULK_CARD_IMPORT.md) | 다중 사진 미리보기·이름/분류·중복 후보·부분 실패 재시도와 대상 경계 |
 | [카드 사진·단어 목록](development/CARD_PHOTO_WORD_LIST.md) | 카드 제작 기준, 이미지 표현과 제작 우선순위 |
 | [마스코트 자산](development/MASCOT_ASSET.md) | 자산 경로, 적용 위치와 생성 프롬프트 |
 | [커밋 메시지 규칙](development/COMMIT_CONVENTION.md) | 커밋 유형, 제목과 본문 작성 방법 |

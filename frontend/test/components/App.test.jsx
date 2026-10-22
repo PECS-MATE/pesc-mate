@@ -79,6 +79,64 @@ async function openCommunication() {
   return { user, workspace: within(workspace), board: within(board) };
 }
 
+test.each(['caregiver', 'support_staff'])('%s는 연결 아동 개인 카드 관리에서 사진을 일괄 등록한다', async role => {
+  const original = request.getMockImplementation();
+  const target = { id: 'bulk-child', name: '일괄 등록 아동', username: 'bulk-child', permissions: ['cards_manage'] };
+  request.mockImplementation(async (path, options = {}) => {
+    if (path === '/auth/me') return { ...account, role };
+    if (path === '/care/linked-users') return [target];
+    if (path.startsWith('/cards/submissions?')) return [];
+    if (path === '/cards/submissions' && options.method === 'POST') return {
+      id: 'bulk-saved', label: options.body.get('label'), category: options.body.get('category'),
+      visibility: 'private', owner_id: target.id, status: 'approved',
+    };
+    return original(path, options);
+  });
+  const user = userEvent.setup();
+  render(<StrictMode><App /></StrictMode>);
+  await screen.findByText('서비스 연결됨');
+  await user.click(within(screen.getByRole('navigation')).getByRole('button', { name: '개인 카드 관리', exact: true }));
+  await user.click(screen.getByText('사진 일괄 등록', { selector: 'summary' }));
+  const panel = within(screen.getByRole('region', { name: '사진 일괄 등록' }));
+  await waitFor(() => expect(panel.getByLabelText('사진 여러 장 선택').disabled).toBe(false));
+  await user.upload(panel.getByLabelText('사진 여러 장 선택'), new File(['synthetic'], '검증_연필.png', { type: 'image/png' }));
+  await user.selectOptions(panel.getByLabelText('공통 카테고리'), '음식');
+  await user.click(panel.getByRole('button', { name: '미등록 항목에 분류 적용' }));
+  await user.click(panel.getByRole('button', { name: '등록 가능한 1개 저장' }));
+  await waitFor(() => expect(screen.getByRole('heading', { name: '등록 카드' }).nextElementSibling.textContent).toContain('검증 연필'));
+  const writes = request.mock.calls.filter(([, settings]) => settings?.method === 'POST');
+  expect(writes).toHaveLength(1);
+  expect(writes[0][1].body.get('user_id')).toBe(target.id);
+  expect(writes[0][1].body.get('visibility')).toBe('private');
+});
+
+test('아동 전환 뒤 이전 개인 카드 조회가 늦게 끝나도 새 대상의 목록을 덮어쓰지 않는다', async () => {
+  const original = request.getMockImplementation();
+  const targets = ['a', 'b'].map(id => ({ id, username: id, name: `아동 ${id}`, permissions: ['cards_manage'] }));
+  let finish;
+  let delayCardRead = false;
+  const old = new Promise(resolve => { finish = resolve; });
+  const card = id => ({ id, label: `검증 ${id} 카드`, category: '음식', visibility: 'private', status: 'approved' });
+  request.mockImplementation(async (path, options) => {
+    if (path === '/auth/me') return { ...account, role: 'caregiver' };
+    if (path === '/care/linked-users') return targets;
+    if (path === '/cards/submissions?user_id=a') return delayCardRead ? old : [card('a')];
+    if (path === '/cards/submissions?user_id=b') return [card('b')];
+    return original(path, options);
+  });
+  const user = userEvent.setup();
+  render(<StrictMode><App /></StrictMode>);
+  await screen.findByText('서비스 연결됨');
+  await act(async () => {});
+  delayCardRead = true;
+  await user.click(within(screen.getByRole('navigation')).getByRole('button', { name: '개인 카드 관리', exact: true }));
+  await user.selectOptions(screen.getByLabelText('관리 사용자'), 'b');
+  await screen.findByText('검증 b 카드');
+  await act(async () => finish([card('a')]));
+  expect(screen.queryByText('검증 a 카드')).toBeNull();
+  expect(screen.getByText('검증 b 카드')).toBeTruthy();
+});
+
 const selectedLabels = board => board.queryAllByRole('listitem').map(item => item.querySelector('span').textContent.trim());
 
 test('재연결 이벤트의 동기화가 먼저 실패해도 늦게 끝난 화면 로딩으로 다시 전송하지 않는다', async () => {
