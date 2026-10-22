@@ -2,6 +2,7 @@
 import base64
 from datetime import datetime, timedelta, timezone
 import hashlib
+from io import BytesIO
 import json
 import os
 import re
@@ -11,6 +12,7 @@ from uuid import uuid4
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from PIL import Image
 from pymongo import MongoClient
 
 from app.api.router import api_router
@@ -288,6 +290,47 @@ class RealImageUploadTests(unittest.TestCase):
         self.assertEqual(self.database.users.find_one({'_id': 'child-b'})['profile'], {'kind': 'preset', 'preset': 'sky'})
         self.assertIsNotNone(self.database.users.find_one({'_id': 'child-a'}))
         self.assertIsNotNone(self.database.image_storage_state.find_one({'_id': 'deletion-cutoff'}))
+
+    def test_thin_derivative_backfill_preserves_originals_display_and_upload_minimum(self):
+        from app.image_maintenance import maintain
+        for size in ((4096, 128), (128, 4096)):
+            with self.subTest(size=size):
+                output = BytesIO()
+                Image.new('RGBA', size, (20, 30, 40, 64)).save(output, format='PNG')
+                original = output.getvalue()
+                card = self.upload('card', original, 'image/png').json()
+                profile = self.upload('profile', original, 'image/png').json()
+                self.database.card_submissions.update_one({'_id': card['id']}, {'$unset': {'thumbnail': ''}})
+                self.database.users.update_one({'_id': 'child-a'}, {'$unset': {
+                    'profile.thumbnail_data': '', 'profile.thumbnail_url': '', 'profile.thumbnail_version': ''}})
+                before_card = self.database.card_submissions.find_one({'_id': card['id']})
+                before_profile = self.database.users.find_one({'_id': 'child-a'})['profile']
+                for kind, display in (('card', before_card['image']['data']),
+                                      ('profile', before_profile['image_data'])):
+                    self.upload(kind, display, 'image/webp', expected=422)
+                plan = maintain(self.database, 'backfill')
+                self.assertEqual((plan['missing_thumbnails'], plan['changed']), (2, 0))
+                self.assertEqual(self.database.card_submissions.find_one({'_id': card['id']}), before_card)
+                self.assertEqual(self.database.users.find_one({'_id': 'child-a'})['profile'], before_profile)
+                result = maintain(self.database, 'backfill', apply=True,
+                                  confirm_database=self.name, writers_stopped=True)
+                self.assertEqual((result['changed'], result['skipped']), (2, 0))
+                after_card = self.database.card_submissions.find_one({'_id': card['id']})
+                after_profile = self.database.users.find_one({'_id': 'child-a'})['profile']
+                self.assertEqual(after_card['image'], before_card['image'])
+                self.assertEqual(after_profile['image_data'], before_profile['image_data'])
+                for document in (after_card, after_profile):
+                    self.assertEqual(document['original_image']['data'], original)
+                for url, bounds in ((card['thumbnail_url'], (256, 8)),
+                                    (after_profile['thumbnail_url'], (128, 4))):
+                    served = self.http.get(url, headers=self.headers['child-a'])
+                    self.assertEqual(served.status_code, 200)
+                    assert_clean_webp(self, served.content)
+                    with Image.open(BytesIO(served.content)) as image:
+                        self.assertEqual(image.size, bounds if size[0] > size[1] else bounds[::-1])
+                        self.assertEqual(image.getpixel((0, 0))[3], 64)
+                self.assertEqual(maintain(self.database, 'backfill', apply=True,
+                    confirm_database=self.name, writers_stopped=True)['changed'], 0)
 
     def test_legacy_thumbnail_fallback_backfill_and_idempotence_keep_originals_unchanged(self):
         from app.image_maintenance import maintain

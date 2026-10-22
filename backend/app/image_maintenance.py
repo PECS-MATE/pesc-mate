@@ -1,6 +1,5 @@
 """Local embedded-image audit/backfill; read-only unless --apply and confirmations are supplied."""
 import argparse
-from datetime import datetime, timezone
 import json
 import re
 
@@ -67,10 +66,16 @@ def _run(db, command, apply, batch_size, locked):
                 'profile.thumbnail_version': '', 'profile.image_url': '', 'profile.thumbnail_url': '',
                 'profile.content_type': ''}}).modified_count
     for name, condition, projection in (
-        ('card_submissions', {'thumbnail': {'$exists': False}}, {'_id': 1, 'owner_id': 1, 'image': 1}),
-        ('users', {'profile.kind': 'custom', 'profile.thumbnail_data': {'$exists': False}}, {'_id': 1, 'profile': 1}),
+        ('card_submissions', {'thumbnail': {'$exists': False}},
+            {'_id': 1, 'owner_id': 1, 'image.data': 1, 'image.content_type': 1}),
+        ('users', {'profile.kind': 'custom', 'profile.thumbnail_data': {'$exists': False}},
+            {'_id': 1, 'profile.image_data': 1, 'profile.content_type': 1, 'profile.image_url': 1}),
     ):
-        rows = db[name].find(condition, projection).sort('_id', 1).limit(batch_size)
+        # Planning/audit needs IDs only. Backfill reads one display derivative at a time,
+        # never originals, credentials or unrelated account/card fields.
+        backfill = command == 'backfill' and apply
+        rows = db[name].find(condition, projection if backfill else {'_id': 1})
+        rows = rows.batch_size(1 if backfill else batch_size).sort('_id', 1).limit(batch_size)
         for row in rows:
             report['missing_thumbnails'] += 1
             if command != 'backfill' or not apply:
@@ -79,7 +84,10 @@ def _run(db, command, apply, batch_size, locked):
             previous = row.get('image') if is_card else row.get('profile')
             try:
                 display, _ = _normalize_image(previous['data' if is_card else 'image_data'], previous['content_type'],
-                    max_edge=storage.DISPLAY_EDGE if is_card else storage.PROFILE_EDGE)
+                    max_edge=storage.DISPLAY_EDGE if is_card else storage.PROFILE_EDGE,
+                    # A valid 4096x128 upload becomes 512x16 for a profile. The
+                    # upload's minimum edge must not reject its own stored derivative.
+                    min_input_edge=1)
                 thumb = storage.thumbnail(display, storage.THUMB_EDGE if is_card else storage.PROFILE_THUMB_EDGE)
                 owner = row['owner_id'] if is_card else row['_id']
                 if not db.users.find_one({'_id': owner}, {'_id': 1}):

@@ -115,7 +115,10 @@ def _ensure_indexes(collection):
     collection.create_index([('visibility', 1), ('normalized_label', 1)], name='shared_label_lookup')
 
 
-def _normalize_image(image_data, declared_content_type, max_edge=storage.DISPLAY_EDGE):
+def _normalize_image(image_data, declared_content_type, max_edge=storage.DISPLAY_EDGE, *,
+                     min_input_edge=MIN_IMAGE_EDGE):
+    # Only maintenance of stored derivatives overrides the minimum input edge;
+    # public uploads always keep the default 128px requirement.
     if declared_content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(422, 'JPG, PNG, WebP 이미지만 등록할 수 있습니다.')
     if not image_data or len(image_data) > MAX_IMAGE_BYTES:
@@ -138,9 +141,9 @@ def _normalize_image(image_data, declared_content_type, max_edge=storage.DISPLAY
                 probe.verify()
             if actual_content_type != signature_type:
                 raise HTTPException(422, '파일 형식과 이미지 내용이 일치하지 않습니다.')
-            if (min(width, height) < MIN_IMAGE_EDGE or max(width, height) > MAX_IMAGE_EDGE
+            if (min(width, height) < min_input_edge or max(width, height) > MAX_IMAGE_EDGE
                     or width * height > MAX_IMAGE_PIXELS):
-                raise HTTPException(422, '이미지 해상도는 가로·세로 128~4096px 범위여야 합니다.')
+                raise HTTPException(422, f'이미지 해상도는 가로·세로 {min_input_edge}~4096px 범위여야 합니다.')
             with Image.open(BytesIO(image_data)) as source:
                 source.seek(0)
                 normalized = ImageOps.exif_transpose(source)
