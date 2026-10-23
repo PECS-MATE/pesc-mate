@@ -23,6 +23,7 @@ API, 데이터 구조, 카드·마스코트 자산과 협업 규칙을 관리한
 | 문서 | 내용 |
 |---|---|
 | [API 명세서](development/API_SPECIFICATION.md) | 엔드포인트, 권한, 요청과 응답 |
+| [로컬 개발과 시연](development/LOCAL_DEVELOPMENT.md) | Docker·개별 실행, 선택형 AI, 태블릿 연결과 상태 확인 |
 | [API 지표](development/API_METRICS.md) | 오류율·처리 시간 집계, 조회 권한과 해석 범위 |
 | [TTS 지표](development/TTS_METRICS.md) | 클라이언트 재생 결과·시작 지연, 중복 방지와 집계 분모 |
 | [오프라인 동기화 지표](development/OFFLINE_SYNC_METRICS.md) | 신규·중복·실패·미처리 집계, 기기 재시도 표시와 해석 한계 |
@@ -77,6 +78,7 @@ API, 데이터 구조, 카드·마스코트 자산과 협업 규칙을 관리한
 |---|---|
 | [역할별 브라우저 E2E](validation/BROWSER_E2E.md) | Playwright 실행과 역할별 접근 경계 |
 | [한 명령으로 로컬 검증](validation/ONE_COMMAND_VALIDATION.md) | 빠른/범위별/전체 Docker 검사, 실행 격리·캐시·결과·정리 |
+| [포트폴리오 README 정리 기록](validation/PORTFOLIO_README_REVIEW.md) | 소개 문서의 구현 근거, 검증 수치 범위와 문서 검사 결과 |
 | [React 컴포넌트 테스트](validation/COMPONENT_TESTS.md) | 화면 조작, 비동기 실패와 상태 보존 회귀 검증 |
 | [아동 데이터 경계 검증](validation/DATA_BOUNDARY_VALIDATION.md) | 다른 아동 접근 차단, 의사소통·학습 저장소/API와 권한 분리 |
 | [기기 TTS 검수표](validation/DEVICE_TTS_VALIDATION.md) | 기기별 음성, 오프라인과 복귀 동작 확인 |
