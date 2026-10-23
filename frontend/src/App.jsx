@@ -1670,6 +1670,7 @@ function App() {
       <div className="catalog-toolbar"><div><h2>{selectedUser?.name}님의 개인 카드</h2><p className="muted">연결 사용자만 사용하는 카드를 대신 등록하고 관리합니다.</p></div><button className="primary" onClick={() => { setEditingSubmission(null); setCardFormError(''); setShowCardForm(true); }}>+ 개인 카드 등록</button></div>
       <label className="user-picker">관리 사용자<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)} disabled={cardFormBusy}>{linkedUsers.filter(person => person.permissions.includes('cards_manage')).map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>
       {selectedUser && <BulkCardImport key={`${user.id}:${selectedUser.id}`} targetId={selectedUser.id} targetName={selectedUser.name}
+        canManageBoard={canManageBoard}
         categories={cardCategories} existingCards={cardSubmissions} disabled={offline || statsBusy || cardFormBusy}
         onImported={saved => {
           if (activeUserRef.current?.id !== user.id || selectedUserRef.current?.id !== selectedUser.id) return;

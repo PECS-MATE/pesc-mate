@@ -226,3 +226,15 @@ test('편집 설정도 실패 항목만 수정하며 저장 여부가 불명확�
   expect(JSON.parse(request.mock.calls[1][1].body.get('image_edits')).rotation).toBe(90);
   expect(panel.getByRole('group', { name: '사진 보정 1' }).disabled).toBe(true);
 });
+
+test('앞뒤 이동 순서로 등록하되 카드판 권한 없이 별도 카드판 요청은 하지 않는다', async () => {
+  const { user, panel } = await open();
+  await choose(panel, user, [photo(), photo('검증_공책.png')]);
+  await user.click(panel.getByRole('button', { name: '선택 사진 2 앞으로' }));
+  expect(panel.getByLabelText('카드명 1').value).toBe('검증 공책');
+  await user.click(panel.getByRole('button', { name: '등록 가능한 2개 저장' }));
+  await waitFor(() => expect(defaults.onImported).toHaveBeenCalledTimes(2));
+  expect(request.mock.calls.map(([, options]) => options.body.get('label'))).toEqual(['검증 공책', '검증 연필']);
+  expect(panel.queryByRole('region', { name: '가져온 카드 순서 적용' })).toBeNull();
+  expect(request.mock.calls.some(([path]) => path.startsWith('/board/'))).toBe(false);
+});

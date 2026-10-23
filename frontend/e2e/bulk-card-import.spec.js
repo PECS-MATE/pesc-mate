@@ -101,3 +101,44 @@ test('사진 보정 미리보기의 설정으로 화면용 이미지만 자르�
   for (const channel of dimensions.pixel.slice(0, 3)) { expect(channel).toBeGreaterThan(140); expect(channel).toBeLessThan(160); }
   expect(dimensions.pixel[3]).toBe(255);
 });
+
+test('가져온 순서를 바꾼 뒤 미리보기와 확인을 거쳐서만 고정 슬롯에 저장한다', async ({ page, request, communicator }) => {
+  const caregiver = await linkCaregiver(request, communicator);
+  await request.post(apiPath('/auth/logout'), { headers: caregiver });
+  const before = await (await request.get(apiPath('/board/layout'), { headers: communicator.headers })).json();
+  await login(page, { username: 'caregiver', password: 'caregiver1234' });
+  await page.getByLabel('지원할 사용자').selectOption(communicator.id);
+  await page.getByRole('navigation').getByRole('button', { name: '개인 카드 관리', exact: true }).click();
+  await page.locator('.bulk-card-import summary').click();
+  const panel = page.getByRole('region', { name: '사진 일괄 등록' });
+  const image = await page.evaluate(() => {
+    const canvas = document.createElement('canvas'); canvas.width = 160; canvas.height = 160;
+    const context = canvas.getContext('2d'); context.fillStyle = '#9090dd'; context.fillRect(0, 0, 160, 160);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  await panel.getByLabel('사진 여러 장 선택').setInputFiles(['순서_연필.png', '순서_공책.png'].map(name => ({
+    name, mimeType: 'image/png', buffer: Buffer.from(image, 'base64'),
+  })));
+  await panel.getByRole('button', { name: '선택 사진 2 앞으로', exact: true }).click();
+  await expect(panel.getByLabel('카드명 1')).toHaveValue('순서 공책');
+  await panel.getByLabel('공통 카테고리').selectOption({ index: 1 });
+  await panel.getByRole('button', { name: '미등록 항목에 분류 적용' }).click();
+  await panel.getByRole('button', { name: '등록 가능한 2개 저장' }).click();
+  await expect(panel.getByText('저장 완료', { exact: true })).toHaveCount(2);
+  const unchanged = await (await request.get(apiPath('/board/layout'), { headers: communicator.headers })).json();
+  expect(unchanged.slots).toEqual(before.slots);
+  const applying = panel.getByRole('region', { name: '가져온 카드 순서 적용' });
+  await applying.getByRole('button', { name: '최신 카드판과 적용 순서 확인' }).click();
+  await applying.getByLabel('카드판 적용 방식').selectOption('replace');
+  await expect(applying.getByRole('list', { name: '적용할 카드판 순서' }).getByRole('listitem')).toHaveText(['순서 공책', '순서 연필']);
+  await expect(applying.getByRole('button', { name: '확인한 순서로 카드판 저장' })).toBeDisabled();
+  await applying.getByLabel('변경 전후 순서와 기존 슬롯에 미치는 영향을 확인했습니다').check();
+  await applying.getByRole('button', { name: '확인한 순서로 카드판 저장' }).click();
+  await expect(applying.getByText(/카드판에 저장했습니다/)).toBeVisible();
+  const saved = await (await request.get(apiPath('/board/layout'), { headers: communicator.headers })).json();
+  const names = new Map(saved.available_cards.map(card => [card.id, card.label]));
+  expect(saved.slots.map(slot => names.get(slot.card_id))).toEqual(['순서 공책', '순서 연필']);
+  expect(saved.revision).toBe(before.revision + 1);
+  expect(saved.quick_expression_ids).toEqual(before.quick_expression_ids);
+  expect(saved.recovery_expression_ids).toEqual(before.recovery_expression_ids);
+});

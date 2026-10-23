@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { request } from './services/api';
 import { createRequestId } from './services/requestId';
 import { defaultImageEdits, fileIssue, filenameLabel, importIssues, MAX_IMPORT_FILES } from './services/cardImport';
+import ImportedBoardOrder from './ImportedBoardOrder';
 
 const RETRYABLE = new Set([400, 409, 413, 422, 429]);
 const EDITABLE = new Set(['ready', 'failed']);
 const STATUS = { ready: '등록 전', saving: '저장 중', saved: '저장 완료', failed: '등록 실패',
   uncertain: '저장 여부 확인 필요', blocked: '권한 확인 필요' };
 
-export default function BulkCardImport({ targetId, targetName, categories, existingCards = [], disabled = false, onImported }) {
+export default function BulkCardImport({ targetId, targetName, categories, existingCards = [], disabled = false, onImported, canManageBoard = false }) {
   const [rows, setRows] = useState([]);
   const [category, setCategory] = useState('');
   const [notice, setNotice] = useState('');
@@ -67,6 +68,14 @@ export default function BulkCardImport({ targetId, targetName, categories, exist
   function editImage(row, changes) {
     if (running.current || disabled || !EDITABLE.has(row.status)) return;
     updateRow(row.id, { edits: { ...row.edits, ...changes }, error: '' });
+  }
+  function moveRow(index, offset) {
+    if (running.current || disabled || index + offset < 0 || index + offset >= rowsRef.current.length) return;
+    update(current => {
+      const next = [...current];
+      [next[index], next[index + offset]] = [next[index + offset], next[index]];
+      return next;
+    });
   }
   const eligible = row => EDITABLE.has(row.status) && !importIssues(row, rowsRef.current, existingCards, categories).length;
 
@@ -169,6 +178,10 @@ export default function BulkCardImport({ targetId, targetName, categories, exist
               {issues.map(issue => <p key={issue} className="bulk-import-issue">확인: {issue}</p>)}
               {row.error && <p className="bulk-import-issue">{row.error}</p>}
               {row.status === 'uncertain' && <p>이 항목은 다시 전송하지 않습니다. 등록 목록을 확인한 뒤 새로 선택해 주세요.</p>}
+              <div className="bulk-import-actions"><button type="button" disabled={busy || disabled || index === 0}
+                aria-label={`선택 사진 ${index + 1} 앞으로`} onClick={() => moveRow(index, -1)}>앞으로</button>
+                <button type="button" disabled={busy || disabled || index === rows.length - 1}
+                  aria-label={`선택 사진 ${index + 1} 뒤로`} onClick={() => moveRow(index, 1)}>뒤로</button></div>
               <button type="button" disabled={busy} onClick={() => remove(row)} aria-label={`선택 사진 ${index + 1} 제외`}>선택에서 제외</button>
             </div>
           </li>;
@@ -178,6 +191,8 @@ export default function BulkCardImport({ targetId, targetName, categories, exist
           {busy && <button type="button" onClick={() => { stop.current = true; setNotice('중단 요청했습니다. 전송 중인 한 건의 결과를 확인한 뒤 멈춥니다.'); }}>다음 항목부터 중단</button>}
         </div>
         <p className="muted">저장 완료 항목은 재전송하지 않습니다. 명확한 실패 항목은 수정 후 다시 저장할 수 있어요. 통신·서버 오류로 저장 여부가 불명확하면 등록 목록부터 확인해 주세요. 선택한 사진은 이 화면을 떠나면 기기 임시 선택에서 제거됩니다.</p>
+        {canManageBoard && <ImportedBoardOrder targetId={targetId} disabled={disabled || busy}
+          cards={rows.filter(row => row.status === 'saved').map(row => ({ id: `custom:${row.savedId}`, label: row.label }))} />}
       </>}
     </section>
   </details>;

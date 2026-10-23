@@ -892,6 +892,9 @@ button { min-width: 44px; min-height: 44px !important; }
 .bulk-image-edits input[type="checkbox"] { width: auto; min-width: 24px; min-height: 24px; }
 .bulk-import-fields { flex: 1 1 240px; }
 .bulk-import-issue { margin: 0; font-weight: 700; }
+.imported-board-order { border-top: 1px solid #c8cdd4; padding-top: 16px; margin-top: 16px; }
+.imported-board-preview { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 16px; }
+.imported-board-preview ol { max-height: 260px; overflow: auto; overflow-wrap: anywhere; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
