@@ -52,6 +52,7 @@ def _public(document):
         'category': document['category'],
         'visibility': document['visibility'],
         'owner_id': document['owner_id'],
+        'image_revision': document.get('image_revision', 0),
         'status': effective_status,
         'requires_review': not private,
         'sharing_notice': ('나만 볼 수 있으며 운영 담당자 승인 없이 사용할 수 있습니다.' if private
@@ -175,6 +176,29 @@ def _preserve_original(image_data, content_type, display_data):
             'size_bytes': len(image_data), 'sha256': sha256(image_data).hexdigest()}
 
 
+def _image_payload(image_data, image_content_type, image_edits=None):
+    edits = validate_edits(image_edits)
+    content, mime = _normalize_image(image_data, image_content_type)
+    safety = check_image_safety(content, mime)
+    if safety['status'] == 'blocked':
+        raise HTTPException(422, '안전성 검사를 통과하지 못한 이미지는 등록할 수 없습니다.')
+    if edits != DEFAULT_EDITS:
+        content, mime = _normalize_image(image_data, image_content_type, image_edits=edits)
+        edited_safety = check_image_safety(content, mime)
+        if edited_safety['status'] == 'blocked':
+            raise HTTPException(422, '보정한 사진이 안전성 검사를 통과하지 못했습니다.')
+        if safety['status'] == 'passed':
+            safety = edited_safety
+    payload = {
+        'image': {'filename': 'card-image.webp', 'content_type': mime, 'data': content},
+        'original_image': _preserve_original(image_data, image_content_type, content),
+        'thumbnail': storage.thumbnail(content), 'image_safety': safety,
+    }
+    if edits != DEFAULT_EDITS:
+        payload['image_edits'] = {'version': EDIT_VERSION, **edits}
+    return payload
+
+
 def create_submission(owner_id, label, meaning, category, visibility,
                       image_filename, image_content_type, image_data,
                       submission_mode='submit', actor_id=None, image_edits=None):
@@ -192,21 +216,8 @@ def create_submission(owner_id, label, meaning, category, visibility,
     _validate_text(label, meaning, visibility)
     if submission_mode not in {'draft', 'submit'}:
         raise HTTPException(422, '저장 방식이 올바르지 않습니다.')
-    edits = validate_edits(image_edits)
-    safe_image_data, safe_content_type = _normalize_image(image_data, image_content_type)
-    image_safety = check_image_safety(safe_image_data, safe_content_type)
-    if image_safety['status'] == 'blocked':
-        raise HTTPException(422, '안전성 검사를 통과하지 못한 이미지는 등록할 수 없습니다.')
-
-    if edits != DEFAULT_EDITS:
-        # Validate the clean FULL frame before cropping, then validate the edited frame.
-        # Cropping cannot hide blocked pixels while we archive their original bytes.
-        safe_image_data, safe_content_type = _normalize_image(image_data, image_content_type, image_edits=edits)
-        edited_safety = check_image_safety(safe_image_data, safe_content_type)
-        if edited_safety['status'] == 'blocked':
-            raise HTTPException(422, '보정한 사진이 안전성 검사를 통과하지 못했습니다.')
-        if image_safety['status'] == 'passed':
-            image_safety = edited_safety
+    # Check the full frame and the optional edited frame for both create and replace.
+    payload = _image_payload(image_data, image_content_type, image_edits)
 
     normalized_label = _compact_text(label)
     document = {
@@ -216,23 +227,15 @@ def create_submission(owner_id, label, meaning, category, visibility,
         'normalized_label': normalized_label,
         'meaning': meaning,
         'language_flags': review_language(label, meaning),
-        'image_safety': image_safety,
+        **payload,
+        'image_revision': 0,
         'category': category,
         'visibility': visibility,
         'owner_id': owner_id,
         'status': ('draft' if submission_mode == 'draft'
                    else 'approved' if visibility == 'private' else 'pending'),
-        'image': {
-            'filename': 'card-image.webp',
-            'content_type': safe_content_type,
-            'data': safe_image_data,
-        },
-        'original_image': _preserve_original(image_data, image_content_type, safe_image_data),
-        'thumbnail': storage.thumbnail(safe_image_data),
         'created_at': datetime.now(timezone.utc),
     }
-    if edits != DEFAULT_EDITS:
-        document['image_edits'] = {'version': EDIT_VERSION, **edits}
     try:
         collection = _collection()
         _ensure_indexes(collection)
@@ -255,6 +258,60 @@ def create_submission(owner_id, label, meaning, category, visibility,
         raise
     except PyMongoError as exc:
         raise HTTPException(503, '카드 등록 요청을 저장하지 못했습니다.') from exc
+
+
+def replace_submission_image(submission_id, owner_id, requester, image_content_type, image_data,
+                             expected_revision, image_edits=None):
+    from app.services.support_links import SUPPORT_ROLES, require_link_permission
+    if requester.get('role') not in SUPPORT_ROLES:
+        raise HTTPException(403, '보호자 또는 담당자만 개인 카드 사진을 교체할 수 있습니다.')
+    require_link_permission(requester, owner_id, 'cards_manage')
+    if type(expected_revision) is not int or expected_revision < 0:
+        raise HTTPException(422, '사진 버전을 확인해 주세요.')
+    started = datetime.now(timezone.utc)
+
+    def check(document, db):
+        if not document:
+            raise HTTPException(404, '교체할 개인 카드를 찾을 수 없습니다.')
+        if document['visibility'] != 'private':
+            raise HTTPException(403, '공유 카드 사진은 이 경로에서 교체할 수 없습니다.')
+        if document.get('image_revision', 0) != expected_revision:
+            raise HTTPException(409, '다른 기기에서 사진을 변경했습니다. 최신 등록 목록을 확인해 주세요.')
+        layout = db.board_layouts.find_one({'_id': owner_id}, {'locked_card_ids': 1}) or {}
+        if f'custom:{submission_id}' in layout.get('locked_card_ids', []):
+            raise HTTPException(409, '잠긴 핵심 카드 사진은 교체할 수 없습니다. 카드판 관리에서 잠금을 확인해 주세요.')
+
+    try:
+        collection = _collection(); db = collection.database
+        check(collection.find_one({'_id': submission_id, 'owner_id': owner_id}, IMAGE_METADATA), db)
+        payload = _image_payload(image_data, image_content_type, image_edits)
+        with storage.image_write_lock(db):
+            storage.check_deletion_race(db, owner_id, started, require_consent=True)
+            require_link_permission(requester, owner_id, 'cards_manage')
+            previous = collection.find_one({'_id': submission_id, 'owner_id': owner_id})
+            check(previous, db)
+            storage.check_capacity(db, owner_id, storage.byte_count(payload), storage.byte_count(previous))
+            changes = {**payload, 'image_revision': expected_revision + 1,
+                       'image_updated_at': datetime.now(timezone.utc), 'image_updated_by': requester['id']}
+            query = {'_id': submission_id, 'owner_id': owner_id, 'visibility': 'private'}
+            if expected_revision:
+                query['image_revision'] = expected_revision
+            else:
+                query['$or'] = [{'image_revision': 0}, {'image_revision': {'$exists': False}}]
+            update = {'$set': changes}
+            if 'image_edits' not in payload:
+                update['$unset'] = {'image_edits': ''}
+            if collection.update_one(query, update).matched_count != 1:
+                raise HTTPException(409, '사진 저장 상태가 바뀌었습니다. 최신 등록 목록을 확인해 주세요.')
+            _audit_collection().insert_one({
+                'schema_version': SCHEMA_VERSION, '_id': str(uuid4()), 'card_submission_id': submission_id,
+                'actor_id': requester['id'], 'action': 'image_replaced', 'reason': None,
+                'before_revision': expected_revision, 'after_revision': expected_revision + 1,
+                'created_at': changes['image_updated_at'],
+            })
+        return _public(previous | changes)
+    except PyMongoError as exc:
+        raise HTTPException(503, '사진 교체 결과를 확인하지 못했습니다. 최신 등록 목록을 확인해 주세요.') from exc
 
 
 def submissions_for(owner_id):

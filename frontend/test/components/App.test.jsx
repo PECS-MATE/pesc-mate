@@ -131,10 +131,11 @@ test('아동 전환 뒤 이전 개인 카드 조회가 늦게 끝나도 새 대�
   delayCardRead = true;
   await user.click(within(screen.getByRole('navigation')).getByRole('button', { name: '개인 카드 관리', exact: true }));
   await user.selectOptions(screen.getByLabelText('관리 사용자'), 'b');
-  await screen.findByText('검증 b 카드');
+  const list = within(screen.getByRole('heading', { name: '등록 카드' }).parentElement);
+  await list.findByText('검증 b 카드');
   await act(async () => finish([card('a')]));
   expect(screen.queryByText('검증 a 카드')).toBeNull();
-  expect(screen.getByText('검증 b 카드')).toBeTruthy();
+  expect(list.getByText('검증 b 카드')).toBeTruthy();
 });
 
 const selectedLabels = board => board.queryAllByRole('listitem').map(item => item.querySelector('span').textContent.trim());

@@ -50,7 +50,7 @@ from app.services.learning import settings_for as learning_settings_for
 from app.services.card_submissions import (
     MAX_IMAGE_BYTES, approved_cards_for, create_submission, image_for,
     review_submission, submissions_for, submissions_for_review, submit_draft,
-    update_submission,
+    update_submission, replace_submission_image,
 )
 from app.services.categories import (
     active_categories, categories_for_admin, create_category, update_category,
@@ -560,6 +560,7 @@ class CategoryUpdateRequest(CategoryCreateRequest):
 
 
 class CardSubmissionResponse(BaseModel):
+    image_revision: int = 0
     id: str
     label: str
     meaning: str
@@ -1009,6 +1010,18 @@ def edit_card_submission(submission_id: str, request: CardUpdateRequest,
     require_guardian_consent({'id': owner_id})
     return update_submission(submission_id, owner_id, request.label, request.meaning,
                              request.category, request.visibility, actor_id=user['id'])
+
+
+@api_router.put('/cards/submissions/{submission_id}/image', response_model=CardSubmissionResponse, tags=['카드'])
+async def replace_card_submission_image(submission_id: str, user_id: str = Form(min_length=1, max_length=64),
+                                        expected_revision: int = Form(ge=0), image: UploadFile = File(),
+                                        image_edits: str | None = Form(default=None, max_length=256),
+                                        user=Depends(current_user)):
+    owner_id = _require_support_manager(user, user_id, 'cards_manage')
+    require_guardian_consent({'id': owner_id})
+    data = await image.read(MAX_IMAGE_BYTES + 1)
+    return replace_submission_image(submission_id, owner_id, user, image.content_type, data,
+                                    expected_revision, image_edits)
 
 
 @api_router.get('/cards/submissions/{submission_id}/image', tags=['카드'])

@@ -150,6 +150,7 @@ HTTP 500은 일반 안내만 반환하고 내부 예외 문구를 응답에 포�
 | 카드 | POST | `/api/cards/submissions/{id}/submit` | 본인 또는 `cards_manage` | 임시 저장 카드를 승인 대기로 제출 |
 | 카드 | PATCH | `/api/cards/submissions/{id}` | 본인 또는 `cards_manage` | 작성 중·반려 카드 정보 수정 |
 | 카드 | GET | `/api/cards/submissions/{id}/image` | 필요 | 권한이 있는 카드 이미지 조회 |
+| 카드 | PUT | `/api/cards/submissions/{id}/image` | 연결 cards_manage | [개인 카드 사진만 교체](PRIVATE_CARD_PHOTO_REPLACEMENT.md), 사진 버전 조건부 갱신 |
 | 카드판 | GET | `/api/board/layout` | 본인 또는 연결 권한 | 고정 카드·빠른 표현·복구 표현 구성 조회 |
 | 카드판 | PUT | `/api/board/layout/recovery-expressions` | `quick_speech_manage` | 사용자별 복구 표현 2~4개와 고정 순서 저장 |
 | 카드판 | PUT | `/api/board/layout/quick-expressions` | `quick_speech_manage` | 빠른 표현 카드와 고정 순서 저장 |

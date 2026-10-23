@@ -90,6 +90,110 @@ class RealImageUploadTests(unittest.TestCase):
         self.assertEqual(response.status_code, expected or (201 if kind == 'card' else 200), response.text)
         return response
 
+    def card_manager(self, permissions=None):
+        identity = 'manager-' + uuid4().hex
+        self.database.users.insert_one({'_id': identity, 'username': identity, 'name': '합성 보호자', 'role': 'caregiver'})
+        token = 'synthetic-' + uuid4().hex
+        self.database.auth_sessions.insert_one({'_id': hashlib.sha256(token.encode()).hexdigest(),
+            'user_id': identity, 'expires_at': datetime.now(timezone.utc) + timedelta(hours=1)})
+        self.database.caregiver_links.insert_one({'_id': uuid4().hex, 'supporter_id': identity, 'user_id': 'child-a',
+            'active': True, 'permissions': permissions if permissions is not None else ['cards_manage']})
+        return identity, {'Authorization': 'Bearer ' + token}
+
+    def replace_photo(self, card, data, headers, *, revision=0, target='child-a', mime='image/png'):
+        return self.http.put(f"/api/cards/submissions/{card['id']}/image", headers=headers,
+            data={'user_id': target, 'expected_revision': str(revision)}, files={'image': ('synthetic.png', data, mime)})
+
+    def test_private_photo_replacement_keeps_identity_text_board_and_voice_and_replaces_all_variants(self):
+        card = self.upload('card', metadata_image(), 'image/png', edits={'crop': 'square'}).json()
+        identity, headers = self.card_manager()
+        before = self.database.card_submissions.find_one({'_id': card['id']})
+        layout = {'_id': 'child-a', 'revision': 7, 'slots': [{'position': 1, 'card_id': 'custom:' + card['id']}],
+                  'quick_expression_ids': ['help']}
+        self.database.board_layouts.insert_one(layout)
+        self.database.tts_settings.insert_one({'_id': 'child-a', 'preset': 'woman', 'rate': 1.2})
+        new = metadata_image('JPEG')
+        response = self.replace_photo(card, new, headers, mime='image/jpeg')
+        self.assertEqual(response.status_code, 200, response.text)
+        saved = response.json(); after = self.database.card_submissions.find_one({'_id': card['id']})
+        self.assertEqual(saved['image_revision'], 1)
+        for field in ('_id', 'label', 'normalized_label', 'meaning', 'category', 'owner_id', 'visibility', 'status', 'created_at'):
+            self.assertEqual(after[field], before[field])
+        self.assertEqual(after['original_image']['data'], new)
+        self.assertNotEqual(after['thumbnail']['version'], before['thumbnail']['version'])
+        self.assertNotIn('image_edits', after)
+        self.assertEqual(self.database.board_layouts.find_one({'_id': 'child-a'}), layout)
+        self.assertEqual(self.database.tts_settings.find_one({'_id': 'child-a'})['rate'], 1.2)
+        self.assertEqual(self.http.get(saved['image_url'], headers=headers).content, after['image']['data'])
+        old_etag = '"' + hashlib.sha256(before['image']['data']).hexdigest() + '"'
+        revalidated = self.http.get(saved['image_url'], headers=headers | {'If-None-Match': old_etag})
+        self.assertEqual(revalidated.status_code, 200)
+        self.assertNotEqual(revalidated.headers['etag'], old_etag)
+        assert_clean_webp(self, after['image']['data'])
+        audit = self.database.card_audit_logs.find_one({'action': 'image_replaced'})
+        self.assertEqual((audit['actor_id'], audit['before_revision'], audit['after_revision']), (identity, 0, 1))
+        calls = self.transport.call_count
+        stale = self.replace_photo(card, metadata_image(), headers)
+        self.assertEqual(stale.status_code, 409)
+        self.assertEqual(self.transport.call_count, calls)
+        self.assertEqual(self.database.card_submissions.find_one({'_id': card['id']}), after)
+
+    def test_private_photo_replacement_rejects_owner_direct_permission_missing_foreign_shared_and_locked(self):
+        card = self.upload('card', metadata_image(), 'image/png').json()
+        _, headers = self.card_manager()
+        _, wrong_permission = self.card_manager(['board_manage'])
+        calls = self.transport.call_count
+        for auth, target in ((self.headers['child-a'], 'child-a'), (wrong_permission, 'child-a'), (headers, 'child-b')):
+            self.assertEqual(self.replace_photo(card, metadata_image(), auth, target=target).status_code, 403)
+        self.database.card_submissions.update_one({'_id': card['id']}, {'$set': {'visibility': 'shared'}})
+        self.assertEqual(self.replace_photo(card, metadata_image(), headers).status_code, 403)
+        self.database.card_submissions.update_one({'_id': card['id']}, {'$set': {'visibility': 'private'}})
+        self.database.board_layouts.insert_one({'_id': 'child-a', 'locked_card_ids': ['custom:' + card['id']]})
+        self.assertEqual(self.replace_photo(card, metadata_image(), headers).status_code, 409)
+        self.assertEqual(self.transport.call_count, calls)
+        self.assertEqual(self.database.card_audit_logs.count_documents({'action': 'image_replaced'}), 0)
+
+    def test_photo_replacement_failures_never_remove_existing_original_or_bypass_quota(self):
+        card = self.upload('card', metadata_image(), 'image/png').json()
+        _, headers = self.card_manager()
+        before = self.database.card_submissions.find_one({'_id': card['id']})
+        self.assertEqual(self.replace_photo(card, metadata_image('JPEG'), headers).status_code, 422)
+        self.provider_passes = False
+        self.assertEqual(self.replace_photo(card, metadata_image(), headers).status_code, 422)
+        self.provider_passes = True
+        with patch.dict(os.environ, IMAGE_USER_LIMIT_MIB='1', IMAGE_TOTAL_LIMIT_MIB='2'):
+            self.assertEqual(self.replace_photo(card, metadata_image() + b'x' * (1024 * 1024), headers).status_code, 413)
+        self.assertEqual(self.database.card_submissions.find_one({'_id': card['id']}), before)
+        self.assertEqual(self.database.card_audit_logs.count_documents({'action': 'image_replaced'}), 0)
+
+    def test_photo_replacement_rechecks_link_after_safety_and_legacy_revision_is_conditional(self):
+        card = self.upload('card', metadata_image(), 'image/png').json()
+        identity, headers = self.card_manager()
+        self.database.card_submissions.update_one({'_id': card['id']}, {'$unset': {'image_revision': ''}})
+        before = self.database.card_submissions.find_one({'_id': card['id']})
+        def revoke(*_args):
+            self.database.caregiver_links.update_one({'supporter_id': identity}, {'$set': {'active': False}})
+            return {'status': 'passed', 'provider': 'synthetic', 'reasons': []}
+        with patch('app.services.card_submissions.check_image_safety', side_effect=revoke):
+            self.assertEqual(self.replace_photo(card, metadata_image(), headers).status_code, 403)
+        self.assertEqual(self.database.card_submissions.find_one({'_id': card['id']}), before)
+        self.database.caregiver_links.update_one({'supporter_id': identity}, {'$set': {'active': True}})
+        response = self.replace_photo(card, metadata_image('JPEG'), headers, mime='image/jpeg')
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['image_revision'], 1)
+
+    def test_photo_replacement_compare_and_set_conflict_never_emits_success_audit(self):
+        card = self.upload('card', metadata_image(), 'image/png').json()
+        _, headers = self.card_manager()
+        before = self.database.card_submissions.find_one({'_id': card['id']})
+        def compete(*_args):
+            self.database.card_submissions.update_one({'_id': card['id']}, {'$inc': {'image_revision': 1}})
+        with patch('app.services.card_submissions.storage.check_capacity', side_effect=compete):
+            self.assertEqual(self.replace_photo(card, metadata_image(), headers).status_code, 409)
+        after = self.database.card_submissions.find_one({'_id': card['id']})
+        self.assertEqual(after['original_image'], before['original_image'])
+        self.assertEqual(self.database.card_audit_logs.count_documents({'action': 'image_replaced'}), 0)
+
     def test_edited_card_archives_original_and_checks_full_frame_before_clean_edited_derivatives(self):
         original = metadata_image()
         result = self.upload('card', original, 'image/png', edits={

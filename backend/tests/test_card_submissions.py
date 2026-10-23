@@ -9,7 +9,7 @@ from PIL import Image
 from app.api.router import _card_owner
 from app.services.card_submissions import (
     approved_cards_for, create_submission, image_for, review_submission,
-    submissions_for, submissions_for_review, submit_draft, update_submission,
+    submissions_for, submissions_for_review, submit_draft, update_submission, replace_submission_image,
 )
 
 
@@ -67,6 +67,19 @@ class CardSubmissionTests(unittest.TestCase):
         self.mock.stop()
         self.audit_mock.stop()
         self.category_mock.stop()
+
+    def test_aac_owner_cannot_replace_an_activated_card_photo_through_supporter_api(self):
+        with self.assertRaises(HTTPException) as caught:
+            replace_submission_image('card', 'child', {'id': 'child', 'role': 'user'}, 'image/png', self.image, 0)
+        self.assertEqual(caught.exception.status_code, 403)
+
+    @patch('app.services.support_links.require_link_permission', return_value='child')
+    def test_photo_replacement_requires_nonnegative_integer_revision(self, _permission):
+        for revision in (True, -1, 0.0, '0'):
+            with self.subTest(revision=revision), self.assertRaises(HTTPException) as caught:
+                replace_submission_image('card', 'child', {'id': 'caregiver', 'role': 'caregiver'},
+                                         'image/png', self.image, revision)
+            self.assertEqual(caught.exception.status_code, 422)
 
     @patch('app.api.router.require_link_permission', return_value='child')
     def test_supporter_card_owner_requires_explicit_link_permission(self, mocked_permission):

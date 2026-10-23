@@ -182,7 +182,7 @@ class VersionedWriteCoverageTests(unittest.TestCase):
             'authentication': ('_ensure_user', 'ensure_demo_users', 'login', 'register'),
             'accessibility_settings': ('save_settings',), 'tts_settings': ('save_settings',),
             'caregiver_notes': ('_change_note',), 'board_layout': ('_save',),
-            'card_submissions': ('create_submission', 'review_submission', 'submit_draft', 'update_submission'),
+            'card_submissions': ('create_submission', 'review_submission', 'submit_draft', 'update_submission', 'replace_submission_image'),
             'categories': ('ensure_default_categories', 'create_category'),
             'communication': ('save_session', 'ensure_demo_history'),
             'recommendations': ('save_settings', 'create_feed'),

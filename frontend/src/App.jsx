@@ -11,6 +11,7 @@ import DeletionReceipt from './DeletionReceipt';
 import RecommendationsPanel from './RecommendationsPanel';
 import RecommendationSettings from './RecommendationSettings';
 import BulkCardImport from './BulkCardImport';
+import CardPhotoReplacement from './CardPhotoReplacement';
 import useReauthentication from './useReauthentication';
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
@@ -930,6 +931,7 @@ function App() {
       items.forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); });
       return;
     }
+    cardSubmissions.forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); });
     setCardSubmissions(items);
   }
   async function loadBoardConfiguration(target) {
@@ -1677,6 +1679,14 @@ function App() {
           supportCardRequestRef.current += 1;
           setCardSubmissions(current => [saved, ...current.filter(item => item.id !== saved.id)]);
         }} />}
+      {cardSubmissions.some(item => item.visibility === 'private') && <section className="private-card-photos" aria-label="개인 카드 사진 교체 목록">
+        <h3>개인 카드 사진만 교체</h3><p>기존 카드의 문구와 위치를 유지하면서 사진만 바꿉니다. 공유 카드와 잠긴 핵심 카드는 이 경로로 변경하지 않습니다.</p>
+        <ul>{cardSubmissions.filter(item => item.visibility === 'private').map(item => <li key={`${user.id}:${selectedUser.id}:${item.id}`}>
+          <span>{item.label}</span><CardPhotoReplacement card={item} targetId={selectedUser.id} disabled={offline || statsBusy || cardFormBusy}
+            onReplaced={() => loadSupportCards(selectedUser)}
+            onRefresh={() => loadSupportCards(selectedUser).catch(failure => setError(failure.message))} />
+        </li>)}</ul>
+      </section>}
       <div className="submission-list"><h3>등록 카드</h3>{cardSubmissions.length ? <ul>{cardSubmissions.map(item => <li key={item.id}><span><strong>{item.label}</strong><small>{item.category} · {item.sharing_notice || (item.visibility === 'private' ? '연결 사용자만 사용' : '공개 요청')}</small></span><div className="submission-actions"><b className={`submission-status ${item.status}`}>{item.visibility === 'private' && item.status === 'approved' ? '사용 중' : ({ draft: '작성 중', pending: '승인 대기', approved: '공개 승인', rejected: '반려', inactive: '비활성' })[item.status] || item.status}</b>{['draft', 'rejected'].includes(item.status) && <button disabled={reviewBusy === item.id} onClick={() => { setEditingSubmission(item); setCardFormError(''); setShowCardForm(true); }}>수정</button>}{item.status === 'draft' && <button className="primary" disabled={reviewBusy === item.id} onClick={() => submitDraft(item)}>{item.visibility === 'private' ? '사용 시작' : '공개 승인 요청'}</button>}</div></li>)}</ul> : <p className="muted">등록된 개인 카드가 없습니다.</p>}</div>
       {showCardForm && <div className="modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setShowCardForm(false); }}><section className="card-form-modal" role="dialog" aria-modal="true" aria-labelledby="support-card-form-title"><div className="modal-heading"><div><h2 id="support-card-form-title">{editingSubmission ? '개인 카드 수정' : '개인 카드 등록'}</h2><p className="muted">{selectedUser?.name}님 계정에 저장할 카드입니다.</p></div><button type="button" aria-label="등록 폼 닫기" onClick={() => { setShowCardForm(false); setEditingSubmission(null); }}>×</button></div><form key={editingSubmission?.id || 'support-new'} className="card-form" onSubmit={submitCard}>{cardFormError && <div role="alert" className="error">{cardFormError}</div>}<label>카드명<input name="label" required maxLength="30" placeholder="예: 연필" defaultValue={editingSubmission?.label || ''} /></label><label>카드 뜻<textarea name="meaning" required maxLength="120" rows="3" placeholder="카드가 나타내는 뜻을 적어 주세요." defaultValue={editingSubmission?.meaning || ''} /></label><label>카테고리<select name="category" required defaultValue={editingSubmission?.category || ''}><option value="" disabled>카테고리 선택</option>{cardCategories.map(item => <option key={item.id} value={item.name}>{item.name}</option>)}</select></label><input name="visibility" type="hidden" value="private" />{!editingSubmission && <label>카드 이미지<input name="image" required type="file" accept="image/jpeg,image/png,image/webp" capture="environment" /></label>}<p className="form-notice">개인 카드는 연결 사용자에게만 표시되며 운영 담당자의 공개 승인 목록에는 나타나지 않습니다.</p><div className="modal-actions"><button type="button" disabled={cardFormBusy} onClick={() => { setShowCardForm(false); setEditingSubmission(null); }}>취소</button>{!editingSubmission && <button type="submit" value="draft" disabled={cardFormBusy}>임시 저장</button>}<button type="submit" value="submit" className="primary" disabled={cardFormBusy}>{cardFormBusy ? '저장 중…' : editingSubmission ? '수정 저장' : '카드 저장'}</button></div></form></section></div>}
     </section> : tab === 'learning_progress' && isSupporter && canManageLearning ? <section className="learning-hub"
