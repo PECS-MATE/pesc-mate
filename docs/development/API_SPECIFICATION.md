@@ -155,6 +155,7 @@ HTTP 500은 일반 안내만 반환하고 내부 예외 문구를 응답에 포�
 | 카드판 | PUT | `/api/board/layout/recovery-expressions` | `quick_speech_manage` | 사용자별 복구 표현 2~4개와 고정 순서 저장 |
 | 카드판 | PUT | `/api/board/layout/quick-expressions` | `quick_speech_manage` | 빠른 표현 카드와 고정 순서 저장 |
 | 카드판 | PUT | `/api/board/layout/slots` | `board_manage` | 카드판 슬롯과 고정 순서 저장 |
+| 카드판 | PUT | `/api/board/layout/locks` | `board_manage` | [핵심 카드 잠금](../policies/CORE_CARD_LOCK_POLICY.md), 위치·제외·사진 교체 보호 |
 | 카드판 | GET | `/api/board/layout/audit` | 본인 또는 연결 권한 | 카드판 구성 변경 이력 조회 |
 | 학습 | GET | `/api/learning/settings` | 본인 또는 `learning_manage` | 단어·그림 맞추기 범위·문제 수·보기 수·반복 빈도·권장 시간·재도전 설정 조회 |
 | 학습 | PUT | `/api/learning/settings` | `learning_manage` | 연결 사용자의 학습 범위와 난이도 설정 저장 |

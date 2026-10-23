@@ -6,9 +6,9 @@ from pymongo.errors import DuplicateKeyError
 from pydantic import ValidationError
 
 from app.services.board_layout import (
-    layout_for, save_quick_expressions, save_recovery_expressions, save_slots,
+    layout_for, save_quick_expressions, save_recovery_expressions, save_slots, save_locks,
 )
-from app.api.router import _require_support_manager, BoardCardIdsRequest, BoardRecoveryIdsRequest
+from app.api.router import _require_support_manager, BoardCardIdsRequest, BoardRecoveryIdsRequest, BoardLocksRequest
 
 
 CARDS = [
@@ -168,6 +168,58 @@ class BoardLayoutTests(unittest.TestCase):
                 model(**values)
             with self.assertRaises(ValidationError):
                 model(**values, expected_revision=-1)
+
+    @patch('app.services.board_layout._available_cards', return_value=CARDS)
+    @patch('app.services.board_layout._database')
+    def test_locked_slots_cannot_move_or_disappear_including_neighbor_shifts(self, mocked_database, _available):
+        db = mocked_database.return_value
+        slots = [{'position': index + 1, 'card_id': card['id']} for index, card in enumerate(CARDS)]
+        db.board_layouts.find_one.return_value = {'user_id': 'child', 'revision': 2,
+            'slots': slots, 'locked_card_ids': ['water']}
+        for ids in (['help', 'stop'], ['water', 'help', 'stop'], ['help', 'stop', 'water'], ['water', 'stop']):
+            with self.subTest(ids=ids), self.assertRaises(HTTPException) as caught:
+                save_slots('child', 'staff', ids, 2)
+            self.assertEqual(caught.exception.status_code, 409)
+        db.board_layouts.update_one.assert_not_called()
+        db.board_audit_logs.insert_one.assert_not_called()
+        db.board_layouts.update_one.return_value.matched_count = 1
+        saved = save_slots('child', 'staff', ['stop', 'water', 'help'], 2)
+        self.assertEqual(saved['locked_card_ids'], ['water'])
+
+    @patch('app.services.board_layout._available_cards', return_value=CARDS)
+    @patch('app.services.board_layout._database')
+    @patch('app.services.support_links.require_link_permission')
+    @patch('app.services.image_storage.image_write_lock')
+    @patch('app.services.image_storage.check_deletion_race')
+    def test_locks_use_shared_image_lock_latest_slots_cas_and_can_be_cleared(self, deletion, lock, permission, mocked_database, _available):
+        db = mocked_database.return_value
+        db.board_layouts.find_one.return_value = {'user_id': 'child', 'revision': 3,
+            'slots': [{'position': 1, 'card_id': 'help'}], 'locked_card_ids': ['help']}
+        db.board_layouts.update_one.return_value.matched_count = 1
+        requester = {'id': 'staff', 'role': 'support_staff'}
+        saved = save_locks('child', requester, [], 3)
+        self.assertEqual(saved['locked_card_ids'], [])
+        self.assertEqual(saved['slots'], [{'position': 1, 'card_id': 'help'}])
+        self.assertEqual(saved['revision'], 4)
+        lock.assert_called_once_with(db); deletion.assert_called_once()
+        self.assertEqual(permission.call_count, 2)
+        self.assertEqual(db.board_layouts.update_one.call_args.args[0], {'_id': 'child', 'revision': 3})
+        audit = db.board_audit_logs.insert_one.call_args.args[0]
+        self.assertEqual((audit['action'], audit['before'], audit['after']), ('core_card_locks_changed', ['help'], []))
+        with self.assertRaises(HTTPException) as caught:
+            save_locks('child', requester, ['water'], 3)
+        self.assertEqual(caught.exception.status_code, 422)
+
+    def test_new_lock_api_rejects_missing_bool_and_negative_revision_and_aac_writer(self):
+        self.assertEqual(BoardLocksRequest(card_ids=[], expected_revision=0).card_ids, [])
+        for value in (True, -1, 0.0, '0'):
+            with self.assertRaises(ValidationError):
+                BoardLocksRequest(card_ids=[], expected_revision=value)
+        with self.assertRaises(ValidationError):
+            BoardLocksRequest(card_ids=[])
+        with self.assertRaises(HTTPException) as caught:
+            save_locks('child', {'id': 'child', 'role': 'user'}, [], 0)
+        self.assertEqual(caught.exception.status_code, 403)
 
 
 if __name__ == '__main__':

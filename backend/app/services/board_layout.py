@@ -60,6 +60,7 @@ def _public(document, available):
         'available_cards': available,
         'updated_at': document.get('updated_at') if document else None,
         'revision': (document or {}).get('revision', 0),
+        'locked_card_ids': list((document or {}).get('locked_card_ids', [])),
     }
 
 
@@ -101,6 +102,26 @@ def save_slots(user_id, actor_id, card_ids, expected_revision=0):
     return _save(user_id, actor_id, 'slots', slots, 'board_slots_changed', expected_revision)
 
 
+def save_locks(user_id, requester, card_ids, expected_revision):
+    from app.services import image_storage
+    from app.services.support_links import SUPPORT_ROLES, require_link_permission
+    if requester.get('role') not in SUPPORT_ROLES:
+        raise HTTPException(403, '보호자 또는 담당자만 핵심 카드 잠금을 변경할 수 있습니다.')
+    require_link_permission(requester, user_id, 'board_manage')
+    if type(expected_revision) is not int or expected_revision < 0:
+        raise HTTPException(422, '카드판 버전을 확인해 주세요.')
+    values = _validate_card_ids(user_id, card_ids, 0, MAX_BOARD_SLOTS, '핵심 잠금')
+    started = datetime.now(timezone.utc)
+    # Serialize lock changes with photo replacement and privacy deletion. Board
+    # moves are independently serialized by the same board revision CAS below.
+    db = _database()
+    with image_storage.image_write_lock(db):
+        image_storage.check_deletion_race(db, user_id, started)
+        require_link_permission(requester, user_id, 'board_manage')
+        return _save(user_id, requester['id'], 'locked_card_ids', values,
+                     'core_card_locks_changed', expected_revision)
+
+
 def _validate_card_ids(user_id, card_ids, minimum, maximum, label):
     values = list(card_ids)
     if not minimum <= len(values) <= maximum:
@@ -123,6 +144,17 @@ def _save(user_id, actor_id, field, value, action, expected_revision):
         if revision != expected_revision:
             raise HTTPException(409, '다른 기기에서 카드판을 변경했습니다. 최신 구성을 불러온 뒤 다시 수정해 주세요.')
         available = _available_cards(user_id)
+        if field == 'slots':
+            positions = {slot['card_id']: slot['position'] for slot in value}
+            saved_slots = (before_document or {}).get('slots', _public(None, available)['slots'])
+            original = {slot['card_id']: slot['position'] for slot in saved_slots}
+            if any(card_id not in original or positions.get(card_id) != original[card_id]
+                   for card_id in (before_document or {}).get('locked_card_ids', [])):
+                raise HTTPException(409, '잠긴 핵심 카드는 이동하거나 제외할 수 없습니다. 잠금과 최신 구성을 확인해 주세요.')
+        if field == 'locked_card_ids':
+            slotted = {slot['card_id'] for slot in _public(before_document, available)['slots']}
+            if not set(value).issubset(slotted):
+                raise HTTPException(422, '현재 저장된 슬롯에 있는 카드만 잠글 수 있습니다.')
         before = _public(before_document, available)[field]
         changes = {'user_id': user_id, field: value, 'updated_at': now,
                    'updated_by': actor_id, 'revision': revision + 1}

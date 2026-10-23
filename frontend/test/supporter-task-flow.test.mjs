@@ -4,6 +4,7 @@ import test from 'node:test';
 
 const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8');
 const api = await readFile(new URL('../src/services/api.js', import.meta.url), 'utf8');
+const slots = await readFile(new URL('../src/BoardSlotsEditor.jsx', import.meta.url), 'utf8');
 
 test('supporter card management stays scoped to the selected linked user', () => {
   assert.match(app, /canManageCards = selectedPermissions\.includes\('cards_manage'\)/);
@@ -19,7 +20,9 @@ test('supporter can fix card positions and quick expressions independently', () 
   assert.match(app, /saveBoardConfiguration\('quick'\)/);
   assert.match(app, /saveBoardConfiguration\('slots'\)/);
   assert.match(app, /빠른 표현 저장/);
-  assert.match(app, /카드판 저장/);
+  assert.match(app, /canManageBoard && <BoardSlotsEditor/);
+  assert.match(slots, /카드판 저장/);
+  assert.match(slots, /lockedSlotsPreserved\(layout, ids\)/);
 });
 
 test('supporter learning settings target only a linked user with permission', () => {

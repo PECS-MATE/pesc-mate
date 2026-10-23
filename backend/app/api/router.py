@@ -40,7 +40,7 @@ from app.services.support_links import (
 )
 from app.services.board_layout import audit_for as board_audit_for
 from app.services.board_layout import (
-    layout_for, save_quick_expressions, save_recovery_expressions, save_slots,
+    layout_for, save_quick_expressions, save_recovery_expressions, save_slots, save_locks,
 )
 from app.services.learning import audit_for as learning_audit_for
 from app.services.learning import progress_for as learning_progress_for
@@ -427,6 +427,7 @@ class BoardLayoutResponse(BaseModel):
     quick_expression_ids: list[str]
     recovery_expression_ids: list[str]
     slots: list[BoardSlotResponse]
+    locked_card_ids: list[str] = Field(default_factory=list)
     available_cards: list[CardResponse]
     updated_at: datetime | None = None
 
@@ -439,6 +440,11 @@ class BoardCardIdsRequest(BaseModel):
 class BoardRecoveryIdsRequest(BaseModel):
     expected_revision: int = Field(ge=0)
     expression_ids: list[Annotated[str, Field(min_length=1, max_length=40)]] = Field(min_length=2, max_length=4)
+
+
+class BoardLocksRequest(BaseModel):
+    expected_revision: int = Field(ge=0, strict=True)
+    card_ids: list[Annotated[str, Field(min_length=1, max_length=100)]] = Field(max_length=30)
 
 
 class BoardAuditResponse(BaseModel):
@@ -883,6 +889,14 @@ def put_board_slots(request: BoardCardIdsRequest,
                     user=Depends(current_user)):
     target = _require_support_manager(user, user_id, 'board_manage')
     return save_slots(target, user['id'], request.card_ids, request.expected_revision)
+
+
+@api_router.put('/board/layout/locks', response_model=BoardLayoutResponse,
+                response_model_exclude_none=True, tags=['카드판'])
+def put_board_locks(request: BoardLocksRequest,
+                    user_id: str = Query(min_length=1, max_length=64), user=Depends(current_user)):
+    target = _require_support_manager(user, user_id, 'board_manage')
+    return save_locks(target, user, request.card_ids, request.expected_revision)
 
 
 @api_router.get('/board/layout/audit', response_model=list[BoardAuditResponse], tags=['카드판'])

@@ -1,3 +1,5 @@
+import { lockedSlotsPreserved } from './boardLocks';
+
 export function importedBoardPlan(layout, imported, mode = 'append') {
   const before = (layout?.slots || []).map(slot => slot.card_id);
   const available = new Set((layout?.available_cards || []).map(card => card.id));
@@ -8,9 +10,6 @@ export function importedBoardPlan(layout, imported, mode = 'append') {
   if (!['append', 'replace'].includes(mode)) issues.push('카드판 적용 방식을 확인해 주세요.');
   const after = mode === 'replace' ? ids : [...before, ...ids.filter(id => !before.includes(id))];
   if (after.length > 30) issues.push('카드판은 최대 30장입니다. 기존 카드판을 정리하거나 교체 방식을 선택해 주세요.');
-  if ((layout?.locked_card_ids || []).some(id => {
-    const position = layout.slots.find(slot => slot.card_id === id)?.position;
-    return after[position - 1] !== id;
-  })) issues.push('잠긴 핵심 카드의 위치를 변경할 수 없습니다. 카드판 관리에서 확인해 주세요.');
+  if (!lockedSlotsPreserved(layout, after)) issues.push('잠긴 핵심 카드의 위치를 변경할 수 없습니다. 카드판 관리에서 확인해 주세요.');
   return { before, after, issues, changed: JSON.stringify(before) !== JSON.stringify(after) };
 }

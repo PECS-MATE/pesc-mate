@@ -49,6 +49,7 @@ API, 데이터 구조, 카드·마스코트 자산과 협업 규칙을 관리한
 | [TTS 정책](policies/TTS_POLICY.md) | 음성 선택, 출력과 설정 기준 |
 | [의사소통 복구 표현 정책](policies/RECOVERY_SPEECH_POLICY.md) | 복구 표현과 즉시 발화 기준 |
 | [카드판 동시 수정 정책](policies/BOARD_CONFLICT_POLICY.md) | 버전 충돌 감지, 초안 보존과 최신 구성 재조회 |
+| [핵심 카드 잠금 정책](policies/CORE_CARD_LOCK_POLICY.md) | 명시 잠금·해제, 슬롯 이동·제외·사진 교체 보호와 권한 경계 |
 | [오프라인 정책](policies/OFFLINE_POLICY.md) | 로컬 저장, 음성 지원과 재연결 처리 |
 | [사용자 프로필 정책](policies/PROFILE_POLICY.md) | 프로필 설정, 자산과 접근 권한 |
 | [개인정보 정책](policies/PRIVACY_POLICY.md) | 수집, 접근, 보관, 내보내기와 삭제 |

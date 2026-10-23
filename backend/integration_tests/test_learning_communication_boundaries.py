@@ -410,6 +410,44 @@ class RealLearningCommunicationBoundaryTests(unittest.TestCase):
         self.set_permissions('guardian', ['board_manage'], active=False)
         self.recommendation_policy(expected=403)
 
+    def test_core_card_locks_permission_versions_positions_and_explicit_unlock(self):
+        path = '/board/layout/locks?user_id=child-a'
+        values = {'expected_revision': 0, 'card_ids': ['water']}
+        for actor in ('child-a', 'child-b', 'guardian', 'staff', 'operator'):
+            self.request('PUT', path, actor=actor, expected=403, json=values)
+        self.set_permissions('guardian', ['board_manage'])
+        self.request('PUT', '/board/layout/slots?user_id=child-a', actor='guardian', json={
+            'expected_revision': 0, 'card_ids': ['help', 'water', 'stop']})
+        values['expected_revision'] = 1
+        locked = self.request('PUT', path, actor='guardian', json=values)
+        self.assertEqual(locked['locked_card_ids'], ['water'])
+        self.assertEqual(locked['revision'], 2)
+        for ids in (['water', 'help', 'stop'], ['help', 'stop'], ['help', 'stop', 'water']):
+            self.request('PUT', '/board/layout/slots?user_id=child-a', actor='guardian', expected=409,
+                json={'expected_revision': 2, 'card_ids': ids})
+        self.request('PUT', path, actor='guardian', expected=409, json=values)
+        self.assertEqual(self.request('GET', '/board/layout')['slots'], locked['slots'])
+        cleared = self.request('PUT', path, actor='guardian', json={'expected_revision': 2, 'card_ids': []})
+        self.assertEqual(cleared['locked_card_ids'], [])
+        self.assertEqual(cleared['slots'], locked['slots'])
+        self.request('PUT', '/board/layout/slots?user_id=child-a', actor='guardian', json={
+            'expected_revision': 3, 'card_ids': ['water', 'stop']})
+        audits = self.request('GET', '/board/layout/audit')
+        self.assertEqual([row['action'] for row in audits].count('core_card_locks_changed'), 2)
+
+    def test_core_card_locks_reject_unknown_non_slot_duplicates_and_busy_image_writer(self):
+        self.set_permissions('guardian', ['board_manage'])
+        self.request('PUT', '/board/layout/slots?user_id=child-a', actor='guardian', json={
+            'expected_revision': 0, 'card_ids': ['help']})
+        path = '/board/layout/locks?user_id=child-a'
+        for ids in (['water'], ['unknown'], ['help', 'help']):
+            self.request('PUT', path, actor='guardian', expected=422, json={'expected_revision': 1, 'card_ids': ids})
+        from app.services.image_storage import image_write_lock
+        with image_write_lock(self.database):
+            self.request('PUT', path, actor='guardian', expected=409, json={'expected_revision': 1, 'card_ids': ['help']})
+        self.assertEqual(self.request('GET', '/board/layout')['revision'], 1)
+        self.assertEqual(len(self.request('GET', '/board/layout/audit')), 1)
+
     def test_recommendations_approval_hide_disable_conflict_audit_and_board_independence(self):
         self.set_permissions('guardian', ['board_manage'])
         board = self.request('GET', '/board/layout')
