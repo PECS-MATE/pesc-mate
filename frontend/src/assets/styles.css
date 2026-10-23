@@ -909,6 +909,10 @@ button { min-width: 44px; min-height: 44px !important; }
 .situation-board-picker summary { min-height: 44px; cursor: pointer; display: list-item; align-content: center; }
 .situation-board-picker label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 44px; margin-block: 8px; }
 .situation-board-picker ol { max-height: 180px; overflow: auto; }
+.guardian-settings { padding-block: 10px; }
+.guardian-settings summary { min-height: 44px; align-content: center; cursor: pointer; }
+.guardian-settings p { font-size: .85rem; }
+.recordless-notice { margin: 0; padding: 12px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; }

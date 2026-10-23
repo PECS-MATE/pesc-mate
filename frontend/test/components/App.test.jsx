@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, test, vi } from 'vitest';
 import App from '../../src/App.jsx';
 import { request } from '../../src/services/api';
+import { cachedAccount, cachedSnapshot } from '../../src/services/offlineStore';
 
 const player = vi.hoisted(() => ({ speak: vi.fn(), pause: vi.fn(), resume: vi.fn(), stop: vi.fn() }));
 const synchronizer = vi.hoisted(() => ({ sync: vi.fn() }));
@@ -78,6 +79,50 @@ async function openCommunication() {
   const board = screen.getByRole('heading', { name: /나의 문장/ }).closest('section');
   return { user, workspace: within(workspace), board: within(board) };
 }
+
+test('동의가 없어도 기본 말하기를 유지하며 선택·발화·추천 요청과 기기 선택 기록을 남기지 않는다', async () => {
+  const original = request.getMockImplementation();
+  request.mockImplementation((path, options) => path === '/privacy/settings' ? { guardian_consent: false, retention_days: 365 } : original(path, options));
+  const { user, workspace, board } = await openCommunication();
+  expect(within(screen.getByRole('navigation', { name: '주 메뉴' })).queryByRole('button', { name: '개인정보', exact: true })).toBeNull();
+  expect(screen.queryByRole('heading', { name: '개인정보와 열람 권한' })).toBeNull();
+  await user.click(workspace.getByRole('button', { name: '물 문장에 담기', exact: true }));
+  await user.click(board.getByRole('button', { name: /선택 카드 그대로 말하기/ }));
+  expect(player.speak).toHaveBeenCalled();
+  expect(localStorage.getItem(`pesc-mate-board:${account.id}`)).toBeNull();
+  expect(request.mock.calls.filter(([, options]) => ['POST', 'PATCH'].includes(options?.method))).toEqual([]);
+  expect(synchronizer.sync).not.toHaveBeenCalled();
+});
+
+test('보호자 설정의 미저장 동의 체크는 기록 수집을 켜지 않는다', async () => {
+  const original = request.getMockImplementation();
+  request.mockImplementation((path, options) => path === '/privacy/settings' ? { guardian_consent: false, retention_days: 365 } : original(path, options));
+  const { user } = await openCommunication();
+  await user.click(screen.getByText('보호자 설정', { selector: 'summary' }));
+  await user.click(screen.getByRole('button', { name: '개인정보·동의 관리' }));
+  await user.click(screen.getByLabelText('법정대리인이 개인정보 수집·이용에 동의했음을 확인합니다.'));
+  await user.click(within(screen.getByRole('navigation', { name: '주 메뉴' })).getByRole('button', { name: /그림으로 말하기/ }));
+  await user.click(screen.getByRole('button', { name: '물 문장에 담기', exact: true }));
+  await user.click(screen.getByRole('button', { name: /선택 카드 그대로 말하기/ }));
+  expect(player.speak).toHaveBeenCalled();
+  expect(request.mock.calls.filter(([, options]) => ['POST', 'PUT', 'PATCH'].includes(options?.method))).toEqual([]);
+  expect(localStorage.getItem(`pesc-mate-board:${account.id}`)).toBeNull();
+});
+
+test('동의 없는 오프라인 계정은 개인정보 화면 대신 기록 없는 카드 말하기를 복원한다', async () => {
+  vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+  cachedAccount.mockResolvedValueOnce(account);
+  cachedSnapshot.mockResolvedValueOnce({ cards, categories, privacy: { guardian_consent: false, retention_days: 365 },
+    accessibility: { cards_per_page: 12 }, board_layout: { slots: cards.map((card, index) => ({ card_id: card.id, position: index + 1 })),
+      quick_expression_ids: ['help'], available_cards: cards } });
+  const user = userEvent.setup(); render(<StrictMode><App /></StrictMode>);
+  await screen.findByRole('navigation', { name: '주 메뉴' });
+  await user.click(within(screen.getByRole('navigation', { name: '주 메뉴' })).getByRole('button', { name: /그림으로 말하기/ }));
+  await screen.findByText(/기록 없이 말하기/);
+  await user.click(screen.getByRole('button', { name: '물 문장에 담기', exact: true }));
+  await user.click(screen.getByRole('button', { name: /선택 카드 그대로 말하기/ }));
+  expect(player.speak).toHaveBeenCalled(); expect(request).not.toHaveBeenCalled();
+});
 
 test.each(['caregiver', 'support_staff'])('%s는 연결 아동 개인 카드 관리에서 사진을 일괄 등록한다', async role => {
   const original = request.getMockImplementation();

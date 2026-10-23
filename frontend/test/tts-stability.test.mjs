@@ -8,7 +8,8 @@ const speakText = app.slice(app.indexOf('function speakText('), app.indexOf('fun
 test('playback starts before network tracking with synchronous errors supported', () => {
   assert.ok(speakText.indexOf('speechPlayback.speak({') >= 0);
   assert.ok(speakText.indexOf('speechEvent.started = new Promise') < speakText.indexOf('speechPlayback.speak({'));
-  assert.ok(speakText.indexOf('speechPlayback.speak({') < speakText.lastIndexOf('resolveStarted(startTracking())'));
+  assert.ok(speakText.indexOf('speechPlayback.speak({') < speakText.lastIndexOf('resolveStarted('));
+  assert.match(speakText, /resolveStarted\(speechEvent\.recordingAllowed \? startTracking\(\) : false\)/);
 });
 test('speech protects against duplicate taps and silent volume', () => {
   assert.match(speakText, /tappedAt - lastSpeechTapRef\.current\.at < 600/);
