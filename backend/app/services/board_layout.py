@@ -1,6 +1,7 @@
 """Stable per-user communication board and quick-expression configuration."""
 from datetime import datetime, timezone
 from uuid import uuid4
+import unicodedata
 
 from fastapi import HTTPException
 from pymongo.errors import DuplicateKeyError, PyMongoError
@@ -25,6 +26,8 @@ DEFAULT_RECOVERY_IDS = ['wrong_tap', 'not_that', 'hold_on', 'say_again']
 MAX_QUICK_EXPRESSIONS = 8
 MAX_RECOVERY_EXPRESSIONS = 4
 MAX_BOARD_SLOTS = 30
+MAX_SITUATIONS = 6
+SITUATION_NAMES = ['집', '학교', '치료실', '외출', '식사', '병원']
 
 
 def _available_cards(user_id):
@@ -61,6 +64,12 @@ def _public(document, available):
         'updated_at': document.get('updated_at') if document else None,
         'revision': (document or {}).get('revision', 0),
         'locked_card_ids': list((document or {}).get('locked_card_ids', [])),
+        'situations': [{'id': item['id'], 'name': item['name'],
+                        'slots': sorted([slot for slot in item['slots'] if slot.get('card_id') in available_ids],
+                                        key=lambda slot: slot['position'])}
+                       for item in (document or {}).get('situations', [])],
+        'situation_names': SITUATION_NAMES.copy(),
+        'max_situations': MAX_SITUATIONS,
     }
 
 
@@ -122,6 +131,64 @@ def save_locks(user_id, requester, card_ids, expected_revision):
                      'core_card_locks_changed', expected_revision)
 
 
+def change_situations(user_id, requester, expected_revision, operation, *,
+                      situation_id=None, source_id='default', name=None, card_ids=None):
+    from app.services import image_storage
+    from app.services.support_links import SUPPORT_ROLES, require_link_permission
+    if requester.get('role') not in SUPPORT_ROLES:
+        raise HTTPException(403, '보호자 또는 담당자만 상황별 카드판을 관리할 수 있습니다.')
+    require_link_permission(requester, user_id, 'board_manage')
+    if type(expected_revision) is not int or expected_revision < 0:
+        raise HTTPException(422, '카드판 버전을 확인해 주세요.')
+    if operation not in {'create', 'copy', 'update', 'delete'}:
+        raise HTTPException(422, '상황 카드판 작업을 확인해 주세요.')
+
+    def transform(document, available):
+        previous = (document or {}).get('situations', [])
+        entries = [dict(item) for item in previous]
+        selected = next((item for item in entries if item['id'] == situation_id), None)
+        if operation in {'update', 'delete'} and not selected:
+            raise HTTPException(404, '수정할 상황 카드판을 찾을 수 없습니다.')
+        if operation == 'delete':
+            return [item for item in entries if item['id'] != situation_id]
+        label = unicodedata.normalize('NFC', (name or '').strip())
+        if (not 1 <= len(label) <= 30 or any(unicodedata.category(char).startswith('C') for char in label)):
+            raise HTTPException(422, '상황 이름은 제어 문자 없이 1~30자로 입력해 주세요.')
+        if any(item['id'] != situation_id and item['name'].casefold() == label.casefold() for item in entries):
+            raise HTTPException(409, '같은 이름의 상황 카드판이 있습니다.')
+        if operation == 'update':
+            ids = _validate_card_ids(user_id, card_ids or [], 1, MAX_BOARD_SLOTS, '상황 카드판')
+            updated = {**selected, 'name': label, 'slots': [
+                {'position': index + 1, 'card_id': card_id} for index, card_id in enumerate(ids)]}
+            return [updated if item['id'] == situation_id else item for item in entries]
+        if len(entries) >= MAX_SITUATIONS:
+            raise HTTPException(422, f'상황 카드판은 최대 {MAX_SITUATIONS}개입니다.')
+        source = (_public(document, available) if operation == 'create' else
+                  next((item for item in entries if item['id'] == source_id), None))
+        if not source:
+            raise HTTPException(404, '복사할 상황 카드판을 찾을 수 없습니다.')
+        # Copy IDs/positions only, never another child's photo, usage, or speech.
+        source_slots = [dict(slot) for slot in source['slots']]
+        _validate_card_ids(user_id, [slot['card_id'] for slot in source_slots], 1, MAX_BOARD_SLOTS, '상황 카드판')
+        entries.append({'id': str(uuid4()), 'name': label, 'slots': source_slots})
+        return entries
+
+    started = datetime.now(timezone.utc)
+    db = _database()
+    with image_storage.image_write_lock(db):
+        image_storage.check_deletion_race(db, user_id, started)
+        require_link_permission(requester, user_id, 'board_manage')
+        return _save(user_id, requester['id'], 'situations', transform,
+                     f'situation_{operation}', expected_revision)
+
+
+def _assert_locked_positions(original, slots, locked_ids):
+    expected = {slot['card_id']: slot['position'] for slot in original}
+    actual = {slot['card_id']: slot['position'] for slot in slots}
+    if any(card_id not in expected or actual.get(card_id) != expected[card_id] for card_id in locked_ids):
+        raise HTTPException(409, '잠긴 핵심 카드는 이동하거나 제외할 수 없습니다. 잠금과 최신 구성을 확인해 주세요.')
+
+
 def _validate_card_ids(user_id, card_ids, minimum, maximum, label):
     values = list(card_ids)
     if not minimum <= len(values) <= maximum:
@@ -144,17 +211,21 @@ def _save(user_id, actor_id, field, value, action, expected_revision):
         if revision != expected_revision:
             raise HTTPException(409, '다른 기기에서 카드판을 변경했습니다. 최신 구성을 불러온 뒤 다시 수정해 주세요.')
         available = _available_cards(user_id)
+        if callable(value):
+            value = value(before_document, available)
+        saved_slots = (before_document or {}).get('slots', _public(None, available)['slots'])
+        locked_ids = (before_document or {}).get('locked_card_ids', [])
         if field == 'slots':
-            positions = {slot['card_id']: slot['position'] for slot in value}
-            saved_slots = (before_document or {}).get('slots', _public(None, available)['slots'])
-            original = {slot['card_id']: slot['position'] for slot in saved_slots}
-            if any(card_id not in original or positions.get(card_id) != original[card_id]
-                   for card_id in (before_document or {}).get('locked_card_ids', [])):
-                raise HTTPException(409, '잠긴 핵심 카드는 이동하거나 제외할 수 없습니다. 잠금과 최신 구성을 확인해 주세요.')
+            _assert_locked_positions(saved_slots, value, locked_ids)
         if field == 'locked_card_ids':
             slotted = {slot['card_id'] for slot in _public(before_document, available)['slots']}
             if not set(value).issubset(slotted):
                 raise HTTPException(422, '현재 저장된 슬롯에 있는 카드만 잠글 수 있습니다.')
+            for situation in (before_document or {}).get('situations', []):
+                _assert_locked_positions(saved_slots, situation['slots'], value)
+        if field == 'situations':
+            for situation in value:
+                _assert_locked_positions(saved_slots, situation['slots'], locked_ids)
         before = _public(before_document, available)[field]
         changes = {'user_id': user_id, field: value, 'updated_at': now,
                    'updated_by': actor_id, 'revision': revision + 1}

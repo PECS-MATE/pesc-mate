@@ -18,7 +18,8 @@ test('supporter navigation is derived from the selected link permissions', () =>
 
 test('configured quick expressions and slots stay separate from recommendations', () => {
   assert.match(app, /boardLayout\.quick_expression_ids\.map/);
-  assert.match(app, /boardLayout\.slots\.map/);
+  assert.match(app, /activeBoardSituation\?\.slots \|\| boardLayout\.slots/);
+  assert.match(app, /boardSituation\?\.user_id === user\?\.id/);
   assert.match(app, /tab === 'cards' \? configuredBoardCards : cards/);
   assert.match(app, /request\(`\/board\/layout\/\$\{path\}\$\{query\}`/);
 });

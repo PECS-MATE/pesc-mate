@@ -40,7 +40,7 @@ from app.services.support_links import (
 )
 from app.services.board_layout import audit_for as board_audit_for
 from app.services.board_layout import (
-    layout_for, save_quick_expressions, save_recovery_expressions, save_slots, save_locks,
+    layout_for, save_quick_expressions, save_recovery_expressions, save_slots, save_locks, change_situations,
 )
 from app.services.learning import audit_for as learning_audit_for
 from app.services.learning import progress_for as learning_progress_for
@@ -421,6 +421,12 @@ class BoardSlotResponse(BaseModel):
     card_id: str
 
 
+class SituationBoardResponse(BaseModel):
+    id: str
+    name: str
+    slots: list[BoardSlotResponse]
+
+
 class BoardLayoutResponse(BaseModel):
     user_id: str
     revision: int
@@ -428,6 +434,9 @@ class BoardLayoutResponse(BaseModel):
     recovery_expression_ids: list[str]
     slots: list[BoardSlotResponse]
     locked_card_ids: list[str] = Field(default_factory=list)
+    situations: list[SituationBoardResponse] = Field(default_factory=list)
+    situation_names: list[str] = Field(default_factory=list)
+    max_situations: int = 6
     available_cards: list[CardResponse]
     updated_at: datetime | None = None
 
@@ -445,6 +454,36 @@ class BoardRecoveryIdsRequest(BaseModel):
 class BoardLocksRequest(BaseModel):
     expected_revision: int = Field(ge=0, strict=True)
     card_ids: list[Annotated[str, Field(min_length=1, max_length=100)]] = Field(max_length=30)
+
+
+class SituationBoardRequest(BaseModel):
+    model_config = {'extra': 'forbid'}
+    expected_revision: int = Field(ge=0, strict=True)
+    operation: Literal['create', 'copy', 'update', 'delete']
+    situation_id: str | None = Field(default=None, min_length=1, max_length=64)
+    source_id: str = Field(default='default', min_length=1, max_length=64)
+    name: str | None = Field(default=None, min_length=1, max_length=30)
+    card_ids: list[Annotated[str, Field(min_length=1, max_length=100)]] | None = Field(default=None, min_length=1, max_length=30)
+
+    @model_validator(mode='after')
+    def check_operation_fields(self):
+        if self.operation in {'update', 'delete'} and not self.situation_id:
+            raise ValueError('상황 카드판 ID가 필요합니다.')
+        if self.operation != 'delete' and (not self.name or not self.name.strip()):
+            raise ValueError('상황 이름이 필요합니다.')
+        if self.operation == 'update' and self.card_ids is None:
+            raise ValueError('상황 슬롯이 필요합니다.')
+        if self.operation != 'update' and self.card_ids is not None:
+            raise ValueError('슬롯 수정은 상황 편집에서만 허용합니다.')
+        if self.operation in {'create', 'copy'} and self.situation_id is not None:
+            raise ValueError('새 상황의 ID는 서버가 정합니다.')
+        if self.operation == 'copy' and self.source_id == 'default':
+            raise ValueError('복사할 상황을 선택해 주세요.')
+        if self.operation != 'copy' and self.source_id != 'default':
+            raise ValueError('복사 외 작업에는 원본 상황을 지정할 수 없습니다.')
+        if self.operation == 'delete' and self.name is not None:
+            raise ValueError('상황 삭제에 이름 변경을 함께 보낼 수 없습니다.')
+        return self
 
 
 class BoardAuditResponse(BaseModel):
@@ -897,6 +936,14 @@ def put_board_locks(request: BoardLocksRequest,
                     user_id: str = Query(min_length=1, max_length=64), user=Depends(current_user)):
     target = _require_support_manager(user, user_id, 'board_manage')
     return save_locks(target, user, request.card_ids, request.expected_revision)
+
+
+@api_router.put('/board/layout/situations', response_model=BoardLayoutResponse,
+                response_model_exclude_none=True, tags=['카드판'])
+def put_situation_board(request: SituationBoardRequest,
+                        user_id: str = Query(min_length=1, max_length=64), user=Depends(current_user)):
+    target = _require_support_manager(user, user_id, 'board_manage')
+    return change_situations(target, user, **request.model_dump())
 
 
 @api_router.get('/board/layout/audit', response_model=list[BoardAuditResponse], tags=['카드판'])

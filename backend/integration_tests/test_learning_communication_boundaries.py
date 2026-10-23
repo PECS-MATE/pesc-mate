@@ -448,6 +448,67 @@ class RealLearningCommunicationBoundaryTests(unittest.TestCase):
         self.assertEqual(self.request('GET', '/board/layout')['revision'], 1)
         self.assertEqual(len(self.request('GET', '/board/layout/audit')), 1)
 
+    def situation(self, operation, revision, *, expected=200, actor='guardian', target='child-a', **fields):
+        return self.request('PUT', '/board/layout/situations?user_id=' + target, actor=actor, expected=expected,
+                            json={'operation': operation, 'expected_revision': revision, **fields})
+
+    def test_situations_create_copy_independent_edit_delete_and_privacy_scope(self):
+        self.set_permissions('guardian', ['board_manage'])
+        before = self.request('GET', '/board/layout')
+        home = self.situation('create', 0, name='집')
+        first = home['situations'][0]
+        self.assertEqual(first['slots'], before['slots'])
+        school = self.situation('copy', 1, name='학교', source_id=first['id'])
+        second = school['situations'][1]
+        self.assertNotEqual(first['id'], second['id'])
+        edited = self.situation('update', 2, situation_id=second['id'], name='학교', card_ids=['water', 'help'])
+        self.assertEqual(edited['situations'][0], first)
+        self.assertEqual(edited['slots'], before['slots'])
+        self.assertEqual(edited['situations'][1]['slots'], [{'position': 1, 'card_id': 'water'}, {'position': 2, 'card_id': 'help'}])
+        self.situation('delete', 1, situation_id=first['id'], expected=409)
+        self.database.communication_sessions.insert_one({'_id': 'preserved-session', 'user_id': 'child-a', 'cards': ['water']})
+        self.database.tts_settings.insert_one({'_id': 'child-a', 'rate': 1.2})
+        removed = self.situation('delete', 3, situation_id=first['id'])
+        self.assertEqual(removed['situations'], [edited['situations'][1]])
+        self.assertIsNotNone(self.database.communication_sessions.find_one({'_id': 'preserved-session'}))
+        self.assertEqual(self.database.tts_settings.find_one({'_id': 'child-a'})['rate'], 1.2)
+        self.assertEqual(self.request('GET', '/board/layout', actor='child-b')['situations'], [])
+        self.assertEqual(len(self.request('GET', '/board/layout/audit')), 4)
+        # Existing privacy deletion includes embedded presets without another collection.
+        self.request('DELETE', '/privacy/data', json={'confirmation': 'DELETE'})
+        self.assertIsNone(self.database.board_layouts.find_one({'_id': 'child-a'}))
+
+    def test_situations_require_permission_owned_source_unique_name_and_six_item_limit(self):
+        for actor in ('child-a', 'child-b', 'guardian', 'staff', 'operator'):
+            self.situation('create', 0, name='집', actor=actor, expected=403)
+        self.set_permissions('guardian', ['board_manage'])
+        self.situation('create', 0, target='child-b', name='집', expected=403)
+        self.situation('copy', 0, name='학교', source_id='foreign-source', expected=404)
+        for index, name in enumerate(['집', '학교', '치료실', '외출', '식사', '병원']):
+            self.situation('create', index, name=name)
+        self.situation('create', 6, name='일곱번째', expected=422)
+        self.situation('create', 6, name='집', expected=409)
+        self.situation('delete', 6, situation_id='default', expected=404)
+        self.situation('create', 6, name='제어\n이름', expected=422)
+        self.assertEqual(self.request('GET', '/board/layout')['revision'], 6)
+        self.assertEqual(len(self.request('GET', '/board/layout/audit')), 6)
+
+    def test_situations_keep_locked_positions_and_new_locks_require_alignment_in_every_board(self):
+        self.set_permissions('guardian', ['board_manage'])
+        root = self.request('PUT', '/board/layout/slots?user_id=child-a', actor='guardian',
+            json={'expected_revision': 0, 'card_ids': ['help', 'water', 'stop']})
+        home = self.situation('create', 1, name='집')['situations'][0]
+        self.situation('update', 2, situation_id=home['id'], name='집', card_ids=['water', 'help', 'stop'])
+        self.request('PUT', '/board/layout/locks?user_id=child-a', actor='guardian', expected=409,
+            json={'expected_revision': 3, 'card_ids': ['water']})
+        self.situation('update', 3, situation_id=home['id'], name='집', card_ids=['help', 'water', 'stop'])
+        self.request('PUT', '/board/layout/locks?user_id=child-a', actor='guardian',
+            json={'expected_revision': 4, 'card_ids': ['water']})
+        self.situation('update', 5, situation_id=home['id'], name='집', card_ids=['water', 'help'], expected=409)
+        self.situation('update', 5, situation_id=home['id'], name='집', card_ids=['help', 'water', 'custom:foreign'], expected=422)
+        school = self.situation('copy', 5, name='학교', source_id=home['id'])
+        self.assertTrue(all(item['slots'] == root['slots'] for item in school['situations']))
+
     def test_recommendations_approval_hide_disable_conflict_audit_and_board_independence(self):
         self.set_permissions('guardian', ['board_manage'])
         board = self.request('GET', '/board/layout')

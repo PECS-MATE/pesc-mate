@@ -6,9 +6,9 @@ from pymongo.errors import DuplicateKeyError
 from pydantic import ValidationError
 
 from app.services.board_layout import (
-    layout_for, save_quick_expressions, save_recovery_expressions, save_slots, save_locks,
+    layout_for, save_quick_expressions, save_recovery_expressions, save_slots, save_locks, change_situations,
 )
-from app.api.router import _require_support_manager, BoardCardIdsRequest, BoardRecoveryIdsRequest, BoardLocksRequest
+from app.api.router import _require_support_manager, BoardCardIdsRequest, BoardRecoveryIdsRequest, BoardLocksRequest, SituationBoardRequest
 
 
 CARDS = [
@@ -220,6 +220,42 @@ class BoardLayoutTests(unittest.TestCase):
         with self.assertRaises(HTTPException) as caught:
             save_locks('child', {'id': 'child', 'role': 'user'}, [], 0)
         self.assertEqual(caught.exception.status_code, 403)
+
+    def test_situation_request_shape_is_strict_and_does_not_accept_foreign_target_fields(self):
+        SituationBoardRequest(expected_revision=0, operation='create', name='집')
+        SituationBoardRequest(expected_revision=1, operation='copy', name='학교', source_id='synthetic')
+        SituationBoardRequest(expected_revision=2, operation='delete', situation_id='synthetic')
+        cases = [dict(operation='update', situation_id='s'), dict(operation='delete'),
+                 dict(operation='copy', name='집'), dict(operation='create', name=' '),
+                 dict(operation='create', name='학교', situation_id='foreign'),
+                 dict(operation='create', name='집', owner_id='other'),
+                 dict(operation='delete', situation_id='s', name='바꾸기'),
+                 dict(operation='create', name='집', card_ids=['help'])]
+        for values in cases:
+            with self.subTest(values=values), self.assertRaises(ValidationError):
+                SituationBoardRequest(expected_revision=0, **values)
+        with self.assertRaises(HTTPException) as caught:
+            change_situations('child', {'id': 'child', 'role': 'user'}, 0, 'create', name='집')
+        self.assertEqual(caught.exception.status_code, 403)
+
+    @patch('app.services.board_layout._available_cards', return_value=CARDS)
+    @patch('app.services.board_layout._database')
+    @patch('app.services.support_links.require_link_permission')
+    @patch('app.services.image_storage.image_write_lock')
+    @patch('app.services.image_storage.check_deletion_race')
+    def test_situations_are_transformed_from_same_cas_snapshot_and_keep_default_slots(self, deletion, lock, permission, mocked_database, _available):
+        db = mocked_database.return_value
+        original = [{'position': 1, 'card_id': 'help'}]
+        db.board_layouts.find_one.return_value = {'user_id': 'child', 'revision': 3, 'slots': original}
+        db.board_layouts.update_one.return_value.matched_count = 1
+        result = change_situations('child', {'id': 'staff', 'role': 'support_staff'}, 3, 'create', name='집')
+        self.assertEqual(result['slots'], original)
+        self.assertEqual(result['situations'][0]['slots'], original)
+        self.assertEqual(result['situations'][0]['name'], '집')
+        self.assertEqual(result['revision'], 4)
+        self.assertEqual(db.board_layouts.find_one.call_count, 1)
+        self.assertEqual(db.board_layouts.update_one.call_args.args[0], {'_id': 'child', 'revision': 3})
+        self.assertEqual(db.board_audit_logs.insert_one.call_args.args[0]['action'], 'situation_create')
 
 
 if __name__ == '__main__':

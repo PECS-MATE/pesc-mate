@@ -14,6 +14,8 @@ import BulkCardImport from './BulkCardImport';
 import CardPhotoReplacement from './CardPhotoReplacement';
 import BoardSlotsEditor from './BoardSlotsEditor';
 import CoreCardLocks from './CoreCardLocks';
+import SituationBoards from './SituationBoards';
+import SituationBoardPicker from './SituationBoardPicker';
 import useReauthentication from './useReauthentication';
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
@@ -220,6 +222,11 @@ function App() {
   const [newSupportPermissions, setNewSupportPermissions] = useState(['records_read']);
   const [supportPermissionDrafts, setSupportPermissionDrafts] = useState({});
   const [boardLayout, setBoardLayout] = useState(null);
+  const [boardSituation, setBoardSituation] = useState(null);
+  useEffect(() => {
+    if (!privacy?.guardian_consent || ['in_progress', 'failed', 'completed'].includes(privacy?.deletion_status)) setBoardSituation(null);
+  }, [user?.id, privacy?.guardian_consent, privacy?.deletion_status]);
+  useEffect(() => { setBoardSituation(null); }, [user?.id]);
   const [boardLayoutAudit, setBoardLayoutAudit] = useState([]);
   const [quickDraft, setQuickDraft] = useState([]);
   const [recoveryDraft, setRecoveryDraft] = useState([]);
@@ -1431,8 +1438,9 @@ function App() {
   }
   const layoutCards = boardLayout?.available_cards || cards;
   const layoutCardsById = new Map(layoutCards.map(card => [card.id, card]));
+  const activeBoardSituation = boardSituation?.user_id === user?.id ? boardSituation : null;
   const configuredBoardCards = boardLayout
-    ? boardLayout.slots.map(slot => cards.find(card => card.id === slot.card_id) || layoutCardsById.get(slot.card_id)).filter(Boolean)
+    ? (activeBoardSituation?.slots || boardLayout.slots).map(slot => cards.find(card => card.id === slot.card_id) || layoutCardsById.get(slot.card_id)).filter(Boolean)
     : cards;
   const activeCardSource = tab === 'cards' ? configuredBoardCards : cards;
   const quickExpressionCards = boardLayout
@@ -1595,6 +1603,8 @@ function App() {
         offline={offline} renderCard={tile} onCards={setRecommended} historyKey={generatedSessionId}
         onOpenLibrary={() => { setCategory('전체'); setSearch(''); setTab('catalog'); }} />
       <div className="workspace"><section id="card-library" tabIndex="-1"><div className="section-title"><h2>무엇을 말하고 싶나요?</h2><input aria-label="카드 검색" placeholder="카드 이름 검색" value={search} onChange={e => setSearch(e.target.value)} /></div>
+        {boardLayout && <SituationBoardPicker key={user.id} layout={boardLayout} active={activeBoardSituation} disabled={busy} offline={offline}
+          onSelect={value => { setBoardSituation(value ? { ...value, user_id: user.id } : null); setCategory('전체'); setSearch(''); setCardPage(0); }} />}
         <label className="situation-picker">기록 상황 (선택)<select aria-label="기록 상황 (선택)" value={situation} onChange={event => setSituation(event.target.value)}>
           {Object.entries(SITUATIONS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
         </select><small>기록에만 사용하며 카드 위치·추천·학습 범위는 바꾸지 않습니다.</small></label>
@@ -1713,6 +1723,9 @@ function App() {
         {canManageBoard && <BoardSlotsEditor layout={boardLayout} value={slotDraft} onChange={setSlotDraft}
           busy={boardConfigBusy === 'slots'} onSave={() => saveBoardConfiguration('slots')} />}
         {canManageBoard && selectedUser && <CoreCardLocks key={`${user.id}-${selectedUser.id}`} layout={boardLayout}
+          targetId={selectedUser.id} disabled={offline || Boolean(boardConfigBusy) || statsBusy || boardConflict}
+          onSaved={setBoardLayout} onRefresh={reloadBoardConfiguration} />}
+        {canManageBoard && selectedUser && <SituationBoards key={`situations-${user.id}-${selectedUser.id}`} layout={boardLayout}
           targetId={selectedUser.id} disabled={offline || Boolean(boardConfigBusy) || statsBusy || boardConflict}
           onSaved={setBoardLayout} onRefresh={reloadBoardConfiguration} />}
       </fieldset>}
