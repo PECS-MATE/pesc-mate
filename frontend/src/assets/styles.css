@@ -885,6 +885,11 @@ button { min-width: 44px; min-height: 44px !important; }
 .bulk-import-list { list-style: none; padding: 0; display: grid; gap: 16px; }
 .bulk-import-list li { display: flex; align-items: start; flex-wrap: wrap; gap: 16px; border: 1px solid #c8cdd4; border-radius: 10px; padding: 12px; }
 .bulk-import-list img { object-fit: contain; flex: 0 0 96px; }
+.bulk-import-preview { flex: 0 0 96px; width: 96px; height: 96px; overflow: hidden; }
+.bulk-import-preview img { display: block; width: 96px; height: 96px; }
+.bulk-image-edits { display: grid; gap: 8px; min-width: 0; border: 1px solid #c8cdd4; }
+.bulk-image-edits .bulk-crop-option { display: flex; align-items: center; }
+.bulk-image-edits input[type="checkbox"] { width: auto; min-width: 24px; min-height: 24px; }
 .bulk-import-fields { flex: 1 1 240px; }
 .bulk-import-issue { margin: 0; font-weight: 700; }
 

@@ -79,14 +79,51 @@ class RealImageUploadTests(unittest.TestCase):
             raise RuntimeError('Refusing unsafe image fixture cleanup')
         self.mongo.drop_database(self.name)
 
-    def upload(self, kind, data, mime, *, filename='SYNTHETIC_PRIVATE_PERSON.jpg', expected=None):
+    def upload(self, kind, data, mime, *, filename='SYNTHETIC_PRIVATE_PERSON.jpg', expected=None, edits=None):
         fields = {'label': '검증사진' + uuid4().hex[:12], 'meaning': '합성 업로드 검증',
                   'category': '음식', 'visibility': 'private'} if kind == 'card' else {}
+        if edits is not None:
+            fields['image_edits'] = edits if isinstance(edits, str) else json.dumps(edits)
         response = self.http.post('/api/cards/submissions' if kind == 'card' else '/api/profile/image',
                                  headers=self.headers['child-a'], data=fields,
                                  files={'image': (filename, data, mime)})
         self.assertEqual(response.status_code, expected or (201 if kind == 'card' else 200), response.text)
         return response
+
+    def test_edited_card_archives_original_and_checks_full_frame_before_clean_edited_derivatives(self):
+        original = metadata_image()
+        result = self.upload('card', original, 'image/png', edits={
+            'crop': 'square', 'rotation': 90, 'brightness': 125}).json()
+        stored = self.database.card_submissions.find_one({'_id': result['id']})
+        self.assertEqual(stored['original_image']['data'], original)
+        self.assertEqual(stored['original_image']['sha256'], hashlib.sha256(original).hexdigest())
+        self.assertEqual(stored['image_edits'], {
+            'version': 'card-image-edit-v1', 'crop': 'square', 'rotation': 90, 'brightness': 125})
+        self.assertEqual(len(self.sent_images), 2)
+        sizes = []
+        for content in self.sent_images:
+            assert_clean_webp(self, content)
+            with Image.open(BytesIO(content)) as image:
+                sizes.append(image.size)
+        self.assertEqual(sizes, [(128, 160), (128, 128)])
+        self.assertEqual(stored['image']['data'], self.sent_images[-1])
+        for url in (result['image_url'], result['thumbnail_url']):
+            served = self.http.get(url, headers=self.headers['child-a'])
+            self.assertEqual(served.status_code, 200)
+            assert_clean_webp(self, served.content)
+            with Image.open(BytesIO(served.content)) as image:
+                self.assertEqual(image.size, (128, 128))
+        self.assertNotIn('original_image', result)
+
+    def test_invalid_edit_options_never_reach_safety_or_create_documents(self):
+        original = metadata_image()
+        for edits in ('not-json', '{"crop":"smart"}', '{"rotation":45}', '{"brightness":151}',
+                      '{"brightness":true}', '{"url":"https://private.invalid"}', ' ' * 257):
+            with self.subTest(edits=edits):
+                self.upload('card', original, 'image/png', edits=edits, expected=422)
+        self.transport.assert_not_called()
+        self.assertEqual(self.database.card_submissions.count_documents({}), 0)
+        self.assertEqual(self.database.card_audit_logs.count_documents({}), 0)
 
     def test_card_formats_archive_original_but_serve_only_clean_webp_and_drop_original_filename(self):
         for format, mime in FORMATS.items():

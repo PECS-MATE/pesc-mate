@@ -174,3 +174,55 @@ test('목록 반영에 실패해도 서버가 확인한 저장은 재시도 대�
   expect(panel.getByText('저장 완료')).toBeTruthy();
   expect(panel.getByRole('button', { name: '등록 가능한 0개 저장' }).disabled).toBe(true);
 });
+
+test('자르기·회전·밝기는 사진별 미리보기에 반영하고 원본 파일과 보정 설정만 전송한다', async () => {
+  const { user, panel } = await open();
+  const original = photo();
+  await choose(panel, user, [original, photo('검증_공책.png')]);
+  await user.click(panel.getByLabelText('1번 사진 중앙 정사각형 자르기'));
+  await user.click(panel.getByRole('button', { name: '1번 사진 오른쪽 90도 회전' }));
+  fireEvent.change(panel.getByLabelText('1번 사진 밝기'), { target: { value: '125' } });
+  const previews = panel.getAllByRole('img');
+  expect(previews[0].style.objectFit).toBe('cover');
+  expect(previews[0].style.transform).toBe('rotate(90deg)');
+  expect(previews[0].style.filter).toBe('brightness(1.25)');
+  expect(previews[1].style.filter).toBe('brightness(1)');
+  await user.click(panel.getByRole('button', { name: '등록 가능한 2개 저장' }));
+  await waitFor(() => expect(defaults.onImported).toHaveBeenCalledTimes(2));
+  const bodies = request.mock.calls.map(([, options]) => options.body);
+  expect(JSON.parse(bodies[0].get('image_edits'))).toEqual({ crop: 'square', rotation: 90, brightness: 125 });
+  expect(bodies[0].get('image').name).toBe(original.name);
+  expect(bodies[0].get('image').size).toBe(original.size);
+  expect(bodies[1].has('image_edits')).toBe(false);
+  expect(panel.getByRole('group', { name: '사진 보정 1' }).disabled).toBe(true);
+});
+
+test('네 번 회전과 보정 초기화는 다른 사진이나 원본 선택을 바꾸지 않는다', async () => {
+  const { user, panel } = await open();
+  await choose(panel, user, [photo()]);
+  for (let turn = 0; turn < 4; turn += 1) await user.click(panel.getByRole('button', { name: '1번 사진 오른쪽 90도 회전' }));
+  expect(panel.getByRole('img').style.transform).toBe('rotate(0deg)');
+  await user.click(panel.getByLabelText('1번 사진 중앙 정사각형 자르기'));
+  fireEvent.change(panel.getByLabelText('1번 사진 밝기'), { target: { value: '75' } });
+  await user.click(panel.getByRole('button', { name: '1번 사진 보정 초기화' }));
+  expect(panel.getByRole('img').style.objectFit).toBe('contain');
+  expect(panel.getByRole('img').style.filter).toBe('brightness(1)');
+  expect(panel.getByLabelText('1번 사진 중앙 정사각형 자르기').checked).toBe(false);
+  await user.click(panel.getByRole('button', { name: '등록 가능한 1개 저장' }));
+  await waitFor(() => expect(defaults.onImported).toHaveBeenCalledTimes(1));
+  expect(request.mock.calls[0][1].body.has('image_edits')).toBe(false);
+});
+
+test('편집 설정도 실패 항목만 수정하며 저장 여부가 불명확한 항목은 잠근다', async () => {
+  request.mockRejectedValueOnce(Object.assign(new Error('명확한 거절'), { status: 422 }))
+    .mockRejectedValueOnce(new Error('통신 결과 불명'));
+  const { user, panel } = await open();
+  await choose(panel, user, [photo()]);
+  await user.click(panel.getByRole('button', { name: '등록 가능한 1개 저장' }));
+  await panel.findByText('명확한 거절');
+  await user.click(panel.getByRole('button', { name: '1번 사진 오른쪽 90도 회전' }));
+  await user.click(panel.getByRole('button', { name: '등록 가능한 1개 저장' }));
+  await panel.findByText('저장 여부 확인 필요');
+  expect(JSON.parse(request.mock.calls[1][1].body.get('image_edits')).rotation).toBe(90);
+  expect(panel.getByRole('group', { name: '사진 보정 1' }).disabled).toBe(true);
+});

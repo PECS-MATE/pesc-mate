@@ -87,6 +87,29 @@ class CardSubmissionTests(unittest.TestCase):
         self.assertEqual(saved['owner_id'], 'child')
         self.assertEqual(self.audit_collection.documents[0]['actor_id'], 'caregiver')
 
+    @patch('app.services.card_submissions.check_image_safety')
+    def test_edits_cannot_hide_a_blocked_full_frame_or_store_a_blocked_edited_frame(self, safety):
+        for outcomes in ([{'status': 'blocked'}], [{'status': 'passed'}, {'status': 'blocked'}]):
+            safety.reset_mock(); safety.side_effect = outcomes
+            with self.assertRaises(HTTPException) as caught:
+                create_submission('child', '검증 사진', '합성 사진', '음식', 'private', 'raw.png',
+                                  'image/png', self.image, image_edits={'crop': 'square'})
+            self.assertEqual(caught.exception.status_code, 422)
+            self.assertEqual(safety.call_count, len(outcomes))
+            self.assertEqual(self.collection.documents, [])
+            self.assertEqual(self.audit_collection.documents, [])
+
+    @patch('app.services.card_submissions.check_image_safety')
+    def test_full_frame_manual_review_is_not_upgraded_by_an_edited_pass(self, safety):
+        safety.side_effect = [{'status': 'manual_review', 'provider': 'synthetic', 'reasons': []},
+                              {'status': 'passed', 'provider': 'synthetic', 'reasons': []}]
+        saved = create_submission('child', '검증 사진', '합성 사진', '음식', 'private', 'raw.png',
+                                  'image/png', self.image, image_edits={'brightness': 110})
+        self.assertEqual(saved['image_safety']['status'], 'manual_review')
+        self.assertEqual(self.collection.documents[0]['original_image']['data'], self.image)
+        self.assertEqual(self.collection.documents[0]['image_edits'], {
+            'version': 'card-image-edit-v1', 'crop': 'none', 'rotation': 0, 'brightness': 110})
+
     @patch('app.services.support_links.require_link_permission', return_value='child')
     def test_card_manager_can_view_linked_private_image(self, mocked_permission):
         saved = create_submission(

@@ -2,6 +2,8 @@ export const MAX_IMPORT_FILES = 20;
 const MAX_BYTES = 5 * 1024 * 1024;
 const TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
+export const defaultImageEdits = () => ({ crop: 'none', rotation: 0, brightness: 100 });
+
 export function filenameLabel(name) {
   return name.replace(/\.(?:png|jpe?g|webp)$/i, '').normalize('NFKC').replace(/_+/g, ' ').trim();
 }

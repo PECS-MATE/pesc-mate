@@ -980,6 +980,7 @@ async def submit_card(label: str = Form(min_length=1, max_length=30),
                       category: str = Form(min_length=1, max_length=30),
                       visibility: str = Form(),
                       submission_mode: str = Form(default='submit'),
+                      image_edits: str | None = Form(default=None, max_length=256),
                       user_id: str | None = Form(default=None, max_length=64),
                       image: UploadFile = File(),
                       user=Depends(current_user)):
@@ -988,7 +989,7 @@ async def submit_card(label: str = Form(min_length=1, max_length=30),
     image_data = await image.read(MAX_IMAGE_BYTES + 1)
     return create_submission(owner_id, label, meaning, category, visibility,
                              image.filename, image.content_type, image_data, submission_mode,
-                             actor_id=user['id'])
+                             actor_id=user['id'], image_edits=image_edits)
 
 
 @api_router.post('/cards/submissions/{submission_id}/submit', response_model=CardSubmissionResponse, tags=['카드'])

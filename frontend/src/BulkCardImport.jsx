@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { request } from './services/api';
 import { createRequestId } from './services/requestId';
-import { fileIssue, filenameLabel, importIssues, MAX_IMPORT_FILES } from './services/cardImport';
+import { defaultImageEdits, fileIssue, filenameLabel, importIssues, MAX_IMPORT_FILES } from './services/cardImport';
 
 const RETRYABLE = new Set([400, 409, 413, 422, 429]);
 const EDITABLE = new Set(['ready', 'failed']);
@@ -52,7 +52,7 @@ export default function BulkCardImport({ targetId, targetName, categories, exist
       const error = fileIssue(file);
       return { id: createRequestId(), file, fileError: error,
         preview: error ? '' : URL.createObjectURL(file), label, meaning: label, category,
-        status: 'ready', error: '' };
+        status: 'ready', error: '', edits: defaultImageEdits() };
     }));
     setNotice('');
   }
@@ -63,6 +63,10 @@ export default function BulkCardImport({ targetId, targetName, categories, exist
   }
   function applyCategory() {
     update(current => current.map(row => EDITABLE.has(row.status) ? { ...row, category } : row));
+  }
+  function editImage(row, changes) {
+    if (running.current || disabled || !EDITABLE.has(row.status)) return;
+    updateRow(row.id, { edits: { ...row.edits, ...changes }, error: '' });
   }
   const eligible = row => EDITABLE.has(row.status) && !importIssues(row, rowsRef.current, existingCards, categories).length;
 
@@ -83,6 +87,9 @@ export default function BulkCardImport({ targetId, targetName, categories, exist
         for (const [key, value] of Object.entries({ label: row.label.trim(), meaning: row.meaning.trim(),
           category: row.category, visibility: 'private', submission_mode: 'submit', user_id: targetId })) body.set(key, value);
         body.set('image', row.file);
+        if (row.edits.crop !== 'none' || row.edits.rotation || row.edits.brightness !== 100) {
+          body.set('image_edits', JSON.stringify(row.edits));
+        }
         let saved;
         try {
           // One request at a time: reuse server permission, consent, quota, safety and audit checks.
@@ -136,7 +143,8 @@ export default function BulkCardImport({ targetId, targetName, categories, exist
           const editable = EDITABLE.has(row.status) && !busy && !disabled;
           const issues = EDITABLE.has(row.status) ? importIssues(row, rows, existingCards, categories) : [];
           return <li key={row.id}>
-            {row.preview && <img src={row.preview} alt={`선택 사진 ${index + 1}`} loading="lazy" decoding="async" width="96" height="96" />}
+            {row.preview && <div className="bulk-import-preview"><img src={row.preview} alt={`선택 사진 ${index + 1}`} loading="lazy" decoding="async" width="96" height="96"
+              style={{ objectFit: row.edits.crop === 'square' ? 'cover' : 'contain', transform: `rotate(${row.edits.rotation}deg)`, filter: `brightness(${row.edits.brightness / 100})` }} /></div>}
             <div className="bulk-import-fields">
               <span>{index + 1}. {row.file.name} — <strong>{STATUS[row.status]}</strong></span>
               <label>카드명 {index + 1}<input value={row.label} maxLength="30" disabled={!editable} onChange={event => updateRow(row.id, { label: event.target.value, error: '' })} /></label>
@@ -144,6 +152,20 @@ export default function BulkCardImport({ targetId, targetName, categories, exist
               <label>카테고리 {index + 1}<select value={row.category} disabled={!editable} onChange={event => updateRow(row.id, { category: event.target.value, error: '' })}>
                 <option value="">카테고리 선택</option>{categories.map(item => <option key={item.id} value={item.name}>{item.name}</option>)}
               </select></label>
+              <fieldset className="bulk-image-edits" disabled={!editable || Boolean(row.fileError)}>
+                <legend>사진 보정 {index + 1}</legend>
+                <label className="bulk-crop-option"><input type="checkbox" checked={row.edits.crop === 'square'}
+                  aria-label={`${index + 1}번 사진 중앙 정사각형 자르기`}
+                  onChange={event => editImage(row, { crop: event.target.checked ? 'square' : 'none' })} />중앙 정사각형 자동 자르기</label>
+                <span>오른쪽 회전 {row.edits.rotation}도</span>
+                <button type="button" aria-label={`${index + 1}번 사진 오른쪽 90도 회전`}
+                  onClick={() => editImage(row, { rotation: (row.edits.rotation + 90) % 360 })}>오른쪽 90도 회전</button>
+                <label>{index + 1}번 사진 밝기 ({row.edits.brightness}%)<input type="range" min="50" max="150" step="5"
+                  aria-label={`${index + 1}번 사진 밝기`} aria-valuetext={`${row.edits.brightness}%`} value={row.edits.brightness}
+                  onChange={event => editImage(row, { brightness: Number(event.target.value) })} /></label>
+                <button type="button" aria-label={`${index + 1}번 사진 보정 초기화`} onClick={() => editImage(row, defaultImageEdits())}>보정 초기화</button>
+                <small>원본은 그대로 보관합니다. 중앙 자르기는 글자·그림을 자를 수 있으므로 미리보기를 확인해 주세요.</small>
+              </fieldset>
               {issues.map(issue => <p key={issue} className="bulk-import-issue">확인: {issue}</p>)}
               {row.error && <p className="bulk-import-issue">{row.error}</p>}
               {row.status === 'uncertain' && <p>이 항목은 다시 전송하지 않습니다. 등록 목록을 확인한 뒤 새로 선택해 주세요.</p>}

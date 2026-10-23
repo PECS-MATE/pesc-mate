@@ -18,6 +18,7 @@ from app.services.categories import active_category_names
 from app.services.image_safety import check_image_safety
 from app.services.language_review import review_language
 from app.services import image_storage as storage
+from app.services.image_edits import DEFAULT_EDITS, EDIT_VERSION, apply_edits, validate_edits
 
 ALLOWED_IMAGE_TYPES = {'image/jpeg', 'image/png', 'image/webp'}
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
@@ -116,9 +117,10 @@ def _ensure_indexes(collection):
 
 
 def _normalize_image(image_data, declared_content_type, max_edge=storage.DISPLAY_EDGE, *,
-                     min_input_edge=MIN_IMAGE_EDGE):
+                     min_input_edge=MIN_IMAGE_EDGE, image_edits=None):
     # Only maintenance of stored derivatives overrides the minimum input edge;
     # public uploads always keep the default 128px requirement.
+    edits = validate_edits(image_edits)
     if declared_content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(422, 'JPG, PNG, WebP 이미지만 등록할 수 있습니다.')
     if not image_data or len(image_data) > MAX_IMAGE_BYTES:
@@ -151,7 +153,7 @@ def _normalize_image(image_data, declared_content_type, max_edge=storage.DISPLAY
                 # Palette/RGB PNG can encode transparency with tRNS, not an A band.
                 alpha = 'A' in normalized.getbands() or 'transparency' in normalized.info
                 normalized = normalized.convert('RGBA' if alpha else 'RGB')
-                normalized.thumbnail((max_edge, max_edge), Image.Resampling.LANCZOS)
+                normalized = apply_edits(normalized, edits, max_edge)
                 normalized.getexif().clear()
                 normalized.info.clear()
                 output = BytesIO()
@@ -175,7 +177,7 @@ def _preserve_original(image_data, content_type, display_data):
 
 def create_submission(owner_id, label, meaning, category, visibility,
                       image_filename, image_content_type, image_data,
-                      submission_mode='submit', actor_id=None):
+                      submission_mode='submit', actor_id=None, image_edits=None):
     started = datetime.now(timezone.utc)
     actor_id = actor_id or owner_id
     label = label.strip()
@@ -190,10 +192,21 @@ def create_submission(owner_id, label, meaning, category, visibility,
     _validate_text(label, meaning, visibility)
     if submission_mode not in {'draft', 'submit'}:
         raise HTTPException(422, '저장 방식이 올바르지 않습니다.')
+    edits = validate_edits(image_edits)
     safe_image_data, safe_content_type = _normalize_image(image_data, image_content_type)
     image_safety = check_image_safety(safe_image_data, safe_content_type)
     if image_safety['status'] == 'blocked':
         raise HTTPException(422, '안전성 검사를 통과하지 못한 이미지는 등록할 수 없습니다.')
+
+    if edits != DEFAULT_EDITS:
+        # Validate the clean FULL frame before cropping, then validate the edited frame.
+        # Cropping cannot hide blocked pixels while we archive their original bytes.
+        safe_image_data, safe_content_type = _normalize_image(image_data, image_content_type, image_edits=edits)
+        edited_safety = check_image_safety(safe_image_data, safe_content_type)
+        if edited_safety['status'] == 'blocked':
+            raise HTTPException(422, '보정한 사진이 안전성 검사를 통과하지 못했습니다.')
+        if image_safety['status'] == 'passed':
+            image_safety = edited_safety
 
     normalized_label = _compact_text(label)
     document = {
@@ -218,6 +231,8 @@ def create_submission(owner_id, label, meaning, category, visibility,
         'thumbnail': storage.thumbnail(safe_image_data),
         'created_at': datetime.now(timezone.utc),
     }
+    if edits != DEFAULT_EDITS:
+        document['image_edits'] = {'version': EDIT_VERSION, **edits}
     try:
         collection = _collection()
         _ensure_indexes(collection)

@@ -754,6 +754,7 @@ Content-Type: multipart/form-data
 | `visibility` | string | `private` 또는 `shared` |
 | `image` | file | JPG, PNG, WebP, 최대 5MB, 가로·세로 128~4096px |
 | `submission_mode` | string | `draft` 또는 `submit`. 기본값 `submit` |
+| `image_edits` | JSON string, 선택 | 최대 256자. `crop`: `none`/`square`, `rotation`: 정수 0/90/180/270, `brightness`: 정수 50~150. 생략 시 보정 없음 |
 | `user_id` | string | 보호자·담당자가 관리할 연결 사용자. 본인은 생략 |
 
 AAC 사용자 본인 또는 `cards_manage` 권한이 있는 연결 보호자·담당자가 요청할 수
@@ -761,6 +762,12 @@ AAC 사용자 본인 또는 `cards_manage` 권한이 있는 연결 보호자·�
 다시 확인한다. 카드 소유자는 연결 사용자, 감사 기록의 처리자는 실제 요청 계정으로
 분리해 저장한다. `draft`는 작성 중으로 저장된다. `submit`인 개인 카드는 본인에게 즉시
 활성화되고 운영 권한 담당자에게 공유되지 않으며, 공개 카드는 승인 대기로 저장된다.
+선택 보정 예: `{"crop":"square","rotation":90,"brightness":125}`. EXIF 방향 적용 후
+시계 방향 회전·중앙 정사각형 자르기·최대 화면 크기 축소·밝기 보정을 순서대로 적용한다.
+임의 좌표·외부 URL·추가 필드·실수/문자열/불리언 보정 수치는 허용하지 않는다.
+보정 값 오류는 422이며 원본 바이트를 바꾸지 않는다. 보정 시 정규화한 전체 프레임과 보정
+프레임을 각각 검사하고 차단 결과가 있으면 저장하지 않는다. 기존 수동 검토 결과를
+보정 프레임 통과만으로 상향하지 않는다. 프로필 업로드는 이 보정 필드를 지원하지 않는다.
 성공 시 `201 Created`를 반환한다. 작성 중 개인 카드는
 `POST /api/cards/submissions/{id}/submit`으로 즉시 활성화하고 공개 카드는 운영 권한 담당자에게 제출한다.
 서버는 실제 이미지 형식과 선언된 MIME을 비교하고, 디코딩과 해상도 검증 후
