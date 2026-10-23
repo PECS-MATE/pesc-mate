@@ -39,7 +39,8 @@ test('difficulty controls option count and repeated target exposure', () => {
 test('play screen saves only a learning attempt and keeps communication available', () => {
   const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
   assert.match(app, /request\('\/learning\/attempts'/);
-  assert.match(app, /activity_type: 'word_picture_match'/);
+  assert.match(app, /activity_type: snapshot\.activity_type \|\| 'word_picture_match'/);
+  assert.match(app, /content_version: snapshot\.content_version/);
   assert.match(app, /items: snapshot\.results/);
   assert.match(app, /first_try_correct: !current\.hadWrong/);
   assert.match(app, /className="primary communication-return"/);

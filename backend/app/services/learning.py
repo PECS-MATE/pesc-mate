@@ -10,7 +10,8 @@ from app.services.database import database as _database
 from app.services.schema_versions import SCHEMA_VERSION
 
 
-ACTIVITY_TYPES = {'word_picture_match'}
+CONTENT_VERSIONS = {'word_picture_match': 'word-picture-v1', 'sound_picture_match': 'sound-picture-v1'}
+ACTIVITY_TYPES = set(CONTENT_VERSIONS)
 DEFAULT_SETTINGS = {
     'category_ids': [],
     'question_count': 10,
@@ -68,9 +69,12 @@ def save_settings(user_id, actor_id, category_ids, question_count, option_count,
 
 
 def record_attempt(user_id, request_id, activity_type, category_id,
-                   total_questions, correct_answers, duration_seconds, items=None, observation=None):
+                   total_questions, correct_answers, duration_seconds, items=None, observation=None,
+                   content_version=None):
     if activity_type not in ACTIVITY_TYPES:
         raise HTTPException(422, '지원하지 않는 학습 활동입니다.')
+    if content_version is not None and content_version != CONTENT_VERSIONS[activity_type]:
+        raise HTTPException(422, '학습 활동과 콘텐츠 버전이 일치하지 않습니다.')
     if correct_answers > total_questions:
         raise HTTPException(422, '정답 수는 전체 문제 수보다 클 수 없습니다.')
     item_results = list(items or [])
@@ -84,6 +88,7 @@ def record_attempt(user_id, request_id, activity_type, category_id,
         'user_id': user_id,
         'record_type': 'learning_attempt',
         'activity_type': activity_type,
+        'content_version': content_version or CONTENT_VERSIONS[activity_type],
         'category_id': category_id,
         'total_questions': total_questions,
         'correct_answers': correct_answers,
@@ -123,6 +128,10 @@ def record_attempt(user_id, request_id, activity_type, category_id,
 
 
 def _attempt_public(document):
+    # BSON dates have millisecond precision and are read as naive UTC. Keep
+    # first-write and idempotent replay responses identical without rewriting data.
+    completed = document['completed_at'].replace(tzinfo=document['completed_at'].tzinfo or timezone.utc).astimezone(timezone.utc)
+    completed = completed.replace(microsecond=completed.microsecond // 1000 * 1000)
     return {
         'id': str(document['_id']),
         **{key: document[key] for key in (
@@ -130,6 +139,8 @@ def _attempt_public(document):
             'correct_answers', 'incorrect_answers', 'score', 'duration_seconds', 'completed_at',
         )},
         'items': document.get('items', []),
+        'content_version': document.get('content_version'),
+        'completed_at': completed,
     }
 
 

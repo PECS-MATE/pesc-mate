@@ -671,6 +671,12 @@ Content-Type: application/json
 문제 수와 정답 수에 일치해야 한다. 기존 클라이언트를 위해 문제별 결과가 없는
 요청도 허용한다.
 
+학습 종류는 `word_picture_match`(그림·단어)와 `sound_picture_match`(소리·카드)를 지원한다.
+선택 필드 `content_version`은 각각 `word-picture-v1`, `sound-picture-v1`과 일치해야 한다.
+신규 요청의 누락 버전은 해당 활동의 v1으로 저장하고 과거 저장 문서의 누락은 null로
+조회한다. 버전은 학습 응답과 기록 CSV/JSON에 포함하며, 문제 음성 자체는 의사소통
+발화 이력으로 저장하지 않는다. [소리 카드 학습](SOUND_CARD_LEARNING.md)을 참고한다.
+
 클라이언트는 오프라인 완료 결과를 별도 로컬 대기열에 보관한 뒤 같은
 `request_id`로 이 API를 재호출한다. 서버는 요청 ID를 학습 기록의 고유 키로
 사용하므로 응답을 받기 전에 연결이 다시 끊겨도 중복 결과를 만들지 않는다.

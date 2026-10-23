@@ -527,7 +527,8 @@ class LearningItemResult(BaseModel):
 
 class LearningAttemptRequest(BaseModel):
     request_id: UUID
-    activity_type: Literal['word_picture_match']
+    activity_type: Literal['word_picture_match', 'sound_picture_match']
+    content_version: Literal['word-picture-v1', 'sound-picture-v1'] | None = None
     category_id: str = Field(min_length=1, max_length=64)
     total_questions: int = Field(ge=1, le=30)
     correct_answers: int = Field(ge=0, le=30)
@@ -539,6 +540,7 @@ class LearningAttemptResponse(BaseModel):
     id: UUID
     user_id: str
     activity_type: str
+    content_version: str | None = None
     category_id: str
     total_questions: int
     correct_answers: int
@@ -995,6 +997,7 @@ def post_learning_attempt(request: LearningAttemptRequest, http_request: Request
             user['id'], str(request.request_id), request.activity_type, request.category_id,
             request.total_questions, request.correct_answers, request.duration_seconds,
             [item.model_dump() for item in request.items], observation=observation,
+            content_version=request.content_version,
         )
 
 

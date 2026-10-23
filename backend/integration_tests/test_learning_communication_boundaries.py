@@ -452,6 +452,21 @@ class RealLearningCommunicationBoundaryTests(unittest.TestCase):
         return self.request('PUT', '/board/layout/situations?user_id=' + target, actor=actor, expected=expected,
                             json={'operation': operation, 'expected_revision': revision, **fields})
 
+    def test_sound_learning_version_results_export_and_consent_remain_separate(self):
+        identity = str(uuid4())
+        payload = self.attempt(request_id=identity, activity_type='sound_picture_match', content_version='sound-picture-v1')
+        result = self.request('POST', '/learning/attempts', json=payload, expected=201)
+        self.assertEqual(result['content_version'], 'sound-picture-v1')
+        self.assertEqual(self.request('POST', '/learning/attempts', json=payload, expected=201), result)
+        self.assertEqual(self.database.learning_attempts.count_documents({'_id': identity}), 1)
+        self.assertEqual(self.database.communication_sessions.count_documents({}), 0)
+        self.assertEqual(self.database.tts_events.count_documents({}), 0)
+        exported = self.request('GET', '/records/export?domain=learning')
+        self.assertEqual(exported['records'][0]['content_version'], 'sound-picture-v1')
+        self.request('POST', '/learning/attempts', json=self.attempt(activity_type='sound_picture_match', content_version='word-picture-v1'), expected=422)
+        self.database.privacy_settings.update_one({'_id': 'child-a'}, {'$set': {'guardian_consent': False}})
+        self.request('POST', '/learning/attempts', json=self.attempt(activity_type='sound_picture_match'), expected=403)
+
     def test_situations_create_copy_independent_edit_delete_and_privacy_scope(self):
         self.set_permissions('guardian', ['board_manage'])
         before = self.request('GET', '/board/layout')

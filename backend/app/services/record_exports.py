@@ -18,7 +18,7 @@ COMMUNICATION_FIELDS = (
 )
 LEARNING_FIELDS = (
     'id', 'completed_at', 'activity_type', 'category_id', 'total_questions',
-    'correct_answers', 'duration_seconds', 'items',
+    'correct_answers', 'duration_seconds', 'items', 'content_version',
 )
 
 

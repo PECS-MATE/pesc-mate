@@ -10,6 +10,32 @@ from app.services.learning import progress_for, record_attempt, save_settings, s
 
 class LearningTests(unittest.TestCase):
     @patch('app.services.learning._database')
+    def test_sound_activity_version_is_recorded_only_as_learning_and_replayed_idempotently(self, mocked_database):
+        db = mocked_database.return_value
+        db.learning_attempts.find_one.return_value = None
+        result = record_attempt('child', 'sound-request', 'sound_picture_match', 'food', 2, 1, 10,
+            content_version='sound-picture-v1')
+        self.assertEqual(result['activity_type'], 'sound_picture_match')
+        self.assertEqual(result['content_version'], 'sound-picture-v1')
+        self.assertEqual(result['completed_at'].microsecond % 1000, 0)
+        self.assertEqual(result['completed_at'].tzinfo, timezone.utc)
+        stored = db.learning_attempts.insert_one.call_args.args[0]
+        db.learning_attempts.find_one.return_value = stored
+        self.assertEqual(record_attempt('child', 'sound-request', 'sound_picture_match', 'food', 2, 1, 10,
+            content_version='sound-picture-v1'), result)
+        db.learning_attempts.insert_one.assert_called_once()
+        db.communication_sessions.insert_one.assert_not_called()
+        db.tts_events.insert_one.assert_not_called()
+
+    @patch('app.services.learning._database')
+    def test_activity_version_mismatch_is_rejected_without_storage(self, mocked_database):
+        with self.assertRaises(HTTPException) as caught:
+            record_attempt('child', 'request', 'sound_picture_match', 'food', 2, 1, 10,
+                content_version='word-picture-v1')
+        self.assertEqual(caught.exception.status_code, 422)
+        mocked_database.assert_not_called()
+
+    @patch('app.services.learning._database')
     def test_new_user_settings_are_separate_defaults(self, mocked_database):
         database = MagicMock()
         database.learning_settings.find_one.return_value = None
