@@ -525,15 +525,33 @@ class LearningItemResult(BaseModel):
     first_try_correct: bool
 
 
+class LearningSequenceItemResult(LearningItemResult):
+    content_id: str = Field(min_length=1, max_length=64, pattern=r'^[a-z][a-z0-9-]*$')
+    card_ids: list[Annotated[str, Field(min_length=1, max_length=64)]] = Field(min_length=2, max_length=3)
+
+
 class LearningAttemptRequest(BaseModel):
     request_id: UUID
-    activity_type: Literal['word_picture_match', 'sound_picture_match']
-    content_version: Literal['word-picture-v1', 'sound-picture-v1'] | None = None
+    activity_type: Literal['word_picture_match', 'sound_picture_match', 'sentence_card_order']
+    content_version: Literal['word-picture-v1', 'sound-picture-v1', 'sentence-order-v1'] | None = None
     category_id: str = Field(min_length=1, max_length=64)
     total_questions: int = Field(ge=1, le=30)
     correct_answers: int = Field(ge=0, le=30)
     duration_seconds: int = Field(ge=0, le=3600)
-    items: list[LearningItemResult] = Field(default_factory=list, max_length=30)
+    items: list[LearningSequenceItemResult | LearningItemResult] = Field(default_factory=list, max_length=30)
+
+    @model_validator(mode='before')
+    @classmethod
+    def validate_sequence_items(cls, values):
+        if isinstance(values, dict) and isinstance(values.get('items'), list):
+            for item in values['items']:
+                if not isinstance(item, dict):
+                    continue  # The ordinary item schema reports malformed types.
+                if values.get('activity_type') == 'sentence_card_order':
+                    LearningSequenceItemResult.model_validate(item)
+                elif 'content_id' in item or 'card_ids' in item:
+                    raise ValueError('문장 순서 결과는 해당 학습 활동에서만 저장할 수 있습니다.')
+        return values
 
 
 class LearningAttemptResponse(BaseModel):
@@ -547,7 +565,7 @@ class LearningAttemptResponse(BaseModel):
     incorrect_answers: int
     score: int
     duration_seconds: int
-    items: list[LearningItemResult]
+    items: list[LearningSequenceItemResult | LearningItemResult]
     completed_at: datetime
 
 

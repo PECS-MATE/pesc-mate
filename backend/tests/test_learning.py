@@ -4,11 +4,76 @@ from unittest.mock import MagicMock, patch
 
 from fastapi import HTTPException
 
-from app.api.router import LearningSettingsRequest, put_learning_settings
+from app.api.router import LearningAttemptRequest, LearningSettingsRequest, put_learning_settings
+from pydantic import ValidationError
+from uuid import uuid4
 from app.services.learning import progress_for, record_attempt, save_settings, settings_for
 
 
 class LearningTests(unittest.TestCase):
+    @patch('app.services.learning._database')
+    def test_sentence_order_preserves_content_and_card_sequence_without_communication_writes(self, mocked_database):
+        item = {'card_id': 'drink', 'label': '마시다', 'first_try_correct': True,
+                'content_id': 'water-drink', 'card_ids': ['water', 'drink']}
+        request = LearningAttemptRequest(request_id=uuid4(), activity_type='sentence_card_order',
+            content_version='sentence-order-v1', category_id='mixed', total_questions=1,
+            correct_answers=1, duration_seconds=3, items=[item])
+        self.assertEqual(request.items[0].model_dump(), item)
+        db = mocked_database.return_value
+        db.learning_attempts.find_one.return_value = None
+        first = record_attempt('child', str(request.request_id), request.activity_type, 'mixed', 1, 1, 3,
+            [request.items[0].model_dump()], content_version=request.content_version)
+        stored = db.learning_attempts.insert_one.call_args.args[0]
+        self.assertEqual(first['items'], [item])
+        self.assertEqual(first['content_version'], 'sentence-order-v1')
+        db.learning_attempts.find_one.return_value = stored
+        self.assertEqual(record_attempt('child', str(request.request_id), request.activity_type,
+            'mixed', 1, 1, 3, [item], content_version=request.content_version), first)
+        db.learning_attempts.insert_one.assert_called_once()
+        db.communication_sessions.insert_one.assert_not_called()
+        db.tts_events.insert_one.assert_not_called()
+
+    @patch('app.services.learning._database')
+    def test_sentence_order_requires_bounded_unique_cards_and_consistent_results(self, mocked_database):
+        item = {'card_id': 'drink', 'label': '마시다', 'first_try_correct': True,
+                'content_id': 'water-drink', 'card_ids': ['water', 'drink']}
+        for items in ([], [item | {'card_ids': ['drink', 'drink']}],
+                      [item | {'card_ids': ['water']}], [item | {'card_id': 'outside'}],
+                      [item | {'content_id': ''}], [item | {'card_ids': ['me', 'water', 'rice', 'drink']}],
+                      [item, item]):
+            with self.subTest(items=items), self.assertRaises(HTTPException) as caught:
+                record_attempt('child', 'request', 'sentence_card_order', 'mixed', 1, 1, 3,
+                    items, content_version='sentence-order-v1')
+            self.assertEqual(caught.exception.status_code, 422)
+        mocked_database.assert_not_called()
+
+    def test_invalid_sequence_metadata_does_not_silently_fall_back_to_old_item_schema(self):
+        base = dict(request_id=uuid4(), activity_type='sentence_card_order',
+            content_version='sentence-order-v1', category_id='mixed', total_questions=1,
+            correct_answers=1, duration_seconds=3)
+        item = {'card_id': 'drink', 'label': '마시다', 'first_try_correct': True,
+                'content_id': 'water-drink', 'card_ids': ['water', 'drink']}
+        for changes in ({'content_id': 'invalid content'}, {'card_ids': ['water']}, {'card_ids': 'water'}):
+            with self.subTest(changes=changes), self.assertRaises(ValidationError):
+                LearningAttemptRequest(**base, items=[item | changes])
+        with self.assertRaises(ValidationError):
+            LearningAttemptRequest(**(base | {'activity_type': 'word_picture_match'}), items=[item])
+
+    @patch('app.services.learning._database')
+    def test_sentence_order_outcomes_count_as_participation_not_as_single_word_mastery(self, mocked_database):
+        mocked_database.return_value.learning_attempts.find.return_value.sort.return_value = [{
+            '_id': 'ordering', 'user_id': 'child', 'record_type': 'learning_attempt',
+            'activity_type': 'sentence_card_order', 'content_version': 'sentence-order-v1', 'category_id': 'mixed',
+            'total_questions': 1, 'correct_answers': 1, 'incorrect_answers': 0, 'score': 100,
+            'duration_seconds': 3, 'completed_at': datetime.now(timezone.utc),
+            'items': [{'card_id': 'drink', 'label': '마시다', 'first_try_correct': True,
+                       'content_id': 'water-drink', 'card_ids': ['water', 'drink']}],
+        }]
+        result = progress_for('child')
+        self.assertEqual(result['attempts'], 1)
+        for key in ('familiar_words', 'practicing_words', 'repeat_words'):
+            self.assertEqual(result[key], [])
+
     @patch('app.services.learning._database')
     def test_sound_activity_version_is_recorded_only_as_learning_and_replayed_idempotently(self, mocked_database):
         db = mocked_database.return_value

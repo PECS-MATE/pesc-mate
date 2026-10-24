@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, test, vi } from 'vitest';
 import App from '../../src/App.jsx';
 import { request } from '../../src/services/api';
-import { cachedAccount, cachedSnapshot } from '../../src/services/offlineStore';
+import { cacheLearningGame, cachedAccount, cachedSnapshot } from '../../src/services/offlineStore';
 
 const player = vi.hoisted(() => ({ speak: vi.fn(), pause: vi.fn(), resume: vi.fn(), stop: vi.fn() }));
 const synchronizer = vi.hoisted(() => ({ sync: vi.fn() }));
@@ -79,6 +79,52 @@ async function openCommunication() {
   const board = screen.getByRole('heading', { name: /나의 문장/ }).closest('section');
   return { user, workspace: within(workspace), board: within(board) };
 }
+
+async function openSentencePractice() {
+  const original = request.getMockImplementation();
+  request.mockImplementation((path, options) => {
+    if (path === '/learning/settings') return { category_ids: categories.map(item => item.id), question_count: 5,
+      option_count: 3, repeat_frequency: 1, retry_enabled: false, time_limit_seconds: 60 };
+    if (path === '/learning/progress?days=30') return { attempts: 0 };
+    return original(path, options);
+  });
+  const user = userEvent.setup(); render(<StrictMode><App /></StrictMode>);
+  const menu = await screen.findByRole('navigation', { name: '주 메뉴' });
+  await screen.findByText('서비스 연결됨');
+  await user.click(within(menu).getByRole('button', { name: '연습하기', exact: true }));
+  await user.selectOptions(await screen.findByLabelText('연습 종류'), 'sentence_card_order');
+  return user;
+}
+
+test('문장 연습은 재도전이 꺼진 오답을 한 번만 집계하고 다음 문제의 선택을 비운다', async () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0.999); // Fixed two-card example, not random test runtime.
+  const user = await openSentencePractice();
+  await user.click(screen.getByRole('button', { name: '연습 시작', exact: true }));
+  const exercise = within(screen.getByRole('heading', { name: '물을 마셔요.' }).closest('article'));
+  const labels = [...screen.getByRole('list', { name: '예문 카드 순서' }).querySelectorAll('strong')];
+  for (const label of labels.map(item => item.textContent).toReversed()) {
+    await user.click(exercise.getByRole('button', { name: `${label} 순서에 담기`, exact: true }));
+  }
+  await user.click(exercise.getByRole('button', { name: '순서 확인', exact: true }));
+  expect(exercise.getByRole('button', { name: '순서 확인', exact: true }).disabled).toBe(true);
+  expect(screen.getByText(/예문 순서는 .*천천히 다시 살펴봐요/)).toBeTruthy();
+  const result = cacheLearningGame.mock.calls.at(-1)[1].game;
+  expect(result.results).toHaveLength(1); expect(result.results[0].first_try_correct).toBe(false);
+  expect(result.correctAnswers).toBe(0);
+  await user.click(exercise.getByRole('button', { name: '다음 문제', exact: true }));
+  expect(within(screen.getByRole('list', { name: '선택한 카드 순서' })).queryAllByRole('listitem')).toHaveLength(0);
+  expect(cacheLearningGame.mock.calls.at(-1)[1].game.questionIndex).toBe(1);
+  expect(request.mock.calls.some(([path]) => ['/sentences', '/tts/events', '/learning/attempts'].includes(path))).toBe(false);
+});
+
+test('문장 예문이 없는 카테고리는 다른 범위 안내와 시작 비활성화를 제공한다', async () => {
+  const user = await openSentencePractice();
+  await user.selectOptions(screen.getByLabelText('연습 범위'), 'food');
+  expect(screen.getByRole('button', { name: '연습 시작', exact: true }).disabled).toBe(true);
+  expect(screen.getByText(/선택 범위에 예문 카드가 없습니다/)).toBeTruthy();
+  await user.selectOptions(screen.getByLabelText('연습 범위'), 'all');
+  expect(screen.getByRole('button', { name: '연습 시작', exact: true }).disabled).toBe(false);
+});
 
 test('동의가 없어도 기본 말하기를 유지하며 선택·발화·추천 요청과 기기 선택 기록을 남기지 않는다', async () => {
   const original = request.getMockImplementation();

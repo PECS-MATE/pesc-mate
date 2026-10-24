@@ -31,6 +31,7 @@ API, 데이터 구조, 카드·마스코트 자산과 협업 규칙을 관리한
 | [데이터 버전·마이그레이션](development/DATA_SCHEMA_MIGRATIONS.md) | 저장 형식 기준선, 조회 전용 계획·명시적 적용·잠금·재개 규칙 |
 | [학습 기록 데이터 모델](development/LEARNING_DATA_MODEL.md) | 학습 컬렉션과 의사소통 기록의 구분 |
 | [소리 듣고 카드 찾기](development/SOUND_CARD_LEARNING.md) | 명시 재생·그림 보기·기존 학습 설정·콘텐츠 버전·재개와 오프라인 결과 |
+| [카드 순서로 문장 만들기](development/SENTENCE_ORDER_LEARNING.md) | 예문 따라 놓기·재도전·선택 재개·학습 전용 결과와 단어 집계 분리 |
 | [의사소통·학습 기록 화면 분리](development/SUPPORT_RECORD_DASHBOARD.md) | 기록 탭·연결 권한·집계 기준과 늦은 응답 차단 |
 | [추천 통제·탐색 보조](development/RECOMMENDATION_POLICY.md) | 추천 근거·승인·숨김·노출 기록과 장애 격리 |
 | [업로드 이미지 정규화·원본 보관](development/IMAGE_UPLOAD_NORMALIZATION.md) | 로컬 원본 보관과 화면용 WebP 분리, 형식 검증·메타데이터 제거·삭제 연동 |

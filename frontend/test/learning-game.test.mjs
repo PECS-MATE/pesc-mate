@@ -42,7 +42,7 @@ test('play screen saves only a learning attempt and keeps communication availabl
   assert.match(app, /activity_type: snapshot\.activity_type \|\| 'word_picture_match'/);
   assert.match(app, /content_version: snapshot\.content_version/);
   assert.match(app, /items: snapshot\.results/);
-  assert.match(app, /first_try_correct: !current\.hadWrong/);
+  assert.match(app, /first_try_correct: !current\.hadWrong && correct/);
   assert.match(app, /className="primary communication-return"/);
   assert.match(app, /괜찮아요\. 다른 단어를 다시 골라 보세요\./);
 });

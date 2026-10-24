@@ -80,6 +80,36 @@ class RealLearningCommunicationBoundaryTests(unittest.TestCase):
                 'duration_seconds': 4, 'items': [{'card_id': 'apple', 'label': '사과',
                                                'first_try_correct': False}], **extra}
 
+    def test_sentence_order_api_preserves_sequence_exports_deduplicates_and_enforces_boundaries(self):
+        identity = str(uuid4())
+        item = {'card_id': 'drink', 'label': '마시다', 'first_try_correct': True,
+                'content_id': 'water-drink', 'card_ids': ['water', 'drink']}
+        payload = self.attempt(request_id=identity, activity_type='sentence_card_order',
+            content_version='sentence-order-v1', correct_answers=1, items=[item])
+        first = self.request('POST', '/learning/attempts', json=payload, expected=201)
+        replay = self.request('POST', '/learning/attempts', json=payload, expected=201,
+            headers={'X-Pesc-Offline-Sync': 'true', 'X-Pesc-Sync-Retried': '1'})
+        self.assertEqual(first, replay)
+        self.assertEqual(first['items'], [item])
+        self.assertEqual(self.database.learning_attempts.count_documents({'_id': identity}), 1)
+        for collection in ('communication_sessions', 'tts_events', 'offline_events'):
+            self.assertEqual(self.database[collection].count_documents({}), 0)
+        progress = self.request('GET', '/learning/progress', actor='guardian', params={'user_id': 'child-a'})
+        self.assertEqual(progress['attempts'], 1)
+        self.assertEqual(progress['practicing_words'], [])
+        exported = self.request('GET', '/records/export', actor='guardian', params={
+            'user_id': 'child-a', 'domain': 'learning', 'format': 'json'})
+        self.assertEqual(exported['records'][0]['items'], [item])
+        own_export = self.request('GET', '/privacy/export')
+        self.assertEqual(own_export['learning_attempts'][0]['items'], [item])
+        self.request('POST', '/learning/attempts', json=payload, actor='child-b', expected=409)
+        self.request('POST', '/learning/attempts', json=payload, actor='guardian', expected=403)
+        self.request('GET', '/learning/progress', actor='operator', params={'user_id': 'child-a'}, expected=403)
+        self.request('POST', '/learning/attempts', json=payload | {'content_version': 'sound-picture-v1'}, expected=422)
+        self.request('POST', '/learning/attempts', json=payload | {'items': [item | {'card_ids': ['drink', 'drink']}]}, expected=422)
+        self.database.privacy_settings.update_one({'_id': 'child-a'}, {'$set': {'guardian_consent': False}})
+        self.request('POST', '/learning/attempts', json=payload, expected=403)
+
     def sentence(self, request_id=None, **extra):
         return {'request_id': request_id or str(uuid4()), 'cards': ['help'], **extra}
 

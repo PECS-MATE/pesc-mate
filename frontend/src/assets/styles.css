@@ -534,6 +534,12 @@ footer { color: #9aa0aa; }
 .learning-options button { min-height: 62px; border-radius: 16px; font-size: 1.05rem; }
 .learning-options button.correct { color: #1c6a3b; border-color: #67c78e; background: #eaf9ef; box-shadow: 0 4px 0 #b8e7ca; opacity: 1; }
 .learning-options button.incorrect { color: #805329; border-color: #efc187; background: #fff7e8; box-shadow: none; opacity: 1; }
+.learning-sentence-model, .learning-sentence-answer ol { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; padding: 0; list-style-position: inside; }
+.learning-sentence-model li { flex: 0 1 130px; padding: 12px; border: 2px solid currentColor; border-radius: 14px; }
+.learning-sentence-model strong { display: block; margin-top: 8px; }
+.learning-sentence-answer { margin-top: 20px; padding: 16px; border: 2px dashed currentColor; border-radius: 16px; }
+.learning-sentence-answer ol { list-style: none; }
+.learning-sentence-answer button { min-width: 48px; min-height: 48px; }
 .learning-feedback { min-height: 50px; margin-top: 16px; padding: 13px; border-radius: 14px; color: #6f7480; background: #f6f7fa; font-weight: 800; }
 .learning-feedback.correct { color: #247247; background: #eaf9ef; }
 .learning-feedback.retry, .learning-feedback.incorrect { color: #81562e; background: #fff6e5; }

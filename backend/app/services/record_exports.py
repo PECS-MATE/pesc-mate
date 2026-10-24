@@ -62,7 +62,8 @@ def export_records(user_id, domain, days=None, now=None):
             row = {key: document.get(key) for key in LEARNING_FIELDS if key not in {'id', 'items', 'completed_at'}}
             # Do not export unrecognised stored fields or another feature's private notes.
             row.update(id=str(document['_id']), completed_at=_timestamp(document['completed_at']),
-                       items=[{key: item.get(key) for key in ('card_id', 'label', 'first_try_correct')}
+                       items=[{**{key: item.get(key) for key in ('card_id', 'label', 'first_try_correct')},
+                               **{key: item[key] for key in ('content_id', 'card_ids') if key in item}}
                               for item in document.get('items', [])])
         else:
             row = public_event(document)

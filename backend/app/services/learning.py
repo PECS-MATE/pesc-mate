@@ -10,7 +10,8 @@ from app.services.database import database as _database
 from app.services.schema_versions import SCHEMA_VERSION
 
 
-CONTENT_VERSIONS = {'word_picture_match': 'word-picture-v1', 'sound_picture_match': 'sound-picture-v1'}
+CONTENT_VERSIONS = {'word_picture_match': 'word-picture-v1', 'sound_picture_match': 'sound-picture-v1',
+                    'sentence_card_order': 'sentence-order-v1'}
 ACTIVITY_TYPES = set(CONTENT_VERSIONS)
 DEFAULT_SETTINGS = {
     'category_ids': [],
@@ -78,6 +79,18 @@ def record_attempt(user_id, request_id, activity_type, category_id,
     if correct_answers > total_questions:
         raise HTTPException(422, '정답 수는 전체 문제 수보다 클 수 없습니다.')
     item_results = list(items or [])
+    if activity_type == 'sentence_card_order':
+        if not item_results:
+            raise HTTPException(422, '문장 순서 연습은 문제별 결과가 필요합니다.')
+        for item in item_results:
+            ids = item.get('card_ids', [])
+            if (not isinstance(item.get('content_id'), str) or not 1 <= len(item['content_id']) <= 64
+                    or not isinstance(ids, list) or not 2 <= len(ids) <= 3
+                    or any(not isinstance(card_id, str) or not card_id or len(card_id) > 64 for card_id in ids)
+                    or len(set(ids)) != len(ids) or item.get('card_id') != ids[-1]):
+                raise HTTPException(422, '문장 순서 문제의 콘텐츠와 카드 구성이 올바르지 않습니다.')
+    elif any('card_ids' in item or 'content_id' in item for item in item_results):
+        raise HTTPException(422, '문장 순서 결과는 해당 학습 활동에서만 저장할 수 있습니다.')
     if item_results and (len(item_results) != total_questions or
                          sum(bool(item['first_try_correct']) for item in item_results) != correct_answers):
         raise HTTPException(422, '문제별 결과와 전체 학습 결과가 일치하지 않습니다.')
@@ -164,6 +177,9 @@ def progress_for(user_id, days=None, now=None):
     correct_answers = sum(row['correct_answers'] for row in rows)
     word_totals = {}
     for row in rows:
+        # A whole-sentence ordering outcome is not evidence of any single word's mastery.
+        if row['activity_type'] == 'sentence_card_order':
+            continue
         for result in row['items']:
             item = word_totals.setdefault(result['card_id'], {
                 'card_id': result['card_id'], 'label': result['label'],

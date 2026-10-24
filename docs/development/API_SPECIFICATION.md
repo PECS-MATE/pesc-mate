@@ -669,13 +669,20 @@ Content-Type: application/json
 `POST /api/learning/attempts`는 세션 합계와 함께 각 문제의 `card_id`, `label`,
 `first_try_correct`를 저장한다. 문제별 결과 수와 첫 시도 성공 수는 세션의 전체
 문제 수와 정답 수에 일치해야 한다. 기존 클라이언트를 위해 문제별 결과가 없는
-요청도 허용한다.
+요청도 허용한다. 단, 새 문장 순서 활동은 문제별 결과가 필수다.
 
-학습 종류는 `word_picture_match`(그림·단어)와 `sound_picture_match`(소리·카드)를 지원한다.
-선택 필드 `content_version`은 각각 `word-picture-v1`, `sound-picture-v1`과 일치해야 한다.
+학습 종류는 `word_picture_match`(그림·단어), `sound_picture_match`(소리·카드),
+`sentence_card_order`(예문 카드 순서)를 지원한다. 선택 필드 `content_version`은 각각
+`word-picture-v1`, `sound-picture-v1`, `sentence-order-v1`과 일치해야 한다.
 신규 요청의 누락 버전은 해당 활동의 v1으로 저장하고 과거 저장 문서의 누락은 null로
 조회한다. 버전은 학습 응답과 기록 CSV/JSON에 포함하며, 문제 음성 자체는 의사소통
 발화 이력으로 저장하지 않는다. [소리 카드 학습](SOUND_CARD_LEARNING.md)을 참고한다.
+
+문장 순서의 문제별 결과는 `content_id`와 유일한 카드 ID 2~3개의 `card_ids`를 추가한다.
+`card_id`는 마지막 카드와 일치해야 하며 `label`도 해당 행동 카드의 표시명이다.
+문장 전용 필드를 다른 활동에 넣거나 버전·문제 합계·구성이 맞지 않으면 422다.
+학습 응답·개인정보 JSON·기록 JSON/CSV에도 추가 필드를 보존한다. 문장 시도는 참여 합계에는
+포함하지만 단어별 경험 집계에서는 제외한다. [문장 순서 학습](SENTENCE_ORDER_LEARNING.md)을 참고한다.
 
 클라이언트는 오프라인 완료 결과를 별도 로컬 대기열에 보관한 뒤 같은
 `request_id`로 이 API를 재호출한다. 서버는 요청 ID를 학습 기록의 고유 키로
