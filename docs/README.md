@@ -24,6 +24,7 @@ API, 데이터 구조, 카드·마스코트 자산과 협업 규칙을 관리한
 |---|---|
 | [API 명세서](development/API_SPECIFICATION.md) | 엔드포인트, 권한, 요청과 응답 |
 | [로컬 개발과 시연](development/LOCAL_DEVELOPMENT.md) | Docker·개별 실행, 선택형 AI, 태블릿 연결과 상태 확인 |
+| [하드웨어 확장](../hardware/README.md) | Arduino 카드 리더기 코드 위치와 기기 검증 기록 안내, 현재 코드 미구현 |
 | [API 지표](development/API_METRICS.md) | 오류율·처리 시간 집계, 조회 권한과 해석 범위 |
 | [TTS 지표](development/TTS_METRICS.md) | 클라이언트 재생 결과·시작 지연, 중복 방지와 집계 분모 |
 | [오프라인 동기화 지표](development/OFFLINE_SYNC_METRICS.md) | 신규·중복·실패·미처리 집계, 기기 재시도 표시와 해석 한계 |

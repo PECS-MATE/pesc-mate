@@ -125,6 +125,7 @@ flowchart LR
 ```text
 frontend/       웹 화면, 기기 음성·캐시 서비스, 단위·컴포넌트·E2E 검사
 backend/        API, 권한·문장·이미지·기록 서비스, 단위·통합 검사
+hardware/       Arduino 카드 리더기 등 하드웨어 코드용 폴더와 안내 문서
 scripts/        로컬 검증 실행기와 PowerShell·셸 진입점
 deployment/     인증 MongoDB 구성
 docs/           기획·개발·정책·운영·검증 문서
@@ -188,6 +189,7 @@ GitHub Actions 원격 CI 대신 로컬 실행기를 사용하며, 검증용 DB·
 ## 정보
 
 - 프로젝트 저장소: [PESC-MATE/pesc-mate](https://github.com/PESC-MATE/pesc-mate)
+- 하드웨어 확장: [Arduino 카드 리더기 코드 위치](hardware/README.md) — 폴더만 준비, 기기 코드는 미구현
 - 문서: [전체 목차](docs/README.md) · [API 명세](docs/development/API_SPECIFICATION.md) · [기능요구사양서](docs/planning/functional_requirements_specification.md)
 - 남은 검수: 실제 AAC 사용자 과업, 태블릿 TTS·스크린리더·터치 사용성, 법정대리인 동의·이미지 권리 검토
 - 운영 전환: HTTPS·운영 자격 증명·인증 DB 전환, 백업/복구 훈련과 배포 승인
