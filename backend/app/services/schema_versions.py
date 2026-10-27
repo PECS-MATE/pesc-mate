@@ -11,4 +11,5 @@ VERSIONED_COLLECTIONS = (
     'account_permission_audit_logs',
     'recommendation_settings', 'recommendation_batches',
     'image_storage_state',
+    'rfid_devices', 'rfid_bindings',
 )

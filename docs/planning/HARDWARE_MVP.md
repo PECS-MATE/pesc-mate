@@ -1,5 +1,10 @@
 # 실물 카드 입력 기반 의사소통 MVP
 
+> 2026-10-27 변경: 아래는 최초 단일 리더기 USB 계획의 이력이다. 현재 요구사항은 **RC522 3개 +
+> UNO R4 WiFi → HTTP(S) API → 위치별 상태 표시**이며
+> [Wi-Fi 연동 구현·설치·실물 검수](../development/RFID_WIFI_INTEGRATION.md)를 우선한다.
+> 기존 체크 상태를 Wi-Fi·3개 리더기 검증 완료로 읽지 않는다.
+
 > 계획 확정일: 2026-10-26
 > 사용자 확인: Arduino UNO R4 WiFi, Windows PC의 Chrome/Edge에서 먼저 완성.
 > RC522는 사용자 추가 스케치에서 확인한 대상이며 실제 배선·동작 검수는 미완료.

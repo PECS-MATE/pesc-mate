@@ -540,6 +540,12 @@ footer { color: #9aa0aa; }
 .learning-sentence-answer { margin-top: 20px; padding: 16px; border: 2px dashed currentColor; border-radius: 16px; }
 .learning-sentence-answer ol { list-style: none; }
 .learning-sentence-answer button { min-width: 48px; min-height: 48px; }
+.rfid-panel { margin-block: 16px; padding: 18px; border: 2px solid var(--line, #d5d7dd); border-radius: 16px; }
+.rfid-panel label { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-block: 10px; }
+.rfid-panel button { min-height: 44px; margin: 4px; }
+.rfid-readers { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; padding: 0; list-style: none; }
+.rfid-readers li { border: 1px solid currentColor; border-radius: 12px; padding: 12px; }
+.rfid-secret { display: block; overflow-wrap: anywhere; user-select: all; }
 .learning-feedback { min-height: 50px; margin-top: 16px; padding: 13px; border-radius: 14px; color: #6f7480; background: #f6f7fa; font-weight: 800; }
 .learning-feedback.correct { color: #247247; background: #eaf9ef; }
 .learning-feedback.retry, .learning-feedback.incorrect { color: #81562e; background: #fff6e5; }

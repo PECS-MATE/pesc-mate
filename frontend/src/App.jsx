@@ -16,6 +16,7 @@ import BoardSlotsEditor from './BoardSlotsEditor';
 import CoreCardLocks from './CoreCardLocks';
 import SituationBoards from './SituationBoards';
 import SituationBoardPicker from './SituationBoardPicker';
+import RfidBoard from './RfidBoard';
 import useReauthentication from './useReauthentication';
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
@@ -1600,6 +1601,7 @@ function App() {
           {(canManageQuick || canManageBoard) && <button className={tab === 'board_settings' ? 'active' : ''} onClick={() => openSupportSection('board_settings')}><span aria-hidden="true">▦</span>빠른 표현·카드판</button>}
           {canManageVoice && <button className={tab === 'support_settings' ? 'active' : ''} onClick={() => openSupportSection('support_settings')}><span aria-hidden="true">♿</span>음성·접근 설정</button>}
           {canManageLearning && <button className={tab === 'learning_progress' ? 'active' : ''} onClick={() => openLearning(selectedUser)}><span aria-hidden="true">★</span>학습 기록</button>}
+          {canManageBoard && <button className={tab === 'rfid' ? 'active' : ''} onClick={() => setTab('rfid')}>RFID 카드판</button>}
           {canManageContent && <button className={tab === 'admin' ? 'active' : ''} onClick={() => setTab('admin')}><span aria-hidden="true">☑</span>공용 콘텐츠 운영<i aria-label={`승인 대기 ${adminSubmissions.filter(item => item.status === 'pending').length}개`}>{adminSubmissions.filter(item => item.status === 'pending').length}</i></button>}
           {canManageAccounts && <button className={tab === 'account_permissions' ? 'active' : ''} onClick={() => setTab('account_permissions')}><span aria-hidden="true">⚿</span>운영 권한 관리</button>}
         </> : <>
@@ -1642,10 +1644,23 @@ function App() {
       {error && <div role="alert" className="error">{error} <button disabled={busy} onClick={() => load(user)}>다시 연결</button></div>}
       {speechFailure && <div role="alert" className="speech-error"><span aria-hidden="true">🔇</span><div><strong>음성을 재생하지 못했어요.</strong><p>전달할 표현: <strong>{speechFailure.content}</strong></p><p>{speechFailureMessage(speechFailure.errorCode)} 선택한 카드와 문장은 그대로 유지됩니다.</p></div><div className="speech-error-actions">{speechFailure.retryable && <button className="primary" onClick={() => speakText(speechFailure.content, speechFailure.contentType, speechFailure.cardIds || [])}>다시 재생</button>}<button onClick={() => setSpeechFailure(null)}>닫기</button></div></div>}
       {!loaded && !error && <p role="status">카드를 불러오는 중입니다…</p>}
+      {loaded && user.role === 'user' && tab === 'cards' && <RfidBoard key={`rfid-${user.id}`} targetId={user.id}
+        cards={cards} artStyle={artStyle} disabled={busy || speechActive || offline}
+        onApply={selection => {
+          if (busy || speechActive || offline || document.visibilityState === 'hidden') return false;
+          if ((board.length || text) && !window.confirm('현재 선택 문장을 RFID 배열로 바꿀까요? 고정 카드판은 변경하지 않습니다.')) return false;
+          updateBoard(selection.map(card => ({ ...card, selected_at: new Date().toISOString() })));
+          return true;
+        }} />}
       {isSupporter && selectedUser && ['dashboard', 'learning_progress'].includes(tab) && <SupportRecordTabs
         active={tab} permissions={selectedPermissions}
         onSelect={nextTab => nextTab === 'dashboard' ? openSupportSection(nextTab) : openLearning(selectedUser)} />}
-      {tab === 'support_home' && isSupporter ? <section className="support-home">
+      {tab === 'rfid' && isSupporter && canManageBoard && selectedUser ? <div>
+        <label>RFID 관리 사용자<select value={selectedUser.id} onChange={event => changeLinkedUser(event.target.value)}>
+          {linkedUsers.filter(person => person.permissions.includes('board_manage')).map(person => <option key={person.id} value={person.id}>{person.name}</option>)}
+        </select></label>
+        <RfidBoard key={`rfid-${user.id}-${selectedUser.id}-${canManageCards}`} targetId={selectedUser.id} manager canMap={canManageCards} />
+      </div> : tab === 'support_home' && isSupporter ? <section className="support-home">
         <div className="panel-heading"><span aria-hidden="true">🤝</span><div><h2>{user.role === 'caregiver' ? '보호자 지원 홈' : '담당자 지원 홈'}</h2><p className="muted">연결 사용자를 선택하면 부여된 권한 범위의 메뉴만 표시됩니다.</p></div></div>
         {linkedUsers.length ? <><label className="user-picker">지원할 사용자<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)}>{linkedUsers.map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>
           <div className="support-action-grid">

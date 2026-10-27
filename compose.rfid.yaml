@@ -1,0 +1,7 @@
+# Explicit trusted-LAN development opt-in. Never expose this port to the Internet.
+services:
+  backend:
+    ports: !override
+      - "${RFID_BIND_ADDRESS:-0.0.0.0}:8000:8000"
+    environment:
+      RFID_ALLOW_INSECURE_LAN: "true"

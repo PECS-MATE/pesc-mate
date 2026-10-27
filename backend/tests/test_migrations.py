@@ -189,7 +189,8 @@ class VersionedWriteCoverageTests(unittest.TestCase):
             'image_storage': ('image_write_lock', 'deletion_watermark'),
             'learning': ('save_settings', 'record_attempt', '_audit'),
             'login_throttle': ('record_login_failure',), 'offline_events': ('sync_events',),
-            'privacy': ('save_privacy', 'delete_personal_data', '_audit'),
+            'privacy': ('_save_privacy', 'delete_personal_data', '_audit'),
+            'rfid': ('create_device', 'save_binding', 'audit'),
             'support_links': ('grant_support', '_audit'), 'tts_events': ('start_event',),
         }
         root = Path(__file__).resolve().parents[1] / 'app' / 'services'

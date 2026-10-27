@@ -16,6 +16,9 @@ __pycache__/
 venv/
 reference/
 # Environment variables
+# Arduino credentials and local build output
+hardware/**/arduino_secrets.h
+hardware/**/build/
 .env
 .env.*
 !.env.example

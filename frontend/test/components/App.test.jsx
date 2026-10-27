@@ -373,19 +373,22 @@ test('AAC 인증 만료 알림은 오프라인 의사소통 보드와 로컬 음
 test.each(['success', 'unauthorized'])('만료 전 지원 조회의 늦은 %s 응답은 새 로그인 화면을 덮어쓰지 않는다', async outcome => {
   const original = request.getMockImplementation();
   let pending;
+  let waiting = false;
   request.mockImplementation((path, options) => {
     if (path === '/auth/me') return Promise.resolve({ ...account, role: 'support_staff' });
-    if (path === '/care/linked-users') return pending || Promise.resolve([]);
+    if (path === '/care/linked-users') { if (pending) waiting = true; return pending || Promise.resolve([]); }
     if (path === '/auth/login') return Promise.resolve({ user: account, access_token: 'new-child-session' });
     return original(path, options);
   });
   const user = userEvent.setup();
   render(<StrictMode><App /></StrictMode>);
   await screen.findByText('서비스 연결됨');
+  await screen.findByRole('heading', { name: '담당자 지원 홈', exact: true });
   let finish;
   let fail;
   pending = new Promise((resolve, reject) => { finish = resolve; fail = reject; });
   act(() => window.dispatchEvent(new Event('online')));
+  await waitFor(() => expect(waiting).toBe(true));
   act(() => window.dispatchEvent(new Event('pesc-mate:session-expired')));
   await screen.findByRole('heading', { name: '로그인', exact: true });
   fireEvent.change(screen.getByLabelText('아이디'), { target: { value: 'component-child' } });

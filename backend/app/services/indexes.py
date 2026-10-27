@@ -11,6 +11,8 @@ logger = logging.getLogger('uvicorn.error')
 
 # (collection, keys, options). Names stay stable so repeated startups are no-ops.
 INDEXES = (
+    ('rfid_devices', [('user_id', ASCENDING)], {'name': 'rfid_owner'}),
+    ('rfid_bindings', [('user_id', ASCENDING), ('uid', ASCENDING)], {'name': 'rfid_uid_owner', 'unique': True}),
     ('users', [('username', ASCENDING)], {'name': 'username_unique', 'unique': True}),
     ('auth_sessions', [('expires_at', ASCENDING)], {'name': 'session_expiry_ttl', 'expireAfterSeconds': 0}),
     ('auth_sessions', [('user_id', ASCENDING)], {'name': 'session_user'}),

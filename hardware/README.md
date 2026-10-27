@@ -1,19 +1,20 @@
 # 하드웨어 확장
 
 Arduino 등 외부 기기의 코드와 배선·실행 안내를 웹 클라이언트·API와 분리해 보관한다.
-현재 작업 트리에 사용자 추가 진단 스케치가 있으며, 실물 카드의 웹 문장 입력·TTS 연동은 미구현이다.
-다음 개발 범위는 [실물 카드 입력 MVP TODO](../docs/planning/HARDWARE_MVP.md)를 따른다.
+현재 UNO R4 WiFi와 RC522 세 위치를 연결하는 펌웨어·API·웹 화면을 구현했다.
+설정·배선 제안·프로토콜·검증 결과는 [Wi-Fi 카드판 연동 안내](../docs/development/RFID_WIFI_INTEGRATION.md)를 따른다.
+실제 세 리더기의 전압·간섭·카드 제거·음성 출력 검수는 아직 완료하지 않았다.
 
 ## Arduino 카드 리더기
 
-[카드 리더기 테스트 폴더](arduino/card-reader-test/README.md)에 스케치를 추가한다.
-현재 사용자 파일은 `hardware/arduino/card-reader-test/card_reader_test.ino`다.
-2026-10-26 사용자가 UNO R4 WiFi와 Windows Chrome/Edge를 확인했고, 진단 스케치에서
-MFRC522/SPI와 115200bps·SS 10/RST 9를 확인했다. 실제 배선·전압·라이브러리 호환성과
-스케치/폴더 이름 일치 확인은 MVP-01에서 진행한다. 계획 단계에서 파일을 이동하거나 설치하지 않는다.
+| 폴더 | 용도 |
+|---|---|
+| [rfid-wifi-board](arduino/rfid-wifi-board/README.md) | RC522 3개 → Wi-Fi → 기존 문장 생성·웹 TTS |
+| [card-reader-test](arduino/card-reader-test/README.md) | 사용자가 추가한 단일 리더기 진단 스케치 보관 |
 
-기기에서 카드 읽기와 식별값 출력부터 확인하고, 웹 카드 선택·음성 출력 연동은 별도 작업으로
-진행한다. 하드웨어의 실제 검수와 기존 npm 자동 검증 결과를 구분한다.
+사용자 진단 파일 `hardware/arduino/card-reader-test/card_reader_test.ino`는 수정·이동하지 않았다.
+단일 리더기의 사용자 UID 읽기 보고와 새 세 위치 펌웨어의 실물 성공은 구분한다.
+Wi-Fi 비밀번호·장치 키는 각 스케치의 Git 제외 파일 `arduino_secrets.h`에만 작성한다.
 
 ## 작업 기록 — 2026-10-26
 

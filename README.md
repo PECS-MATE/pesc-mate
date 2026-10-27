@@ -68,6 +68,7 @@ Compose 실행 시 아래 계정을 활성화하며, 기존 계정의 비밀번�
 | 그림으로 말하기 | 카드를 탐색하고 최대 12장으로 문장을 구성해 기기 음성으로 재생합니다. 빠른 표현·긴급/복구 표현·마지막 말 재생도 제공합니다. |
 | 개인 카드북 | 사진을 일괄 등록하고 이름·분류·순서를 편집합니다. 사진을 교체해도 카드 ID·문구·배치를 유지하며 핵심 카드는 잠글 수 있습니다. |
 | 상황별 카드판 | 같은 아동의 집·학교·외출 등 카드판을 생성·복사하고, 아동이 미리보기를 확인한 뒤 전환합니다. 추천은 고정 배치를 바꾸지 않습니다. |
+| 실물 RFID 카드판 | UNO R4 WiFi·RC522 세 위치의 현재 배열을 Wi-Fi로 받아 기존 문장에 명시적으로 적용합니다. 장치 인증·아동별 UID 매핑을 구현했으며 세 리더기 실물 검수는 남아 있습니다. |
 | 학습 활동 | 단어·그림 맞추기, 소리 듣고 카드 찾기, 카드 순서로 문장 만들기를 제공합니다. 문제 수·반복·재도전을 설정하며 학습 결과는 말하기 기록과 별도로 관리합니다. 문장 연습은 예문별 2~3장을 사용합니다. |
 | 보호자·담당자 지원 | 연결된 아동의 허용된 기록을 보고 지원 메모·기간별 내보내기·추천 설정을 사용합니다. |
 | 오프라인·접근성 | 준비된 카드·설정 캐시와 대기 기록 동기화, 고대비·동작 줄이기·크기/글자 설정·키보드 접근을 지원합니다. |
@@ -88,6 +89,10 @@ Compose 실행 시 아래 계정을 활성화하며, 기존 계정의 비밀번�
 오프라인은 사전 캐시와 기기 음성 지원이 필요하고, 소리 학습은 한국어 로컬 음성이 필요합니다.
 LAN HTTP에서는 서비스 워커 기반 설치·완전 오프라인 검수를 할 수 없습니다.
 실제 기기 연결 조건은 [검수 가이드](docs/validation/ACTUAL_USE_VALIDATION.md)에 있습니다.
+
+실물 RFID 확장의 배선 제안·펌웨어·서버 실행·태그 등록 방법은
+[Wi-Fi 카드판 연동 안내](docs/development/RFID_WIFI_INTEGRATION.md)를 참고하세요.
+현재 배열은 화면의 적용 버튼으로 문장에 넣으며 스캔만으로 자동 발화하지 않습니다.
 
 ## 개발 환경 설정
 
@@ -110,6 +115,7 @@ Ollama와 모델은 별도로 설치합니다. 모델이 없거나 실패하면 
 flowchart LR
     User["아동 · 보호자 · 담당자"] --> Web["React / Vite"]
     Web -->|/api| API["FastAPI"]
+    RFID["RC522 세 위치 / UNO R4 WiFi"] -->|"인증된 Wi-Fi 스냅샷"| API
     API --> DB[("MongoDB")]
     API -. "선택형 문장 생성" .-> LLM["로컬 Ollama"]
     Web --> Voice["기기 TTS / 핵심 표현 음성 캐시"]
@@ -125,7 +131,7 @@ flowchart LR
 ```text
 frontend/       웹 화면, 기기 음성·캐시 서비스, 단위·컴포넌트·E2E 검사
 backend/        API, 권한·문장·이미지·기록 서비스, 단위·통합 검사
-hardware/       Arduino 카드 리더기 등 하드웨어 코드용 폴더와 안내 문서
+hardware/       세 위치 RFID Wi-Fi 펌웨어, 비밀 설정 예제와 배선·검수 안내
 scripts/        로컬 검증 실행기와 PowerShell·셸 진입점
 deployment/     인증 MongoDB 구성
 docs/           기획·개발·정책·운영·검증 문서
@@ -155,20 +161,20 @@ npm run dev
 GitHub Actions 원격 CI 대신 로컬 실행기를 사용하며, 검증용 DB·포트는 개발 환경과 분리합니다.
 결과는 Git에서 제외된 `.local-validation/`에 저장합니다.
 
-2026-10-24 문장 순서 학습까지 포함한 **전체 `npm run verify:full` 실행 결과**입니다.
+2026-10-27 RFID Wi-Fi 연동까지 포함한 **전체 `npm run verify:full` 실행 결과**입니다.
 
 | 검증 범위 | 결과 |
 |---|---|
 | 실행기·초기화 정책 | 28개 통과 |
-| 프런트엔드 | Node 100개 + React 186개, 총 286개 및 빌드 통과 |
-| Linux 백엔드 단위 | 390개 통과, 제외 없음 |
-| 격리 MongoDB 통합 | 87개 통과, 제외 없음 |
-| Chromium 전체 | 54개 통과, 음성 재생은 TTS 스텁 사용 |
+| 프런트엔드 | Node 103개 + React 190개, 총 293개 및 빌드 통과 |
+| Linux 백엔드 단위 | 395개 통과, 제외 없음 |
+| 격리 MongoDB 통합 | 93개 통과, 제외 없음 |
+| Chromium 전체 | 55개 통과, 합성 RFID 장치·TTS 스텁 사용 |
 
-총 **845개 검사와 빌드·임시 환경 정리**를 통과했습니다.
+총 **864개 검사와 빌드·임시 환경 정리**를 통과했습니다.
 이는 자동 회귀 검증이며 실제 기기 음질·AAC 사용자 과업이나 운영 배포 승인을 대신하지 않습니다.
 [검증 실행 방법](docs/validation/ONE_COMMAND_VALIDATION.md)과
-[최신 기능 검증 기록](docs/development/SENTENCE_ORDER_LEARNING.md)을 참고하세요.
+[최신 기능 검증 기록](docs/development/RFID_WIFI_INTEGRATION.md)을 참고하세요.
 
 ## 업데이트 내역
 
@@ -176,6 +182,7 @@ GitHub Actions 원격 CI 대신 로컬 실행기를 사용하며, 검증용 DB·
 
 | 날짜 | 변경 내용 | 커밋·기록 |
 |---|---|---|
+| 2026-10-27 | RFID 세 위치 수신·장치 인증·아동별 UID 매핑·기존 문장/TTS 적용, 실물 검수 대기 | [연동 기록](docs/development/RFID_WIFI_INTEGRATION.md) |
 | 2026-10-24 | 카드 순서로 문장 만들기, 선택 재개·재도전·학습 전용 결과 | [개발 기록](docs/development/SENTENCE_ORDER_LEARNING.md) |
 | 2026-10-24 | 소리 듣고 카드 찾기, 명시 재생·학습 결과 분리·오프라인 동기화 | `5ac2902` |
 | 2026-10-24 | 보호자 동의 관리와 아동의 기록 없는 기본 말하기 분리 | `e85fd3e` |
@@ -189,7 +196,7 @@ GitHub Actions 원격 CI 대신 로컬 실행기를 사용하며, 검증용 DB·
 ## 정보
 
 - 프로젝트 저장소: [PESC-MATE/pesc-mate](https://github.com/PESC-MATE/pesc-mate)
-- 하드웨어 확장: [Arduino 카드 리더기 코드 위치](hardware/README.md) — 폴더만 준비, 기기 코드는 미구현
+- 하드웨어 확장: [Arduino 카드판 코드·안내](hardware/README.md) — Wi-Fi 연동 구현, 실제 세 리더기 검수 대기
 - 문서: [전체 목차](docs/README.md) · [API 명세](docs/development/API_SPECIFICATION.md) · [기능요구사양서](docs/planning/functional_requirements_specification.md)
 - 남은 검수: 실제 AAC 사용자 과업, 태블릿 TTS·스크린리더·터치 사용성, 법정대리인 동의·이미지 권리 검토
 - 운영 전환: HTTPS·운영 자격 증명·인증 DB 전환, 백업/복구 훈련과 배포 승인

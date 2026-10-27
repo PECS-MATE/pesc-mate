@@ -25,6 +25,8 @@ services:
       MONGODB_URI: mongodb://mongodb:27017
       MONGODB_DATABASE: pesc_mate_verification
       OLLAMA_ENABLED: "false"
+      # Only the isolated internal test network; public dev stack remains HTTPS-only by default.
+      RFID_ALLOW_INSECURE_LAN: "true"
       DEMO_ACCOUNTS_ENABLED: "true"
       DEMO_USERNAME: demo
       DEMO_PASSWORD: demo1234

@@ -15,7 +15,7 @@ API 연동은 [API 명세서](development/API_SPECIFICATION.md),
 | [과제 계획서](planning/project_plan.md) | 과제 배경, 목표, 수행 방법과 기대효과 |
 | [기능요구사양서](planning/functional_requirements_specification.md) | 기능 요구사항과 동작 조건 |
 | [통합 TODO](planning/TODO.md) | 현재 구현 상태, 파일럿 준비와 이후 발전 계획 |
-| [실물 카드 입력 MVP TODO](planning/HARDWARE_MVP.md) | 현재 최우선: UNO R4 WiFi·RC522·USB 입력에서 문장·기기 음성까지의 네 기능과 완료 게이트 |
+| [실물 카드 입력 MVP TODO](planning/HARDWARE_MVP.md) | 최초 USB 계획 이력과 최신 Wi-Fi 3개 위치 구현 문서 안내 |
 
 ## 개발 — `development/`
 
@@ -24,6 +24,7 @@ API, 데이터 구조, 카드·마스코트 자산과 협업 규칙을 관리한
 | 문서 | 내용 |
 |---|---|
 | [API 명세서](development/API_SPECIFICATION.md) | 엔드포인트, 권한, 요청과 응답 |
+| [RFID Wi-Fi 연동](development/RFID_WIFI_INTEGRATION.md) | RC522 3개·UNO R4 WiFi, 장치 인증·태그 매핑·웹 적용·배선표·실물 검수 |
 | [로컬 개발과 시연](development/LOCAL_DEVELOPMENT.md) | Docker·개별 실행, 선택형 AI, 태블릿 연결과 상태 확인 |
 | [하드웨어 확장](../hardware/README.md) | Arduino 진단 스케치 현황·시연 환경·실물 입력 MVP와 기기 검증 기록 안내 |
 | [API 지표](development/API_METRICS.md) | 오류율·처리 시간 집계, 조회 권한과 해석 범위 |

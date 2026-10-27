@@ -46,6 +46,19 @@ def privacy_for(user_id):
 
 
 def save_privacy(user_id, guardian_consent, retention_days):
+    # Serialize withdrawal with hardware registration/ingest and account deletion.
+    # Otherwise a writer that already checked consent could insert after withdrawal.
+    if retention_days not in {30, 90, 365, 1095}:
+        raise HTTPException(422, '보존 기간이 올바르지 않습니다.')
+    from app.services.image_storage import image_write_lock
+    try:
+        with image_write_lock(_database()):
+            return _save_privacy(user_id, guardian_consent, retention_days)
+    except PyMongoError as exc:
+        raise HTTPException(503, '개인정보 설정을 저장하지 못했습니다.') from exc
+
+
+def _save_privacy(user_id, guardian_consent, retention_days):
     if retention_days not in {30, 90, 365, 1095}:
         raise HTTPException(422, '보존 기간이 올바르지 않습니다.')
     now = datetime.now(timezone.utc)
@@ -72,6 +85,14 @@ def save_privacy(user_id, guardian_consent, retention_days):
         database.caregiver_notes.delete_many({'user_id': user_id, 'updated_at': {'$lt': cutoff}})
         database.learning_attempts.delete_many({'user_id': user_id, 'completed_at': {'$lt': cutoff}})
         database.recommendation_batches.delete_many({'user_id': user_id, 'created_at': {'$lt': cutoff}})
+        if not guardian_consent:
+            # A stale hardware write cannot repopulate data: ingest only updates
+            # an active device/session, never upserts it.
+            database.rfid_devices.update_many({'user_id': user_id}, {'$set': {
+                'active': False, 'session_id': None, 'last_seen': None, 'readers': []}})
+        else:
+            database.rfid_devices.update_many({'user_id': user_id, 'last_seen': {'$lt': cutoff}},
+                {'$set': {'readers': [], 'last_seen': None}})
         return settings
     except PyMongoError as exc:
         raise HTTPException(503, '개인정보 설정을 저장하지 못했습니다.') from exc
@@ -112,6 +133,8 @@ def export_for(user_id):
             'learning_attempts': list(database.learning_attempts.find({'user_id': user_id})),
             'recommendation_settings': database.recommendation_settings.find_one({'_id': user_id}),
             'recommendation_batches': list(database.recommendation_batches.find({'user_id': user_id})),
+            'rfid_devices': list(database.rfid_devices.find({'user_id': user_id}, {'key_hash': 0, 'last_digest': 0})),
+            'rfid_bindings': list(database.rfid_bindings.find({'user_id': user_id})),
             'cards': [{key: row.get(key) for key in
                        ('_id', 'label', 'meaning', 'category', 'visibility', 'status', 'created_at')}
                       for row in cards],
@@ -161,6 +184,8 @@ def _delete_personal_data(user_id):
             ('learning_settings', {'_id': user_id}),
             ('learning_attempts', {'user_id': user_id}),
             ('learning_audit_logs', {'target_user_id': user_id}),
+            ('rfid_devices', {'user_id': user_id}),
+            ('rfid_bindings', {'user_id': user_id}),
             ('privacy_audit_logs', {'user_id': user_id}),
             ('caregiver_notes', {'user_id': user_id}),
             ('caregiver_links', {'user_id': user_id}),
