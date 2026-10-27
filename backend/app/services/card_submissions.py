@@ -441,12 +441,12 @@ def update_submission(submission_id, owner_id, label, meaning, category, visibil
         raise HTTPException(503, '카드 수정 내용을 저장하지 못했습니다.') from exc
 
 
-def approved_cards_for(owner_id):
+def approved_cards_for(owner_id, *, shared_only=False):
     try:
         rows = _collection().find({}, IMAGE_METADATA).sort('created_at', 1)
         visible = [row for row in rows
                    if (row['visibility'] == 'shared' and row['status'] == 'approved')
-                   or (row['visibility'] == 'private' and row['owner_id'] == owner_id
+                   or (not shared_only and row['visibility'] == 'private' and row['owner_id'] == owner_id
                        and row['status'] in {'approved', 'pending'})]
         return [with_inferred_metadata({
             'id': f"custom:{row['_id']}", 'label': row['label'], 'meaning': row['meaning'],

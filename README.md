@@ -93,6 +93,9 @@ LAN HTTP에서는 서비스 워커 기반 설치·완전 오프라인 검수를 
 PC USB 연결·장치 로그·태그 등록은 [USB 카드 리더기 안내](docs/development/RFID_USB_INTEGRATION.md)를 따릅니다.
 아동의 **그림으로 말하기 → USB 장치 연결** 또는 보호자의 **RFID 카드판**에서 포트를 선택하세요.
 브라우저 권한과 포트 선택이 필요하며 Wi-Fi 비밀번호·장치 키는 USB 방식에서 사용하지 않습니다.
+공용 칩을 미리 등록하려면 관리자 계정의 **RFID 칩 등록**에서 칩 인식 → 그림카드 선택 → 저장 →
+다음 칩 순서로 진행하세요. 등록한 공용 칩은 모든 아동에게 적용하며 아동별 개인 매핑을 우선합니다.
+자세한 범위와 사용법은 [관리자 칩 등록 안내](docs/development/RFID_CHIP_REGISTRATION.md)에 있습니다.
 선택형 무선 연결의 배선 제안·설정은 [Wi-Fi 카드판 안내](docs/development/RFID_WIFI_INTEGRATION.md)를 참고하세요.
 현재 배열은 화면의 적용 버튼으로 문장에 넣으며 스캔만으로 자동 발화하지 않습니다.
 
@@ -164,20 +167,20 @@ npm run dev
 GitHub Actions 원격 CI 대신 로컬 실행기를 사용하며, 검증용 DB·포트는 개발 환경과 분리합니다.
 결과는 Git에서 제외된 `.local-validation/`에 저장합니다.
 
-RFID USB 연동까지 포함한 **전체 `npm run verify:full` 실행 결과**입니다.
+관리자 공용 RFID 칩 등록까지 포함한 **전체 `npm run verify:full` 실행 결과**입니다.
 
 | 검증 범위 | 결과 |
 |---|---|
 | 실행기·초기화 정책 | 28개 통과 |
-| 프런트엔드 | Node 110개 + React 196개, 총 306개 및 빌드 통과 |
+| 프런트엔드 | Node 110개 + React 200개, 총 310개 및 빌드 통과 |
 | Linux 백엔드 단위 | 396개 통과, 제외 없음 |
-| 격리 MongoDB 통합 | 95개 통과, 제외 없음 |
-| Chromium 전체 | 56개 통과, 합성 RFID·USB 스트림·TTS 스텁 사용 |
+| 격리 MongoDB 통합 | 99개 통과, 제외 없음 |
+| Chromium 전체 | 57개 통과, 합성 RFID·USB 스트림·TTS 스텁 사용 |
 
-총 **881개 검사와 빌드·임시 환경 정리**를 통과했습니다.
+총 **890개 검사와 빌드·임시 환경 정리**를 통과했습니다.
 이는 자동 회귀 검증이며 실제 기기 음질·AAC 사용자 과업이나 운영 배포 승인을 대신하지 않습니다.
 [검증 실행 방법](docs/validation/ONE_COMMAND_VALIDATION.md)과
-[최신 기능 검증 기록](docs/development/RFID_USB_INTEGRATION.md)에 후행 표시 보정의 별도 검증 범위도 기록했습니다.
+[최신 기능 검증 기록](docs/development/RFID_CHIP_REGISTRATION.md)을 참고하세요.
 
 ## 업데이트 내역
 

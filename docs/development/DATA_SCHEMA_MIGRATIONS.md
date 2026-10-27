@@ -4,7 +4,7 @@
 
 신규 MongoDB 문서는 정수 `schema_version=1`로 현재 저장 형식의 기준선을 표시한다.
 정의는 `backend/app/services/schema_versions.py`의 `SCHEMA_VERSION`과
-`VERSIONED_COLLECTIONS`에서 관리한다. 대상은 다음 24개 컬렉션이다.
+`VERSIONED_COLLECTIONS`에서 관리한다. 대상은 다음 27개 컬렉션이다.
 
 - 계정·세션: `users`, `auth_sessions`, `login_attempts`
 - 카드·감사: `card_categories`, `card_submissions`, `card_audit_logs`
@@ -16,6 +16,7 @@
 - 운영 권한 감사: `account_permission_audit_logs`
 - 추천 정책·노출: `recommendation_settings`, `recommendation_batches`
 - 이미지 저장 상태: `image_storage_state` (작성 잠금·삭제 시각, TTL로 잠금을 풀지 않음)
+- RFID: `rfid_devices`, `rfid_bindings`, `rfid_shared_bindings` (장치·아동별 매핑·관리자 공용 칩 매핑)
 
 | 값 | 판정 | 처리 |
 |---|---|---|

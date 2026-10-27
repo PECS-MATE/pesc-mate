@@ -22,6 +22,7 @@ lang: ko-KR
 
 RFID 하드웨어 API는 [Wi-Fi 카드판 연동 명세](RFID_WIFI_INTEGRATION.md)에 별도로 정리한다.
 현재 USB 방식의 인증 세션 기반 태그 조회·장치 상태 로그 API는 [USB 연동 명세](RFID_USB_INTEGRATION.md)를 따른다.
+관리자의 공용 칩 사전 등록·변경·해제 API는 [공용 칩 등록 명세](RFID_CHIP_REGISTRATION.md)에 권한·버전·재인증과 함께 정리한다.
 `/api/rfid`의 보호자 장치·태그 관리/상태 조회는 기존 Bearer 세션과 아동별 지원 권한을 사용한다.
 장치의 세션 시작·스냅샷 수신은 `X-Device-Key`로만 인증하며 아동 계정 권한을 부여하지 않는다.
 기본 HTTPS이며 개발 사설망 HTTP는 명시적 설정이 필요하다. 이벤트 버전·세션·순서·중복 검사와

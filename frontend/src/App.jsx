@@ -17,6 +17,7 @@ import CoreCardLocks from './CoreCardLocks';
 import SituationBoards from './SituationBoards';
 import SituationBoardPicker from './SituationBoardPicker';
 import RfidBoard from './RfidBoard';
+import RfidChipRegistration from './RfidChipRegistration';
 import useReauthentication from './useReauthentication';
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
@@ -1553,6 +1554,7 @@ function App() {
   const localKoreanVoices = installedKoreanVoices(ttsVoices);
   const speechStatusLabel = ({ starting: '음성 준비 중', playing: '음성 재생 중', paused: '음성 일시 정지' })[speechState.status];
   const pageTitle = tab === 'account_permissions' && canManageAccounts ? '담당자의 운영 권한을 관리해요.'
+    : tab === 'rfid_registration' && canManageContent ? '칩을 읽고 그림카드에 연결해요.'
     : tab === 'admin' && canManageContent
     ? '카드 등록 요청을 검토해요.'
     : isSupporter
@@ -1603,6 +1605,7 @@ function App() {
           {canManageLearning && <button className={tab === 'learning_progress' ? 'active' : ''} onClick={() => openLearning(selectedUser)}><span aria-hidden="true">★</span>학습 기록</button>}
           {canManageBoard && <button className={tab === 'rfid' ? 'active' : ''} onClick={() => setTab('rfid')}>RFID 카드판</button>}
           {canManageContent && <button className={tab === 'admin' ? 'active' : ''} onClick={() => setTab('admin')}><span aria-hidden="true">☑</span>공용 콘텐츠 운영<i aria-label={`승인 대기 ${adminSubmissions.filter(item => item.status === 'pending').length}개`}>{adminSubmissions.filter(item => item.status === 'pending').length}</i></button>}
+          {canManageContent && <button className={tab === 'rfid_registration' ? 'active' : ''} onClick={() => setTab('rfid_registration')}>RFID 칩 등록</button>}
           {canManageAccounts && <button className={tab === 'account_permissions' ? 'active' : ''} onClick={() => setTab('account_permissions')}><span aria-hidden="true">⚿</span>운영 권한 관리</button>}
         </> : <>
           <button className={tab === 'home' ? 'active' : ''} onClick={() => setTab('home')}><span aria-hidden="true">⌂</span>홈</button>
@@ -1661,7 +1664,7 @@ function App() {
       {isSupporter && selectedUser && ['dashboard', 'learning_progress'].includes(tab) && <SupportRecordTabs
         active={tab} permissions={selectedPermissions}
         onSelect={nextTab => nextTab === 'dashboard' ? openSupportSection(nextTab) : openLearning(selectedUser)} />}
-      {tab === 'rfid' && isSupporter && canManageBoard && selectedUser ? <div>
+      {tab === 'rfid_registration' && canManageContent ? <RfidChipRegistration key={user.id} accountId={user.id} artStyle={artStyle} /> : tab === 'rfid' && isSupporter && canManageBoard && selectedUser ? <div>
         <label>RFID 관리 사용자<select value={selectedUser.id} onChange={event => changeLinkedUser(event.target.value)}>
           {linkedUsers.filter(person => person.permissions.includes('board_manage')).map(person => <option key={person.id} value={person.id}>{person.name}</option>)}
         </select></label>

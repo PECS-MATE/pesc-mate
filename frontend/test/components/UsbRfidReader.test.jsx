@@ -97,3 +97,15 @@ test('연속 스캔은 조회를 하나씩 처리하고 목록을 비운 뒤 늦
   expect(screen.queryByRole('list', { name: 'USB로 읽은 카드' })).toBeNull();
   expect(screen.getByRole('button', { name: '읽은 카드를 문장에 추가' }).disabled).toBe(true);
 });
+
+test('관리자 칩 등록 모드는 매번 UID만 전달하고 아동 조회나 문장 대기열을 만들지 않는다', async () => {
+  const onUid = vi.fn();
+  request.mockResolvedValue(null);
+  render(<UsbRfidReader targetId="operator" manager canMap registration eventScope="shared" onUid={onUid} />);
+  await connect();
+  for (let value = 1; value <= 15; value++) await scan('UID: ' + value.toString(16).padStart(8, '0'));
+  expect(onUid).toHaveBeenCalledTimes(15);
+  expect(request.mock.calls.every(([path]) => path === '/rfid/admin/usb/events')).toBe(true);
+  expect(screen.queryByRole('list', { name: 'USB로 읽은 카드' })).toBeNull();
+  expect(screen.queryByRole('button', { name: '읽은 카드를 문장에 추가' })).toBeNull();
+});

@@ -22,6 +22,7 @@ from app.services.support_links import require_link_permission, SUPPORT_ROLES
 STALE_SECONDS = 20
 MAX_DEVICES = 8
 MAX_BINDINGS = 200
+MAX_SHARED_BINDINGS = 5000
 
 
 def guarded(function):
@@ -55,17 +56,30 @@ def available_cards(user_id):
     return {card['id']: card for card in CARDS + approved_cards_for(user_id)}
 
 
+def shared_cards():
+    return {card['id']: card for card in CARDS + approved_cards_for(None, shared_only=True)}
+
+
+def effective_bindings(db, user_id, uids):
+    # Explicit personal mappings take precedence over the public chip catalog.
+    shared = list(db.rfid_shared_bindings.find({'_id': {'$in': uids}}))
+    public_ids = shared_cards() if shared else {}
+    result = {row['_id']: {'card_id': row['card_id'], 'available': row['card_id'] in public_ids} for row in shared}
+    result.update({row['uid']: {'card_id': row['card_id'], 'available': True}
+                   for row in db.rfid_bindings.find({'user_id': user_id, 'uid': {'$in': uids}})})
+    return result
+
+
 @guarded
 def resolve_usb(user_id, uids):
     # Session-scoped lookup only. USB scans are not persisted or queued as history.
     cards = available_cards(user_id)
-    rows = database().rfid_bindings.find({'user_id': user_id, 'uid': {'$in': uids}})
-    bindings = {row['uid']: row['card_id'] for row in rows}
+    bindings = effective_bindings(database(), user_id, uids)
     result = []
     for uid in uids:
-        identity = bindings.get(uid)
-        card = cards.get(identity)
-        result.append({'status': 'PRESENT' if card else 'UNAVAILABLE' if identity else 'UNMAPPED',
+        binding = bindings.get(uid)
+        card = cards.get(binding['card_id']) if binding and binding['available'] else None
+        result.append({'status': 'PRESENT' if card else 'UNAVAILABLE' if binding else 'UNMAPPED',
                        'card_id': card['id'] if card else None, 'label': card['label'] if card else None})
     return result
 
@@ -208,13 +222,13 @@ def board_state(user_id, device_id, show_uids=False, now=None):
     fresh = bool(row['active'] and privacy['guardian_consent'] and privacy['deletion_status'] == 'none'
                  and seen and (now or datetime.now(timezone.utc)) - seen < timedelta(seconds=STALE_SECONDS))
     cards = available_cards(user_id)
-    bindings = {item['uid']: item for item in db.rfid_bindings.find({'user_id': user_id}).limit(MAX_BINDINGS)}
     readings = {item['reader_id']: item for item in row.get('readers', [])} if fresh else {}
+    bindings = effective_bindings(db, user_id, [item['uid'] for item in readings.values() if item.get('uid')])
     readers = []
     for index in range(1, 4):
         reading = readings.get(index, {'status': 'STALE', 'uid': None})
         binding = bindings.get(reading.get('uid'))
-        card = cards.get(binding['card_id']) if binding else None
+        card = cards.get(binding['card_id']) if binding and binding['available'] else None
         status = reading['status']
         if status == 'PRESENT' and not card:
             status = 'UNAVAILABLE' if binding else 'UNMAPPED'
@@ -261,3 +275,50 @@ def save_binding(user_id, actor_id, uid, card_id, revision):
                 db.rfid_bindings.insert_one({'_id': identity, **values})
         audit(db, user_id, actor_id, 'rfid_binding_removed' if card_id is None else 'rfid_binding_saved', identity)
         return {'saved': True}
+
+
+@guarded
+def shared_catalog():
+    cards = shared_cards()
+    rows = list(database().rfid_shared_bindings.find({}).sort('updated_at', -1).limit(MAX_SHARED_BINDINGS + 1))
+    if len(rows) > MAX_SHARED_BINDINGS:
+        raise HTTPException(413, '공용 칩 등록 목록을 정리해 주세요.')
+    return {'cards': list(cards.values()), 'bindings': [public_shared_binding(row, cards) for row in rows]}
+
+
+def public_shared_binding(row, cards):
+    card = cards.get(row['card_id'])
+    return {'uid': row['_id'], 'card_id': row['card_id'], 'revision': row['revision'],
+            'label': card['label'] if card else None, 'available': card is not None}
+
+
+@guarded
+def save_shared_binding(actor, uid, card_id, revision, password, client_ip=None):
+    from app.services.reauthentication import reauthenticate_content_operator
+    db = database()
+    with image_write_lock(db):
+        # Re-read active account/permission and require the same per-operation confirmation as public content edits.
+        reauthenticate_content_operator(actor, password, client_ip)
+        cards = shared_cards()
+        if card_id is not None and card_id not in cards:
+            raise HTTPException(422, '공용 칩에는 기본 카드 또는 승인된 공용 카드만 연결할 수 있습니다.')
+        old = db.rfid_shared_bindings.find_one({'_id': uid})
+        if (old['revision'] if old else None) != revision:
+            raise HTTPException(409, '공용 칩 연결이 변경되었습니다. 목록을 새로고침해 주세요.')
+        result = None
+        if card_id is None:
+            if old:
+                db.rfid_shared_bindings.delete_one({'_id': uid, 'revision': revision})
+        else:
+            if not old and db.rfid_shared_bindings.count_documents({}) >= MAX_SHARED_BINDINGS:
+                raise HTTPException(422, '공용 칩은 5000개까지 등록할 수 있습니다.')
+            values = {'card_id': card_id, 'revision': secrets.randbits(52) + 1,
+                      'updated_at': datetime.now(timezone.utc), 'schema_version': SCHEMA_VERSION}
+            if old:
+                db.rfid_shared_bindings.update_one({'_id': uid, 'revision': revision}, {'$set': values})
+            else:
+                db.rfid_shared_bindings.insert_one({'_id': uid, **values})
+            result = public_shared_binding({'_id': uid, **values}, cards)
+        audit(db, actor['id'], actor['id'], 'rfid_shared_removed' if card_id is None else 'rfid_shared_saved',
+              hashlib.sha256(uid.encode()).hexdigest())
+        return {'saved': True, 'binding': result}

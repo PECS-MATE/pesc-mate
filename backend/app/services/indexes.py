@@ -13,6 +13,7 @@ logger = logging.getLogger('uvicorn.error')
 INDEXES = (
     ('rfid_devices', [('user_id', ASCENDING)], {'name': 'rfid_owner'}),
     ('rfid_bindings', [('user_id', ASCENDING), ('uid', ASCENDING)], {'name': 'rfid_uid_owner', 'unique': True}),
+    ('rfid_shared_bindings', [('updated_at', DESCENDING)], {'name': 'rfid_shared_recent'}),
     ('users', [('username', ASCENDING)], {'name': 'username_unique', 'unique': True}),
     ('auth_sessions', [('expires_at', ASCENDING)], {'name': 'session_expiry_ttl', 'expireAfterSeconds': 0}),
     ('auth_sessions', [('user_id', ASCENDING)], {'name': 'session_user'}),

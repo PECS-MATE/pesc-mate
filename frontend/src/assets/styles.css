@@ -548,6 +548,13 @@ footer { color: #9aa0aa; }
 .rfid-secret { display: block; overflow-wrap: anywhere; user-select: all; }
 .usb-rfid { padding: 12px; border: 1px solid var(--line, #d5d7dd); border-radius: 12px; margin-block: 12px; }
 .usb-rfid ol[aria-label="USB 장치 로그"] { max-height: 180px; overflow: auto; overflow-wrap: anywhere; padding-inline-start: 24px; }
+.chip-registration-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 20px; margin-block: 20px; }
+.chip-registration label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-block: 12px; }
+.chip-registration button { min-height: 44px; margin: 4px; }
+.chip-registration code, .chip-registration output { overflow-wrap: anywhere; user-select: all; }
+.chip-registration ul { list-style: none; padding: 0; }
+.chip-registration li { padding-block: 8px; border-bottom: 1px solid var(--line, #d5d7dd); }
+.chip-card-preview { display: block; width: 160px; height: 160px; background-size: contain; background-repeat: no-repeat; background-position: center; }
 .learning-feedback { min-height: 50px; margin-top: 16px; padding: 13px; border-radius: 14px; color: #6f7480; background: #f6f7fa; font-weight: 800; }
 .learning-feedback.correct { color: #247247; background: #eaf9ef; }
 .learning-feedback.retry, .learning-feedback.incorrect { color: #81562e; background: #fff6e5; }

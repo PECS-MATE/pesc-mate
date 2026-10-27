@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from pymongo import MongoClient
 from app.api.router import api_router
 from app.services.observability import configure_observability
+from app.services.authentication import _password_hash
 
 
 class RealRfidTests(unittest.TestCase):
@@ -38,6 +39,8 @@ class RealRfidTests(unittest.TestCase):
             self.headers[identity] = {'Authorization': 'Bearer ' + token}
         for child in ['child-a', 'child-b']:
             self.db.privacy_settings.insert_one({'_id': child, 'guardian_consent': True})
+        salt, digest = _password_hash('Synthetic-password-123')
+        self.db.users.update_one({'_id': 'operator'}, {'$set': {'password_salt': salt, 'password_hash': digest}})
         for actor, permissions in [('guardian', ['cards_manage', 'board_manage']), ('staff', ['board_manage'])]:
             self.db.caregiver_links.insert_one({'_id': actor + ':child-a', 'supporter_id': actor,
                 'user_id': 'child-a', 'permissions': permissions, 'active': True})
@@ -80,6 +83,75 @@ class RealRfidTests(unittest.TestCase):
 
     def bind(self, uid, card, revision=None):
         return self.call('PUT', '/rfid/bindings?user_id=child-a', json={'uid': uid, 'card_id': card, 'expected_revision': revision})
+
+    def shared(self, uid='01010101', card='water', revision=None, expected=200, **extra):
+        return self.call('PUT', '/rfid/admin/bindings', actor='operator', expected=expected,
+            json={'uid': uid, 'card_id': card, 'expected_revision': revision, 'password': 'Synthetic-password-123', **extra})
+
+    def test_shared_registration_requires_content_permission_and_per_operation_password(self):
+        for actor in ['child-a', 'guardian', 'staff']:
+            self.call('GET', '/rfid/admin/catalog', actor=actor, expected=403)
+            self.call('POST', '/rfid/admin/usb/events', actor=actor, expected=403, json={'action': 'connected'})
+        self.call('POST', '/rfid/admin/usb/events', actor='operator', expected=204, json={'action': 'connected'})
+        self.shared(password='wrong-password', expected=403)
+        self.assertEqual(self.db.rfid_shared_bindings.count_documents({}), 0)
+        result = self.shared()
+        self.assertEqual(result['binding']['label'], '물')
+        self.call('PUT', '/rfid/admin/bindings', actor='operator', expected=422,
+            json={'uid': '02020202', 'card_id': 'water', 'expected_revision': None})
+        self.db.users.update_one({'_id': 'operator'}, {'$set': {'account_permissions': []}, '$inc': {'permission_revision': 1}})
+        self.call('GET', '/rfid/admin/catalog', actor='operator', expected=401)
+        self.shared(uid='02020202', expected=401)
+
+    def test_shared_chips_resolve_for_all_children_and_wifi_but_personal_mapping_takes_precedence(self):
+        saved = self.shared()['binding']
+        for actor in ['child-a', 'child-b']:
+            self.assertEqual(self.call('POST', '/rfid/usb/resolve', actor=actor, json={'uids': ['01010101']})[0]['card_id'], 'water')
+        self.create(); self.begin(); self.send(self.payload())
+        self.assertEqual(self.state()['readers'][0]['card_id'], 'water')
+        self.bind('01010101', 'rice')
+        self.assertEqual(self.state()['readers'][0]['card_id'], 'rice')
+        personal = self.call('GET', '/rfid/bindings?user_id=child-a')[0]
+        self.bind('01010101', None, personal['revision'])
+        self.assertEqual(self.state()['readers'][0]['card_id'], 'water')
+        self.shared(revision=None, expected=409)
+        changed = self.shared(card='apple', revision=saved['revision'])['binding']
+        self.assertEqual(self.state()['readers'][0]['card_id'], 'apple')
+        self.shared(card=None, revision=changed['revision'])
+        self.assertEqual(self.state()['readers'][0]['status'], 'UNMAPPED')
+        self.assertEqual(self.db.communication_sessions.count_documents({}), 0)
+        self.assertEqual(self.db.learning_attempts.count_documents({}), 0)
+
+    def test_shared_catalog_excludes_private_pending_and_deactivated_cards_even_for_the_owner(self):
+        for identity, visibility, status in [('private', 'private', 'approved'), ('pending', 'shared', 'pending'), ('public', 'shared', 'approved')]:
+            self.db.card_submissions.insert_one({'_id': identity, 'owner_id': 'child-a', 'visibility': visibility,
+                'status': status, 'label': identity, 'meaning': identity, 'category': '음식', 'created_at': datetime.now(timezone.utc)})
+        catalog = self.call('GET', '/rfid/admin/catalog', actor='operator')
+        ids = {row['id'] for row in catalog['cards']}
+        self.assertNotIn('custom:private', ids); self.assertNotIn('custom:pending', ids); self.assertIn('custom:public', ids)
+        self.shared(card='custom:private', expected=422); self.shared(card='custom:pending', expected=422)
+        self.shared(card='custom:public')
+        self.db.card_submissions.update_one({'_id': 'public'}, {'$set': {'visibility': 'private'}})
+        for actor in ['child-a', 'child-b']:
+            result = self.call('POST', '/rfid/usb/resolve', actor=actor, json={'uids': ['01010101']})
+            self.assertEqual(result[0]['status'], 'UNAVAILABLE')
+        catalog = self.call('GET', '/rfid/admin/catalog', actor='operator')
+        self.assertFalse(catalog['bindings'][0]['available'])
+
+    def test_shared_chip_revision_prevents_delete_recreate_conflicts_and_is_platform_data(self):
+        saved = self.shared()['binding']
+        self.shared(card=None, revision=saved['revision'])
+        recreated = self.shared(card='apple')['binding']
+        self.assertNotEqual(saved['revision'], recreated['revision'])
+        self.shared(card='rice', revision=saved['revision'], expected=409)
+        self.call('DELETE', '/privacy/data', actor='child-a', json={'confirmation': 'DELETE'})
+        self.assertEqual(self.db.rfid_shared_bindings.count_documents({}), 1)
+        result = self.call('POST', '/rfid/usb/resolve', actor='child-b', json={'uids': ['01010101']})
+        self.assertEqual(result[0]['card_id'], 'apple')
+        for row in self.db.privacy_audit_logs.find({'action': 'rfid_shared_saved'}):
+            self.assertEqual(row['user_id'], 'operator')
+            self.assertEqual(row['target_id'], hashlib.sha256(b'01010101').hexdigest())
+            self.assertNotIn('uid', row)
 
     def test_three_positions_mapping_change_remove_and_no_communication_or_learning_write(self):
         self.create(); self.begin()

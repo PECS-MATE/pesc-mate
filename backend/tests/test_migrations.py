@@ -190,7 +190,7 @@ class VersionedWriteCoverageTests(unittest.TestCase):
             'learning': ('save_settings', 'record_attempt', '_audit'),
             'login_throttle': ('record_login_failure',), 'offline_events': ('sync_events',),
             'privacy': ('_save_privacy', 'delete_personal_data', '_audit'),
-            'rfid': ('create_device', 'save_binding', 'audit'),
+            'rfid': ('create_device', 'save_binding', 'save_shared_binding', 'audit'),
             'support_links': ('grant_support', '_audit'), 'tts_events': ('start_event',),
         }
         root = Path(__file__).resolve().parents[1] / 'app' / 'services'

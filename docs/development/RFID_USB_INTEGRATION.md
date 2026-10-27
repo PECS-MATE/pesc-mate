@@ -1,5 +1,8 @@
 # USB RFID 연결과 장치 로그
 
+> 공용 칩을 먼저 등록하려면 [관리자 전용 칩 등록 페이지](RFID_CHIP_REGISTRATION.md)를 사용한다.
+> 아동별 개인 태그 연결은 아래 기존 보호자 흐름을 유지한다.
+
 현재 우선 연결 방식은 **Windows PC의 Chrome/Edge + USB**다. 기존 Wi-Fi 경로는 선택 기능으로 보존한다.
 USB 방식에는 Arduino Wi-Fi 비밀번호·장치 ID·장치 키·사설망 포트 개방이 필요하지 않다.
 
