@@ -16,6 +16,25 @@ docker compose up --build
 소스는 컨테이너에 연결되어 저장 시 자동 반영된다. 백엔드는 `backend/app`만 폴링 감시해
 가상환경·테스트 캐시 감시를 피한다. 종료는 `docker compose down`이며 데이터 볼륨을 유지한다.
 
+### 개발 로그
+
+MongoDB는 `attach: false`로 기본 `docker compose up`의 실시간 로그에서 제외한다.
+기존 `logging.driver: none`은 Docker의 MongoDB 로그 저장을 끄는 설정으로 유지한다.
+실행 중인 터미널의 기존 연결에는 소급 적용되지 않으며 다음 `up`부터 적용된다.
+백엔드·프런트엔드 로그만 별도로 확인하려면 다음 명령을 사용한다.
+
+```sh
+docker compose logs -f --tail 100 backend frontend
+```
+
+태블릿·RFID 실행도 기본 Compose의 MongoDB 표시 설정을 상속한다. 지원 조건은
+[Docker Compose의 attach 명세](https://docs.docker.com/reference/compose-file/services/#attach)를 따른다.
+
+2026-10-27 변경 검증: 개발·RFID·태블릿·RFID+태블릿 네 구성의 `docker compose config`에서
+MongoDB `attach: false`와 로그 드라이버 `none`을 확인했다. 현재 컨테이너도 `none / healthy`이며
+DB ping은 `ok: 1`이다. 실행 중인 앱은 재시작하지 않았으며 새 포그라운드 출력 검수는 미실행이다.
+앱 코드 변경은 없으며 전체 앱 테스트·빌드는 이 변경에서 미실행이다.
+
 기본 MongoDB는 개발용 무인증 구성이다. PC 외부로 DB 포트를 공개하지 않는다.
 VS Code MongoDB 확장 등 호스트 클라이언트의 연결 문자열은 다음과 같다.
 
