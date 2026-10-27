@@ -50,7 +50,7 @@ class RealRfidTests(unittest.TestCase):
     def call(self, method, path, actor='guardian', expected=200, **kwargs):
         response = self.http.request(method, '/api' + path, headers=self.headers[actor], **kwargs)
         self.assertEqual(response.status_code, expected, response.text)
-        return response.json()
+        return response.json() if response.content else None
 
     def create(self):
         result = self.call('POST', '/rfid/devices?user_id=child-a', expected=201,
@@ -167,3 +167,25 @@ class RealRfidTests(unittest.TestCase):
         self.assertEqual(self.db.rfid_bindings.count_documents({}), 0)
         self.send(self.payload(3), expected=401)
         self.assertEqual(self.db.rfid_devices.count_documents({}), 0)
+
+    def test_usb_lookups_use_account_mappings_without_device_keys_or_scan_history(self):
+        self.bind('01010101', 'water')
+        result = self.call('POST', '/rfid/usb/resolve', actor='child-a', json={'uids': ['01:01:01:01', '02020202', '01010101']})
+        self.assertEqual([row['card_id'] for row in result], ['water', None, 'water'])
+        self.assertEqual(result[1]['status'], 'UNMAPPED')
+        self.assertTrue(all('uid' not in row for row in result))
+        self.call('POST', '/rfid/usb/resolve?user_id=child-a', actor='child-b', expected=403, json={'uids': ['01010101']})
+        self.call('POST', '/rfid/usb/resolve?user_id=child-a', actor='operator', expected=403, json={'uids': ['01010101']})
+        self.call('PUT', '/privacy/settings', actor='child-a', json={'guardian_consent': False, 'retention_days': 365})
+        self.assertEqual(self.call('POST', '/rfid/usb/resolve', actor='child-a', json={'uids': ['01010101']})[0]['card_id'], 'water')
+        for name in ['rfid_devices', 'communication_sessions', 'learning_attempts', 'tts_events']:
+            self.assertEqual(self.db[name].count_documents({}), 0)
+
+    def test_usb_status_logs_exclude_uid_identity_and_arbitrary_serial_content(self):
+        with self.assertLogs('uvicorn.error', level='INFO') as captured:
+            self.call('POST', '/rfid/usb/events', actor='child-a', expected=204, json={'action': 'connected'})
+        import json
+        event = json.loads(captured.records[0].getMessage())
+        self.assertEqual(event, {'event': 'rfid_usb', 'source': 'browser', 'action': 'connected'})
+        with self.assertNoLogs('uvicorn.error', level='INFO'):
+            self.call('POST', '/rfid/usb/events', actor='child-a', expected=422, json={'action': 'tag_read', 'uid': '01010101'})

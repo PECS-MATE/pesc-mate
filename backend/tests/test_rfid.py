@@ -5,12 +5,21 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException
 from pydantic import ValidationError
-from app.api.rfid import Snapshot, Binding, device_transport
+from app.api.rfid import Snapshot, Binding, UsbLookup, UsbEvent, device_transport
 from app.services.rfid import normalize_uid, ingest, public_device, STALE_SECONDS, board_state
 from starlette.requests import Request
 
 
 class RfidTests(unittest.TestCase):
+    def test_usb_payloads_are_bounded_and_diagnostic_logs_never_accept_serial_content(self):
+        self.assertEqual(UsbLookup(uids=['01:ab:cd:02']).uids, ['01ABCD02'])
+        for values in ([], ['01020304'] * 13, ['invalid']):
+            with self.assertRaises(ValidationError):
+                UsbLookup(uids=values)
+        for body in ({'action': 'anything'}, {'action': 'tag_read', 'uid': '01020304'}, {'action': 'connected', 'user_id': 'outside'}):
+            with self.assertRaises(ValidationError):
+                UsbEvent(**body)
+
     def snapshot(self, **extra):
         return {'protocol_version': 1, 'session_id': str(uuid4()), 'event_id': 1, 'readers': [
             {'reader_id': 1, 'status': 'PRESENT', 'uid': '01 02 03 04'},

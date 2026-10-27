@@ -21,6 +21,7 @@ lang: ko-KR
 본 명세서는 현재 구현된 API를 기준으로 한다. Ollama의 `qwen2.5:0.5b`로 문장을 생성하며, 모델 장애나 제한 시간 초과 시 서버 규칙 문장으로 자동 전환한다.
 
 RFID 하드웨어 API는 [Wi-Fi 카드판 연동 명세](RFID_WIFI_INTEGRATION.md)에 별도로 정리한다.
+현재 USB 방식의 인증 세션 기반 태그 조회·장치 상태 로그 API는 [USB 연동 명세](RFID_USB_INTEGRATION.md)를 따른다.
 `/api/rfid`의 보호자 장치·태그 관리/상태 조회는 기존 Bearer 세션과 아동별 지원 권한을 사용한다.
 장치의 세션 시작·스냅샷 수신은 `X-Device-Key`로만 인증하며 아동 계정 권한을 부여하지 않는다.
 기본 HTTPS이며 개발 사설망 HTTP는 명시적 설정이 필요하다. 이벤트 버전·세션·순서·중복 검사와

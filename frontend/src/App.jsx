@@ -1646,6 +1646,12 @@ function App() {
       {!loaded && !error && <p role="status">카드를 불러오는 중입니다…</p>}
       {loaded && user.role === 'user' && tab === 'cards' && <RfidBoard key={`rfid-${user.id}`} targetId={user.id}
         cards={cards} artStyle={artStyle} disabled={busy || speechActive || offline}
+        onAppend={selection => {
+          if (busy || speechActive || offline || document.visibilityState === 'hidden') return false;
+          if (board.length + selection.length > 12) { setError('문장은 최대 12장입니다. 현재 문장을 정리한 뒤 다시 추가해 주세요.'); return false; }
+          updateBoard([...board, ...selection.map(card => ({ ...card, selected_at: new Date().toISOString() }))]);
+          return true;
+        }}
         onApply={selection => {
           if (busy || speechActive || offline || document.visibilityState === 'hidden') return false;
           if ((board.length || text) && !window.confirm('현재 선택 문장을 RFID 배열로 바꿀까요? 고정 카드판은 변경하지 않습니다.')) return false;

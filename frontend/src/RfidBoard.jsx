@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { request } from './services/api';
 import { rfidFingerprint, rfidSelection } from './services/rfidBoard';
+import UsbRfidReader from './UsbRfidReader';
 
 const statusText = { EMPTY: '카드 없음', ERROR: '리더기 오류', STALE: '새 상태를 기다려 주세요',
   UNMAPPED: '등록되지 않은 카드', UNAVAILABLE: '사용할 수 없는 카드', PRESENT: '카드 인식' };
 
-export default function RfidBoard({ targetId, manager = false, canMap = false, cards = [], artStyle = () => ({}), onApply, disabled = false }) {
+export default function RfidBoard({ targetId, manager = false, canMap = false, cards = [], artStyle = () => ({}), onApply, onAppend, disabled = false }) {
   const [open, setOpen] = useState(manager);
   const [devices, setDevices] = useState([]), [deviceId, setDeviceId] = useState('');
   const [snapshot, setSnapshot] = useState(null), [bindings, setBindings] = useState([]), [choices, setChoices] = useState([]);
@@ -100,6 +101,8 @@ export default function RfidBoard({ targetId, manager = false, canMap = false, c
 
   return <section className="rfid-panel" aria-label="RFID 실물 카드판">
     <h2>RFID 실물 카드판</h2>
+    <UsbRfidReader targetId={targetId} manager={manager} canMap={canMap} cards={cards} disabled={disabled}
+      mappingVersion={pollVersion} onUid={setUid} onApply={onApply} onAppend={onAppend} />
     {!open ? <button type="button" onClick={() => setOpen(true)}>RFID 상태 열기</button> : <>
       <p>리더기 1 → 2 → 3 순서입니다. 상태는 자동 갱신하지만 현재 문장은 직접 적용하기 전까지 바뀌지 않아요.</p>
       <button type="button" onClick={() => { setOpen(false); setSecret(''); }}>RFID 상태 닫기</button>

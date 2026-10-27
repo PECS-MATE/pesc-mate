@@ -25,6 +25,7 @@ API, 데이터 구조, 카드·마스코트 자산과 협업 규칙을 관리한
 |---|---|
 | [API 명세서](development/API_SPECIFICATION.md) | 엔드포인트, 권한, 요청과 응답 |
 | [RFID Wi-Fi 연동](development/RFID_WIFI_INTEGRATION.md) | RC522 3개·UNO R4 WiFi, 장치 인증·태그 매핑·웹 적용·배선표·실물 검수 |
+| [RFID USB 연동·장치 로그](development/RFID_USB_INTEGRATION.md) | 현재 PC 연결 방식, Web Serial·기존 진단 출력·USB 펌웨어·문장 추가·브라우저/backend 로그 |
 | [로컬 개발과 시연](development/LOCAL_DEVELOPMENT.md) | Docker·개별 실행, 선택형 AI, 태블릿 연결과 상태 확인 |
 | [하드웨어 확장](../hardware/README.md) | Arduino 진단 스케치 현황·시연 환경·실물 입력 MVP와 기기 검증 기록 안내 |
 | [API 지표](development/API_METRICS.md) | 오류율·처리 시간 집계, 조회 권한과 해석 범위 |

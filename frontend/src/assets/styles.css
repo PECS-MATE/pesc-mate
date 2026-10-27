@@ -546,6 +546,8 @@ footer { color: #9aa0aa; }
 .rfid-readers { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; padding: 0; list-style: none; }
 .rfid-readers li { border: 1px solid currentColor; border-radius: 12px; padding: 12px; }
 .rfid-secret { display: block; overflow-wrap: anywhere; user-select: all; }
+.usb-rfid { padding: 12px; border: 1px solid var(--line, #d5d7dd); border-radius: 12px; margin-block: 12px; }
+.usb-rfid ol[aria-label="USB 장치 로그"] { max-height: 180px; overflow: auto; overflow-wrap: anywhere; padding-inline-start: 24px; }
 .learning-feedback { min-height: 50px; margin-top: 16px; padding: 13px; border-radius: 14px; color: #6f7480; background: #f6f7fa; font-weight: 800; }
 .learning-feedback.correct { color: #247247; background: #eaf9ef; }
 .learning-feedback.retry, .learning-feedback.incorrect { color: #81562e; background: #fff6e5; }

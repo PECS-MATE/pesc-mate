@@ -1,5 +1,8 @@
 # 실물 카드 입력 기반 의사소통 MVP
 
+> 후속 USB 우선 요청: 현재 구현·연결 방법·로그·실물 검수는 [USB 연동 안내](../development/RFID_USB_INTEGRATION.md)를 따른다.
+> 아래 최초 계획의 체크를 새 USB 펌웨어/실물 성공으로 일괄 변경하지 않는다.
+
 > 2026-10-27 변경: 아래는 최초 단일 리더기 USB 계획의 이력이다. 현재 요구사항은 **RC522 3개 +
 > UNO R4 WiFi → HTTP(S) API → 위치별 상태 표시**이며
 > [Wi-Fi 연동 구현·설치·실물 검수](../development/RFID_WIFI_INTEGRATION.md)를 우선한다.

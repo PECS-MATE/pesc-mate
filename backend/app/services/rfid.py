@@ -55,6 +55,21 @@ def available_cards(user_id):
     return {card['id']: card for card in CARDS + approved_cards_for(user_id)}
 
 
+@guarded
+def resolve_usb(user_id, uids):
+    # Session-scoped lookup only. USB scans are not persisted or queued as history.
+    cards = available_cards(user_id)
+    rows = database().rfid_bindings.find({'user_id': user_id, 'uid': {'$in': uids}})
+    bindings = {row['uid']: row['card_id'] for row in rows}
+    result = []
+    for uid in uids:
+        identity = bindings.get(uid)
+        card = cards.get(identity)
+        result.append({'status': 'PRESENT' if card else 'UNAVAILABLE' if identity else 'UNMAPPED',
+                       'card_id': card['id'] if card else None, 'label': card['label'] if card else None})
+    return result
+
+
 def recheck_manager(db, user_id, actor_id, permission):
     actor = db.users.find_one({'_id': actor_id})
     owner = db.users.find_one({'_id': user_id, 'role': 'user'})

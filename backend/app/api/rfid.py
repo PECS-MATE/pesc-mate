@@ -1,5 +1,7 @@
 """RFID routes reuse account sessions; hardware keys never grant account access."""
 import os
+import json
+import logging
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -87,6 +89,34 @@ class Binding(StrictModel):
     @classmethod
     def canonical_uid(cls, value):
         return rfid.normalize_uid(value)
+
+
+class UsbLookup(StrictModel):
+    uids: list[Annotated[str, Field(min_length=1, max_length=64)]] = Field(min_length=1, max_length=12)
+
+    @field_validator('uids')
+    @classmethod
+    def canonical_uids(cls, values):
+        return [rfid.normalize_uid(value) for value in values]
+
+
+class UsbEvent(StrictModel):
+    action: Literal['connected', 'disconnected', 'connect_failed', 'reader_ready', 'reader_error',
+                    'tag_read', 'unmapped', 'invalid_frame', 'queue_full', 'reset', 'unsupported_firmware']
+
+
+@router.post('/usb/resolve')
+def usb_lookup(body: UsbLookup, user_id: str | None = Query(default=None, max_length=64), user=Depends(current_user)):
+    return rfid.resolve_usb(target(user, user_id, 'board_manage'), body.uids)
+
+
+@router.post('/usb/events', status_code=204)
+def usb_event(body: UsbEvent, user_id: str | None = Query(default=None, max_length=64), user=Depends(current_user)):
+    target(user, user_id, 'board_manage')
+    # Browser-reported status, not server-side USB discovery. Never log UID, account, serial text or keys.
+    logging.getLogger('uvicorn.error').info('%s', json.dumps({
+        'event': 'rfid_usb', 'source': 'browser', 'action': body.action}, separators=(',', ':')))
+    return Response(status_code=204)
 
 
 def target(user, user_id, permission, writing=False):

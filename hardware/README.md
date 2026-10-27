@@ -2,13 +2,15 @@
 
 Arduino 등 외부 기기의 코드와 배선·실행 안내를 웹 클라이언트·API와 분리해 보관한다.
 현재 UNO R4 WiFi와 RC522 세 위치를 연결하는 펌웨어·API·웹 화면을 구현했다.
-설정·배선 제안·프로토콜·검증 결과는 [Wi-Fi 카드판 연동 안내](../docs/development/RFID_WIFI_INTEGRATION.md)를 따른다.
+현재 PC 연결은 [USB 연동·장치 로그 안내](../docs/development/RFID_USB_INTEGRATION.md)를 우선한다.
+Wi-Fi 선택 연결의 설정·배선 제안·프로토콜은 [Wi-Fi 카드판 안내](../docs/development/RFID_WIFI_INTEGRATION.md)에 있다.
 실제 세 리더기의 전압·간섭·카드 제거·음성 출력 검수는 아직 완료하지 않았다.
 
 ## Arduino 카드 리더기
 
 | 폴더 | 용도 |
 |---|---|
+| [rfid-usb-board](arduino/rfid-usb-board/README.md) | USB·JSON Lines, 리더기 1개 순차 입력/2·3개 위치 배열, 웹 장치 로그 |
 | [rfid-wifi-board](arduino/rfid-wifi-board/README.md) | RC522 3개 → Wi-Fi → 기존 문장 생성·웹 TTS |
 | [card-reader-test](arduino/card-reader-test/README.md) | 사용자가 추가한 단일 리더기 진단 스케치 보관 |
 
