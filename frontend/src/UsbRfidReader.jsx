@@ -4,7 +4,8 @@ import { parseUsbLine, UsbPresentationTracker, UsbSerialConnection } from './ser
 
 const messages = {
   connected: 'USB 장치를 연결했습니다.', disconnected: 'USB 장치 연결이 해제됐습니다.',
-  connect_failed: 'USB 연결 실패: Arduino 시리얼 모니터를 닫고 포트를 다시 선택해 주세요.',
+  connect_failed: 'USB 포트를 선택하지 못했습니다. 장치 연결과 브라우저 권한을 확인해 주세요.',
+  open_failed: '선택한 USB 포트를 열지 못했습니다. Arduino 시리얼 모니터·플로터와 다른 브라우저 탭의 연결을 닫고 다시 시도해 주세요.',
   reader_ready: '카드 리더기가 응답합니다.', reader_error: '카드 리더기 오류: 전원과 배선을 확인해 주세요.',
   tag_read: 'RFID 카드를 읽었습니다.', unmapped: '등록되지 않았거나 사용할 수 없는 카드입니다. 보호자 화면에서 태그를 연결해 주세요.',
   invalid_frame: '장치 데이터 형식을 확인하지 못했습니다.', queue_full: '읽은 카드가 12장입니다. 적용하거나 비운 뒤 다시 읽어 주세요.',
@@ -29,13 +30,13 @@ export default function UsbRfidReader({ targetId, manager = false, canMap = fals
     const current = () => !disposed && token && localStorage.getItem('pesc-mate-token') === token;
     const query = `?user_id=${encodeURIComponent(targetId)}`;
     setResolved([]); setLogs([]); setError(''); setState('disconnected'); setUnsafe(true); setFresh(false); setPending(false); setProtocol('');
-    function log(action) {
+    function log(action, message = messages[action]) {
       if (!current()) return;
       const now = Date.now();
       if (!['connected', 'disconnected', 'connect_failed'].includes(action)
           && now - (throttled.get(action) || 0) < 3000) return;
       throttled.set(action, now);
-      setLogs(rows => [...rows.slice(-39), { at: new Date().toLocaleTimeString(), message: messages[action] }]);
+      setLogs(rows => [...rows.slice(-39), { at: new Date().toLocaleTimeString(), message }]);
       const eventPath = eventScope === 'shared' ? '/rfid/admin/usb/events' : '/rfid/usb/events' + query;
       if (navigator.onLine) request(eventPath, { method: 'POST', body: JSON.stringify({ action }),
         headers: { Authorization: `Bearer ${token}` } }).catch(() => {}); // Logs never block basic speech.
@@ -116,8 +117,9 @@ export default function UsbRfidReader({ targetId, manager = false, canMap = fals
         if (next === 'connected') { clear(); tracker = new UsbPresentationTracker(); lastActivity = Date.now(); setFresh(true); setProtocol(''); discover(); }
         if (next !== 'connected') { setUnsafe(true); setFresh(false); }
         setState(next === 'read_failed' ? 'disconnected' : next === 'cancelled' ? 'disconnected' : next);
-        if (messages[next]) log(next);
+        if (messages[next]) log(next === 'open_failed' ? 'connect_failed' : next, messages[next]);
         if (next === 'read_failed') log('reader_error');
+        if (['cancelled', 'connect_failed', 'open_failed'].includes(next)) discover();
       } }) : null;
     session.current = { connection, clear, refresh: resolve };
     const serial = navigator.serial;
@@ -148,7 +150,7 @@ export default function UsbRfidReader({ targetId, manager = false, canMap = fals
     <h3>USB 카드 리더기</h3>
     {!available ? <p role="status">USB 연결은 PC의 Chrome/Edge에서 http://127.0.0.1:5173 또는 HTTPS로 열어 주세요.</p> : <>
       <p role="status">{state === 'connected' ? fresh ? 'USB 연결됨' : 'USB 장치 응답을 기다립니다.' : state === 'connecting' ? 'USB 포트를 여는 중입니다.' : 'USB 연결 버튼을 눌러 Arduino 포트를 선택해 주세요.'}</p>
-      {!compact && <p>브라우저가 허용받아 감지한 포트: {granted}개 · 115200bps</p>}
+      {!compact && <p>이 브라우저에 권한을 준 포트: {granted}개 · 115200bps (0개여도 연결 버튼에서 선택 가능)</p>}
       <button type="button" disabled={state === 'connected' || state === 'connecting'} onClick={() => session.current?.connection?.connect()}>USB 장치 연결</button>
       <button type="button" disabled={!['connected', 'connecting'].includes(state)} onClick={() => session.current?.connection?.disconnect()}>USB 연결 해제</button>
     </>}
@@ -168,7 +170,7 @@ export default function UsbRfidReader({ targetId, manager = false, canMap = fals
       <button type="button" onClick={() => session.current?.clear()}>USB 읽기 목록 비우기</button></>}
     {manager && canMap && <p>{registration ? '등록할 칩을 하나만 대고 연결할 그림카드를 선택해 주세요.' : '카드를 대면 아래 태그 등록 입력란에 UID가 들어갑니다.'}</p>}
     <details open={!compact}><summary>{compact ? '연결 정보·장치 로그' : '장치 로그'}</summary>
-      {compact && <><p>브라우저가 허용받아 감지한 포트: {granted}개 · 115200bps</p>
+      {compact && <><p>이 브라우저에 권한을 준 포트: {granted}개 · 115200bps (0개여도 연결 버튼에서 선택 가능)</p>
         {protocol === 'legacy' && <p>진단 스케치에서 카드를 순서대로 모읍니다. 카드 유지·제거 판별은 USB용 펌웨어에서 지원합니다.</p>}</>}
       <ol aria-label="USB 장치 로그">{logs.map((row, index) => <li key={index}><time>{row.at}</time> {row.message}</li>)}</ol>
     </details>

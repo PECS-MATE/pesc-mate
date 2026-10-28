@@ -78,9 +78,11 @@ export class UsbSerialConnection {
     const generation = ++this.generation;
     this.onState('connecting');
     let port;
+    let opening = false;
     try {
       port = await this.serial.requestPort(); // Keep this call within the user's click activation.
       if (this.disposed || generation !== this.generation) return;
+      opening = true;
       await port.open({ baudRate: 115200 });
       if (this.disposed || generation !== this.generation) { await port.close(); return; }
       this.port = port;
@@ -104,7 +106,9 @@ export class UsbSerialConnection {
         if (generation === this.generation) await this.disconnect();
       })();
     } catch (error) {
-      if (!this.disposed && generation === this.generation) this.onState(error.name === 'NotFoundError' ? 'cancelled' : 'connect_failed');
+      if (!this.disposed && generation === this.generation) {
+        this.onState(error.name === 'NotFoundError' ? 'cancelled' : opening ? 'open_failed' : 'connect_failed');
+      }
       if (this.port === port && port) {
         this.port = null;
         try { await port.close(); } catch { /* Failed or removed port. */ }
