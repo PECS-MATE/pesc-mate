@@ -99,6 +99,7 @@ export default function UsbRfidReader({ targetId, manager = false, canMap = fals
       }
       if (currentMode === 'queue') {
         if (!accepted.rows.length) return;
+        if (entries.some(row => row.uid === accepted.rows[0].uid)) return;
         if (entries.length >= 12) { log('queue_full'); return; }
         entries = [...entries, ...accepted.rows].slice(0, 12);
       } else {
@@ -155,6 +156,7 @@ export default function UsbRfidReader({ targetId, manager = false, canMap = fals
       <button type="button" disabled={!['connected', 'connecting'].includes(state)} onClick={() => session.current?.connection?.disconnect()}>USB 연결 해제</button>
     </>}
     {!compact && protocol === 'legacy' && <p>{registration ? '진단 스케치에서 칩 UID를 읽고 있습니다.' : '진단 스케치에서 카드를 순서대로 모읍니다. 카드 유지·제거 판별은 USB용 펌웨어에서 지원합니다.'}</p>}
+    {!registration && mode === 'queue' && <p>같은 칩은 읽기 목록에 한 번만 담습니다. 다시 읽으려면 목록을 비운 뒤 칩을 떼었다가 대주세요.</p>}
     {error && <p role="alert">{error}</p>}
     {pending && <p role="status">읽은 카드 연결을 조회하고 있어요.</p>}
     {!!resolved.length && <ol className="usb-card-list" aria-label={mode === 'positions' ? 'USB 위치별 카드' : 'USB로 읽은 카드'}>{resolved.map((row, index) => {
