@@ -48,6 +48,7 @@ API, 데이터 구조, 카드·마스코트 자산과 협업 규칙을 관리한
 | [마이페이지와 통합 설정](development/MY_PAGE_SETTINGS.md) | 프로필 클릭, 프로필·접근·음성·보호자 설정 창과 계정별 진입 권한 |
 | [활동 중심 홈과 말하기 UX](development/ACTIVITY_UX.md) | 주요 활동·주제 탐색·리더기 연결 유지·카드 선택 우선 배치와 검증 범위 |
 | [서비스 소개 랜딩](development/LANDING_PAGE.md) | 비로그인 소개·기능·이용 순서·FAQ, 로그인·가입 초점 이동과 세션 복원 |
+| [새 참고 화면 UX 반영](development/REFERENCE_UX.md) | 문장 상단 고정·집중 화면·연습·칩 등록·리포트 정리, 사용자 직접 검사 대기 |
 | [카드 사진·단어 목록](development/CARD_PHOTO_WORD_LIST.md) | 카드 제작 기준, 이미지 표현과 제작 우선순위 |
 | [마스코트 자산](development/MASCOT_ASSET.md) | 자산 경로, 적용 위치와 생성 프롬프트 |
 | [커밋 메시지 규칙](development/COMMIT_CONVENTION.md) | 커밋 유형, 제목과 본문 작성 방법 |

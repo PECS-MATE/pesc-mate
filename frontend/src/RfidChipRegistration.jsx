@@ -82,10 +82,16 @@ export default function RfidChipRegistration({ accountId, artStyle }) {
   return <section className="chip-registration" aria-label="공용 RFID 칩 등록">
     <h2>공용 RFID 칩 등록</h2>
     <p>칩을 하나씩 읽고 그림카드에 연결하세요. 등록한 공용 칩은 모든 아동에게 적용됩니다. 개인 사진 카드는 기존 아동별 RFID 설정에서 연결합니다.</p>
-    <UsbRfidReader targetId={accountId} manager canMap registration eventScope="shared" onUid={selectChip} />
+    <ol className="chip-registration-steps" aria-label="칩 등록 순서">
+      <li aria-current={!uid ? 'step' : undefined}><span>1</span>칩 인식</li>
+      <li aria-current={uid && !card ? 'step' : undefined}><span>2</span>그림카드 선택</li>
+      <li aria-current={uid && card ? 'step' : undefined}><span>3</span>확인 후 저장</li>
+    </ol>
     {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
     <div className="chip-registration-grid">
       <article aria-label="현재 인식한 칩"><h3>1. 칩 인식</h3>
+        <div className="chip-capture-heading"><span aria-hidden="true">▤</span><p>{uid ? '읽은 칩을 확인해 주세요' : '등록할 카드를 리더기에 대세요'}</p></div>
+        <UsbRfidReader targetId={accountId} manager canMap registration eventScope="shared" onUid={selectChip} />
         <p role="status">{armed ? '등록할 칩을 하나만 리더기에 대세요.' : '인식한 칩을 고정했습니다. 저장 또는 확인 후 다음 칩으로 이동하세요.'}</p>
         <p>UID: <output aria-label="인식한 칩 UID">{uid || '인식 대기'}</output></p>
         {uid && <p>{existing ? `이미 등록된 칩: ${existing.label || '사용 불가 카드'}` : '아직 등록되지 않은 칩입니다.'}</p>}
@@ -99,7 +105,7 @@ export default function RfidChipRegistration({ accountId, artStyle }) {
           {choices.map(row => <option key={row.id} value={row.id}>{row.label} · {row.category}</option>)}
           {card && !choices.some(row => row.id === card.id) && <option value={card.id}>{card.label} · {card.category}</option>}
         </select></label>
-        <CardPreview card={card} artStyle={artStyle} />
+        <div className="chip-preview-surface">{card ? <><CardPreview card={card} artStyle={artStyle} /><strong>{card.label}</strong><small>{card.category}</small></> : <p>칩을 읽고 연결할 그림카드를 선택하면<br />여기에서 미리 볼 수 있어요.</p>}</div>
         {uid && card && <p>저장할 연결: <code>{uid}</code> → <strong>{card.label}</strong></p>}
         <button className="primary" disabled={saving || loading || !uid || !card || existing?.card_id === cardId}>{saving ? '확인·저장 중…' : existing ? '칩 연결 변경' : '칩 등록 저장'}</button>
       </form>
