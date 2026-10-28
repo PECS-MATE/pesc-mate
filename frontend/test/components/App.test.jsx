@@ -97,6 +97,36 @@ async function openSentencePractice() {
   return user;
 }
 
+test('비로그인 랜딩의 시작·로그인은 입력창으로 연결하고 동의나 인증을 자동 처리하지 않는다', async () => {
+  localStorage.removeItem('pesc-mate-token');
+  render(<StrictMode><App /></StrictMode>);
+  await screen.findByRole('heading', { level: 1, name: /그림을 고르고/ });
+  expect(document.activeElement).not.toBe(screen.getByLabelText('아이디'));
+  expect(request).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('link', { name: /나의 소통 공간 만들기/ }));
+  await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText('이름')));
+  expect(screen.getByRole('checkbox').checked).toBe(false);
+  fireEvent.click(screen.getByRole('link', { name: '로그인', exact: true }));
+  await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText('아이디')));
+  expect(screen.queryByLabelText('이름')).toBeNull();
+  expect(request).not.toHaveBeenCalled();
+});
+
+test('랜딩에서 로그인 실패 시 입력과 안내를 유지하고 앱 화면으로 이동하지 않는다', async () => {
+  localStorage.removeItem('pesc-mate-token');
+  request.mockRejectedValue(Object.assign(new Error('아이디 또는 비밀번호를 확인해 주세요.'), { status: 401 }));
+  render(<StrictMode><App /></StrictMode>);
+  await screen.findByRole('heading', { level: 1, name: /그림을 고르고/ });
+  fireEvent.change(screen.getByLabelText('아이디'), { target: { value: 'landing-child' } });
+  fireEvent.change(screen.getByLabelText('비밀번호'), { target: { value: 'synthetic-password' } });
+  fireEvent.click(screen.getByRole('button', { name: '로그인', exact: true }));
+  expect((await screen.findByRole('alert')).textContent).toContain('아이디 또는 비밀번호');
+  expect(screen.getByLabelText('아이디').value).toBe('landing-child');
+  expect(localStorage.getItem('pesc-mate-token')).toBeNull();
+  expect(screen.queryByRole('navigation', { name: '주 메뉴' })).toBeNull();
+  expect(request.mock.calls.map(([path]) => path)).toEqual(['/auth/login']);
+});
+
 test('홈에서 주제별 카드를 찾고 말하기로 돌아와도 선택한 카드를 유지한다', async () => {
   render(<StrictMode><App /></StrictMode>);
   await screen.findByText('서비스 연결됨');

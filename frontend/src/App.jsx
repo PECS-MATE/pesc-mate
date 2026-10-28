@@ -2,6 +2,7 @@ import Mascot, { EmptyState } from './Mascot';
 import { Avatar, ProfileEditor } from './Profile';
 import MyPage from './MyPage';
 import HomeDashboard, { CardTopics } from './HomeDashboard';
+import LandingPage from './LandingPage';
 import OperationalAlerts from './OperationalAlerts';
 import AccountPermissions from './AccountPermissions';
 import SupportRecordTabs from './SupportRecordTabs';
@@ -138,6 +139,8 @@ function App() {
   const [username, setUsername] = useState('demo');
   const [password, setPassword] = useState('demo1234');
   const [authMode, setAuthMode] = useState('login');
+  const authPanelRef = useRef(null);
+  const entryPageRef = useRef(null);
   const [name, setName] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [registrationConsent, setRegistrationConsent] = useState(false);
@@ -259,6 +262,13 @@ function App() {
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const activityConsentRef = useRef(false);
   activityConsentRef.current = user?.role === 'user' && privacy.guardian_consent;
+
+  useEffect(() => {
+    if (authReady && !user && error) authPanelRef.current?.scrollIntoView?.({ block: 'start' });
+  }, [authReady, user, error]);
+  useLayoutEffect(() => {
+    if (authReady) entryPageRef.current?.scrollIntoView?.({ block: 'start' });
+  }, [authReady, user?.id, Boolean(user?.profile)]);
 
   useEffect(() => {
     activityStreamRef.current = { id: createRequestId(), sequence: 0 };
@@ -625,6 +635,18 @@ function App() {
     }).catch(() => {});
   }, [user?.id, user?.role, privacy.guardian_consent, learningGame, practiceCategory, learningSettings]);
 
+  function openAuthentication(mode, reset = false) {
+    if (busy) return;
+    if (reset || mode !== authMode) {
+      setUsername(''); setPassword(''); setPasswordConfirm(''); setName(''); setRegistrationConsent(false);
+    }
+    setAuthMode(mode); setError('');
+    requestAnimationFrame(() => {
+      const panel = authPanelRef.current;
+      panel?.scrollIntoView?.({ block: 'start' });
+      panel?.querySelector(mode === 'register' ? 'input[autocomplete="name"]' : 'input[autocomplete="username"]')?.focus({ preventScroll: true });
+    });
+  }
   async function handleLogin(event) {
     event.preventDefault();
     if (authMode === 'register' && password !== passwordConfirm) { setError('비밀번호가 일치하지 않습니다.'); return; }
@@ -655,6 +677,7 @@ function App() {
     const clearCache = clearCachedAccount().catch(() => {});
     const clearUserData = user?.id ? clearOfflineUserData(user.id).catch(() => {}) : Promise.resolve();
     setToken(null); setUser(null); setLoaded(false); setMyPageOpen(false); setReaderExpanded(false); setProfileNotice(''); setSyncState('idle'); setPendingSyncCount(0);
+    setAuthMode('login'); setPassword(''); setPasswordConfirm(''); setName(''); setRegistrationConsent(false);
     [...cards, ...recommended, ...adminSubmissions].forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); });
     setCards([]); setCardCategories([]); setRecommended([]); setStats(null); setBoard([]); setCardSubmissions([]); setAdminSubmissions([]); setAdminCategories([]); setCategoryEdits({}); setCategoryError(''); setLinkedUsers([]); setSelectedUser(null); setBoardLayout(null); setBoardLayoutAudit([]); setQuickDraft([]); setRecoveryDraft([]); setSlotDraft([]); setLearningSettings(null); setLearningProgress(null); setLearningGame(null); setPracticeCategory('all'); setText(''); setGeneratedSessionId(''); setGenerationAttempt(1); setSentenceConfirmed(false); setGenerationFailed(false); setError(''); setTab('home');
     setTtsSettings(DEFAULT_TTS_SETTINGS); setTtsSettingsSaved(false); setAccessibility(DEFAULT_ACCESSIBILITY); setAccessibilitySaved(true); setPrivacy(DEFAULT_PRIVACY); setPrivacyCaregivers([]); setPrivacyAudit([]); setSpeechFailure(null); setLastUtterance(null); setLastSentence(null); setBusy(false);
@@ -1575,27 +1598,29 @@ function App() {
       ? '카드로 차근차근 연습해요.'
       : '나의 의사소통 기록을 확인해요.';
   if (!authReady) return <main className="login-page"><p role="status">로그인 정보를 확인하는 중입니다…</p></main>;
-  if (!user) return <main className="login-page"><section className="login-card">
-    <div className="login-mascot"><Mascot /></div><p className="eyebrow">그림으로 전하는 나의 이야기</p><h1>PESC MATE</h1>
-    <h2>{authMode === 'login' ? '로그인' : '사용자 가입'}</h2><p className="muted">{authMode === 'login' ? '내 카드 기록과 추천을 불러옵니다.' : 'AAC 사용자 계정을 만들고 바로 시작합니다.'}</p>
+  if (!user) return <LandingPage pageRef={entryPageRef} onLogin={() => openAuthentication('login')} onStart={() => openAuthentication('register')}
+    busy={busy} previewCards={['me', 'water', 'drink'].map(id => ({ ...CARD_META[id], image: bundledCardImage(CARD_META[id].label) }))}>
+    <section className="login-card" ref={authPanelRef} aria-labelledby="auth-title">
+    <div className="login-mascot"><Mascot /></div><p className="auth-brand">PESC MATE</p>
+    <h2 id="auth-title">{authMode === 'login' ? '로그인' : '사용자 가입'}</h2><p className="muted">{authMode === 'login' ? '내 카드로 이야기를 시작해요.' : 'AAC 사용자 계정을 만들고 바로 시작합니다.'}</p>
     {error && <div role="alert" className="error">{error}</div>}
     <form onSubmit={handleLogin}>
-      {authMode === 'register' && <label>이름<input autoFocus autoComplete="name" value={name} onChange={e => setName(e.target.value)} required minLength="1" maxLength="30" /></label>}
-      <label>아이디<input autoFocus={authMode === 'login'} autoComplete="username" value={username} onChange={e => setUsername(e.target.value)} required minLength={authMode === 'register' ? 4 : 1} maxLength={authMode === 'register' ? 32 : 64} pattern={authMode === 'register' ? '[A-Za-z0-9_-]+' : undefined} /></label>
+      {authMode === 'register' && <label>이름<input autoComplete="name" value={name} onChange={e => setName(e.target.value)} required minLength="1" maxLength="30" /></label>}
+      <label>아이디<input autoComplete="username" value={username} onChange={e => setUsername(e.target.value)} required minLength={authMode === 'register' ? 4 : 1} maxLength={authMode === 'register' ? 32 : 64} pattern={authMode === 'register' ? '[A-Za-z0-9_-]+' : undefined} /></label>
       <label>비밀번호<input type="password" autoComplete={authMode === 'register' ? 'new-password' : 'current-password'} value={password} onChange={e => setPassword(e.target.value)} required minLength={authMode === 'register' ? 8 : 1} maxLength="128" /></label>
       {authMode === 'register' && <><label>비밀번호 확인<input type="password" autoComplete="new-password" value={passwordConfirm} onChange={e => setPasswordConfirm(e.target.value)} required minLength="8" maxLength="128" /></label><label className="registration-consent"><input type="checkbox" checked={registrationConsent} onChange={event => setRegistrationConsent(event.target.checked)} required />법정대리인이 개인정보 수집·이용과 기본 1년 보존에 동의했습니다.</label></>}
       <button className="primary full" disabled={busy}>{busy ? '처리 중…' : authMode === 'login' ? '로그인' : '가입하고 시작하기'}</button>
     </form>
-    <button className="auth-switch" disabled={busy} onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setError(''); setUsername(''); setPassword(''); setPasswordConfirm(''); setName(''); setRegistrationConsent(false); }}>{authMode === 'login' ? '처음 이용하시나요? 사용자 가입' : '이미 계정이 있나요? 로그인'}</button>
+    <button className="auth-switch" disabled={busy} onClick={() => openAuthentication(authMode === 'login' ? 'register' : 'login', true)}>{authMode === 'login' ? '처음 이용하시나요? 사용자 가입' : '이미 계정이 있나요? 로그인'}</button>
     {authMode === 'login' && <p className="demo-account">사용자: <code>demo</code> / <code>demo1234</code><br />보호자: <code>caregiver</code> / <code>caregiver1234</code><br />담당자: <code>support</code> / <code>support1234</code><br />운영 권한 담당자: <code>admin</code> / <code>admin1234</code></p>}
-  </section></main>;
+  </section></LandingPage>;
   const profileSession = localStorage.getItem('pesc-mate-token');
   function profileSaved(account) {
     if (activeUserRef.current?.id !== account.id || localStorage.getItem('pesc-mate-token') !== profileSession) return;
     setUser(account); cacheAccountForOffline(account).catch(() => {});
     setProfileNotice('프로필을 저장했습니다.');
   }
-  if (!user.profile) return <main className="login-page"><ProfileEditor key={user.id} user={user}
+  if (!user.profile) return <main className="login-page" ref={entryPageRef}><ProfileEditor key={user.id} user={user}
     onSaved={profileSaved} onCancel={handleLogout} /></main>;
   const settingsSections = myPageOpen ? [
     { id: 'profile', label: '프로필 설정', content: <ProfileEditor key={user.id} user={user}
@@ -1654,7 +1679,7 @@ function App() {
     setCategory(value); setSearch(''); setCardPage(0); setTab('catalog');
   }
   function navigateFromMyPage(action) { setMyPageOpen(false); action(); }
-  return <main className={`app display-${accessibility.display_mode} card-size-${accessibility.card_size} text-size-${accessibility.text_size}${accessibility.reduced_motion ? ' reduced-motion' : ''}${accessibility.high_contrast ? ' high-contrast' : ''}`}>
+  return <main ref={entryPageRef} className={`app display-${accessibility.display_mode} card-size-${accessibility.card_size} text-size-${accessibility.text_size}${accessibility.reduced_motion ? ' reduced-motion' : ''}${accessibility.high_contrast ? ' high-contrast' : ''}`}>
     <a className="skip-link" href="#main-content">본문 바로가기</a>
     <aside className="sidebar">
       <div className="sidebar-brand"><Mascot className="mascot-brand" /><strong>PESC<br />MATE</strong></div>
