@@ -12,6 +12,7 @@ import CommunicationActivity, { SITUATIONS } from './CommunicationActivity';
 import NoteHistory from './NoteHistory';
 import DeletionReceipt from './DeletionReceipt';
 import RecommendationsPanel from './RecommendationsPanel';
+import PracticeSuggestionsPanel from './PracticeSuggestionsPanel';
 import RecommendationSettings from './RecommendationSettings';
 import BulkCardImport from './BulkCardImport';
 import CardPhotoReplacement from './CardPhotoReplacement';
@@ -265,10 +266,24 @@ function App() {
   const [practiceCategory, setPracticeCategory] = useState('all');
   const [practiceActivity, setPracticeActivity] = useState('word_picture_match');
   const [learningGame, setLearningGame] = useState(null);
+  const [activePracticePlan, setActivePracticePlan] = useState(null);
   const [offline, setOffline] = useState(!navigator.onLine);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const activityConsentRef = useRef(false);
   activityConsentRef.current = user?.role === 'user' && privacy.guardian_consent;
+  useEffect(() => {
+    if (user?.role !== 'user' || tab !== 'practice' || !loaded || offline || !privacy.guardian_consent) {
+      setActivePracticePlan(null);
+      return;
+    }
+    const accountId = user.id, token = localStorage.getItem('pesc-mate-token');
+    let active = true;
+    request('/practice-suggestions/active').then(plan => {
+      if (active && activeUserRef.current?.id === accountId
+          && localStorage.getItem('pesc-mate-token') === token) setActivePracticePlan(plan);
+    }).catch(() => { if (active) setActivePracticePlan(null); });
+    return () => { active = false; };
+  }, [user?.id, user?.role, tab, loaded, offline, privacy.guardian_consent]);
 
   useEffect(() => {
     if (authReady && !user && error) authPanelRef.current?.scrollIntoView?.({ block: 'start' });
@@ -1126,17 +1141,23 @@ function App() {
       return hasPicture && allowed;
     });
   }
-  function startLearningGame() {
-    const source = availablePracticeCards();
-    const sentence = practiceActivity === 'sentence_card_order';
-    const optionCount = learningSettings?.option_count || 3;
+  function startLearningGame(plan = null) {
+    const suggestion = plan?.candidate;
+    const activityType = suggestion?.activity_type || practiceActivity;
+    const config = suggestion?.settings || learningSettings;
+    const source = suggestion?.activity_type === 'sentence_card_order'
+      ? cards.filter(card => suggestion.card_ids.includes(card.id) && cardImage(card))
+      : availablePracticeCards(suggestion?.category_id || practiceCategory);
+    const sentence = activityType === 'sentence_card_order';
+    const optionCount = config?.option_count || 3;
     if (!sentence && source.length < optionCount) {
       setError(`선택한 범위에 그림이 있는 카드가 ${optionCount}개 이상 필요합니다.`);
       return;
     }
-    const questions = sentence ? sentenceLearningQuestions(source, learningSettings?.question_count || 10, learningSettings?.repeat_frequency || 1) : learningQuestions(
-      source, learningSettings?.question_count || 10,
-      optionCount, learningSettings?.repeat_frequency || 1,
+    const questions = sentence ? sentenceLearningQuestions(source, config?.question_count || 10,
+      config?.repeat_frequency || 1, Math.random, suggestion?.content_id || null) : learningQuestions(
+      source, config?.question_count || 10,
+      optionCount, config?.repeat_frequency || 1,
     );
     if (!questions.length) {
       setError(sentence ? '선택 범위에 예문을 구성할 카드가 없습니다. 설정된 전체 범위나 다른 연습을 골라 주세요.' : '선택한 범위에 그림이 있는 카드가 2개 이상 필요합니다.');
@@ -1144,11 +1165,24 @@ function App() {
     }
     setError('');
     setLearningGame({
-      activity_type: practiceActivity, content_version: LEARNING_ACTIVITIES[practiceActivity].version,
+      activity_type: activityType, content_version: LEARNING_ACTIVITIES[activityType].version,
+      plan: suggestion ? plan : null,
       phase: 'playing', questions, questionIndex: 0, correctAnswers: 0,
       hadWrong: false, feedback: '', selectedId: '', sequenceIds: [], startedAt: Date.now(),
       requestId: createRequestId(), attempt: null, results: [],
     });
+  }
+  async function startPracticePlan() {
+    if (!activePracticePlan || offline) return;
+    const token = localStorage.getItem('pesc-mate-token'), accountId = user.id;
+    setLearningBusy(true); setError('');
+    try {
+      const fresh = await request('/practice-suggestions/active');
+      if (token !== localStorage.getItem('pesc-mate-token') || activeUserRef.current?.id !== accountId) return;
+      if (!fresh || fresh.id !== activePracticePlan.id) throw new Error('연습 설정이 변경되었습니다. 다시 확인해 주세요.');
+      startLearningGame(fresh);
+    } catch (failure) { setError(failure.message); }
+    finally { if (token === localStorage.getItem('pesc-mate-token')) setLearningBusy(false); }
   }
   function answerLearningQuestion(cardId) {
     setLearningGame(current => {
@@ -1171,8 +1205,8 @@ function App() {
       };
       return {
         ...current, selectedId, hadWrong: true,
-        feedback: learningSettings?.retry_enabled === false ? 'incorrect' : 'retry',
-        results: learningSettings?.retry_enabled === false
+        feedback: (current.plan?.candidate?.settings?.retry_enabled ?? learningSettings?.retry_enabled) === false ? 'incorrect' : 'retry',
+        results: (current.plan?.candidate?.settings?.retry_enabled ?? learningSettings?.retry_enabled) === false
           ? [...current.results, item]
           : current.results,
       };
@@ -1196,7 +1230,8 @@ function App() {
     const payload = {
       request_id: snapshot.requestId, activity_type: snapshot.activity_type || 'word_picture_match',
       content_version: snapshot.content_version || LEARNING_ACTIVITIES.word_picture_match.version,
-      category_id: practiceCategory === 'all' ? 'mixed' : practiceCategory,
+      category_id: snapshot.plan?.candidate?.category_id === 'all' ? 'mixed'
+        : snapshot.plan?.candidate?.category_id || (practiceCategory === 'all' ? 'mixed' : practiceCategory),
       total_questions: snapshot.questions.length,
       correct_answers: snapshot.correctAnswers,
       duration_seconds: durationSeconds,
@@ -1787,7 +1822,9 @@ function App() {
             {canManageVoice && <button onClick={() => openSupportSection('support_settings')}><span>♿</span><strong>음성·접근 설정</strong><small>목소리와 화면 표시 방식 조정</small></button>}
             {canManageLearning && <button onClick={() => openLearning(selectedUser)}><span>★</span><strong>학습 기록</strong><small>최근 30일 연습 참여·단어별 기록 · 학습 관리 권한</small></button>}
             {selectedPermissions.includes('notes_write') && <article><span>✓</span><strong>{SUPPORT_PERMISSION_LABELS.notes_write}</strong><small>의사소통 기록 화면에서 사용할 수 있습니다.</small></article>}
-          </div></> : <EmptyState>연결된 사용자가 없습니다.</EmptyState>}
+          </div>
+          {selectedUser && canManageLearning && canReadRecords && <PracticeSuggestionsPanel key={`${user.id}:${selectedUser.id}`} accountId={user.id} target={selectedUser} onDirectSelect={() => openLearning(selectedUser)} />}
+        </> : <EmptyState>연결된 사용자가 없습니다.</EmptyState>}
       </section> : tab === 'home' && user.role === 'user' ? <CardTopics categories={cardCategories} cards={cards}
         renderPicture={cardPicture} onSelect={openCatalog} onAll={() => openCatalog()} /> : tab === 'cards' && user.role === 'user' ? <div className="communication-layout">
       {!privacy.guardian_consent && <p className="recordless-notice" role="status">기록 없이 말하기 · 지금 고른 카드와 발화는 저장하지 않아요.</p>}
@@ -1833,7 +1870,8 @@ function App() {
           onAnswer={answerLearningQuestion} onListen={playLearningPrompt} />)}
         <div className={`learning-feedback ${learningGame.feedback || 'waiting'}`} role="status" aria-live="polite">{learningGame.feedback === 'correct' ? '잘 찾았어요! 다음 문제로 가 볼까요?' : learningGame.feedback === 'retry' ? (learningGame.activity_type === 'sentence_card_order' ? '괜찮아요. 카드를 빼고 예문의 순서로 다시 놓아 보세요.' : '괜찮아요. 다른 단어를 다시 골라 보세요.') : learningGame.feedback === 'incorrect' ? (learningGame.activity_type === 'sentence_card_order' ? `예문 순서는 ${currentLearningQuestion.sequence.map(card => card.label).join(' → ')}이에요. 천천히 다시 살펴봐요.` : `괜찮아요. 정답은 ${currentLearningQuestion?.target.label}이에요.`) : learningGame.activity_type === 'sentence_card_order' ? '카드를 놓은 뒤 순서 확인을 눌러 주세요.' : '정답을 골라 주세요.'}</div>
         {['correct', 'incorrect'].includes(learningGame.feedback) && <button className="primary learning-next" disabled={learningGame.phase === 'saving'} onClick={nextLearningQuestion}>{learningGame.phase === 'saving' ? '결과 저장 중…' : learningGame.questionIndex === learningGame.questions.length - 1 ? '연습 마치기' : '다음 문제'}</button>}
-      </article> : learningGame?.phase === 'complete' ? <article className="learning-result"><span aria-hidden="true">🌟</span><h3>연습을 마쳤어요!</h3><p>{learningGame.activity_type === 'sentence_card_order' ? '처음 놓은 순서로 ' : '처음 선택으로 '}<strong>{learningGame.attempt?.correct_answers ?? learningGame.correctAnswers}</strong>{learningGame.activity_type === 'sentence_card_order' ? '개 문장을 완성했어요. ' : '개를 찾았어요. '}틀린 문제도 다시 살펴본 것이 중요한 연습이에요.</p>{learningGame.recordingDisabled ? <small>기록 없이 연습했어요. 결과는 서버나 기기에 저장하지 않았습니다.</small> : learningGame.attempt?.pending_sync ? <small>결과를 기기에 저장했습니다. 온라인 연결 후 자동으로 동기화합니다.</small> : learningGame.attempt ? <small>학습 기록에만 안전하게 저장했습니다.</small> : <small>결과가 저장되지 않았습니다. 다시 연결한 뒤 한 번 더 연습해 주세요.</small>}<div><button onClick={() => setLearningGame(null)}>연습 목록</button><button className="primary" onClick={startLearningGame}>같은 범위 다시 연습</button></div></article> : <div className="learning-overview-grid">
+      </article> : learningGame?.phase === 'complete' ? <article className="learning-result"><span aria-hidden="true">🌟</span><h3>연습을 마쳤어요!</h3><p>{learningGame.activity_type === 'sentence_card_order' ? '처음 놓은 순서로 ' : '처음 선택으로 '}<strong>{learningGame.attempt?.correct_answers ?? learningGame.correctAnswers}</strong>{learningGame.activity_type === 'sentence_card_order' ? '개 문장을 완성했어요. ' : '개를 찾았어요. '}틀린 문제도 다시 살펴본 것이 중요한 연습이에요.</p>{learningGame.recordingDisabled ? <small>결과를 저장하지 않았습니다.</small> : learningGame.attempt?.pending_sync ? <small>결과를 기기에 저장했습니다. 온라인 연결 후 자동으로 동기화합니다.</small> : learningGame.attempt ? <small>학습 기록에만 안전하게 저장했습니다.</small> : <small>결과가 저장되지 않았습니다. 다시 연결한 뒤 한 번 더 연습해 주세요.</small>}<div><button onClick={() => setLearningGame(null)}>연습 목록</button><button className="primary" onClick={() => startLearningGame(learningGame.plan)}>같은 범위 다시 연습</button></div></article> : <div className="learning-overview-grid">
+        {activePracticePlan && <article className="practice-plan"><h3>준비된 연습</h3><p>{LEARNING_ACTIVITIES[activePracticePlan.candidate.activity_type]?.title} · {activePracticePlan.candidate.settings.question_count}문제</p><button className="primary" disabled={learningBusy || offline} onClick={startPracticePlan}>이 연습 시작</button></article>}
         <article className="learning-activity-card"><span aria-hidden="true">🧩</span><div><h3>{LEARNING_ACTIVITIES[practiceActivity].title}</h3><p>{LEARNING_ACTIVITIES[practiceActivity].description}</p>{learningSettings && <small>{learningSettings.question_count}문제 · {practiceActivity === 'sentence_card_order' ? '예문별 2~3장' : `보기 ${learningSettings.option_count}개`} · 카드 반복 {learningSettings.repeat_frequency}회 · 권장 시간 {learningSettings.time_limit_seconds}초 · {learningSettings.retry_enabled ? '재도전 가능' : '정답 확인 후 진행'}</small>}</div>
           <label>연습 종류<select value={practiceActivity} onChange={event => setPracticeActivity(event.target.value)}>{Object.entries(LEARNING_ACTIVITIES).map(([id, activity]) => <option key={id} value={id}>{activity.title}</option>)}</select></label>
           <label>연습 범위<select value={practiceCategory} onChange={event => setPracticeCategory(event.target.value)}><option value="all">설정된 카드 전체</option>{practiceCategories.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>

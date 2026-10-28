@@ -28,6 +28,7 @@ INDEXES = (
     ('offline_events', [('user_id', ASCENDING), ('session_id', ASCENDING), ('occurred_at', DESCENDING)],
      {'name': 'user_session_speech'}),
     ('learning_attempts', [('user_id', ASCENDING), ('completed_at', DESCENDING)], {'name': 'user_recent_attempts'}),
+    ('practice_suggestion_plans', [('user_id', ASCENDING), ('created_at', DESCENDING)], {'name': 'user_recent_practice_plans'}),
     ('caregiver_notes', [('caregiver_id', ASCENDING), ('user_id', ASCENDING), ('session_id', ASCENDING)],
      {'name': 'caregiver_session_notes'}),
     ('caregiver_notes', [('user_id', ASCENDING), ('updated_at', DESCENDING)], {'name': 'user_recent_notes'}),

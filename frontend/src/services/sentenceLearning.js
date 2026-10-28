@@ -20,8 +20,8 @@ export function availableSentenceExamples(cards) {
   return SENTENCE_EXAMPLES.filter(example => example.card_ids.every(id => ids.has(id)));
 }
 
-export function sentenceLearningQuestions(cards, count, repeatFrequency = 1, random = Math.random) {
-  const examples = availableSentenceExamples(cards);
+export function sentenceLearningQuestions(cards, count, repeatFrequency = 1, random = Math.random, exampleId = null) {
+  const examples = availableSentenceExamples(cards).filter(example => !exampleId || example.id === exampleId);
   if (!examples.length || !Number.isInteger(count) || count < 1 || count > 30) return [];
   const byId = new Map(cards.map(card => [card.id, card]));
   const targets = [];
