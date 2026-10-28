@@ -16,6 +16,7 @@ API 연동은 [빠른 가이드](development/API_GUIDE.md)와 [API 명세서](de
 | [과제 계획서](planning/project_plan.md) | 과제 배경, 목표, 수행 방법과 기대효과 |
 | [기능요구사양서](planning/functional_requirements_specification.md) | 기능 요구사항과 동작 조건 |
 | [통합 TODO](planning/TODO.md) | 현재 구현 상태, 파일럿 준비와 이후 발전 계획 |
+| [MVP 이후 개발 요청서](planning/POST_MVP_DEVELOPMENT.md) | 아동 UX 개선, Ollama 연습 제안, 단계별 완료 기준과 복사용 개발 프롬프트 |
 | [실물 카드 입력 MVP TODO](planning/HARDWARE_MVP.md) | 최초 USB 계획 이력과 최신 Wi-Fi 3개 위치 구현 문서 안내 |
 
 ## 개발 — `development/`
