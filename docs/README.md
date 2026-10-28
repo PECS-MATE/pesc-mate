@@ -3,7 +3,8 @@
 현재 개발 범위와 진행 상태는 [통합 TODO](planning/TODO.md)에서 확인한다.
 구현할 기능은 [기능요구사양서](planning/functional_requirements_specification.md),
 API 연동은 [빠른 가이드](development/API_GUIDE.md)와 [API 명세서](development/API_SPECIFICATION.md),
-현장 검수 준비는 [실제 사용 환경 검증 기록](validation/ACTUAL_USE_VALIDATION.md)을 참고한다.
+현장 연결은 [로컬 개발과 시연](development/LOCAL_DEVELOPMENT.md),
+[USB 카드 리더기 안내](development/RFID_USB_INTEGRATION.md)를 참고한다.
 프로젝트 실행 방법은 [루트 README](../README.md)에 있다.
 
 ## 기획 — `planning/`
@@ -80,17 +81,6 @@ API, 데이터 구조, 카드·마스코트 자산과 협업 규칙을 관리한
 | [감사 보관·무결성](operations/AUDIT_RETENTION_INTEGRITY.md) | 명시적 기간 정리, 외부 HMAC 체크포인트, 개인정보 삭제와 변조 탐지 한계 |
 | [운영 권한 관리](operations/ACCOUNT_PERMISSION_MANAGEMENT.md) | 책임자 지정·담당자 운영 권한·재인증·감사·세션 차단 |
 | [인증 MongoDB 운영 준비](operations/AUTHENTICATED_MONGODB.md) | 독립 인증 DB·DB별 앱 계정·파일 자격 증명·격리 검증과 이전 주의사항 |
-
-## 검증 — `validation/`
-
-실제 기기·사용자 검수 기록을 관리한다. 기대 결과와 실제 수행 결과를 구분해 기록한다.
-
-| 문서 | 내용 |
-|---|---|
-| [기기 TTS 검수표](validation/DEVICE_TTS_VALIDATION.md) | 기기별 음성, 오프라인과 복귀 동작 확인 |
-| [접근성 사용성 평가](validation/ACCESSIBILITY_USABILITY_TEST.md) | 사용자별 접근 방식과 과업 평가 |
-| [실제 사용 환경 검증](validation/ACTUAL_USE_VALIDATION.md) | 기기 연결과 사용자·보호자·담당자 현장 검수 |
-| [장애 대응 검증 기록](validation/INCIDENT_RESPONSE_VALIDATION.md) | 절차 대조·읽기 전용 점검과 미실행 모의훈련 구분 |
 
 ## 문서 관리
 

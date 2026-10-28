@@ -190,7 +190,7 @@ docker compose logs --since 15m --tail 300 backend | Select-String -SimpleMatch 
 - [ ] 테스트 전용 환경의 장애 모의훈련 및 결과 검토
 - [ ] 로컬 백업·격리 복구 도구를 운영 백업·자동 롤백·계정 차단 완료로 오인하지 않도록 공유
 
-현재 점검 증거와 미실행 훈련은 [장애 대응 검증 기록](../validation/INCIDENT_RESPONSE_VALIDATION.md)에 구분한다.
+실제 담당자 연락 시험과 장애 모의훈련은 아직 수행하지 않았다.
 마이그레이션 전 백업과 실패 시 되돌리기는 [로컬 백업·격리 복구 절차](MIGRATION_BACKUP_RECOVERY.md)를 따른다.
 감사 무결성 불일치는 [감사 보관·검증 절차](AUDIT_RETENTION_INTEGRITY.md)에 따라 기존
 서명과 승인된 삭제/변경 증거를 보존하고 조사한다. 불일치를 감추기 위해 원본 서명을 덮어쓰지 않는다.

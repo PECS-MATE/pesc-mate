@@ -99,7 +99,7 @@ Compose 실행 시 아래 계정을 활성화하며, 기존 계정의 비밀번�
 
 오프라인은 사전 캐시와 기기 음성 지원이 필요하고, 소리 학습은 한국어 로컬 음성이 필요합니다.
 LAN HTTP에서는 서비스 워커 기반 설치·완전 오프라인 검수를 할 수 없습니다.
-실제 기기 연결 조건은 [검수 가이드](docs/validation/ACTUAL_USE_VALIDATION.md)에 있습니다.
+실제 PC USB 연결 조건은 [USB 카드 리더기 안내](docs/development/RFID_USB_INTEGRATION.md)에 있습니다.
 
 PC USB 연결·장치 로그·태그 등록은 [USB 카드 리더기 안내](docs/development/RFID_USB_INTEGRATION.md)를 따릅니다.
 아동의 **홈 또는 그림으로 말하기 → 카드 리더기 열기 → USB 장치 연결** 또는 보호자의
@@ -172,7 +172,7 @@ npm run dev
 ```
 
 같은 `frontend` 디렉터리에서 `npm run build`로 배포용 정적 파일을 만들 수 있습니다.
-실제 기기 연결·음성·접근성 확인은 [현장 검수 안내](docs/validation/ACTUAL_USE_VALIDATION.md)를 따릅니다.
+실제 기기 연결·음성·접근성은 사용할 기기에서 직접 확인해야 합니다.
 
 ## 업데이트 내역
 
