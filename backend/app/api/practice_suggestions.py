@@ -34,6 +34,11 @@ class StartRequest(BaseModel):
     retry_enabled: bool
 
 
+class FeedbackChange(BaseModel):
+    rating: Literal['appropriate', 'difficult', 'not_interested']
+    expected_revision: int = Field(ge=0)
+
+
 @router.get('/settings')
 def settings(response: Response, user_id: str = Query(min_length=1, max_length=64), user=Depends(current_user)):
     supporter_target(user, user_id)
@@ -54,7 +59,9 @@ def candidates(response: Response, user_id: str = Query(min_length=1, max_length
                request_id: UUID = Query(), user=Depends(current_user)):
     supporter_target(user, user_id)
     response.headers['Cache-Control'] = 'no-store'
-    return suggestions.generated_candidates_for(user_id, str(request_id))
+    result = suggestions.generated_candidates_for(user_id, str(request_id))
+    supporter_target(user, user_id)
+    return result
 
 
 @router.post('/start')
@@ -62,7 +69,7 @@ def start(body: StartRequest, response: Response,
           user_id: str = Query(min_length=1, max_length=64), user=Depends(current_user)):
     supporter_target(user, user_id)
     response.headers['Cache-Control'] = 'no-store'
-    return suggestions.approve_candidate(user_id, user['id'], body.candidate_id, str(body.request_id),
+    return suggestions.approve_candidate(user_id, user, body.candidate_id, str(body.request_id),
         body.model_dump(include={'question_count', 'option_count', 'repeat_frequency', 'retry_enabled'}))
 
 
@@ -72,3 +79,26 @@ def active(response: Response, user=Depends(current_user)):
         raise HTTPException(403, '아동 계정에서만 준비된 연습을 볼 수 있습니다.')
     response.headers['Cache-Control'] = 'no-store'
     return suggestions.active_plan(user['id'])
+
+
+@router.get('/feedback')
+def feedback(response: Response, user_id: str = Query(min_length=1, max_length=64), user=Depends(current_user)):
+    supporter_target(user, user_id)
+    response.headers['Cache-Control'] = 'no-store'
+    return suggestions.feedback_for(user_id)
+
+
+@router.put('/feedback/{plan_id}')
+def save_feedback(plan_id: UUID, body: FeedbackChange, response: Response,
+                  user_id: str = Query(min_length=1, max_length=64), user=Depends(current_user)):
+    supporter_target(user, user_id)
+    response.headers['Cache-Control'] = 'no-store'
+    return suggestions.save_feedback(user_id, user['id'], str(plan_id), body.rating, body.expected_revision)
+
+
+@router.delete('/feedback/{plan_id}')
+def delete_feedback(plan_id: UUID, response: Response, expected_revision: int = Query(ge=1),
+                    user_id: str = Query(min_length=1, max_length=64), user=Depends(current_user)):
+    supporter_target(user, user_id)
+    response.headers['Cache-Control'] = 'no-store'
+    return suggestions.delete_feedback(user_id, str(plan_id), expected_revision)

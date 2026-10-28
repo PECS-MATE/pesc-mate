@@ -208,6 +208,9 @@ HTTP 500은 일반 안내만 반환하고 내부 예외 문구를 응답에 포�
 | 연습 제안 | PUT | `/api/practice-suggestions/settings?user_id={id}` | 연결 `records_read` + `learning_manage` | 개인화 사용 여부 저장 |
 | 연습 제안 | POST | `/api/practice-suggestions/start?user_id={id}` | 연결 `records_read` + `learning_manage` | 검토한 연습 설정 준비 |
 | 연습 제안 | GET | `/api/practice-suggestions/active` | 아동 본인 | 준비된 연습 조회 |
+| 연습 제안 | GET | `/api/practice-suggestions/feedback?user_id={id}` | 연결 `records_read` + `learning_manage` | 최근 보호자 의견 조회 |
+| 연습 제안 | PUT | `/api/practice-suggestions/feedback/{plan_id}?user_id={id}` | 연결 `records_read` + `learning_manage` | 준비한 연습에 의견 저장·수정, `rating`과 `expected_revision` 필요 |
+| 연습 제안 | DELETE | `/api/practice-suggestions/feedback/{plan_id}?user_id={id}&expected_revision={n}` | 연결 `records_read` + `learning_manage` | 의견 삭제 |
 | RFID 공용 | PUT | `/api/rfid/admin/bindings` | `content_manage` 권한 담당자 | 공용 UID 연결 저장·변경·해제 |
 | RFID 공용 | POST | `/api/rfid/admin/usb/events` | `content_manage` 권한 담당자 | 관리자 USB 상태 이벤트 기록 |
 | RFID USB | POST | `/api/rfid/usb/resolve` | 본인 또는 연결 `board_manage` | USB에서 읽은 UID의 사용 가능 카드 조회 |

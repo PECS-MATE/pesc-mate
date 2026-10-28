@@ -85,7 +85,14 @@ def _save_privacy(user_id, guardian_consent, retention_days):
         database.caregiver_notes.delete_many({'user_id': user_id, 'updated_at': {'$lt': cutoff}})
         database.learning_attempts.delete_many({'user_id': user_id, 'completed_at': {'$lt': cutoff}})
         database.recommendation_batches.delete_many({'user_id': user_id, 'created_at': {'$lt': cutoff}})
+        database.practice_suggestion_batches.delete_many({'user_id': user_id, 'created_at': {'$lt': cutoff}})
+        database.practice_suggestion_plans.delete_many({'user_id': user_id, 'created_at': {'$lt': cutoff}})
+        database.practice_suggestion_feedback.delete_many({'user_id': user_id, 'updated_at': {'$lt': cutoff}})
         if not guardian_consent:
+            database.practice_suggestion_settings.update_one({'_id': user_id},
+                {'$set': {'enabled': False, 'updated_at': now}, '$inc': {'revision': 1}})
+            for name in ('practice_suggestion_batches', 'practice_suggestion_plans', 'practice_suggestion_feedback'):
+                database[name].delete_many({'user_id': user_id})
             # A stale hardware write cannot repopulate data: ingest only updates
             # an active device/session, never upserts it.
             database.rfid_devices.update_many({'user_id': user_id}, {'$set': {
@@ -133,6 +140,10 @@ def export_for(user_id):
             'learning_attempts': list(database.learning_attempts.find({'user_id': user_id})),
             'recommendation_settings': database.recommendation_settings.find_one({'_id': user_id}),
             'recommendation_batches': list(database.recommendation_batches.find({'user_id': user_id})),
+            'practice_suggestion_settings': database.practice_suggestion_settings.find_one({'_id': user_id}),
+            'practice_suggestion_batches': list(database.practice_suggestion_batches.find({'user_id': user_id})),
+            'practice_suggestion_plans': list(database.practice_suggestion_plans.find({'user_id': user_id})),
+            'practice_suggestion_feedback': list(database.practice_suggestion_feedback.find({'user_id': user_id})),
             'rfid_devices': list(database.rfid_devices.find({'user_id': user_id}, {'key_hash': 0, 'last_digest': 0})),
             'rfid_bindings': list(database.rfid_bindings.find({'user_id': user_id})),
             'cards': [{key: row.get(key) for key in
@@ -175,6 +186,10 @@ def _delete_personal_data(user_id):
             ('communication_sessions', {'user_id': user_id}),
             ('recommendation_settings', {'_id': user_id}),
             ('recommendation_batches', {'user_id': user_id}),
+            ('practice_suggestion_settings', {'_id': user_id}),
+            ('practice_suggestion_batches', {'user_id': user_id}),
+            ('practice_suggestion_plans', {'user_id': user_id}),
+            ('practice_suggestion_feedback', {'user_id': user_id}),
             ('tts_events', {'user_id': user_id}),
             ('offline_events', {'user_id': user_id}),
             ('tts_settings', {'_id': user_id}),

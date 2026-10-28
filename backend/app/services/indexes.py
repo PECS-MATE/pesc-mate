@@ -30,6 +30,7 @@ INDEXES = (
     ('learning_attempts', [('user_id', ASCENDING), ('completed_at', DESCENDING)], {'name': 'user_recent_attempts'}),
     ('practice_suggestion_plans', [('user_id', ASCENDING), ('created_at', DESCENDING)], {'name': 'user_recent_practice_plans'}),
     ('practice_suggestion_batches', [('user_id', ASCENDING), ('created_at', DESCENDING)], {'name': 'user_recent_practice_batches'}),
+    ('practice_suggestion_feedback', [('user_id', ASCENDING), ('updated_at', DESCENDING)], {'name': 'user_recent_practice_feedback'}),
     ('caregiver_notes', [('caregiver_id', ASCENDING), ('user_id', ASCENDING), ('session_id', ASCENDING)],
      {'name': 'caregiver_session_notes'}),
     ('caregiver_notes', [('user_id', ASCENDING), ('updated_at', DESCENDING)], {'name': 'user_recent_notes'}),
