@@ -6,7 +6,7 @@ import UsbRfidReader from './UsbRfidReader';
 const statusText = { EMPTY: '카드 없음', ERROR: '리더기 오류', STALE: '새 상태를 기다려 주세요',
   UNMAPPED: '등록되지 않은 카드', UNAVAILABLE: '사용할 수 없는 카드', PRESENT: '카드 인식' };
 
-export default function RfidBoard({ targetId, manager = false, canMap = false, cards = [], artStyle = () => ({}), onApply, onAppend, disabled = false, collapsible = false, expanded = false, onExpandedChange, active = true }) {
+export default function RfidBoard({ targetId, manager = false, canMap = false, cards = [], artStyle = () => ({}), onApply, onAppend, disabled = false, collapsible = false, expanded = false, onExpandedChange, active = true, connectionTarget }) {
   const [open, setOpen] = useState(manager);
   const [devices, setDevices] = useState([]), [deviceId, setDeviceId] = useState('');
   const [snapshot, setSnapshot] = useState(null), [bindings, setBindings] = useState([]), [choices, setChoices] = useState([]);
@@ -18,12 +18,18 @@ export default function RfidBoard({ targetId, manager = false, canMap = false, c
   const [pollVersion, setPollVersion] = useState(0);
   const [usbSummary, setUsbSummary] = useState({ state: 'disconnected', count: 0, fresh: false });
   const epoch = useRef(0);
+  const previousUsbCount = useRef(0);
   const token = localStorage.getItem('pesc-mate-token');
   const query = `?user_id=${encodeURIComponent(targetId)}`;
   const sameSession = sequence => epoch.current === sequence && token
     && localStorage.getItem('pesc-mate-token') === token;
   const current = sequence => sameSession(sequence) && navigator.onLine;
   const selected = devices.find(item => item.device_id === deviceId);
+
+  useEffect(() => {
+    if (collapsible && usbSummary.count > previousUsbCount.current) onExpandedChange?.(true);
+    previousUsbCount.current = usbSummary.count;
+  }, [collapsible, usbSummary.count, onExpandedChange]);
 
   useEffect(() => {
     epoch.current += 1;
@@ -111,7 +117,7 @@ export default function RfidBoard({ targetId, manager = false, canMap = false, c
     <div hidden={collapsible && !expanded}>
     <UsbRfidReader targetId={targetId} manager={manager} canMap={canMap} cards={cards} disabled={disabled}
       mappingVersion={pollVersion} onUid={setUid} onApply={onApply} onAppend={onAppend}
-      compact={collapsible} artStyle={artStyle} onStatus={setUsbSummary} />
+      compact={collapsible} artStyle={artStyle} onStatus={setUsbSummary} connectionTarget={connectionTarget} />
     {!open ? <button type="button" onClick={() => setOpen(true)}>RFID 상태 열기</button> : <>
       <p>리더기 1 → 2 → 3 순서입니다. 상태는 자동 갱신하지만 현재 문장은 직접 적용하기 전까지 바뀌지 않아요.</p>
       <button type="button" onClick={() => { setOpen(false); setSecret(''); }}>RFID 상태 닫기</button>

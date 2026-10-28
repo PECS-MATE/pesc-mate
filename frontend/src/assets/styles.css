@@ -947,6 +947,13 @@ button { min-width: 44px; min-height: 44px !important; }
 /* Activity hierarchy: choose a task, then use cards and speech controls. */
 .sidebar nav { margin-top: 28px; }
 .sidebar .profile-trigger { margin-top: auto; padding: 20px 2px 12px; }
+.sidebar-usb-slot { margin-top: auto; border-top: 1px solid #e3e9f0; padding-top: 14px; }
+.sidebar-usb-slot[hidden], .sidebar-usb-slot:empty { display: none; }
+.sidebar-usb-slot:not([hidden]):not(:empty) + .profile-trigger { margin-top: 0; }
+.sidebar-usb-control { display: grid; gap: 7px; color: #35435a; }
+.sidebar-usb-control > small { color: #66758b; }
+.usb-connection-controls { display: grid; gap: 8px; }
+.usb-connection-controls button { width: 100%; min-height: 44px; margin: 0; border: 1px solid #d9e2ed; border-radius: 12px; background: #f6f8fc; color: #35435a; box-shadow: none; }
 .sidebar nav button { color: #596579; font-size: .9rem; padding-right: 40px; }
 .sidebar nav button.active { color: #8e2752; background: #fff0f6; }
 .reader-workspace[hidden] { display: none; }
@@ -961,6 +968,13 @@ button { min-width: 44px; min-height: 44px !important; }
 .reader-workspace .usb-rfid { border: 0; border-top: 1px solid #e3e9f0; border-radius: 0; padding: 16px 0 0; }
 .reader-workspace .usb-rfid h3 { margin-top: 0; font-size: 1rem; }
 .usb-card-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); gap: 12px; padding: 0; list-style: none; }
+.usb-scan-tray { display: grid; gap: 12px; margin: 16px 0; padding: 18px; border: 2px dashed #bdd6cc; border-radius: 18px; background: #f5fbf7; }
+.usb-scan-tray-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.usb-scan-tray-heading strong { font-size: 1rem; color: #265645; }
+.usb-scan-tray-heading small { padding: 5px 10px; border-radius: 999px; color: #265645; background: #e1f1e8; font-weight: 700; }
+.usb-scan-tray > p { margin: 0; padding: 20px 12px; border-radius: 12px; background: #fff; color: #526b61; text-align: center; }
+.usb-scan-tray > small { color: #526b61; }
+.usb-scan-tray > button { justify-self: start; min-height: 44px; }
 .usb-card-list li { display: grid; justify-items: center; gap: 8px; min-width: 0; padding: 14px; border: 1px solid #d5e2dc; border-radius: 14px; background: #f7fcf9; text-align: center; }
 .usb-card-list li[data-state="UNMAPPED"], .usb-card-list li[data-state="ERROR"], .usb-card-list li[data-state="UNAVAILABLE"] { border-color: #e8b1a9; background: #fff5f2; }
 .usb-card-art { display: block; width: 76px; height: 76px; background-size: contain !important; background-position: center; background-repeat: no-repeat; }
@@ -986,6 +1000,9 @@ button { min-width: 44px; min-height: 44px !important; }
   .sidebar nav { grid-column: 1 / -1; grid-row: 1; margin: 0; flex-wrap: nowrap; padding-bottom: 4px; }
   .sidebar nav button { width: auto; padding: 10px; font-size: .85rem; }
   .sidebar .profile-trigger { grid-column: 1; grid-row: 2; margin: 0; padding: 0; }
+  .sidebar-usb-slot { grid-column: 1 / -1; grid-row: 3; margin: 0; padding-top: 8px; }
+  .sidebar-usb-control { grid-template-columns: auto 1fr; align-items: center; }
+  .sidebar-usb-control .usb-connection-controls { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sidebar .logout { position: static; grid-column: 2; grid-row: 2; align-self: center; margin: 0; }
   .home-mode-grid { grid-template-columns: 1fr; gap: 10px; }
   .home-activity { display: grid; grid-template-columns: 46px minmax(0, 1fr) 22px; gap: 6px 14px; min-height: 106px; padding: 18px; align-items: center; }

@@ -134,6 +134,7 @@ function App() {
   activeUserRef.current = user;
   const [myPageOpen, setMyPageOpen] = useState(false);
   const [readerExpanded, setReaderExpanded] = useState(false);
+  const [usbSidebarTarget, setUsbSidebarTarget] = useState(null);
   const [focusMode, setFocusMode] = useState(false);
   const [profileNotice, setProfileNotice] = useState('');
   const [authReady, setAuthReady] = useState(false);
@@ -722,9 +723,10 @@ function App() {
       setGenerationSource(result.generation_source || 'rule');
       setGeneratedSessionId(result.id);
       setGenerationAttempt(result.generation_attempt || 1);
-      try {
-        setStats(await request(dashboardPath()));
-      } catch { setError('문장은 저장되었습니다. 통계 갱신은 다시 연결을 눌러 주세요.'); }
+      const sessionToken = localStorage.getItem('pesc-mate-token');
+      request(dashboardPath()).then(stats => {
+        if (localStorage.getItem('pesc-mate-token') === sessionToken) setStats(stats);
+      }).catch(() => {});
     } catch (e) { setGenerationFailed(true); setError(`${e.message} 선택한 카드는 유지되며 로컬 음성은 계속 사용할 수 있어요.`); }
     finally { setBusy(false); }
   }
@@ -739,9 +741,10 @@ function App() {
       setGenerationSource(result.generation_source || 'rule');
       setGeneratedSessionId(result.id);
       setGenerationAttempt(result.generation_attempt || generationAttempt + 1);
-      try {
-        setStats(await request(dashboardPath()));
-      } catch { setError('재생성 문장은 저장되었습니다. 통계 갱신은 다시 연결을 눌러 주세요.'); }
+      const sessionToken = localStorage.getItem('pesc-mate-token');
+      request(dashboardPath()).then(stats => {
+        if (localStorage.getItem('pesc-mate-token') === sessionToken) setStats(stats);
+      }).catch(() => {});
     } catch (e) { setGenerationFailed(true); setError(`${e.message} 선택한 카드는 유지되며 로컬 음성은 계속 사용할 수 있어요.`); }
     finally { setBusy(false); }
   }
@@ -1705,6 +1708,7 @@ function App() {
           <button className={tab === 'practice' ? 'active' : ''} onClick={() => openLearning(null)}><span aria-hidden="true">★</span>연습하기</button>
           <button className={tab === 'dashboard' ? 'active' : ''} onClick={() => setTab('dashboard')}><span aria-hidden="true">▥</span>나의 이용 기록</button>
         </>}</nav>
+      {user.role === 'user' && <div ref={setUsbSidebarTarget} className="sidebar-usb-slot" hidden={!['home', 'cards'].includes(tab)} />}
       <button type="button" className="profile profile-trigger" aria-label={`${user.name} 마이페이지 열기`}
         aria-haspopup="dialog" aria-expanded={myPageOpen}
         onClick={() => { stopSpeech(); setMyPageOpen(true); setProfileNotice(''); }}>
@@ -1723,6 +1727,7 @@ function App() {
         onCatalog={() => openCatalog()} />}
       {loaded && user.role === 'user' && <div className="reader-workspace" hidden={!['home', 'cards'].includes(tab)}><RfidBoard key={`rfid-${user.id}`} targetId={user.id}
         cards={cards} artStyle={artStyle} collapsible expanded={readerExpanded} onExpandedChange={setReaderExpanded}
+        connectionTarget={focusedActivity ? null : usbSidebarTarget}
         active={['home', 'cards'].includes(tab) && !myPageOpen}
         disabled={busy || speechActive || offline || myPageOpen || !['home', 'cards'].includes(tab)}
         onAppend={selection => {

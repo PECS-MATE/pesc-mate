@@ -46,7 +46,7 @@ def generate_sentence(labels, fallback):
     request = Request(f'{base_url}/api/generate', data=payload,
                       headers={'Content-Type': 'application/json'}, method='POST')
     try:
-        with urlopen(request, timeout=float(os.environ.get('OLLAMA_TIMEOUT_SECONDS', '60'))) as response:
+        with urlopen(request, timeout=float(os.environ.get('OLLAMA_TIMEOUT_SECONDS', '10'))) as response:
             result = json.load(response)
         text = str(result.get('response', '')).strip().strip('"')
         if not _valid_response(text, labels):

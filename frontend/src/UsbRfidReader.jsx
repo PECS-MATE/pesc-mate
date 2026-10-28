@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { request } from './services/api';
 import { parseUsbLine, UsbPresentationTracker, UsbSerialConnection } from './services/usbRfid';
 
@@ -13,7 +14,7 @@ const messages = {
   unsupported_firmware: 'Wi-Fi용 출력입니다. USB 카드 인식에는 진단 스케치 또는 USB용 펌웨어를 사용해 주세요.',
 };
 
-export default function UsbRfidReader({ targetId, manager = false, canMap = false, cards = [], mappingVersion = 0, onUid, onAppend, onApply, disabled = false, registration = false, eventScope = 'personal', compact = false, artStyle = () => ({}), onStatus }) {
+export default function UsbRfidReader({ targetId, manager = false, canMap = false, cards = [], mappingVersion = 0, onUid, onAppend, onApply, disabled = false, registration = false, eventScope = 'personal', compact = false, artStyle = () => ({}), onStatus, connectionTarget }) {
   const [state, setState] = useState('disconnected'), [logs, setLogs] = useState([]);
   const [resolved, setResolved] = useState([]), [mode, setMode] = useState('queue');
   const [protocol, setProtocol] = useState(''), [pending, setPending] = useState(false), [unsafe, setUnsafe] = useState(true);
@@ -146,20 +147,38 @@ export default function UsbRfidReader({ targetId, manager = false, canMap = fals
     const callback = mode === 'positions' ? handlers.current.onApply : handlers.current.onAppend;
     if (callback?.(selection) === true && mode === 'queue') session.current?.clear();
   }
+  const connectionControls = <div className="usb-connection-controls">
+    <button type="button" disabled={state === 'connected' || state === 'connecting'} onClick={() => session.current?.connection?.connect()}>USB 장치 연결</button>
+    <button type="button" disabled={!['connected', 'connecting'].includes(state)} onClick={() => session.current?.connection?.disconnect()}>USB 연결 해제</button>
+  </div>;
 
   return <section className="usb-rfid" aria-label="USB 카드 리더기">
     <h3>USB 카드 리더기</h3>
     {!available ? <p role="status">USB 연결은 PC의 Chrome/Edge에서 http://127.0.0.1:5173 또는 HTTPS로 열어 주세요.</p> : <>
       <p role="status">{state === 'connected' ? fresh ? 'USB 연결됨' : 'USB 장치 응답을 기다립니다.' : state === 'connecting' ? 'USB 포트를 여는 중입니다.' : 'USB 연결 버튼을 눌러 Arduino 포트를 선택해 주세요.'}</p>
       {!compact && <p>이 브라우저에 권한을 준 포트: {granted}개 · 115200bps (0개여도 연결 버튼에서 선택 가능)</p>}
-      <button type="button" disabled={state === 'connected' || state === 'connecting'} onClick={() => session.current?.connection?.connect()}>USB 장치 연결</button>
-      <button type="button" disabled={!['connected', 'connecting'].includes(state)} onClick={() => session.current?.connection?.disconnect()}>USB 연결 해제</button>
+      {connectionTarget ? createPortal(<div className="sidebar-usb-control"><strong>카드 리더기</strong>
+        <small>{state === 'connected' ? 'USB 연결됨' : state === 'connecting' ? '연결 중' : '연결 전'}</small>
+        {connectionControls}</div>, connectionTarget) : connectionControls}
     </>}
     {!compact && protocol === 'legacy' && <p>{registration ? '진단 스케치에서 칩 UID를 읽고 있습니다.' : '진단 스케치에서 카드를 순서대로 모읍니다. 카드 유지·제거 판별은 USB용 펌웨어에서 지원합니다.'}</p>}
-    {!registration && mode === 'queue' && <p>같은 칩은 읽기 목록에 한 번만 담습니다. 다시 읽으려면 목록을 비운 뒤 칩을 떼었다가 대주세요.</p>}
     {error && <p role="alert">{error}</p>}
     {pending && <p role="status">읽은 카드 연결을 조회하고 있어요.</p>}
-    {!!resolved.length && <ol className="usb-card-list" aria-label={mode === 'positions' ? 'USB 위치별 카드' : 'USB로 읽은 카드'}>{resolved.map((row, index) => {
+    {!manager && !registration && <section className="usb-scan-tray" aria-label="태그한 카드 영역">
+      <div className="usb-scan-tray-heading"><strong>태그한 카드</strong><small>{resolved.length}장</small></div>
+      {!resolved.length && <p role="status">카드를 리더기에 대면 여기에 표시돼요.</p>}
+      {mode === 'queue' && <small>같은 칩은 한 번만 담습니다. 다시 읽으려면 목록을 비운 뒤 칩을 떼었다가 대주세요.</small>}
+      {!!resolved.length && <ol className="usb-card-list" aria-label={mode === 'positions' ? 'USB 위치별 카드' : 'USB로 읽은 카드'}>{resolved.map((row, index) => {
+        const card = cards.find(item => item.id === row.card_id);
+        return <li key={index} data-state={row.status}>
+          <small>{mode === 'positions' ? `위치 ${row.reader_id}` : `${index + 1}번째 카드`}</small>
+          {card && <span className="usb-card-art" aria-hidden="true" style={artStyle(card)} />}
+          <strong>{row.label || (row.status === 'EMPTY' ? '카드 없음' : row.status === 'ERROR' ? '리더기 오류' : '미등록·사용 불가 카드')}</strong>
+        </li>;
+      })}</ol>}
+      <button type="button" disabled={disabled || !valid} onClick={apply}>{mode === 'positions' ? 'USB 배열을 문장에 적용' : '읽은 카드를 문장에 추가'}</button>
+    </section>}
+    {(manager || registration) && !!resolved.length && <ol className="usb-card-list" aria-label={mode === 'positions' ? 'USB 위치별 카드' : 'USB로 읽은 카드'}>{resolved.map((row, index) => {
       const card = cards.find(item => item.id === row.card_id);
       return <li key={index} data-state={row.status}>
         <small>{mode === 'positions' ? `위치 ${row.reader_id}` : `${index + 1}번째 카드`}</small>
@@ -167,7 +186,6 @@ export default function UsbRfidReader({ targetId, manager = false, canMap = fals
         <strong>{row.label || (row.status === 'EMPTY' ? '카드 없음' : row.status === 'ERROR' ? '리더기 오류' : '미등록·사용 불가 카드')}</strong>
       </li>;
     })}</ol>}
-    {!manager && !registration && <button type="button" disabled={disabled || !valid} onClick={apply}>{mode === 'positions' ? 'USB 배열을 문장에 적용' : '읽은 카드를 문장에 추가'}</button>}
     {!registration && <><button type="button" disabled={pending} onClick={() => session.current?.refresh()}>USB 태그 연결 다시 조회</button>
       <button type="button" onClick={() => session.current?.clear()}>USB 읽기 목록 비우기</button></>}
     {manager && canMap && <p>{registration ? '등록할 칩을 하나만 대고 연결할 그림카드를 선택해 주세요.' : '카드를 대면 아래 태그 등록 입력란에 UID가 들어갑니다.'}</p>}
