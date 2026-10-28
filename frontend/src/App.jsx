@@ -106,8 +106,13 @@ const RECOVERY_EXPRESSIONS = [
 
 const DEFAULT_ACCESSIBILITY = {
   display_mode: 'image_text', cards_per_page: 12, card_size: 'medium', text_size: 'medium',
-  reduced_motion: false, high_contrast: false,
+  reduced_motion: false, high_contrast: false, start_screen: 'home', output_mode: 'natural',
 };
+const normalizeAccessibility = (settings, account) => ({
+  ...DEFAULT_ACCESSIBILITY,
+  output_mode: account?.default_output_mode || 'natural',
+  ...settings,
+});
 
 const DEFAULT_PRIVACY = {
   guardian_consent: false, retention_days: 365, deletion_status: 'none', deleted_at: null,
@@ -407,7 +412,10 @@ function App() {
     setCards(all); setCardCategories(snapshot.categories || []); setRecommended(rec);
     setStats(snapshot.dashboard || null); setCardSubmissions(snapshot.submissions || []);
     setBoard(snapshot.privacy?.guardian_consent ? loadBoard(account.id, all) : []); setTtsSettings(normalizeTtsSettings(snapshot.tts_settings));
-    setAccessibility(snapshot.accessibility); setAccessibilitySaved(true);
+    const access = normalizeAccessibility(snapshot.accessibility, account);
+    setAccessibility(access); setAccessibilitySaved(true);
+    setOutputMode(access.output_mode);
+    if (!loaded) setTab(access.start_screen);
     setPrivacy(snapshot.privacy); setPrivacyCaregivers(snapshot.caregivers || []);
     setPrivacyAudit(snapshot.privacy_audit || []); setTtsSettingsSaved(true);
     setBoardLayout(snapshot.board_layout || null);
@@ -498,7 +506,10 @@ function App() {
       const [all, rec] = await Promise.all([hydrateImages(rawCards), hydrateImages(rawRecommended)]);
       setCards(all); setCardCategories(rawCategories); setRecommended(rec); setStats(dashboard); setCardSubmissions(submissions); setBoard(privacySettings.guardian_consent ? loadBoard(account?.id, all) : []);
       setTtsSettings(normalizeTtsSettings(voiceSettings));
-      setAccessibility(accessibilitySettings); setAccessibilitySaved(true);
+      const access = normalizeAccessibility(accessibilitySettings, account);
+      setAccessibility(access); setAccessibilitySaved(true);
+      setOutputMode(access.output_mode);
+      if (!loaded) setTab(access.start_screen);
       setPrivacy(privacySettings); setPrivacyCaregivers(caregivers); setPrivacyAudit(privacyHistory);
       setBoardLayout(layout);
       setSupportPermissionDrafts(Object.fromEntries(caregivers.map(item => [item.supporter_id, item.permissions])));
@@ -1635,9 +1646,10 @@ function App() {
       onSaved={profileSaved} onCancel={() => setMyPageOpen(false)} /> },
     ...(user.role === 'user' ? [
       { id: 'accessibility', label: '접근 설정', content: <section className="accessibility-settings"><h3>접근 설정</h3><div>
-        <label>카드 표시<select value={accessibility.display_mode} onChange={event => updateAccessibility({ display_mode: event.target.value })}><option value="image">그림 중심</option><option value="image_text">그림 + 글자</option><option value="text">글자 중심</option></select></label>
-        <label>한 페이지 카드 수<select value={accessibility.cards_per_page} onChange={event => updateAccessibility({ cards_per_page: Number(event.target.value) })}>{[6, 12, 18, 24, 30].map(value => <option key={value} value={value}>{value}개</option>)}</select></label>
-        <label>카드 크기<select value={accessibility.card_size} onChange={event => updateAccessibility({ card_size: event.target.value })}><option value="small">작게</option><option value="medium">보통</option><option value="large">크게</option></select></label>
+        <p>시작 화면·발화 방식·카드 배치는 연결된 보호자 또는 담당자 계정에서 바꿀 수 있어요.</p>
+        <label>카드 표시<select disabled value={accessibility.display_mode}><option value="image">그림 중심</option><option value="image_text">그림 + 글자</option><option value="text">글자 중심</option></select></label>
+        <label>한 페이지 카드 수<select disabled value={accessibility.cards_per_page}><option value={accessibility.cards_per_page}>{accessibility.cards_per_page}개</option></select></label>
+        <label>카드 크기<select disabled value={accessibility.card_size}><option value={accessibility.card_size}>{accessibility.card_size === 'small' ? '작게' : accessibility.card_size === 'large' ? '크게' : '보통'}</option></select></label>
         <label>글자 크기<select value={accessibility.text_size} onChange={event => updateAccessibility({ text_size: event.target.value })}><option value="small">작게</option><option value="medium">보통</option><option value="large">크게</option></select></label>
         <label className="check-setting"><input type="checkbox" checked={accessibility.reduced_motion} onChange={event => updateAccessibility({ reduced_motion: event.target.checked })} />애니메이션·장식 줄이기</label>
         <label className="check-setting"><input type="checkbox" checked={accessibility.high_contrast} onChange={event => updateAccessibility({ high_contrast: event.target.checked })} />고대비 표시</label>
@@ -1800,7 +1812,7 @@ function App() {
         <details className="speech-options"><summary>말하기 상세 설정</summary><label className="situation-picker">기록 상황 (선택)<select aria-label="기록 상황 (선택)" value={situation} onChange={event => setSituation(event.target.value)}>
           {Object.entries(SITUATIONS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
         </select><small>기록에만 사용하며 카드 위치·추천·학습 범위는 바꾸지 않습니다.</small></label>
-        <div className="output-mode" role="group" aria-label="출력 방식" data-scan-group="output-mode"><span>출력 방식</span><button aria-pressed={outputMode === 'word'} className={outputMode === 'word' ? 'active' : ''} onClick={() => setOutputMode('word')}>🔊 단어 즉시 발화</button><button aria-pressed={outputMode === 'selection'} className={outputMode === 'selection' ? 'active' : ''} onClick={() => setOutputMode('selection')}>선택 카드 그대로</button><button aria-pressed={outputMode === 'natural'} className={outputMode === 'natural' ? 'active' : ''} onClick={() => setOutputMode('natural')}>자연스러운 문장</button></div></details>
+        <p>카드를 누르면 {outputMode === 'word' ? '단어를 바로 말해요.' : '문장에 담아요.'}</p></details>
         <div className="categories" aria-label="카테고리" data-scan-group="categories">{['전체', ...cardCategories.map(item => item.name)].map(c => <button key={c} aria-pressed={category === c} className={category === c ? 'active' : ''} onClick={() => setCategory(c)}>{c}</button>)}</div>
         <div className="cards" data-scan-group="cards">{visibleCards.map(tile)}</div>
         {cardPagination()}
@@ -1927,12 +1939,18 @@ function App() {
           <label>기본 볼륨 <output>{Math.round(ttsSettings.volume * 100)}%</output><input type="range" min="0" max="1" step="0.05" value={ttsSettings.volume} onChange={event => updateTtsSettings({ volume: Number(event.target.value) })} /></label>
         </div><button className="primary" disabled={ttsSettingsBusy || ttsSettingsSaved} onClick={saveTtsSettings}>{ttsSettingsBusy ? '저장 중…' : ttsSettingsSaved ? '저장됨' : '목소리 저장'}</button></article>
         <article><h3>화면 접근 설정</h3><div className="support-access-fields">
+          <label>시작 화면<select value={accessibility.start_screen} onChange={event => updateAccessibility({ start_screen: event.target.value })}><option value="home">홈</option><option value="cards">그림으로 말하기</option></select></label>
+          <label>기본 발화 방식<select value={accessibility.output_mode} onChange={event => updateAccessibility({ output_mode: event.target.value })}><option value="selection">고른 카드 말하기</option><option value="word">단어 즉시 발화</option><option value="natural">자연스러운 문장 생성 사용</option></select></label>
           <label>카드 표시<select value={accessibility.display_mode} onChange={event => updateAccessibility({ display_mode: event.target.value })}><option value="image">그림 중심</option><option value="image_text">그림 + 글자</option><option value="text">글자 중심</option></select></label>
           <label>한 페이지 카드 수<select value={accessibility.cards_per_page} onChange={event => updateAccessibility({ cards_per_page: Number(event.target.value) })}>{[6, 12, 18, 24, 30].map(value => <option key={value} value={value}>{value}개</option>)}</select></label>
           <label>카드 크기<select value={accessibility.card_size} onChange={event => updateAccessibility({ card_size: event.target.value })}><option value="small">작게</option><option value="medium">보통</option><option value="large">크게</option></select></label>
           <label>글자 크기<select value={accessibility.text_size} onChange={event => updateAccessibility({ text_size: event.target.value })}><option value="small">작게</option><option value="medium">보통</option><option value="large">크게</option></select></label>
           <label className="privacy-check"><input type="checkbox" checked={accessibility.reduced_motion} onChange={event => updateAccessibility({ reduced_motion: event.target.checked })} />애니메이션·장식 줄이기</label>
           <label className="privacy-check"><input type="checkbox" checked={accessibility.high_contrast} onChange={event => updateAccessibility({ high_contrast: event.target.checked })} />고대비 표시</label>
+          <div className="support-access-preview" aria-label="설정 미리보기"><strong>미리보기 · {accessibility.start_screen === 'home' ? '홈' : '그림으로 말하기'}</strong>
+            <div className={`preview-cards size-${accessibility.card_size} display-${accessibility.display_mode}`}>{Array.from({ length: Math.min(3, accessibility.cards_per_page) }, (_, index) => <span key={index}>{['물', '사과', '집'][index]}</span>)}</div>
+            <small>한 페이지 {accessibility.cards_per_page}개 · {accessibility.output_mode === 'word' ? '단어 즉시 발화' : accessibility.output_mode === 'natural' ? '자연스러운 문장 생성 사용' : '고른 카드 말하기'}</small>
+          </div>
         </div><button className="primary" disabled={accessibilityBusy || accessibilitySaved} onClick={saveAccessibility}>{accessibilityBusy ? '저장 중…' : accessibilitySaved ? '저장됨' : '접근 설정 저장'}</button></article>
       </div>
     </section> : tab === 'account_permissions' && canManageAccounts ? <AccountPermissions key={user.id} accountId={user.id} onSessionExpired={handleLogout} /> : tab === 'admin' && canManageContent ? <section className="admin-review">

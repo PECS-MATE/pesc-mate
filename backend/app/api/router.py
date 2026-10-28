@@ -269,6 +269,8 @@ class AccessibilitySettingsRequest(BaseModel):
     text_size: Literal['small', 'medium', 'large']
     reduced_motion: bool
     high_contrast: bool
+    start_screen: Literal['home', 'cards'] = 'home'
+    output_mode: Literal['word', 'selection', 'natural'] = 'natural'
 
 
 class AccessibilitySettingsResponse(AccessibilitySettingsRequest):
@@ -888,7 +890,7 @@ def put_accessibility_settings(request: AccessibilitySettingsRequest,
                                user=Depends(current_user)):
     target = user_id or user['id']
     require_link_permission(user, target, 'voice_access_manage')
-    return save_accessibility_settings(target, request.model_dump())
+    return save_accessibility_settings(target, request.model_dump(), user)
 
 
 @api_router.post('/tts/events', response_model=TtsEventResponse, status_code=201, tags=['음성'])
