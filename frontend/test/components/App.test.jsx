@@ -97,6 +97,25 @@ async function openSentencePractice() {
   return user;
 }
 
+test('홈에서 주제별 카드를 찾고 말하기로 돌아와도 선택한 카드를 유지한다', async () => {
+  render(<StrictMode><App /></StrictMode>);
+  await screen.findByText('서비스 연결됨');
+  const home = screen.getByRole('region', { name: '어떤 이야기를 해볼까요?' });
+  expect(within(home).getAllByRole('button')).toHaveLength(3);
+  expect(home.compareDocumentPosition(document.querySelector('.quick-speech')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(request.mock.calls.some(([path]) => path.startsWith('/rfid/'))).toBe(false);
+  fireEvent.click(screen.getByRole('button', { name: '음식 카드 살펴보기' }));
+  const catalog = document.querySelector('.catalog-grid');
+  expect(within(catalog).getAllByRole('button', { pressed: false })).toHaveLength(1);
+  fireEvent.click(within(catalog).getByRole('button', { pressed: false }));
+  fireEvent.click(screen.getByRole('button', { name: '문장에 사용하기' }));
+  expect(screen.getByRole('list', { name: '선택한 카드' }).textContent).toContain('물');
+  fireEvent.click(within(screen.getByRole('navigation', { name: '주 메뉴' })).getByRole('button', { name: '홈', exact: true }));
+  fireEvent.click(screen.getByRole('button', { name: /고른 카드 1장으로 이어서 말하기/ }));
+  expect(screen.getByRole('list', { name: '선택한 카드' }).textContent).toContain('물');
+  expect(player.speak).not.toHaveBeenCalled();
+});
+
 test('문장 연습은 재도전이 꺼진 오답을 한 번만 집계하고 다음 문제의 선택을 비운다', async () => {
   vi.spyOn(Math, 'random').mockReturnValue(0.999); // Fixed two-card example, not random test runtime.
   const user = await openSentencePractice();

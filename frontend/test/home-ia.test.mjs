@@ -3,13 +3,15 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
+const home = readFileSync(new URL('../src/HomeDashboard.jsx', import.meta.url), 'utf8');
 
-test('AAC home limits primary choices to speaking and practice', () => {
-  const primary = app.match(/<div className="home-mode-grid"[\s\S]*?<\/div>\s*<nav className="home-secondary-actions"/)?.[0] || '';
+test('AAC home provides speaking, practice and card exploration without invented achievements', () => {
+  const primary = home.match(/<div className="home-mode-grid"[\s\S]*?<\/div>/)?.[0] || '';
   assert.match(primary, /<strong>말하기<\/strong>/);
   assert.match(primary, /<strong>연습하기<\/strong>/);
-  assert.equal((primary.match(/home-launch-card/g) || []).length, 2);
-  assert.match(app, /home-secondary-actions/);
+  assert.match(primary, /<strong>내 카드<\/strong>/);
+  assert.equal((primary.match(/className="home-activity/g) || []).length, 3);
+  assert.doesNotMatch(home, /Lv\.|포인트|오늘의 목표/);
 });
 
 test('urgent speech remains outside home and practice screen routing', () => {

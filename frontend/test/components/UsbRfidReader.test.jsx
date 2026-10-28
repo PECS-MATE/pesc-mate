@@ -75,7 +75,12 @@ test('세 위치 JSON은 순서대로 적용하고 같은 이벤트는 중복 �
   const text = JSON.stringify({ protocol_version: 1, type: 'snapshot', boot_id: 'boot', event_id: 1, reader_count: 3, readers: [
     { reader_id: 3, status: 'EMPTY', uid: null }, { reader_id: 1, status: 'PRESENT', uid: '01020304' }, { reader_id: 2, status: 'EMPTY', uid: null },
   ] });
-  await scan(text); await screen.findByText('위치 1: 물'); await scan(text);
+  await scan(text);
+  const positions = within(await screen.findByRole('list', { name: 'USB 위치별 카드' }));
+  await positions.findByText('물');
+  expect(positions.getAllByRole('listitem')[0].textContent).toContain('위치 1');
+  expect(positions.getAllByRole('listitem')[2].textContent).toContain('위치 3');
+  await scan(text);
   expect(request.mock.calls.filter(([path]) => path.startsWith('/rfid/usb/resolve'))).toHaveLength(1);
   await userEvent.setup().click(screen.getByRole('button', { name: 'USB 배열을 문장에 적용' }));
   expect(apply).toHaveBeenCalledWith(cards);

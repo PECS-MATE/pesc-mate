@@ -1,6 +1,7 @@
 import Mascot, { EmptyState } from './Mascot';
 import { Avatar, ProfileEditor } from './Profile';
 import MyPage from './MyPage';
+import HomeDashboard, { CardTopics } from './HomeDashboard';
 import OperationalAlerts from './OperationalAlerts';
 import AccountPermissions from './AccountPermissions';
 import SupportRecordTabs from './SupportRecordTabs';
@@ -131,6 +132,7 @@ function App() {
   const activeUserRef = useRef(null);
   activeUserRef.current = user;
   const [myPageOpen, setMyPageOpen] = useState(false);
+  const [readerExpanded, setReaderExpanded] = useState(false);
   const [profileNotice, setProfileNotice] = useState('');
   const [authReady, setAuthReady] = useState(false);
   const [username, setUsername] = useState('demo');
@@ -631,7 +633,7 @@ function App() {
       const path = authMode === 'register' ? '/auth/register' : '/auth/login';
       const body = authMode === 'register' ? { username, password, name, guardian_consent: registrationConsent } : { username, password };
       const result = await request(path, { method: 'POST', body: JSON.stringify(body) });
-      setToken(result.access_token); setUser(result.user); setMyPageOpen(false); setProfileNotice('');
+      setToken(result.access_token); setUser(result.user); setMyPageOpen(false); setReaderExpanded(false); setProfileNotice('');
       setPassword(''); setPasswordConfirm('');
       cacheAccountForOffline(result.user, result.expires_at).catch(() => {});
       await load(result.user);
@@ -652,7 +654,7 @@ function App() {
     clearBoard(user?.id);
     const clearCache = clearCachedAccount().catch(() => {});
     const clearUserData = user?.id ? clearOfflineUserData(user.id).catch(() => {}) : Promise.resolve();
-    setToken(null); setUser(null); setLoaded(false); setMyPageOpen(false); setProfileNotice(''); setSyncState('idle'); setPendingSyncCount(0);
+    setToken(null); setUser(null); setLoaded(false); setMyPageOpen(false); setReaderExpanded(false); setProfileNotice(''); setSyncState('idle'); setPendingSyncCount(0);
     [...cards, ...recommended, ...adminSubmissions].forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); });
     setCards([]); setCardCategories([]); setRecommended([]); setStats(null); setBoard([]); setCardSubmissions([]); setAdminSubmissions([]); setAdminCategories([]); setCategoryEdits({}); setCategoryError(''); setLinkedUsers([]); setSelectedUser(null); setBoardLayout(null); setBoardLayoutAudit([]); setQuickDraft([]); setRecoveryDraft([]); setSlotDraft([]); setLearningSettings(null); setLearningProgress(null); setLearningGame(null); setPracticeCategory('all'); setText(''); setGeneratedSessionId(''); setGenerationAttempt(1); setSentenceConfirmed(false); setGenerationFailed(false); setError(''); setTab('home');
     setTtsSettings(DEFAULT_TTS_SETTINGS); setTtsSettingsSaved(false); setAccessibility(DEFAULT_ACCESSIBILITY); setAccessibilitySaved(true); setPrivacy(DEFAULT_PRIVACY); setPrivacyCaregivers([]); setPrivacyAudit([]); setSpeechFailure(null); setLastUtterance(null); setLastSentence(null); setBusy(false);
@@ -1566,7 +1568,7 @@ function App() {
     : tab === 'home'
       ? '오늘은 무엇을 해볼까요?'
       : tab === 'cards'
-      ? `오늘의 추천 카드 ${recommended.length}개를 준비했어요.`
+      ? '그림카드로 마음을 전해요.'
       : tab === 'catalog'
       ? `그림 카드 ${cards.length}개를 살펴보세요.`
       : tab === 'practice'
@@ -1648,15 +1650,14 @@ function App() {
       {canManageAccounts && <button onClick={() => navigateFromMyPage(() => setTab('account_permissions'))}>운영 권한 관리</button>}
     </section> }] : []),
   ] : [];
+  function openCatalog(value = '전체') {
+    setCategory(value); setSearch(''); setCardPage(0); setTab('catalog');
+  }
   function navigateFromMyPage(action) { setMyPageOpen(false); action(); }
   return <main className={`app display-${accessibility.display_mode} card-size-${accessibility.card_size} text-size-${accessibility.text_size}${accessibility.reduced_motion ? ' reduced-motion' : ''}${accessibility.high_contrast ? ' high-contrast' : ''}`}>
     <a className="skip-link" href="#main-content">본문 바로가기</a>
     <aside className="sidebar">
       <div className="sidebar-brand"><Mascot className="mascot-brand" /><strong>PESC<br />MATE</strong></div>
-      <button type="button" className="profile profile-trigger" aria-label={`${user.name} 마이페이지 열기`}
-        aria-haspopup="dialog" aria-expanded={myPageOpen}
-        onClick={() => { stopSpeech(); setMyPageOpen(true); setProfileNotice(''); }}>
-        <Avatar user={user} /><span><strong>{user.name}</strong><small>{user.role === 'caregiver' ? '보호자 계정' : canManageContent ? '운영 권한 담당자 계정' : user.role === 'support_staff' ? '지원 담당자 계정' : 'AAC 사용자'}</small><span className="profile-settings-hint">마이페이지 · 설정</span></span><span aria-hidden="true">›</span></button>
       <nav aria-label="주 메뉴">{isSupporter ? <>
           <button className={tab === 'support_home' ? 'active' : ''} onClick={() => setTab('support_home')}><span aria-hidden="true">⌂</span>지원 홈</button>
           {canReadRecords && <button className={tab === 'dashboard' ? 'active' : ''} onClick={() => openSupportSection('dashboard')}><span aria-hidden="true">▥</span>의사소통 기록</button>}
@@ -1675,39 +1676,50 @@ function App() {
           <button className={tab === 'practice' ? 'active' : ''} onClick={() => openLearning(null)}><span aria-hidden="true">★</span>연습하기</button>
           <button className={tab === 'dashboard' ? 'active' : ''} onClick={() => setTab('dashboard')}><span aria-hidden="true">▥</span>나의 이용 기록</button>
         </>}</nav>
-      {user.role === 'user' && <><div className="sidebar-summary"><small>오늘의 의사소통</small><strong>{stats?.today_sessions || 0}개 문장</strong><span>{stats?.today_selections || 0}장의 카드를 사용했어요</span></div>
-      <div className="sidebar-tip"><Mascot className="mascot-help" /><div><small>도움말</small><strong>그림을 차례대로 눌러<br />마음을 표현해 보세요.</strong></div></div></>}
+      <button type="button" className="profile profile-trigger" aria-label={`${user.name} 마이페이지 열기`}
+        aria-haspopup="dialog" aria-expanded={myPageOpen}
+        onClick={() => { stopSpeech(); setMyPageOpen(true); setProfileNotice(''); }}>
+        <Avatar user={user} /><span><strong>{user.name}</strong><small>{user.role === 'caregiver' ? '보호자 계정' : canManageContent ? '운영 권한 담당자 계정' : user.role === 'support_staff' ? '지원 담당자 계정' : 'AAC 사용자'}</small><span className="profile-settings-hint">마이페이지 · 설정</span></span><span aria-hidden="true">›</span></button>
       <button className="logout" onClick={handleLogout} disabled={busy}>로그아웃</button>
     </aside>
-    <div className="app-content" id="main-content" tabIndex="-1">
+    <div className={`app-content screen-${tab}`} id="main-content" tabIndex="-1">
       {!myPageOpen && profileNotice && <p role="status">{profileNotice}</p>}
       <header className="topbar"><div><p className="eyebrow">오늘은 {todayLabel}</p><h1>{pageTitle}</h1></div><div className="topbar-statuses"><span className={`status${offline ? ' offline' : ''}`}><b className={!offline && loaded ? 'online' : ''}></b>{offline ? '오프라인 사용 중' : loaded ? '서비스 연결됨' : '연결 대기'}</span>{speechActive && <div className={`speech-player ${speechState.status}`} role="status" aria-live="polite"><span><b aria-hidden="true">🔊</b><strong>{speechStatusLabel}</strong><small title={speechState.content}>{speechState.content}</small></span>{speechState.status === 'playing' && <button type="button" onClick={pauseSpeech}>일시 정지</button>}{speechState.status === 'paused' && <button type="button" onClick={resumeSpeech}>재개</button>}<button type="button" onClick={stopSpeech}>중지</button></div>}</div></header>
       {canManageContent && <OperationalAlerts key={user.id} refreshKey={adminSubmissions} onReview={() => setTab('admin')} />}
       {offline && <p className="offline-notice" role="status">인터넷 연결 없이 저장된 카드를 사용 중입니다. 즉시 발화와 선택 카드 그대로 발화는 계속 사용할 수 있습니다.{localKoreanVoices.length ? ` 기기에 저장된 한국어 음성 ${localKoreanVoices.length}개를 확인했습니다.` : ' 한국어 음성이 재생되지 않으면 기기 설정에서 음성 데이터를 설치해 주세요.'}{pendingSyncCount ? ` 재연결 후 동기화할 이력 ${pendingSyncCount}건이 있습니다.` : ''}</p>}
       {user.role === 'user' && privacy.guardian_consent && !offline && (pendingSyncCount > 0 || syncState === 'failed') && <div className="offline-notice" data-testid="sync-status"><span role="status">{syncState === 'syncing' ? `기기에 저장한 기록 ${pendingSyncCount}건을 동기화하고 있어요.` : syncState === 'failed' ? `저장한 기록을 모두 전송하지 못했어요. 남은 ${pendingSyncCount}건은 기기에 보관됩니다.` : `동기화할 기록 ${pendingSyncCount}건이 기기에 있습니다.`}</span> <button type="button" disabled={syncState === 'syncing'} onClick={() => syncPendingEvents(user)}>기록 동기화 다시 시도</button></div>}
-      {user.role === 'user' && <section className="recovery-speech" aria-labelledby="recovery-speech-title" data-scan-group="recovery-speech"><div><strong id="recovery-speech-title">다시 말하기·고치기</strong><small>잘못 전했을 때 바로 말해요</small></div>{recoveryExpressions.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 복구 표현 말하기`} onClick={() => speakText(item.label, 'recovery')}>{expressionVisual(item)}{item.label}</button>)}<button disabled={!lastUtterance || speechState.status === 'starting'} onClick={() => lastUtterance && speakText(lastUtterance.content, lastUtterance.contentType, lastUtterance.cardIds)}><span aria-hidden="true">🔊</span>마지막 말 다시 듣기</button><button disabled={!board.length && !text} onClick={() => updateBoard([])}><span aria-hidden="true">⌫</span>현재 문장 취소</button><button disabled={!lastSentence} onClick={restoreLastSentence}><span aria-hidden="true">↶</span>직전 문장 불러오기</button></section>}
+      {tab === 'home' && user.role === 'user' && <HomeDashboard name={user.name} selectedCount={board.length}
+        onSpeak={() => setTab('cards')} onPractice={() => openLearning(null)}
+        onCatalog={() => openCatalog()} />}
+      {loaded && user.role === 'user' && <div className="reader-workspace" hidden={!['home', 'cards'].includes(tab)}><RfidBoard key={`rfid-${user.id}`} targetId={user.id}
+        cards={cards} artStyle={artStyle} collapsible expanded={readerExpanded} onExpandedChange={setReaderExpanded}
+        active={['home', 'cards'].includes(tab) && !myPageOpen}
+        disabled={busy || speechActive || offline || myPageOpen || !['home', 'cards'].includes(tab)}
+        onAppend={selection => {
+          if (busy || speechActive || offline || myPageOpen || !['home', 'cards'].includes(tab) || document.visibilityState === 'hidden') return false;
+          if (board.length + selection.length > 12) { setError('문장은 최대 12장입니다. 현재 문장을 정리한 뒤 다시 추가해 주세요.'); return false; }
+          updateBoard([...board, ...selection.map(card => ({ ...card, selected_at: new Date().toISOString() }))]);
+          setTab('cards');
+          return true;
+        }}
+        onApply={selection => {
+          if (busy || speechActive || offline || myPageOpen || !['home', 'cards'].includes(tab) || document.visibilityState === 'hidden') return false;
+          if ((board.length || text) && !window.confirm('현재 선택 문장을 RFID 배열로 바꿀까요? 고정 카드판은 변경하지 않습니다.')) return false;
+          updateBoard(selection.map(card => ({ ...card, selected_at: new Date().toISOString() })));
+          setTab('cards');
+          return true;
+        }} /></div>}
       {user.role === 'user' && <section className="quick-speech" aria-labelledby="quick-speech-title" data-scan-group="quick-speech"><div><strong id="quick-speech-title">빠른 표현</strong><small>누르면 바로 말해요</small></div>{quickExpressionCards.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 바로 말하기`} onClick={() => speakText(item.label, 'card', [item.id])}>{expressionVisual(item)}{item.label}</button>)}</section>}
+      {user.role === 'user' && <section className="recovery-speech" aria-labelledby="recovery-speech-title" data-scan-group="recovery-speech"><div><strong id="recovery-speech-title">다시 말하기·고치기</strong><small>잘못 전했을 때 바로 말해요</small></div>{recoveryExpressions.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 복구 표현 말하기`} onClick={() => speakText(item.label, 'recovery')}>{expressionVisual(item)}{item.label}</button>)}<button disabled={!lastUtterance || speechState.status === 'starting'} onClick={() => lastUtterance && speakText(lastUtterance.content, lastUtterance.contentType, lastUtterance.cardIds)}><span aria-hidden="true">🔊</span>마지막 말 다시 듣기</button><button disabled={!board.length && !text} onClick={() => updateBoard([])}><span aria-hidden="true">⌫</span>현재 문장 취소</button><button disabled={!lastSentence} onClick={restoreLastSentence}><span aria-hidden="true">↶</span>직전 문장 불러오기</button></section>}
       {user.role === 'user' && <div className="core-speech-status" data-testid="core-speech-status">
+        <details open={coreSpeechStatus.status !== 'ready'}><summary>오프라인 음성 준비 상태</summary>
         <span role="status">{coreSpeechStatus.status === 'preparing' ? '기본 긴급·복구 음성을 준비하고 있어요.' : coreSpeechStatus.status === 'ready' ? `기본 긴급·복구 음성 ${coreSpeechStatus.saved}개 저장됨` : coreSpeechStatus.ready ? `기본 긴급·복구 음성 ${coreSpeechStatus.saved}/${coreSpeechStatus.total}개 저장됨 · 현재 ${coreSpeechStatus.ready}개 재생 가능` : '기본 긴급·복구 음성을 저장하지 못했어요. 기기 음성은 계속 사용할 수 있어요.'}</span>
         {!['ready', 'preparing'].includes(coreSpeechStatus.status) && <button type="button" onClick={() => setCoreSpeechRetry(current => current + 1)}>기본 음성 준비 다시 시도</button>}
+        </details>
       </div>}
       {!myPageOpen && error && <div role="alert" className="error">{error} <button disabled={busy} onClick={() => load(user)}>다시 연결</button></div>}
       {speechFailure && <div role="alert" className="speech-error"><span aria-hidden="true">🔇</span><div><strong>음성을 재생하지 못했어요.</strong><p>전달할 표현: <strong>{speechFailure.content}</strong></p><p>{speechFailureMessage(speechFailure.errorCode)} 선택한 카드와 문장은 그대로 유지됩니다.</p></div><div className="speech-error-actions">{speechFailure.retryable && <button className="primary" onClick={() => speakText(speechFailure.content, speechFailure.contentType, speechFailure.cardIds || [])}>다시 재생</button>}<button onClick={() => setSpeechFailure(null)}>닫기</button></div></div>}
       {!loaded && !error && <p role="status">카드를 불러오는 중입니다…</p>}
-      {loaded && user.role === 'user' && tab === 'cards' && <RfidBoard key={`rfid-${user.id}`} targetId={user.id}
-        cards={cards} artStyle={artStyle} disabled={busy || speechActive || offline}
-        onAppend={selection => {
-          if (busy || speechActive || offline || document.visibilityState === 'hidden') return false;
-          if (board.length + selection.length > 12) { setError('문장은 최대 12장입니다. 현재 문장을 정리한 뒤 다시 추가해 주세요.'); return false; }
-          updateBoard([...board, ...selection.map(card => ({ ...card, selected_at: new Date().toISOString() }))]);
-          return true;
-        }}
-        onApply={selection => {
-          if (busy || speechActive || offline || document.visibilityState === 'hidden') return false;
-          if ((board.length || text) && !window.confirm('현재 선택 문장을 RFID 배열로 바꿀까요? 고정 카드판은 변경하지 않습니다.')) return false;
-          updateBoard(selection.map(card => ({ ...card, selected_at: new Date().toISOString() })));
-          return true;
-        }} />}
       {isSupporter && selectedUser && ['dashboard', 'learning_progress'].includes(tab) && <SupportRecordTabs
         active={tab} permissions={selectedPermissions}
         onSelect={nextTab => nextTab === 'dashboard' ? openSupportSection(nextTab) : openLearning(selectedUser)} />}
@@ -1727,24 +1739,8 @@ function App() {
             {canManageLearning && <button onClick={() => openLearning(selectedUser)}><span>★</span><strong>학습 기록</strong><small>최근 30일 연습 참여·단어별 기록 · 학습 관리 권한</small></button>}
             {selectedPermissions.includes('notes_write') && <article><span>✓</span><strong>{SUPPORT_PERMISSION_LABELS.notes_write}</strong><small>의사소통 기록 화면에서 사용할 수 있습니다.</small></article>}
           </div></> : <EmptyState>연결된 사용자가 없습니다.</EmptyState>}
-      </section> : tab === 'home' && user.role === 'user' ? <section className="home-screen">
-        <div className="home-heading"><div><p>원하는 활동을 선택해 주세요</p><h2>나의 PESC MATE</h2></div><Mascot className="mascot-heading" /></div>
-        <div className="home-mode-grid" aria-label="주요 활동">
-          <button className="home-launch-card communication" onClick={() => setTab('cards')}>
-            <span className="home-card-visual" aria-hidden="true"><Mascot className="mascot-launch" /><i>💬</i></span>
-            <span className="home-card-label"><small>카드를 골라 마음을 전해요</small><strong>말하기</strong><b aria-hidden="true">→</b></span>
-          </button>
-          <button className="home-launch-card practice" onClick={() => openLearning(null)}>
-            <span className="home-card-visual" aria-hidden="true"><Mascot className="mascot-launch" /><i>★</i></span>
-            <span className="home-card-label"><small>그림과 단어를 차근차근 익혀요</small><strong>연습하기</strong><b aria-hidden="true">→</b></span>
-          </button>
-        </div>
-        <nav className="home-secondary-actions" aria-label="추가 활동"><button onClick={() => setTab('catalog')}>🖼️ 카드 살펴보기</button><button onClick={() => setTab('dashboard')}>📊 나의 이용 기록</button></nav>
-        <div className="home-note"><Avatar user={user} /><div><strong>{user.name}님, 반가워요!</strong><p>그림 카드를 눌러 오늘의 이야기를 시작해 보세요.</p></div></div>
-      </section> : tab === 'cards' && user.role === 'user' ? <div className="communication-layout">
-      {privacy.guardian_consent && <RecommendationsPanel key={user.id} accountId={user.id} selectedIds={board.map(card => card.id)} cards={cards}
-        offline={offline} renderCard={tile} onCards={setRecommended} historyKey={generatedSessionId}
-        onOpenLibrary={() => { setCategory('전체'); setSearch(''); setTab('catalog'); }} />}
+      </section> : tab === 'home' && user.role === 'user' ? <CardTopics categories={cardCategories} cards={cards}
+        renderPicture={cardPicture} onSelect={openCatalog} onAll={() => openCatalog()} /> : tab === 'cards' && user.role === 'user' ? <div className="communication-layout">
       {!privacy.guardian_consent && <p className="recordless-notice" role="status">기록 없이 말하기 · 지금 고른 카드와 발화는 저장하지 않아요.</p>}
       <div className="workspace"><section id="card-library" tabIndex="-1"><div className="section-title"><h2>무엇을 말하고 싶나요?</h2><input aria-label="카드 검색" placeholder="카드 이름 검색" value={search} onChange={e => setSearch(e.target.value)} /></div>
         {boardLayout && <SituationBoardPicker key={user.id} layout={boardLayout} active={activeBoardSituation} disabled={busy} offline={offline}
@@ -1766,8 +1762,11 @@ function App() {
         <div className="sentence" aria-live="polite">{text ? <><div className="original-order"><small>선택한 카드 순서</small><div>{board.map((card, index) => <span key={`${card.id}-${index}`}>{card.symbol} {card.label}</span>)}</div></div><strong>{text}</strong><small className={`source-badge ${generationSource}`}>{generationSource === 'ollama' ? 'Qwen · Ollama 생성' : '규칙 기반 생성'}{generationAttempt > 1 ? ` · 재생성 ${generationAttempt - 1}회` : ''}</small></> : '만든 문장이 여기에 표시돼요.'}</div>
         <div className="actions">{text && !sentenceConfirmed ? <button className="primary" disabled={busy} onClick={() => setSentenceConfirmed(true)}>✓ 문장을 확인했어요</button> : <button className="primary" disabled={!text || busy || speechActive} onClick={speak}>🔊 확인한 문장 읽기</button>}<button disabled={!generatedSessionId || busy || speechActive} onClick={regenerate}>{busy ? '만드는 중…' : '↻ 다시 만들기'}</button>{speechState.status === 'playing' && <button onClick={pauseSpeech}>일시 정지</button>}{speechState.status === 'paused' && <button onClick={resumeSpeech}>재개</button>}<button disabled={!speechActive} onClick={stopSpeech}>중지</button></div>
 
-        <p className="muted">Ollama Qwen으로 문장을 만들며, 모델을 사용할 수 없으면 규칙 기반 문장으로 자동 전환합니다.</p>
+        <p className="muted">카드의 순서와 문장을 확인한 뒤 말하기 버튼을 눌러 주세요.</p>
       </section></div>
+      {privacy.guardian_consent && <RecommendationsPanel key={user.id} accountId={user.id} selectedIds={board.map(card => card.id)} cards={cards}
+        offline={offline} renderCard={tile} onCards={setRecommended} historyKey={generatedSessionId}
+        onOpenLibrary={() => { setCategory('전체'); setSearch(''); setTab('catalog'); }} />}
     </div> : tab === 'practice' && user.role === 'user' ? <section className="learning-hub">
       <div className="panel-heading"><span aria-hidden="true">★</span><div><h2>연습하기</h2><p className="muted">연습 결과는 실제 의사소통 기록과 섞이지 않고 따로 저장됩니다.</p></div></div>
       {learningBusy ? <p role="status">학습 정보를 불러오는 중입니다…</p> : learningGame?.phase === 'playing' || learningGame?.phase === 'saving' ? <article className="learning-game" aria-labelledby="learning-question-title">

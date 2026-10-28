@@ -22,6 +22,7 @@ test('Wi-Fi 보드 스냅샷은 위치별 갱신과 제거를 표시하고 명�
   await installSpeechStub(page); await login(page, communicator);
   await page.getByRole('navigation').getByRole('button', { name: /그림으로 말하기/ }).click();
   const sentence = page.locator('section.board');
+  await page.getByRole('button', { name: '카드 리더기 열기', exact: true }).click();
   await page.getByRole('button', { name: 'RFID 상태 열기' }).click();
   await send(2, readers); // Simulate the device heartbeat after login instead of extending the stale limit.
   await page.getByRole('combobox', { name: 'RFID 장치', exact: true }).selectOption(id);
