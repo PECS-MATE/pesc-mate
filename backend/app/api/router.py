@@ -186,6 +186,7 @@ class UserResponse(BaseModel):
     username: str
     name: str
     role: str
+    default_output_mode: Literal['word', 'selection', 'natural'] = 'natural'
     account_permissions: list[str] = Field(default_factory=list)
     can_manage_account_permissions: bool = False
     permission_revision: int = 0

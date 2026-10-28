@@ -22,6 +22,8 @@
 .app .screen-cards .board > ol > li > div { display: flex; gap: 8px; }
 .app .screen-cards .board > ol > li button { flex: 1; margin: 0; padding: 6px 10px; border: 1px solid #dfd4dc; border-radius: 10px; background: #fff; box-shadow: none; }
 .app .screen-cards .board > .primary.full { min-height: 52px; margin-bottom: 10px; border-radius: 14px; }
+.app .screen-cards .speech-options { margin: 12px 0; padding: 8px 12px; border: 1px solid #e0e7f0; border-radius: 12px; }
+.app .screen-cards .speech-options summary { min-height: 44px; align-content: center; cursor: pointer; font-weight: 700; }
 .app .screen-cards .board .sentence { min-height: 0; margin: 12px 0; padding: 16px; border: 1px solid #d5e8df; border-radius: 14px; background: #f0f8f3; }
 .app .screen-cards .board .sentence > strong { display: block; font-size: 1.18rem; line-height: 1.7; }
 .app .screen-cards .sentence-details { margin-top: 8px; }
@@ -121,8 +123,8 @@
 .app.high-contrast .board > ol > li, .app.high-contrast .chip-capture-heading, .app.high-contrast .chip-preview-surface, .app.high-contrast .chip-registration-steps li, .app.high-contrast .report-card-ranking > li, .app.high-contrast .guardian-summary > div, .app.high-contrast .learning-metrics > div { color: #000; border: 1px solid #000; background: #fff; }
 .app.high-contrast .learning-options button, .app.high-contrast .learning-options button.correct, .app.high-contrast .learning-options button.incorrect { border-color: #000; color: #000; background: #fff; }
 @media (max-width: 1000px) {
+  .app .screen-cards .workspace > .board { position: static; max-height: none; }
   .app .chip-registration-grid, .app .report-breakdown { grid-template-columns: 1fr; }
-  .app .screen-cards .workspace > .board { top: 8px; max-height: 45dvh; }
 }
 @media (max-width: 640px) {
   .app .screen-cards .workspace > .board { padding: 14px; border-radius: 16px; }

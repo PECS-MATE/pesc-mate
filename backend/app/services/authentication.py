@@ -43,6 +43,7 @@ def _public_user(user):
         'account_active': active,
         'access_expires_at': deadline,
         'profile': public_profile(user),
+        'default_output_mode': user.get('default_output_mode', 'natural'),
     }
 
 
@@ -161,6 +162,7 @@ def register(username, password, name):
             'username': username,
             'name': name,
             'role': 'user',
+            'default_output_mode': 'selection',
             'password_salt': salt,
             'password_hash': password_hash,
             'created_at': datetime.now(timezone.utc),

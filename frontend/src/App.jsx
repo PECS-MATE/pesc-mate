@@ -457,6 +457,7 @@ function App() {
     const session = localStorage.getItem('pesc-mate-token');
     const isCurrentSession = () => Boolean(session) && localStorage.getItem('pesc-mate-token') === session;
     setError('');
+    if (account?.role === 'user') setOutputMode(account.default_output_mode || 'natural');
     if (account?.role === 'user' && !navigator.onLine) {
       const snapshot = await cachedSnapshot(account.id).catch(() => null);
       if (await applyOfflineSnapshot(account, snapshot)) return;
@@ -1723,6 +1724,7 @@ function App() {
       {offline && <p className="offline-notice" role="status">인터넷 연결 없이 저장된 카드를 사용 중입니다. 즉시 발화와 선택 카드 그대로 발화는 계속 사용할 수 있습니다.{localKoreanVoices.length ? ` 기기에 저장된 한국어 음성 ${localKoreanVoices.length}개를 확인했습니다.` : ' 한국어 음성이 재생되지 않으면 기기 설정에서 음성 데이터를 설치해 주세요.'}{pendingSyncCount ? ` 재연결 후 동기화할 이력 ${pendingSyncCount}건이 있습니다.` : ''}</p>}
       {user.role === 'user' && privacy.guardian_consent && !offline && (pendingSyncCount > 0 || syncState === 'failed') && <div className="offline-notice" data-testid="sync-status"><span role="status">{syncState === 'syncing' ? `기기에 저장한 기록 ${pendingSyncCount}건을 동기화하고 있어요.` : syncState === 'failed' ? `저장한 기록을 모두 전송하지 못했어요. 남은 ${pendingSyncCount}건은 기기에 보관됩니다.` : `동기화할 기록 ${pendingSyncCount}건이 기기에 있습니다.`}</span> <button type="button" disabled={syncState === 'syncing'} onClick={() => syncPendingEvents(user)}>기록 동기화 다시 시도</button></div>}
       {tab === 'home' && user.role === 'user' && <HomeDashboard name={user.name} selectedCount={board.length}
+        cards={cards} renderPicture={cardPicture}
         onSpeak={() => setTab('cards')} onPractice={() => openLearning(null)}
         onCatalog={() => openCatalog()} />}
       {loaded && user.role === 'user' && <div className="reader-workspace" hidden={!['home', 'cards'].includes(tab)}><RfidBoard key={`rfid-${user.id}`} targetId={user.id}
@@ -1778,9 +1780,11 @@ function App() {
         renderPicture={cardPicture} onSelect={openCatalog} onAll={() => openCatalog()} /> : tab === 'cards' && user.role === 'user' ? <div className="communication-layout">
       {!privacy.guardian_consent && <p className="recordless-notice" role="status">기록 없이 말하기 · 지금 고른 카드와 발화는 저장하지 않아요.</p>}
       <div className="workspace"><section className="board" ref={boardRef}><div className="section-title"><h2 tabIndex="-1">나의 문장 <small>{board.length}/12</small></h2><button disabled={!board.length || busy} onClick={() => { if (window.confirm('선택한 카드를 모두 지울까요?')) { rememberBoardFocus(0, 'remove'); updateBoard([]); } }}>비우기</button></div>
-        {!board.length && <p className="board-empty">아래에서 말하고 싶은 카드를 골라 주세요. <span>나 → 물 → 마시다</span></p>}
+        {!board.length && <p className="board-empty">말하고 싶은 카드를 골라 주세요.</p>}
         <ol aria-label="선택한 카드">{board.map((c, i) => <li key={`${c.id}-${i}`}><span>{c.symbol} {c.label}</span><div><button data-board-action="backward" aria-label={`${i + 1}번째 카드 앞으로`} disabled={i === 0 || busy} onClick={() => move(i, -1)}>←</button><button data-board-action="forward" aria-label={`${i + 1}번째 카드 뒤로`} disabled={i === board.length - 1 || busy} onClick={() => move(i, 1)}>→</button><button data-board-action="remove" aria-label={`${i + 1}번째 카드 삭제`} disabled={busy} onClick={() => removeBoardCard(i)}>×</button></div></li>)}</ol>
-        {outputMode === 'word' ? <p className="mode-guide">카드 본체를 누르면 단어를 바로 말해요.</p> : outputMode === 'selection' || !privacy.guardian_consent ? <button className="primary full" disabled={!board.length || busy} onClick={speakSelection}>🔊 선택 카드 그대로 말하기</button> : <button className="primary full" disabled={!board.length || busy || offline} onClick={generate}>{offline ? '온라인 연결 후 문장 만들기' : busy ? '문장을 만드는 중…' : '자연스러운 문장 만들기 · 저장'}</button>}
+        {outputMode === 'word' && <p className="mode-guide">카드를 누르면 단어를 바로 말해요.</p>}
+        <button className="primary full" disabled={!board.length} onClick={speakSelection}>🔊 고른 카드 말하기</button>
+        {outputMode === 'natural' && privacy.guardian_consent && <button type="button" disabled={!board.length || busy || offline} onClick={generate}>{offline ? '온라인 연결 후 문장 만들기' : busy ? '문장을 만드는 중…' : '자연스러운 문장 만들기'}</button>}
         {generationFailed && <div className="generation-fallback" role="status"><strong>문장 생성 없이도 말할 수 있어요.</strong><span>선택한 카드는 그대로 유지됐습니다.</span><div><button className="primary" disabled={!board.length} onClick={speakSelection}>🔊 선택 카드 그대로 말하기</button><button onClick={() => setOutputMode('word')}>단어 즉시 발화로 전환</button></div></div>}
         {text && <div className="sentence" aria-live="polite"><strong>{text}</strong>
           <details className="sentence-details"><summary>선택 순서와 생성 정보</summary><div className="original-order"><small>선택한 카드 순서</small><div>{board.map((card, index) => <span key={`${card.id}-${index}`}>{card.symbol} {card.label}</span>)}</div></div>
@@ -1788,15 +1792,15 @@ function App() {
           </details></div>}
         {(text || speechActive || generatedSessionId) && <div className="actions">{text && !sentenceConfirmed ? <button className="primary" disabled={busy} onClick={() => setSentenceConfirmed(true)}>✓ 문장을 확인했어요</button> : <button className="primary" disabled={!text || busy || speechActive} onClick={speak}>🔊 확인한 문장 읽기</button>}<button disabled={!generatedSessionId || busy || speechActive} onClick={regenerate}>{busy ? '만드는 중…' : '↻ 다시 만들기'}</button>{speechState.status === 'playing' && <button onClick={pauseSpeech}>일시 정지</button>}{speechState.status === 'paused' && <button onClick={resumeSpeech}>재개</button>}<button disabled={!speechActive} onClick={stopSpeech}>중지</button></div>}
 
-        <p className="muted">카드의 순서와 문장을 확인한 뒤 말하기 버튼을 눌러 주세요.</p>
+        <p className="muted">카드를 고르고 말하기를 눌러 주세요.</p>
       </section>
       <section id="card-library" tabIndex="-1"><div className="section-title"><h2>무엇을 말하고 싶나요?</h2><input aria-label="카드 검색" placeholder="카드 이름 검색" value={search} onChange={e => setSearch(e.target.value)} /></div>
         {boardLayout && <SituationBoardPicker key={user.id} layout={boardLayout} active={activeBoardSituation} disabled={busy} offline={offline}
           onSelect={value => { setBoardSituation(value ? { ...value, user_id: user.id } : null); setCategory('전체'); setSearch(''); setCardPage(0); }} />}
-        <label className="situation-picker">기록 상황 (선택)<select aria-label="기록 상황 (선택)" value={situation} onChange={event => setSituation(event.target.value)}>
+        <details className="speech-options"><summary>말하기 상세 설정</summary><label className="situation-picker">기록 상황 (선택)<select aria-label="기록 상황 (선택)" value={situation} onChange={event => setSituation(event.target.value)}>
           {Object.entries(SITUATIONS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
         </select><small>기록에만 사용하며 카드 위치·추천·학습 범위는 바꾸지 않습니다.</small></label>
-        <div className="output-mode" role="group" aria-label="출력 방식" data-scan-group="output-mode"><span>출력 방식</span><button aria-pressed={outputMode === 'word'} className={outputMode === 'word' ? 'active' : ''} onClick={() => setOutputMode('word')}>🔊 단어 즉시 발화</button><button aria-pressed={outputMode === 'selection'} className={outputMode === 'selection' ? 'active' : ''} onClick={() => setOutputMode('selection')}>선택 카드 그대로</button><button aria-pressed={outputMode === 'natural'} className={outputMode === 'natural' ? 'active' : ''} onClick={() => setOutputMode('natural')}>자연스러운 문장</button></div>
+        <div className="output-mode" role="group" aria-label="출력 방식" data-scan-group="output-mode"><span>출력 방식</span><button aria-pressed={outputMode === 'word'} className={outputMode === 'word' ? 'active' : ''} onClick={() => setOutputMode('word')}>🔊 단어 즉시 발화</button><button aria-pressed={outputMode === 'selection'} className={outputMode === 'selection' ? 'active' : ''} onClick={() => setOutputMode('selection')}>선택 카드 그대로</button><button aria-pressed={outputMode === 'natural'} className={outputMode === 'natural' ? 'active' : ''} onClick={() => setOutputMode('natural')}>자연스러운 문장</button></div></details>
         <div className="categories" aria-label="카테고리" data-scan-group="categories">{['전체', ...cardCategories.map(item => item.name)].map(c => <button key={c} aria-pressed={category === c} className={category === c ? 'active' : ''} onClick={() => setCategory(c)}>{c}</button>)}</div>
         <div className="cards" data-scan-group="cards">{visibleCards.map(tile)}</div>
         {cardPagination()}

@@ -1,17 +1,18 @@
 import Mascot from './Mascot';
 
-export default function HomeDashboard({ name, selectedCount, onSpeak, onPractice, onCatalog }) {
+export default function HomeDashboard({ name, selectedCount, cards = [], renderPicture, onSpeak, onPractice, onCatalog }) {
+  const visual = index => <span className="home-activity-pictures" aria-hidden="true">{cards[index] && renderPicture?.(cards[index])}</span>;
   return <section className="home-screen" aria-labelledby="home-activities-title">
     <div className="home-heading"><div><p>{name}님의 소통 공간</p><h2 id="home-activities-title">어떤 이야기를 해볼까요?</h2></div><Mascot className="mascot-heading" /></div>
     <div className="home-mode-grid" aria-label="주요 활동">
       <button type="button" className="home-activity communication" aria-label="말하기 시작" onClick={onSpeak}>
-        <span className="activity-icon" aria-hidden="true">▦</span><strong>말하기</strong><small>그림이나 실물 카드로 마음을 전해요</small><b aria-hidden="true">→</b>
+        {visual(0)}<strong>말하기</strong><small>그림이나 실물 카드로 마음을 전해요</small><b aria-hidden="true">→</b>
       </button>
       <button type="button" className="home-activity practice" aria-label="연습 시작하기" onClick={onPractice}>
-        <span className="activity-icon" aria-hidden="true">★</span><strong>연습하기</strong><small>그림과 소리, 문장 순서를 익혀요</small><b aria-hidden="true">→</b>
+        {visual(1)}<strong>연습하기</strong><small>그림과 소리, 문장 순서를 익혀요</small><b aria-hidden="true">→</b>
       </button>
       <button type="button" className="home-activity catalog" aria-label="내 카드 살펴보기" onClick={onCatalog}>
-        <span className="activity-icon" aria-hidden="true">▤</span><strong>내 카드</strong><small>사용할 수 있는 그림카드를 찾아봐요</small><b aria-hidden="true">→</b>
+        {visual(2)}<strong>내 카드</strong><small>사용할 수 있는 그림카드를 찾아봐요</small><b aria-hidden="true">→</b>
       </button>
     </div>
     {selectedCount > 0 && <button type="button" className="resume-speaking" onClick={onSpeak}>
