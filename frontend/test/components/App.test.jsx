@@ -45,6 +45,7 @@ beforeEach(() => {
   synchronizer.sync.mockReset().mockResolvedValue({ cancelled: false, remaining: 0, failed: 0, syncedAttemptIds: [] });
   request.mockReset().mockImplementation(async (path, options = {}) => {
     if (path === '/auth/me') return account;
+    if (path === '/profile/presets') return [{ id: 'pink', label: '핑크' }, { id: 'blue', label: '블루' }];
     if (path === '/cards' || path === '/recommendations') return cards;
     if (path === '/recommendations/feed') return { cards, enabled: true, mode: 'automatic', algorithm_version: 'aac-candidates-v1', batch_id: null };
     if (path === '/categories') return categories;
@@ -144,15 +145,79 @@ test('보호자 설정의 미저장 동의 체크는 기록 수집을 켜지 않
   const original = request.getMockImplementation();
   request.mockImplementation((path, options) => path === '/privacy/settings' ? { guardian_consent: false, retention_days: 365 } : original(path, options));
   const { user } = await openCommunication();
-  await user.click(screen.getByText('보호자 설정', { selector: 'summary' }));
-  await user.click(screen.getByRole('button', { name: '개인정보·동의 관리' }));
+  await user.click(screen.getByRole('button', { name: `${account.name} 마이페이지 열기` }));
+  await user.click(screen.getByRole('button', { name: '보호자 설정', exact: true }));
   await user.click(screen.getByLabelText('법정대리인이 개인정보 수집·이용에 동의했음을 확인합니다.'));
+  await user.click(screen.getByRole('button', { name: '마이페이지 닫기' }));
   await user.click(within(screen.getByRole('navigation', { name: '주 메뉴' })).getByRole('button', { name: /그림으로 말하기/ }));
   await user.click(screen.getByRole('button', { name: '물 문장에 담기', exact: true }));
   await user.click(screen.getByRole('button', { name: /선택 카드 그대로 말하기/ }));
   expect(player.speak).toHaveBeenCalled();
   expect(request.mock.calls.filter(([, options]) => ['POST', 'PUT', 'PATCH'].includes(options?.method))).toEqual([]);
   expect(localStorage.getItem(`pesc-mate-board:${account.id}`)).toBeNull();
+});
+
+test('마이페이지에서 프로필·접근·음성을 저장해도 말하기 화면과 선택 카드를 유지한다', async () => {
+  const original = request.getMockImplementation();
+  const stored = {};
+  request.mockImplementation((path, options) => {
+    if (path === '/profile' && options?.method === 'PUT') return { kind: 'preset', preset: 'blue' };
+    if (['/accessibility/settings', '/tts/settings'].includes(path)) {
+      if (options?.method === 'PUT') stored[path] = JSON.parse(options.body);
+      if (stored[path]) return stored[path];
+    }
+    return original(path, options);
+  });
+  const { user, workspace, board } = await openCommunication();
+  await user.click(workspace.getByRole('button', { name: '물 문장에 담기', exact: true }));
+  const trigger = screen.getByRole('button', { name: `${account.name} 마이페이지 열기` });
+  expect(document.querySelector('.sidebar .accessibility-settings, .sidebar .guardian-settings')).toBeNull();
+  await user.click(trigger);
+  const settings = within(screen.getByRole('dialog', { name: '마이페이지' }));
+  fireEvent.click(await settings.findByLabelText('블루'));
+  fireEvent.click(settings.getByRole('button', { name: '프로필 저장' }));
+  expect(await settings.findByText('프로필을 저장했습니다.')).toBeTruthy();
+  fireEvent.click(settings.getByRole('button', { name: '접근 설정', exact: true }));
+  fireEvent.change(settings.getByLabelText('카드 표시'), { target: { value: 'image' } });
+  fireEvent.click(settings.getByLabelText('고대비 표시'));
+  fireEvent.click(settings.getByRole('button', { name: '설정 저장' }));
+  await settings.findByRole('button', { name: '저장됨' });
+  fireEvent.click(settings.getByRole('button', { name: '음성 설정', exact: true }));
+  fireEvent.change(settings.getByLabelText('음성 느낌'), { target: { value: 'man' } });
+  fireEvent.click(settings.getByRole('button', { name: '설정 저장' }));
+  await settings.findByRole('button', { name: '저장됨' });
+  await user.click(settings.getByRole('button', { name: '마이페이지 닫기' }));
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(selectedLabels(board)).toEqual(['💧 물']);
+  expect(screen.getByRole('heading', { name: '무엇을 말하고 싶나요?' })).toBeTruthy();
+  expect(document.querySelector('.app').classList.contains('high-contrast')).toBe(true);
+  const writes = request.mock.calls.filter(([, options]) => options?.method === 'PUT');
+  expect(writes.map(([path]) => path)).toEqual(['/profile', '/accessibility/settings', '/tts/settings']);
+  expect(JSON.parse(writes[1][1].body).display_mode).toBe('image');
+});
+
+test.each([false, true])('담당자 마이페이지는 아동 개인정보를 숨기고 운영 권한 %s에 맞춰 진입점을 제공한다', async permitted => {
+  const original = request.getMockImplementation();
+  request.mockImplementation((path, options) => {
+    if (path === '/auth/me') return { ...account, role: 'support_staff', account_permissions: permitted ? ['content_manage'] : [] };
+    if (['/care/linked-users', '/admin/card-submissions', '/admin/categories'].includes(path)) return [];
+    if (path === '/admin/alerts') return { alerts: [] };
+    return original(path, options);
+  });
+  const user = userEvent.setup(); render(<StrictMode><App /></StrictMode>);
+  await screen.findByText('서비스 연결됨');
+  await user.click(screen.getByRole('button', { name: `${account.name} 마이페이지 열기` }));
+  const settings = within(screen.getByRole('dialog', { name: '마이페이지' }));
+  expect(settings.queryByRole('button', { name: '보호자 설정' })).toBeNull();
+  expect(settings.queryByRole('button', { name: '접근 설정', exact: true })).toBeNull();
+  await user.click(settings.getByRole('button', { name: '사용자·운영 설정' }));
+  expect(Boolean(settings.queryByRole('button', { name: 'RFID 칩 등록' }))).toBe(permitted);
+  expect(settings.queryByRole('button', { name: '운영 권한 관리' })).toBeNull();
+  if (permitted) {
+    await user.click(settings.getByRole('button', { name: 'RFID 칩 등록' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(await screen.findByRole('heading', { name: '칩을 읽고 그림카드에 연결해요.' })).toBeTruthy();
+  }
 });
 
 test('동의 없는 오프라인 계정은 개인정보 화면 대신 기록 없는 카드 말하기를 복원한다', async () => {

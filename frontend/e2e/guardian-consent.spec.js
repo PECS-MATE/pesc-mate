@@ -17,9 +17,10 @@ test('동의가 없거나 미저장 상태여도 기록 없이 말하고 저장�
   expect(writes).toEqual([]);
   expect(await page.evaluate(id => localStorage.getItem(`pesc-mate-board:${id}`), communicator.id)).toBeNull();
   expect(await offlineValue(page, 'events')).toEqual([]);
-  await page.locator('.guardian-settings summary').click();
-  await page.getByRole('button', { name: '개인정보·동의 관리' }).click();
+  await page.getByRole('button', { name: /마이페이지 열기/ }).click();
+  await page.getByRole('button', { name: '보호자 설정', exact: true }).click();
   await page.getByLabel('법정대리인이 개인정보 수집·이용에 동의했음을 확인합니다.').check();
+  await page.getByRole('button', { name: '마이페이지 닫기' }).click();
   await page.getByRole('navigation').getByRole('button', { name: /그림으로 말하기/ }).click();
   await page.getByRole('button', { name: '도와주세요 바로 말하기', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.__spokenTexts)).toContain('도와주세요');
@@ -36,12 +37,13 @@ test('동의가 없거나 미저장 상태여도 기록 없이 말하고 저장�
   await expect.poll(() => page.evaluate(() => window.__spokenTexts)).toContain('물');
   expect(writes).toEqual([]);
   await page.unroute('**/api/**'); await page.reload();
-  await page.locator('.guardian-settings summary').click();
-  await page.getByRole('button', { name: '개인정보·동의 관리' }).click();
+  await page.getByRole('button', { name: /마이페이지 열기/ }).click();
+  await page.getByRole('button', { name: '보호자 설정', exact: true }).click();
   await page.getByLabel('법정대리인이 개인정보 수집·이용에 동의했음을 확인합니다.').check();
   const saving = page.waitForResponse(response => new URL(response.url()).pathname === '/api/privacy/settings' && response.request().method() === 'PUT');
   await page.getByRole('button', { name: '동의 및 기간 저장' }).click();
   expect((await saving).status()).toBe(200);
+  await page.getByRole('button', { name: '마이페이지 닫기' }).click();
   await page.getByRole('button', { name: '로그아웃', exact: true }).click();
   await login(page, communicator);
   await expect(page.getByRole('heading', { name: '개인정보와 열람 권한' })).toHaveCount(0);

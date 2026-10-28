@@ -933,6 +933,42 @@ button { min-width: 44px; min-height: 44px !important; }
 .guardian-settings { padding-block: 10px; }
 .guardian-settings summary { min-height: 44px; align-content: center; cursor: pointer; }
 .guardian-settings p { font-size: .85rem; }
+
+/* The account name opens all settings without replacing the current activity. */
+.sidebar .profile-trigger { width: 100%; min-width: 0; text-align: left; border: 0; border-radius: 12px; background: transparent; box-shadow: none; }
+.profile-trigger > span:nth-child(2) { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.profile-trigger .profile-settings-hint { display: block; margin-top: 6px; color: #526474; font-size: .75rem; }
+.my-page { width: min(1000px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain; border: 1px solid #cad6e1; border-radius: 24px; padding: clamp(16px, 3vw, 28px); background: #fff; color: #354658; overflow-wrap: anywhere; }
+.my-page::backdrop { background: rgb(25 38 52 / 55%); }
+.my-page-heading { position: sticky; top: -16px; z-index: 3; align-items: flex-start; flex-wrap: nowrap; padding-block: 8px; background: #fff; }
+.my-page-heading > div { min-width: 0; }
+.my-page-heading > button { flex: 0 0 auto; }
+.my-page-heading h2 { margin: 0; }
+.my-page-heading p { margin: 6px 0 0; font-size: .9rem; }
+.my-page-menu { position: static; display: flex; justify-content: flex-start; flex-wrap: wrap; gap: 8px; margin-block: 20px; }
+.my-page-menu button { flex: 0 0 auto; justify-content: center; white-space: nowrap; border-radius: 12px; border-color: #d2dfeb; background: #f5f8fc; color: #354658; }
+.my-page-menu button[aria-pressed="true"] { border-color: #326da8; background: #e8f2ff; color: #194f85; }
+.my-page-content { min-width: 0; }
+.my-page-content .profile-editor { width: 100%; padding: 0; box-shadow: none; }
+.my-page-content h3 { margin-top: 0; }
+.my-page-content .accessibility-settings { padding: 16px; }
+.my-page-content .accessibility-settings > div { grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+.my-page-content .accessibility-settings label { font-size: .95rem; }
+.my-page-content .privacy-grid { grid-template-columns: 1fr; }
+.my-page-content .privacy-connect { min-width: 0; flex-wrap: wrap; }
+.my-page-content input, .my-page-content select { max-width: 100%; min-width: 0; }
+.my-page-settings { display: flex; flex-wrap: wrap; gap: 12px; }
+.my-page-settings h3, .my-page-settings p { width: 100%; margin-bottom: 0; }
+.my-page-settings button { border-radius: 12px; }
+.high-contrast .my-page { color: #000; background: #fff; border: 2px solid #000; }
+.high-contrast .my-page-menu button[aria-pressed="true"] { background: #000; color: #fff; }
+@media (max-width: 640px) {
+  .sidebar .profile-trigger { padding: 8px 0 14px; }
+  .my-page { width: calc(100% - 16px); max-height: calc(100dvh - 16px); border-radius: 16px; }
+  .my-page-menu { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .my-page-menu button { padding: 10px 8px; font-size: .9rem; }
+  .my-page .tts-settings-grid { grid-template-columns: 1fr; }
+}
 .recordless-notice { margin: 0; padding: 12px; }
 .learning-audio-prompt { margin-block: 16px; }
 .learning-option-art { display: block; width: 100%; height: 100px; background-size: contain; background-position: center; background-repeat: no-repeat; margin-bottom: 8px; }

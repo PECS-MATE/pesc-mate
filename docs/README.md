@@ -45,6 +45,7 @@ API, 데이터 구조, 카드·마스코트 자산과 협업 규칙을 관리한
 | [개인 카드 사진 교체](development/PRIVATE_CARD_PHOTO_REPLACEMENT.md) | 카드 ID·문구·배치 유지, 사진 버전 충돌·원본 교체와 권한 경계 |
 | [상황별 카드판과 보드 복사](development/SITUATION_BOARDS.md) | 같은 아동의 독립 보드 생성·복사·삭제, 명시 전환과 오프라인 캐시 |
 | [보호자 동의 관리 흐름](development/GUARDIAN_CONSENT_FLOW.md) | 아동의 강제 동의 화면 제거, 확정 동의·초안 분리와 기록 없는 기본 사용 |
+| [마이페이지와 통합 설정](development/MY_PAGE_SETTINGS.md) | 프로필 클릭, 프로필·접근·음성·보호자 설정 창과 계정별 진입 권한 |
 | [카드 사진·단어 목록](development/CARD_PHOTO_WORD_LIST.md) | 카드 제작 기준, 이미지 표현과 제작 우선순위 |
 | [마스코트 자산](development/MASCOT_ASSET.md) | 자산 경로, 적용 위치와 생성 프롬프트 |
 | [커밋 메시지 규칙](development/COMMIT_CONVENTION.md) | 커밋 유형, 제목과 본문 작성 방법 |

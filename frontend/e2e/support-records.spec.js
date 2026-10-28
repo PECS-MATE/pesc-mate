@@ -174,8 +174,8 @@ test('이용 데이터 삭제 결과에 건수·유지 항목·백업 한계를 
   });
   expect(saved.ok()).toBe(true);
   await login(page, communicator);
-  await page.locator('.guardian-settings summary').click();
-  await page.getByRole('button', { name: '개인정보·동의 관리', exact: true }).click();
+  await page.getByRole('button', { name: /마이페이지 열기/ }).click();
+  await page.getByRole('button', { name: '보호자 설정', exact: true }).click();
   page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: '이용 데이터 삭제', exact: true }).click();
   const receipt = page.getByRole('region', { name: '이용 데이터 삭제 처리 결과' });
