@@ -41,7 +41,7 @@
 .landing-preview-sentence small { color: #9b536f; }
 .landing-preview-sentence p { margin: 7px 0 0; color: #7b2448; font-weight: 800; line-height: 1.7; word-break: keep-all; }
 .landing-preview-helper { display: flex; align-items: center; gap: 14px; margin-top: 18px; }
-.landing-preview-helper .mascot { width: 66px; height: 66px; object-fit: contain; }
+.landing-preview-helper .landing-brand-illustration { flex: 0 0 100px; width: 100px; height: 86px; object-fit: contain; border-radius: 14px; }
 .landing-preview-helper p { margin: 0; color: #788170; font-size: .8rem; line-height: 1.9; }
 .landing-preview-helper strong { color: #5d6758; font-weight: 600; }
 .landing-features { padding: 76px 0; background: #f8f6f9; }
@@ -72,7 +72,7 @@
 .landing-account { padding: 72px 0; background: #f9f0f4; scroll-margin-top: 90px; }
 .landing-account-inner { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 70px; }
 .landing-account-inner > div > p:not(.landing-eyebrow) { color: var(--landing-muted); line-height: 1.9; word-break: keep-all; }
-.landing-account .landing-account-mascot { display: block; width: 160px; height: 160px; margin-top: 28px; object-fit: contain; }
+.landing-account .landing-account-mascot { display: block; width: 180px; height: 155px; margin-top: 24px; object-fit: contain; border-radius: 20px; background: #fff; }
 .landing .login-card { width: 100%; max-width: 440px; margin-left: auto; padding: 32px; border: 1px solid #ead9e1; border-radius: 24px; background: #fff; box-shadow: 0 12px 40px #7e34510b; scroll-margin-top: 100px; }
 .landing .login-mascot { width: 68px; height: 68px; margin-bottom: 14px; background: #fbf4ef; border: 0; box-shadow: none; transform: none; }
 .landing .login-mascot .mascot { width: 62px; height: 62px; object-fit: contain; }
@@ -128,7 +128,7 @@
   .landing-faq { padding-bottom: 52px; }
   .landing-account { padding-block: 44px; }
   .landing-account-inner { grid-template-columns: 1fr; gap: 28px; }
-  .landing-account .landing-account-mascot { display: none; }
+  .landing-account .landing-account-mascot { width: 130px; height: 112px; margin-top: 16px; }
   .landing .login-card { max-width: none; padding: 26px 20px; }
   .landing-footer { gap: 8px 18px; }
   .landing-footer p { flex: 1 1 100%; }

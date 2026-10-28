@@ -38,7 +38,9 @@ export default function LandingPage({ children, previewCards = [], onLogin, onSt
           <strong>{card.label}</strong>
         </div>)}</div>
         <div className="landing-preview-sentence"><span aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5Z" /><path d="M15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14" /></svg></span><div><small>고른 카드로 전하는 마음</small><p>나는 물을 마시고 싶어요.</p></div></div>
-        <div className="landing-preview-helper"><Mascot /><p>고르고, 확인하고, 말하기.<br /><strong>내가 전하고 싶은 마음 그대로.</strong></p></div>
+        <div className="landing-preview-helper"><img className="landing-brand-illustration" src="/pecs-mate.png"
+          alt="하트 카드와 물 카드를 든 PESC MATE 캐릭터" width="100" height="86" decoding="async" />
+          <p>고르고, 확인하고, 말하기.<br /><strong>내가 전하고 싶은 마음 그대로.</strong></p></div>
       </figure>
     </section>
 
@@ -67,7 +69,7 @@ export default function LandingPage({ children, previewCards = [], onLogin, onSt
     </section>
 
     <section className="landing-account" id="landing-account" aria-labelledby="landing-account-title"><div className="landing-container landing-account-inner">
-      <div><p className="landing-eyebrow">나의 이야기를 시작할 시간</p><h2 id="landing-account-title">작은 선택이<br /><em>나의 목소리가 되도록.</em></h2><p>나에게 익숙한 그림으로 마음을 전하고,<br />보호자와 함께 소통 환경을 만들어 가세요.</p><Mascot className="landing-account-mascot" /></div>
+      <div><p className="landing-eyebrow">나의 이야기를 시작할 시간</p><h2 id="landing-account-title">작은 선택이<br /><em>나의 목소리가 되도록.</em></h2><p>나에게 익숙한 그림으로 마음을 전하고,<br />보호자와 함께 소통 환경을 만들어 가세요.</p><img className="landing-account-mascot" src="/pecs-mate.png" alt="" aria-hidden="true" width="180" height="155" loading="lazy" decoding="async" /></div>
       {children}
     </div></section>
     <footer className="landing-footer landing-container"><a className="landing-brand" href="#landing-top">PESC <b>MATE</b></a><p>그림으로 마음을 전하는 AAC 프로젝트</p><a href="#landing-top">맨 위로 ↑</a></footer>
