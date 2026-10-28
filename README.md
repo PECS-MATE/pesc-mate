@@ -216,7 +216,7 @@ GitHub Actions 원격 CI 대신 로컬 실행기를 사용하며, 검증용 DB·
 
 - 프로젝트 저장소: [PESC-MATE/pesc-mate](https://github.com/PESC-MATE/pesc-mate)
 - 하드웨어 확장: [Arduino 카드판 코드·안내](hardware/README.md) — Wi-Fi 연동 구현, 실제 세 리더기 검수 대기
-- 문서: [전체 목차](docs/README.md) · [API 명세](docs/development/API_SPECIFICATION.md) · [기능요구사양서](docs/planning/functional_requirements_specification.md)
+- 문서: [전체 목차](docs/README.md) · [API 연동 가이드](docs/development/API_GUIDE.md) · [API 명세](docs/development/API_SPECIFICATION.md) · [기능요구사양서](docs/planning/functional_requirements_specification.md)
 - 남은 검수: 실제 AAC 사용자 과업, 태블릿 TTS·스크린리더·터치 사용성, 법정대리인 동의·이미지 권리 검토
 - 운영 전환: HTTPS·운영 자격 증명·인증 DB 전환, 백업/복구 훈련과 배포 승인
 - 라이선스: 현재 저장소에 `LICENSE` 파일이 없습니다. 코드·이미지의 사용 및 배포 조건은 별도 확인이 필요합니다.

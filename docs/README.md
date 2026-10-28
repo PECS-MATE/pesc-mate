@@ -2,7 +2,7 @@
 
 현재 개발 범위와 진행 상태는 [통합 TODO](planning/TODO.md)에서 확인한다.
 구현할 기능은 [기능요구사양서](planning/functional_requirements_specification.md),
-API 연동은 [API 명세서](development/API_SPECIFICATION.md),
+API 연동은 [빠른 가이드](development/API_GUIDE.md)와 [API 명세서](development/API_SPECIFICATION.md),
 현장 검수 준비는 [실제 사용 환경 검증 기록](validation/ACTUAL_USE_VALIDATION.md)을 참고한다.
 프로젝트 실행 방법은 [루트 README](../README.md)에 있다.
 
@@ -23,6 +23,7 @@ API, 데이터 구조, 카드·마스코트 자산과 협업 규칙을 관리한
 
 | 문서 | 내용 |
 |---|---|
+| [API 연동 가이드](development/API_GUIDE.md) | 로컬 문서, 인증·권한, 말하기와 RFID 호출 흐름 |
 | [API 명세서](development/API_SPECIFICATION.md) | 엔드포인트, 권한, 요청과 응답 |
 | [RFID Wi-Fi 연동](development/RFID_WIFI_INTEGRATION.md) | RC522 3개·UNO R4 WiFi, 장치 인증·태그 매핑·웹 적용·배선표·실물 검수 |
 | [RFID USB 연동·장치 로그](development/RFID_USB_INTEGRATION.md) | 현재 PC 연결 방식, Web Serial·기존 진단 출력·USB 펌웨어·문장 추가·브라우저/backend 로그 |

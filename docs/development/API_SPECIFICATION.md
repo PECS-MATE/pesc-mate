@@ -1,6 +1,6 @@
 ---
 title: "PESC MATE API 명세서"
-date: "2026년 9월 9일"
+date: "2026년 10월 28일"
 lang: ko-KR
 ---
 
@@ -19,6 +19,9 @@ lang: ko-KR
 | OpenAPI JSON | `/openapi.json` |
 
 본 명세서는 현재 구현된 API를 기준으로 한다. Ollama의 `qwen2.5:0.5b`로 문장을 생성하며, 모델 장애나 제한 시간 초과 시 서버 규칙 문장으로 자동 전환한다.
+처음 연동한다면 [API 연동 가이드](API_GUIDE.md)에서 인증·권한·핵심 호출 순서를 먼저 확인한다.
+아래 목록은 저장소의 FastAPI 라우트 기준이며 정확한 요청·응답 스키마는 실행 중인 `/docs` 또는
+`/openapi.json`에서 확인한다. 문서 정리는 API 동작이나 버전 변경을 의미하지 않는다.
 
 RFID 하드웨어 API는 [Wi-Fi 카드판 연동 명세](RFID_WIFI_INTEGRATION.md)에 별도로 정리한다.
 현재 USB 방식의 인증 세션 기반 태그 조회·장치 상태 로그 API는 [USB 연동 명세](RFID_USB_INTEGRATION.md)를 따른다.
@@ -132,11 +135,19 @@ HTTP 500은 일반 안내만 반환하고 내부 예외 문구를 응답에 포�
 | 운영 | GET | `/api/admin/tts-metrics` | `content_manage` 권한 담당자 | 저장된 클라이언트 보고의 TTS 시작 지연·최종 재생 실패율 집계 |
 | 운영 | GET | `/api/admin/offline-sync-metrics` | `content_manage` 권한 담당자 | 프로세스별 오프라인 동기화 신규·중복·실패·미처리·재시도 집계 |
 | 운영 | GET | `/api/admin/alerts` | `content_manage` 권한 담당자 | 공용 카드 검수 대기와 API·음성·동기화 반복 실패 알림 |
+| 운영 권한 | GET | `/api/admin/accounts/lookup` | 관리 책임자 | 담당자 계정·권한·접근 상태 조회 |
+| 운영 권한 | GET | `/api/admin/accounts/{target_id}/permission-audit` | 관리 책임자 | 운영 권한 변경 이력 조회 |
+| 운영 권한 | PUT | `/api/admin/accounts/{target_id}/content-permission` | 관리 책임자·재인증 | 담당자 공용 콘텐츠 운영 권한 변경 |
+| 운영 권한 | PUT | `/api/admin/accounts/{target_id}/access` | 관리 책임자·재인증 | 담당자 활성·만료 설정 변경 |
 | 모델 | GET | `/api/model/status` | 필요 | Ollama 사용 설정과 모델 이름 조회 |
 | 인증 | POST | `/api/auth/login` | 불필요 | 로그인 및 세션 생성 |
 | 인증 | POST | `/api/auth/register` | 불필요 | 일반 사용자 가입 및 로그인 |
 | 인증 | GET | `/api/auth/me` | 필요 | 현재 사용자 조회 |
 | 인증 | POST | `/api/auth/logout` | 필요 | 전달된 토큰의 세션 삭제 |
+| 프로필 | GET | `/api/profile/presets` | 필요 | 프로필 기본 선택지 조회 |
+| 프로필 | PUT | `/api/profile` | 필요 | 내 프로필 기본 선택지 저장 |
+| 프로필 | POST | `/api/profile/image` | 필요 | 내 프로필 사진 업로드(`multipart/form-data`) |
+| 프로필 | GET | `/api/profile/{user_id}/image` | 본인 또는 연결 권한 | 권한이 있는 사용자 사진 조회 |
 | 음성 | GET | `/api/tts/settings` | 필요 | 현재 사용자의 TTS 설정 조회 |
 | 음성 | PUT | `/api/tts/settings` | 필요 | 현재 사용자의 TTS 설정 저장 |
 | 음성 | POST | `/api/tts/events` | 필요 | TTS 재생 요청 이력 생성 |
@@ -147,6 +158,10 @@ HTTP 500은 일반 안내만 반환하고 내부 예외 문구를 응답에 포�
 | 개인정보 | GET | `/api/privacy/audit` | 사용자 | 연결·해제·삭제 변경 이력 조회 |
 | 개인정보 | GET | `/api/privacy/export` | 사용자 | 본인 데이터 JSON 내보내기 |
 | 개인정보 | DELETE | `/api/privacy/data` | 사용자 | 사용자 생성 데이터 삭제 |
+| 지원 연결 | GET | `/api/support/links` | AAC 사용자 | 내 보호자·담당자 연결과 권한 조회 |
+| 지원 연결 | POST | `/api/support/links` | AAC 사용자 | 보호자·담당자 연결 생성 |
+| 지원 연결 | PUT | `/api/support/links/{supporter_id}` | AAC 사용자 | 연결 권한 변경 |
+| 지원 연결 | DELETE | `/api/support/links/{supporter_id}` | AAC 사용자 | 연결 해제 |
 | 오프라인 | POST | `/api/offline/events/sync` | 사용자 | 오프라인 최소 발화 이력 동기화 |
 | 보호자 | GET | `/api/care/linked-users` | 필요 | 보호자에게 연결된 사용자 조회 |
 | 보호자 | PUT | `/api/care/notes/{session_id}` | 필요 | 의사소통 기록의 보호자 메모 저장·수정 |
@@ -188,8 +203,27 @@ HTTP 500은 일반 안내만 반환하고 내부 예외 문구를 응답에 포�
 | 기록 | GET | `/api/records/export` | 본인 또는 영역별 연결 권한 | 의사소통·학습 기록을 기간별 CSV/JSON으로 다운로드 |
 | 기록 | GET | `/api/records/activity` | 본인 또는 `records_read` | 카드 선택·기기 재생·상황별 추이·복구 표현 인접 흐름 |
 | 메모 | GET | `/api/care/notes/{session_id}/history` | `notes_write` | 작성자 자신의 메모 수정·삭제 이력 |
+| RFID 공용 | GET | `/api/rfid/admin/catalog` | `content_manage` 권한 담당자 | 공용 카드·UID 등록 목록 조회 |
+| RFID 공용 | PUT | `/api/rfid/admin/bindings` | `content_manage` 권한 담당자·재인증 | 공용 UID 연결 저장·변경·해제 |
+| RFID 공용 | POST | `/api/rfid/admin/usb/events` | `content_manage` 권한 담당자 | 관리자 USB 상태 이벤트 기록 |
+| RFID USB | POST | `/api/rfid/usb/resolve` | 본인 또는 연결 `board_manage` | USB에서 읽은 UID의 사용 가능 카드 조회 |
+| RFID USB | POST | `/api/rfid/usb/events` | 본인 또는 연결 `board_manage` | 허용된 USB 상태 이벤트 기록 |
+| RFID 장치 | GET | `/api/rfid/devices` | 본인 또는 연결 `board_manage` | 연결된 Wi-Fi 장치 목록 조회 |
+| RFID 장치 | POST | `/api/rfid/devices` | 연결 `board_manage` | 아동용 Wi-Fi 장치 등록 |
+| RFID 장치 | PUT | `/api/rfid/devices/{device_id}` | 연결 `board_manage` | 장치 설정·키 갱신·폐기 |
+| RFID 장치 | GET | `/api/rfid/devices/{device_id}/state` | 본인 또는 연결 `board_manage` | 세 위치의 현재 카드 상태 조회 |
+| RFID 매핑 | GET | `/api/rfid/bindings` | 연결 `cards_manage` | 아동별 UID 연결 목록 조회 |
+| RFID 매핑 | PUT | `/api/rfid/bindings` | 연결 `cards_manage` | 아동별 UID 연결 저장·해제 |
+| RFID 매핑 | GET | `/api/rfid/cards` | 본인 또는 연결 `cards_manage` | 매핑 가능한 카드 목록 조회 |
+| RFID 장치 수신 | POST | `/api/rfid/devices/{device_id}/session` | `X-Device-Key` | 장치 전용 세션 시작 |
+| RFID 장치 수신 | POST | `/api/rfid/devices/{device_id}/snapshot` | `X-Device-Key` | 세 위치 전체 스냅샷 수신 |
 
-카드판 조회·저장 응답은 `revision`을 포함한다. 세 PUT API는 `expected_revision`을 필수로
+`RFID 장치 수신` 두 경로는 브라우저 Bearer 토큰을 받는 사용자 API가 아니다. USB 입력은 브라우저가
+Web Serial로 읽고, 카드 조회·상태 이벤트만 세션 인증 API로 보낸다. 역할별 세부 조건과 페이로드는
+[USB 연동](RFID_USB_INTEGRATION.md), [Wi-Fi 연동](RFID_WIFI_INTEGRATION.md),
+[공용 칩 등록](RFID_CHIP_REGISTRATION.md)을 따른다.
+
+카드판 조회·저장 응답은 `revision`을 포함한다. 카드판 구성 변경 요청은 `expected_revision`을 필수로
 받으며 현재 버전과 다르거나 동시 저장에 뒤진 요청에는 `409`를 반환한다. 버전 누락·음수는
 `422`다. 신규·버전 없는 기존 문서의 조회 버전은 0이며 성공 저장마다 1 증가한다.
 예: 슬롯 저장 본문은 `{"card_ids":["help","water"],"expected_revision":0}`이다.
@@ -1341,9 +1375,10 @@ preflight는 요청 ID와 지표 집계를 유지하지만 콘솔 요청 로그�
 1. 비밀번호 변경 및 계정 탈퇴 API는 구현되지 않았다.
 2. 기본 데모 계정은 개발·시연용이며 운영 배포 전에 교체해야 한다.
 3. MongoDB 자체 인증은 현재 개발 구성에 적용되지 않았다.
-4. 카드 작성 중·비활성 상태와 수정·삭제 API는 구현되지 않았다.
+4. 카드 요청의 임시 저장·제출·수정·승인/반려는 구현됐다. 별도 카드 요청 삭제 API는 없다.
 5. Ollama가 실행되지 않거나 모델 응답이 60초를 초과하면 규칙 기반 문장을 사용한다.
-6. 음성 출력은 프런트엔드의 Web Speech API로 처리하므로 백엔드 TTS API는 없다.
+6. 음성 출력은 프런트엔드의 Web Speech API가 담당한다. 백엔드의 TTS 설정·이벤트 API는
+   합성 음성 파일을 반환하지 않는다.
 7. `/api/health`의 기기 TTS 상태는 실제 음성 설치·오프라인 재생 성공을 판정하지 않는다. 기기별 검수는 별도로 수행한다.
 
 
