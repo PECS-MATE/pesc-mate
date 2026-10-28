@@ -485,10 +485,6 @@ footer { color: #9aa0aa; }
 .learning-overview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
 .learning-overview-grid > article { padding: 22px; border: 1px solid #e4e9ed; border-radius: 18px; background: #fff; }
 .learning-overview-grid h3 { margin-top: 0; }
-.learning-activity-card { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; }
-.learning-activity-card > span { font-size: 2.4rem; }
-.learning-activity-card > button { grid-column: 1 / -1; }
-.learning-activity-card small { color: #777f8a; }
 .learning-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .learning-metrics > div { display: grid; gap: 5px; padding: 14px 8px; text-align: center; border-radius: 12px; background: #f7f5fc; }
 .learning-metrics strong { color: #7554b8; font-size: 1.35rem; }
@@ -999,10 +995,7 @@ button { min-width: 44px; min-height: 44px !important; }
 .recovery-speech > div small { display: none; }
 .core-speech-status { margin-bottom: 18px; font-size: .78rem; }
 .communication-layout > .recommend-panel { margin-top: 24px; }
-.learning-overview-grid > .learning-activity-card, .learning-overview-grid > p, .learning-overview-grid > button { grid-column: 1 / -1; }
-.learning-overview-grid > label { display: grid; align-content: start; gap: 8px; padding: 18px; border: 1px solid #e0e6ee; border-radius: 14px; background: #f8fafd; font-weight: 700; }
 .learning-overview-grid select { width: 100%; min-width: 0; min-height: 44px; }
-.learning-overview-grid > button { min-height: 54px; border-radius: 14px; }
 .high-contrast .home-activity { color: #000; background: #fff; border-color: #000; }
 .high-contrast .reader-status { color: #000; border: 1px solid #000; background: #fff; }
 @media (max-width: 760px) {

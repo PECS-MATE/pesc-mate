@@ -49,8 +49,8 @@
 .app .screen-cards .card-speaker { border-radius: 12px; box-shadow: none; }
 
 .app .screen-practice .learning-hub { border: 1px solid #e0e5ed; border-radius: 22px; background: #fff; box-shadow: none; }
-.app .practice-suggestions, .app .practice-plan { margin-top: 18px; padding: 20px; border: 1px solid #dce7df; border-radius: 18px; background: #f7fbf8; }
-.app .practice-suggestions h3, .app .practice-plan h3 { margin-top: 0; }
+.app .practice-suggestions { margin-top: 18px; padding: 20px; border: 1px solid #dce7df; border-radius: 18px; background: #f7fbf8; }
+.app .practice-suggestions h3 { margin-top: 0; }
 .app .practice-candidate-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-block: 14px; }
 .app .practice-candidate-list button { display: grid; gap: 6px; text-align: left; border: 1px solid #d7e3dc; border-radius: 12px; background: #fff; }
 .app .practice-candidate-list button[aria-pressed="true"] { border-color: #397458; background: #e9f5ed; }
