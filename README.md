@@ -122,7 +122,7 @@ PC USB 연결·장치 로그·태그 등록은 [USB 카드 리더기 안내](doc
 | 백엔드 | Python 3.12, FastAPI, Uvicorn, PyMongo, Pillow |
 | 데이터·오프라인 | MongoDB 8.0, IndexedDB, Service Worker |
 | 선택형 AI | Ollama, 기본 설정 모델 `qwen2.5:0.5b` |
-| 실행·검증 | Docker Compose, Node.js Test Runner, Vitest, Testing Library, Python unittest, Playwright |
+| 로컬 실행 | Docker Compose, Node.js |
 
 Ollama와 모델은 별도로 설치합니다. 모델이 없거나 실패하면 규칙 기반 문장과 선택 카드
 발화로 대체하며, 기기 TTS는 AI와 독립적으로 동작합니다.
@@ -148,24 +148,19 @@ flowchart LR
 - **의미·기록 분리**: AI 출력의 선택 카드 의미를 검사하고, 학습과 의사소통 저장소·동의 편집 초안과 확정 상태를 분리합니다.
 
 ```text
-frontend/       웹 화면, 기기 음성·캐시 서비스, 단위·컴포넌트·E2E 검사
-backend/        API, 권한·문장·이미지·기록 서비스, 단위·통합 검사
+frontend/       웹 화면, 기기 음성·캐시 서비스
+backend/        API, 권한·문장·이미지·기록 서비스
 hardware/       세 위치 RFID Wi-Fi 펌웨어, 비밀 설정 예제와 배선·검수 안내
-scripts/        로컬 검증 실행기와 PowerShell·셸 진입점
+scripts/        핵심 표현 음성 생성 도구
 deployment/     인증 MongoDB 구성
-docs/           기획·개발·정책·운영·검증 문서
-compose*.yaml   개발·태블릿·격리 검증 구성
+docs/           기획·개발·정책·운영·현장 검수 문서
+compose*.yaml   개발·태블릿·RFID·인증 DB 구성
 ```
 
-### 테스트와 빌드
+### 로컬 실행과 빌드
 
-로컬 검증에는 Docker와 Node.js **22.13 이상 22.x, 24.x 또는 26 이상**이 필요합니다.
-루트 패키지는 외부 의존성이 없어 별도 `npm install` 없이 실행합니다.
-
-```sh
-npm run verify           # 단위·컴포넌트 검사와 프런트엔드 빌드
-npm run verify:full      # 위 범위 + 격리 MongoDB 통합 + Chromium E2E
-```
+자동 테스트·격리 검증 실행기는 프로젝트 정리 과정에서 제거했습니다.
+기존 문서의 검사 수치는 당시 개발 이력이며 현재 소스의 통과 상태를 뜻하지 않습니다.
 
 프런트엔드만 호스트에서 개발하려면 별도 터미널에서 실행합니다.
 백엔드·MongoDB는 먼저 준비해야 합니다.
@@ -176,24 +171,8 @@ npm ci
 npm run dev
 ```
 
-같은 `frontend` 디렉터리에서 `npm test`와 `npm run build`로 개별 검증합니다.
-GitHub Actions 원격 CI 대신 로컬 실행기를 사용하며, 검증용 DB·포트는 개발 환경과 분리합니다.
-결과는 Git에서 제외된 `.local-validation/`에 저장합니다.
-
-관리자 공용 RFID 칩 등록까지 포함한 **전체 `npm run verify:full` 실행 결과**입니다.
-
-| 검증 범위 | 결과 |
-|---|---|
-| 실행기·초기화 정책 | 28개 통과 |
-| 프런트엔드 | Node 110개 + React 200개, 총 310개 및 빌드 통과 |
-| Linux 백엔드 단위 | 396개 통과, 제외 없음 |
-| 격리 MongoDB 통합 | 99개 통과, 제외 없음 |
-| Chromium 전체 | 57개 통과, 합성 RFID·USB 스트림·TTS 스텁 사용 |
-
-총 **890개 검사와 빌드·임시 환경 정리**를 통과했습니다.
-이는 자동 회귀 검증이며 실제 기기 음질·AAC 사용자 과업이나 운영 배포 승인을 대신하지 않습니다.
-[검증 실행 방법](docs/validation/ONE_COMMAND_VALIDATION.md)과
-[최신 기능 검증 기록](docs/development/RFID_CHIP_REGISTRATION.md)을 참고하세요.
+같은 `frontend` 디렉터리에서 `npm run build`로 배포용 정적 파일을 만들 수 있습니다.
+실제 기기 연결·음성·접근성 확인은 [현장 검수 안내](docs/validation/ACTUAL_USE_VALIDATION.md)를 따릅니다.
 
 ## 업데이트 내역
 

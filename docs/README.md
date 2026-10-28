@@ -83,18 +83,12 @@ API, 데이터 구조, 카드·마스코트 자산과 협업 규칙을 관리한
 
 ## 검증 — `validation/`
 
-자동 검증 절차와 실제 기기·사용자 검수 기록을 관리한다. 실행 방법, 기대 결과와 실제 수행 결과를 구분해 기록한다.
+실제 기기·사용자 검수 기록을 관리한다. 기대 결과와 실제 수행 결과를 구분해 기록한다.
 
 | 문서 | 내용 |
 |---|---|
-| [역할별 브라우저 E2E](validation/BROWSER_E2E.md) | Playwright 실행과 역할별 접근 경계 |
-| [한 명령으로 로컬 검증](validation/ONE_COMMAND_VALIDATION.md) | 빠른/범위별/전체 Docker 검사, 실행 격리·캐시·결과·정리 |
-| [포트폴리오 README 정리 기록](validation/PORTFOLIO_README_REVIEW.md) | 소개 문서의 구현 근거, 검증 수치 범위와 문서 검사 결과 |
-| [React 컴포넌트 테스트](validation/COMPONENT_TESTS.md) | 화면 조작, 비동기 실패와 상태 보존 회귀 검증 |
-| [아동 데이터 경계 검증](validation/DATA_BOUNDARY_VALIDATION.md) | 다른 아동 접근 차단, 의사소통·학습 저장소/API와 권한 분리 |
 | [기기 TTS 검수표](validation/DEVICE_TTS_VALIDATION.md) | 기기별 음성, 오프라인과 복귀 동작 확인 |
 | [접근성 사용성 평가](validation/ACCESSIBILITY_USABILITY_TEST.md) | 사용자별 접근 방식과 과업 평가 |
-| [접근성 브라우저 회귀 검증](validation/ACCESSIBILITY_BROWSER_VALIDATION.md) | 키보드·포커스·독립 듣기 버튼과 자동/수동 검증의 구분 |
 | [실제 사용 환경 검증](validation/ACTUAL_USE_VALIDATION.md) | 기기 연결과 사용자·보호자·담당자 현장 검수 |
 | [장애 대응 검증 기록](validation/INCIDENT_RESPONSE_VALIDATION.md) | 절차 대조·읽기 전용 점검과 미실행 모의훈련 구분 |
 

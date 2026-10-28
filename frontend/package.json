@@ -10,11 +10,6 @@
     "dev": "vite",
     "build": "vite build",
     "build:watch": "vite build --watch",
-    "test": "npm run test:unit && npm run test:components",
-    "test:unit": "node --test test/*.test.mjs",
-    "test:components": "vitest run",
-    "test:components:watch": "vitest",
-    "test:e2e": "playwright test",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -22,12 +17,7 @@
     "react-dom": "latest"
   },
   "devDependencies": {
-    "@playwright/test": "^1.64.0",
-    "@testing-library/react": "16.3.3",
-    "@testing-library/user-event": "14.6.8",
     "@vitejs/plugin-react": "latest",
-    "jsdom": "29.1.1",
-    "vite": "latest",
-    "vitest": "5.0.5"
+    "vite": "latest"
   }
 }

@@ -84,7 +84,8 @@ npm run dev
 
 `/api` 요청은 기본적으로 `http://127.0.0.1:8000`으로 프록시된다.
 빌드는 `npm run build`, 정적 산출물 감시는 `npm run build:watch`다.
-검증 실행은 [로컬 검증 가이드](../validation/ONE_COMMAND_VALIDATION.md)를 참고한다.
+자동 검증 실행기는 2026-10-28 제거했다. 실제 기기 확인은
+[현장 검수 안내](../validation/ACTUAL_USE_VALIDATION.md)를 참고한다.
 
 ## 선택형 로컬 AI와 이미지 검수
 

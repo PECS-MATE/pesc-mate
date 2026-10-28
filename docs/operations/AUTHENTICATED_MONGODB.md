@@ -83,33 +83,11 @@ docker compose -f compose.secure-db.yaml up -d --build --wait
 기존 DB 이전은 [백업·격리 복구 절차](MIGRATION_BACKUP_RECOVERY.md)를 검토한 후 별도 승인·
 중단 계획·복원 리허설을 거쳐 진행한다. 새 구성 시작을 기존 데이터 이전으로 간주하지 않는다.
 
-## 로컬 자동 검증
+## 검증 상태
 
-Docker Desktop/Engine과 PowerShell 7이 있는 저장소 루트에서 다음을 실행한다.
-
-```powershell
-pwsh -NoProfile -File scripts/validate-authenticated-mongodb.ps1
-```
-
-이 명령은 운영 자격 증명을 받지 않는다. 매번 난수 비밀번호, UUID 프로젝트/DB/볼륨,
-임의 loopback 포트를 사용한다. 임시 파일은 Git 제외된 `.local-security-tests/auth-<UUID>`에
-만들며 Windows는 현재 사용자와 SYSTEM의 ACL, Linux는 700 디렉터리/600 파일을 적용한다.
-비밀번호 내용은 출력하지 않는다. 앱 이미지에는 비밀 디렉터리를 빌드 컨텍스트로 전달하지 않는다.
-
-실제 서버에서 정상 CRUD·모든 인덱스·API 가입/로그인, 정확한 DB별 역할과 root 파일 미전달,
-무인증 접속·잘못된 비밀번호·다른 DB 쓰기·사용자 관리 차단을 검증한다.
-일반 `backend/integration_tests`는 기존 로컬/CI DB의 UUID 격리 검증이며 인증 DB 경계를 대신하지 않는다.
-
-종료 시 자기 프로젝트 라벨의 테스트 볼륨과 정확한 임시 디렉터리만 확인해 삭제한다.
-이는 테스트 DB/자격 증명의 의도적인 폐기이며 복구하지 않는다. 빌드 이미지/캐시는 남는다.
-정리에 실패하면 자격 증명을 보존하고 해당 UUID 프로젝트의 수동 검토를 안내한다.
-실제 운영 프로젝트·기존 개발 볼륨·실제 사용자는 정리 대상으로 선택하지 않는다.
-
-2026-10-20 사용자 요청으로 `Authenticated MongoDB boundaries`를 포함한 원격 CI
-워크플로우를 제거했다. 같은 검증은 로컬 `npm run verify:security`로 직접 실행한다.
-초기화 정책 Node 테스트는 역할·자격 증명 재사용·관리 파일의 CRLF 차단·안전한 오류를 확인한다.
-이 검증 스크립트와 초기화 정책 테스트는 삭제하지 않았다. 과거 CI 오류의 원인을 수정하거나
-원격 실행이 성공했다고 간주하지 않으며, 아래 실행 결과는 당시의 로컬 검증 기록이다.
+기존 인증 MongoDB 자동 시험·독립 검증 스크립트와 원격 CI는 사용자 요청으로 제거했다.
+아래 수치는 2026-10-20 당시의 로컬 기록이며 현재 실행 가능한 명령이나 운영 DB 전환
+승인을 의미하지 않는다. 실제 운영 자격 증명·기존 DB 이전·복구는 승인된 절차로 별도 확인한다.
 
 구성 근거는 [Mongo 공식 이미지의 초기화와 파일 자격 증명](https://hub.docker.com/_/mongo),
 [MongoDB 기본 역할](https://www.mongodb.com/docs/manual/reference/built-in-roles/),
