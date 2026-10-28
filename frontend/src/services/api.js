@@ -59,14 +59,15 @@ export function hasToken() {
 }
 
 export async function request(path, options = {}) {
+  const { timeoutMs = 15000, ...requestOptions } = options;
   const isFormData = options.body instanceof FormData;
   const headers = new Headers(isFormData ? {} : { 'Content-Type': 'application/json' });
   const token = localStorage.getItem(TOKEN_KEY);
   if (token) headers.set('Authorization', `Bearer ${token}`);
   new Headers(options.headers).forEach((value, name) => headers.set(name, value));
   const { response, requestId } = await fetchWithRequestId(`${API_BASE_URL}/api${path}`, {
-    ...options,
-    signal: AbortSignal.timeout(15000),
+    ...requestOptions,
+    signal: AbortSignal.timeout(timeoutMs),
     headers,
   });
   if (!response.ok) throw await responseError(response, requestId, '요청을 처리하지 못했습니다.', path, headers.get('Authorization'));

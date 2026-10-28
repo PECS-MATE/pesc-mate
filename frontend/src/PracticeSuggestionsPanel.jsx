@@ -15,7 +15,7 @@ export default function PracticeSuggestionsPanel({ accountId, target, onDirectSe
   async function reload(run = epoch.current) {
     setBusy(true); setError('');
     try {
-      const result = await request(path);
+      const result = await request(`${path}&request_id=${createRequestId()}`, { timeoutMs: 35000 });
       if (current(run)) { setData(result); setChoice(''); setDraft(null); }
     } catch (failure) { if (current(run)) setError(failure.message); }
     finally { if (current(run)) setBusy(false); }
@@ -66,6 +66,7 @@ export default function PracticeSuggestionsPanel({ accountId, target, onDirectSe
       {data.status === 'insufficient' && <p>기록이 아직 충분하지 않습니다. 최근 {data.samples.window_days}일 선택 이벤트 {data.samples.selection_events}건, 완료된 연습 {data.samples.learning_attempts}회입니다. 기존 연습을 직접 선택해 주세요.</p>}
       {data.status === 'no_supported_candidates' && <p>현재 카드와 학습 설정에 맞는 후보가 없습니다.</p>}
       {data.status === 'ready' && <><small>최근 {data.samples.window_days}일 · 카드 선택 {data.samples.selection_events}건 / 연습 완료 {data.samples.learning_attempts}회 · 최대 {data.samples.selection_limit}/{data.samples.attempt_limit}건 조회</small>
+        <p>{data.generation_source === 'ollama' ? 'AI가 허용된 연습 중에서 골랐습니다.' : data.model_fallback ? '모델 대신 규칙으로 연습을 골랐습니다.' : '규칙으로 연습을 골랐습니다.'}</p>
         <div className="practice-candidate-list">{data.candidates.map(row => <button type="button" key={row.candidate_id}
           aria-pressed={choice === row.candidate_id} onClick={() => { setChoice(row.candidate_id); setDraft({ ...row.settings }); }}>
           <strong>{LEARNING_ACTIVITIES[row.activity_type]?.title}</strong><small>{row.evidence[0]?.text}</small></button>)}</div>

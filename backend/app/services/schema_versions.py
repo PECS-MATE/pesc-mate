@@ -10,7 +10,7 @@ VERSIONED_COLLECTIONS = (
     'learning_attempts', 'learning_audit_logs',
     'account_permission_audit_logs',
     'recommendation_settings', 'recommendation_batches',
-    'practice_suggestion_settings', 'practice_suggestion_plans',
+    'practice_suggestion_settings', 'practice_suggestion_plans', 'practice_suggestion_batches',
     'image_storage_state',
     'rfid_devices', 'rfid_bindings', 'rfid_shared_bindings',
 )

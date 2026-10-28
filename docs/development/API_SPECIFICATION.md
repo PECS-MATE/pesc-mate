@@ -204,7 +204,7 @@ HTTP 500은 일반 안내만 반환하고 내부 예외 문구를 응답에 포�
 | 기록 | GET | `/api/records/activity` | 본인 또는 `records_read` | 카드 선택·기기 재생·상황별 추이·복구 표현 인접 흐름 |
 | 메모 | GET | `/api/care/notes/{session_id}/history` | `notes_write` | 작성자 자신의 메모 수정·삭제 이력 |
 | RFID 공용 | GET | `/api/rfid/admin/catalog` | `content_manage` 권한 담당자 | 공용 카드·UID 등록 목록 조회 |
-| 연습 제안 | GET | `/api/practice-suggestions/candidates?user_id={id}` | 연결 `records_read` + `learning_manage` | 개인화 연습 후보와 근거 조회 |
+| 연습 제안 | GET | `/api/practice-suggestions/candidates?user_id={id}&request_id={uuid}` | 연결 `records_read` + `learning_manage` | 개인화 연습 후보와 근거 조회 |
 | 연습 제안 | PUT | `/api/practice-suggestions/settings?user_id={id}` | 연결 `records_read` + `learning_manage` | 개인화 사용 여부 저장 |
 | 연습 제안 | POST | `/api/practice-suggestions/start?user_id={id}` | 연결 `records_read` + `learning_manage` | 검토한 연습 설정 준비 |
 | 연습 제안 | GET | `/api/practice-suggestions/active` | 아동 본인 | 준비된 연습 조회 |

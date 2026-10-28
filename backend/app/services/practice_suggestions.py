@@ -2,6 +2,7 @@
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 import os
+import threading
 
 from fastapi import HTTPException
 from pymongo.errors import DuplicateKeyError, PyMongoError
@@ -12,11 +13,14 @@ from app.services.learning import DEFAULT_SETTINGS, settings_for
 from app.services.privacy import privacy_for
 from app.services.recommendations import available_cards
 from app.services.schema_versions import SCHEMA_VERSION
+from app.services.learning_model import choose as choose_with_model, PROMPT_VERSION
 
 WINDOW_DAYS = 14
 MAX_SELECTIONS = 500
 MAX_ATTEMPTS = 100
 RULE_VERSION = 'practice-candidates-v1'
+AGGREGATION_VERSION = 'practice-observations-v1'
+_generation_lock = threading.Lock()
 EXAMPLES = (
     ('water-drink', ('water', 'drink')), ('rice-eat', ('rice', 'eat')),
     ('apple-eat', ('apple', 'eat')), ('snack-eat', ('snack', 'eat')),
@@ -146,6 +150,54 @@ def candidates_for(user_id):
     return {'status': 'ready' if candidates else 'no_supported_candidates', 'personalization': setting,
             'samples': samples, 'thresholds': thresholds, 'rule_version': RULE_VERSION,
             'candidates': candidates[:3]}
+
+
+def generated_candidates_for(user_id, request_id):
+    from app.services.learning_model import enabled as model_enabled
+    result = candidates_for(user_id)
+    if result['status'] != 'ready':
+        return result
+    with _generation_lock:
+        try:
+            collection = database().practice_suggestion_batches
+            existing = collection.find_one({'_id': request_id})
+        except PyMongoError as exc:
+            raise HTTPException(503, '연습 제안을 불러오지 못했습니다.') from exc
+        by_id = {row['candidate_id']: row for row in result['candidates']}
+        if existing:
+            if existing.get('user_id') != user_id:
+                raise HTTPException(409, '이미 사용된 연습 제안 요청 번호입니다.')
+            if (existing.get('personalization_revision') != result['personalization']['revision']
+                    or any(key not in by_id for key in existing.get('candidate_ids', []))):
+                raise HTTPException(409, '연습 제안 설정이나 카드가 변경되었습니다. 새로 조회해 주세요.')
+            return {**result, 'generation_source': existing['generation_source'],
+                    'model_fallback': existing.get('model_fallback'),
+                    'candidates': [by_id[key] for key in existing['candidate_ids']]}
+        selected_ids, reason = choose_with_model(result['candidates'], result['samples'])
+        if (not _authorized_privacy(user_id)
+                or personalization_for(user_id)['revision'] != result['personalization']['revision']):
+            raise HTTPException(409, '연습 제안 사용 설정이 변경되었습니다. 새로 조회해 주세요.')
+        if not selected_ids:
+            selected_ids = list(by_id)
+        source = 'ollama' if reason is None else 'rule'
+        now = datetime.now(timezone.utc)
+        document = {'_id': request_id, 'schema_version': SCHEMA_VERSION, 'user_id': user_id,
+            'candidate_ids': selected_ids, 'generation_source': source,
+            'model_fallback': reason if model_enabled() else None,
+            'model': os.environ.get('OLLAMA_LEARNING_MODEL', 'qwen3:4b-instruct') if model_enabled() else None,
+            'prompt_version': PROMPT_VERSION, 'rule_version': RULE_VERSION,
+            'aggregation_version': AGGREGATION_VERSION, 'aggregation_window_days': WINDOW_DAYS,
+            'personalization_revision': result['personalization']['revision'],
+            'created_at': now, 'expires_at': now + timedelta(days=WINDOW_DAYS)}
+        try:
+            collection.insert_one(document)
+        except DuplicateKeyError as exc:
+            raise HTTPException(409, '같은 요청 번호로 연습 제안이 이미 생성되었습니다. 다시 조회해 주세요.') from exc
+        except PyMongoError as exc:
+            raise HTTPException(503, '연습 제안을 저장하지 못했습니다.') from exc
+        return {**result, 'generation_source': source,
+                'model_fallback': document['model_fallback'],
+                'candidates': [by_id[key] for key in selected_ids]}
 
 
 def approve_candidate(user_id, actor_id, candidate_id, request_id, overrides):

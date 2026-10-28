@@ -50,10 +50,11 @@ def change_settings(body: PersonalizationChange, response: Response,
 
 
 @router.get('/candidates')
-def candidates(response: Response, user_id: str = Query(min_length=1, max_length=64), user=Depends(current_user)):
+def candidates(response: Response, user_id: str = Query(min_length=1, max_length=64),
+               request_id: UUID = Query(), user=Depends(current_user)):
     supporter_target(user, user_id)
     response.headers['Cache-Control'] = 'no-store'
-    return suggestions.candidates_for(user_id)
+    return suggestions.generated_candidates_for(user_id, str(request_id))
 
 
 @router.post('/start')
