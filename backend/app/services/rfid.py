@@ -293,12 +293,16 @@ def public_shared_binding(row, cards):
 
 
 @guarded
-def save_shared_binding(actor, uid, card_id, revision, password, client_ip=None):
-    from app.services.reauthentication import reauthenticate_content_operator
+def save_shared_binding(actor, uid, card_id, revision):
+    from app.services.account_permissions import permission_revision
+    from app.services.authentication import require_account_permission
     db = database()
     with image_write_lock(db):
-        # Re-read active account/permission and require the same per-operation confirmation as public content edits.
-        reauthenticate_content_operator(actor, password, client_ip)
+        account = db.users.find_one({'_id': actor['id']})
+        if (not account or not account_access_allowed(account)
+                or permission_revision(account) != actor.get('permission_revision', 0)):
+            raise HTTPException(401, '계정 접근 또는 권한이 변경되었습니다. 다시 로그인해 주세요.')
+        require_account_permission(account, 'content_manage')
         cards = shared_cards()
         if card_id is not None and card_id not in cards:
             raise HTTPException(422, '공용 칩에는 기본 카드 또는 승인된 공용 카드만 연결할 수 있습니다.')

@@ -6,7 +6,7 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.services.authentication import current_user, require_account_permission
 from app.services.support_links import require_link_permission, permissions_for, SUPPORT_ROLES
@@ -105,10 +105,6 @@ class UsbEvent(StrictModel):
                     'tag_read', 'unmapped', 'invalid_frame', 'queue_full', 'reset', 'unsupported_firmware']
 
 
-class SharedBinding(Binding):
-    password: SecretStr = Field(min_length=1, max_length=128)
-
-
 @router.get('/admin/catalog')
 def admin_catalog(response: Response, user=Depends(current_user)):
     require_account_permission(user, 'content_manage')
@@ -117,11 +113,10 @@ def admin_catalog(response: Response, user=Depends(current_user)):
 
 
 @router.put('/admin/bindings')
-def admin_binding(body: SharedBinding, request: Request, response: Response, user=Depends(current_user)):
+def admin_binding(body: Binding, response: Response, user=Depends(current_user)):
     require_account_permission(user, 'content_manage')
     response.headers['Cache-Control'] = 'no-store'
-    return rfid.save_shared_binding(user, body.uid, body.card_id, body.expected_revision,
-        body.password.get_secret_value(), request.client.host if request.client else None)
+    return rfid.save_shared_binding(user, body.uid, body.card_id, body.expected_revision)
 
 
 @router.post('/admin/usb/events', status_code=204)

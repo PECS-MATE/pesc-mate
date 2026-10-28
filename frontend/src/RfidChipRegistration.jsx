@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { request, requestBlob } from './services/api';
 import UsbRfidReader from './UsbRfidReader';
-import useReauthentication from './useReauthentication';
 
 function CardPreview({ card, artStyle }) {
   const [url, setUrl] = useState('');
@@ -30,7 +29,6 @@ export default function RfidChipRegistration({ accountId, artStyle }) {
   const [error, setError] = useState(''), [notice, setNotice] = useState('');
   const epoch = useRef(0), capture = useRef(true);
   const token = localStorage.getItem('pesc-mate-token');
-  const { askPassword, confirmation } = useReauthentication(`chip-registration:${accountId}:${token}`);
   const current = run => epoch.current === run && token && localStorage.getItem('pesc-mate-token') === token;
   const existing = catalog.bindings.find(row => row.uid === uid);
   const card = catalog.cards.find(row => row.id === cardId);
@@ -57,15 +55,12 @@ export default function RfidChipRegistration({ accountId, artStyle }) {
   }
   async function change(targetUid, targetCardId, revision) {
     const run = epoch.current, wasArmed = capture.current;
-    const previous = catalog.bindings.find(row => row.uid === targetUid);
     const selected = catalog.cards.find(row => row.id === targetCardId);
-    const fields = { uid: targetUid, card_id: targetCardId, expected_revision: revision };
     setSaving(true); capture.current = false; setError(''); setNotice('');
     try {
-      const password = await askPassword(targetCardId ? '공용 칩 연결 저장' : '공용 칩 연결 해제',
-        `칩 ${targetUid} · ${previous?.label || (previous ? '사용 불가 카드' : '미등록')} → ${selected?.label || '연결 해제'} · 모든 사용자에게 적용됩니다.`);
-      if (!password || !current(run)) return;
-      const result = await request('/rfid/admin/bindings', { method: 'PUT', body: JSON.stringify({ ...fields, password }) });
+      const result = await request('/rfid/admin/bindings', { method: 'PUT', body: JSON.stringify({
+        uid: targetUid, card_id: targetCardId, expected_revision: revision,
+      }) });
       if (!current(run)) return;
       setCatalog(data => ({ ...data, bindings: result.binding
         ? [result.binding, ...data.bindings.filter(row => row.uid !== targetUid)]
@@ -120,6 +115,5 @@ export default function RfidChipRegistration({ accountId, artStyle }) {
     </li>)}</ul>}
     {!loading && !registered.length && <p>검색 조건에 맞는 등록 칩이 없습니다.</p>}
     {registered.length > 50 && <p>검색 결과 중 최근 50개를 표시합니다. UID나 카드명으로 검색해 주세요.</p>}
-    {confirmation}
   </section>;
 }

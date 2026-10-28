@@ -25,7 +25,7 @@ lang: ko-KR
 
 RFID 하드웨어 API는 [Wi-Fi 카드판 연동 명세](RFID_WIFI_INTEGRATION.md)에 별도로 정리한다.
 현재 USB 방식의 인증 세션 기반 태그 조회·장치 상태 로그 API는 [USB 연동 명세](RFID_USB_INTEGRATION.md)를 따른다.
-관리자의 공용 칩 사전 등록·변경·해제 API는 [공용 칩 등록 명세](RFID_CHIP_REGISTRATION.md)에 권한·버전·재인증과 함께 정리한다.
+관리자의 공용 칩 사전 등록·변경·해제 API는 [공용 칩 등록 명세](RFID_CHIP_REGISTRATION.md)에 권한·버전과 함께 정리한다.
 `/api/rfid`의 보호자 장치·태그 관리/상태 조회는 기존 Bearer 세션과 아동별 지원 권한을 사용한다.
 장치의 세션 시작·스냅샷 수신은 `X-Device-Key`로만 인증하며 아동 계정 권한을 부여하지 않는다.
 기본 HTTPS이며 개발 사설망 HTTP는 명시적 설정이 필요하다. 이벤트 버전·세션·순서·중복 검사와
@@ -204,7 +204,7 @@ HTTP 500은 일반 안내만 반환하고 내부 예외 문구를 응답에 포�
 | 기록 | GET | `/api/records/activity` | 본인 또는 `records_read` | 카드 선택·기기 재생·상황별 추이·복구 표현 인접 흐름 |
 | 메모 | GET | `/api/care/notes/{session_id}/history` | `notes_write` | 작성자 자신의 메모 수정·삭제 이력 |
 | RFID 공용 | GET | `/api/rfid/admin/catalog` | `content_manage` 권한 담당자 | 공용 카드·UID 등록 목록 조회 |
-| RFID 공용 | PUT | `/api/rfid/admin/bindings` | `content_manage` 권한 담당자·재인증 | 공용 UID 연결 저장·변경·해제 |
+| RFID 공용 | PUT | `/api/rfid/admin/bindings` | `content_manage` 권한 담당자 | 공용 UID 연결 저장·변경·해제 |
 | RFID 공용 | POST | `/api/rfid/admin/usb/events` | `content_manage` 권한 담당자 | 관리자 USB 상태 이벤트 기록 |
 | RFID USB | POST | `/api/rfid/usb/resolve` | 본인 또는 연결 `board_manage` | USB에서 읽은 UID의 사용 가능 카드 조회 |
 | RFID USB | POST | `/api/rfid/usb/events` | 본인 또는 연결 `board_manage` | 허용된 USB 상태 이벤트 기록 |
