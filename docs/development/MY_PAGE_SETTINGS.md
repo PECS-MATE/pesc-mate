@@ -64,6 +64,15 @@ ECONNRESET이 발생했다. 새 계정을 사용하는 범위 재실행에서 �
 거부해 실행하지 않았다. 과거 실패 계정의 정리 완료로 표시하지 않는다. 이후 성공 실행의
 검증 계정은 각 실행의 기본 fixture에서 정리했으며 과거 로그 토큰을 재사용하지 않았다.
 
+2026-10-28 후속 사용자 답변으로 **검증용 계정 데이터 정리 허용**을 명시적으로 받았다.
+두 실패 실행 로그에서 확인된 세션만 사용하고 `e2e_` 뒤 20자리 16진수 계정명,
+`자동 검증 사용자` 이름과 `user` 역할이 모두 일치하는지 본인 정보 API로 확인했다.
+확인된 합성 계정 4개의 이용 데이터 삭제와 로그아웃이 성공했다.
+만료 0·대상 제외 0·실패 0이며 실제 사용자 계정과 계정 자체는 삭제하지 않았다.
+로그에서 확인하지 못한 계정까지 일괄 정리했다고 해석하지 않는다.
+API 정리 작업으로 프런트엔드 코드를 변경하거나 테스트를 재실행하지 않았다.
+결과는 `.local-validation/my-page-cleanup-approved.json`에 건수만 기록했다.
+
 로컬 결과 파일은 `.local-validation/my-page-frontend-tests.log`, `my-page-build-final.log`,
 `my-page-focus-test.log`, `my-page-browser-final.log`, `my-page-browser-recheck.log`,
 `my-page-browser-visual.log`에 있으며 검증 로그·화면 캡처는 저장소에 커밋하지 않는다.
