@@ -8,6 +8,9 @@
 .app.focus-mode .quick-speech > div, .app.focus-mode .recovery-speech > div { flex: 0 1 auto; }
 .app.focus-mode .quick-speech > div small { display: none; }
 .app.focus-mode .quick-speech, .app.focus-mode .recovery-speech { padding: 10px 12px; }
+.app .screen-home .quick-speech, .app .screen-practice .quick-speech { padding: 8px 10px; border-width: 1px; box-shadow: none; }
+.app .screen-home .quick-speech button, .app .screen-practice .quick-speech button { min-height: 44px; box-shadow: none; }
+.app .screen-home .quick-speech .expression-visual, .app .screen-practice .quick-speech .expression-visual { flex-basis: 28px; width: 28px; height: 28px; }
 
 .app .screen-cards .workspace { display: flex; flex-direction: column; align-items: stretch; gap: 22px; }
 .app .screen-cards .workspace > .board { position: sticky; top: 14px; z-index: 4; padding: 18px 22px; border: 1px solid #d9e2ed; border-radius: 20px; box-shadow: 0 8px 24px #34465d0d; max-height: 48dvh; overflow: auto; overscroll-behavior: contain; }
@@ -22,6 +25,18 @@
 .app .screen-cards .board > ol > li > div { display: flex; gap: 8px; }
 .app .screen-cards .board > ol > li button { flex: 1; margin: 0; padding: 6px 10px; border: 1px solid #dfd4dc; border-radius: 10px; background: #fff; box-shadow: none; }
 .app .screen-cards .board > .primary.full { min-height: 52px; margin-bottom: 10px; border-radius: 14px; }
+.app .natural-sentence-tools { margin-top: 8px; padding: 0 12px; border: 1px solid #d2dfeb; border-radius: 12px; }
+.app .natural-sentence-tools > summary, .app .speaking-history-tools > summary { min-height: 44px; align-content: center; cursor: pointer; color: var(--ui-muted); font-size: .9rem; font-weight: 700; }
+.app .natural-sentence-tools > div { padding-block: 8px 12px; }
+.app .recommendation-disclosure { padding: 0; border: 0; }
+.app .recommendation-disclosure > summary { min-height: 48px; align-content: center; cursor: pointer; color: var(--ui-muted); font-weight: 700; }
+.app .recommendation-disclosure[open] > summary { margin-bottom: 12px; }
+.app .speaking-history-tools { flex: 0 0 auto; padding-inline: 12px; }
+.app .speaking-history-tools > div { display: flex; flex-wrap: wrap; gap: 8px; padding-block: 8px; }
+.app .connection-menu-panel > .core-speech-status { display: block; width: 100%; margin-top: 12px; padding-top: 8px; border-top: 1px solid #d2dfeb; }
+.app .connection-menu-panel > .core-speech-status > summary { min-height: 44px; align-content: center; cursor: pointer; }
+.app.high-contrast .natural-sentence-tools, .app.high-contrast .home-topics-disclosure > summary { border-color: #000; }
+.app.high-contrast .natural-sentence-tools > summary, .app.high-contrast .speaking-history-tools > summary, .app.high-contrast .home-catalog-link, .app.high-contrast .home-topics-disclosure > summary { color: #000; }
 .app .screen-cards .speech-options { margin: 12px 0; padding: 8px 12px; border: 1px solid #e0e7f0; border-radius: 12px; }
 .app .screen-cards .speech-options summary { min-height: 44px; align-content: center; cursor: pointer; font-weight: 700; }
 .app .screen-cards .board .sentence { min-height: 0; margin: 12px 0; padding: 16px; border: 1px solid #d5e8df; border-radius: 14px; background: #f0f8f3; }

@@ -1,6 +1,7 @@
 import Mascot, { EmptyState } from './Mascot';
 import { Avatar, ProfileEditor } from './Profile';
 import MyPage from './MyPage';
+import OfflineSpeechStatus from './OfflineSpeechStatus';
 import CardEditorDialog from './CardEditorDialog';
 import HomeDashboard, { CardTopics } from './HomeDashboard';
 import LandingPage from './LandingPage';
@@ -1781,6 +1782,7 @@ function App() {
           <summary className="status" aria-label={`${usbConnectionLabel} · 연결 메뉴 열기`}><b className={usbConnected ? 'online' : ''}></b>{usbConnectionLabel}<span aria-hidden="true">⌄</span></summary>
           <div className="connection-menu-panel"><p className="service-connection-state" role="status">{offline ? '서비스 오프라인 · 저장된 카드를 사용할 수 있어요.' : '서비스 온라인 모드'}</p><div ref={setUsbTopbarTarget} className="topbar-usb-slot" />
             <button type="button" className="connection-open-reader" onClick={() => { connectionMenuRef.current.open = false; setReaderExpanded(true); setTab('cards'); window.requestAnimationFrame(() => document.getElementById('reader-workspace')?.scrollIntoView({ block: 'start' })); }}>태그한 카드 보기</button>
+            <OfflineSpeechStatus status={coreSpeechStatus} onRetry={() => setCoreSpeechRetry(current => current + 1)} />
           </div></details> : <span className={`status${offline ? ' offline' : ''}`}><b className={!offline && loaded ? 'online' : ''}></b>{offline ? '오프라인 사용 중' : '연결 대기'}</span>}{speechActive && <div className={`speech-player ${speechState.status}`} role="status" aria-live="polite"><span><b aria-hidden="true">🔊</b><strong>{speechStatusLabel}</strong><small title={speechState.content}>{speechState.content}</small></span>{speechState.status === 'playing' && <button type="button" onClick={pauseSpeech}>일시 정지</button>}{speechState.status === 'paused' && <button type="button" onClick={resumeSpeech}>재개</button>}<button type="button" onClick={stopSpeech}>중지</button></div>}</div></header>
       {canManageContent && <OperationalAlerts key={user.id} refreshKey={adminSubmissions} onReview={() => setTab('admin')} />}
       {offline && <p className="offline-notice" role="status">인터넷 연결 없이 저장된 카드를 사용 중입니다. 즉시 발화와 선택 카드 그대로 발화는 계속 사용할 수 있습니다.{localKoreanVoices.length ? ` 기기에 저장된 한국어 음성 ${localKoreanVoices.length}개를 확인했습니다.` : ' 한국어 음성이 재생되지 않으면 기기 설정에서 음성 데이터를 설치해 주세요.'}{pendingSyncCount ? ` 재연결 후 동기화할 이력 ${pendingSyncCount}건이 있습니다.` : ''}</p>}
@@ -1789,7 +1791,7 @@ function App() {
         cards={cards} renderPicture={cardPicture}
         onSpeak={() => setTab('cards')} onPractice={() => openLearning(null)}
         onCatalog={() => openCatalog()} />}
-      {loaded && user.role === 'user' && <div id="reader-workspace" className="reader-workspace" hidden={!['home', 'cards'].includes(tab)}><RfidBoard key={`rfid-${user.id}`} targetId={user.id}
+      {loaded && user.role === 'user' && <div id="reader-workspace" className="reader-workspace" hidden={tab !== 'cards' || !readerExpanded}><RfidBoard key={`rfid-${user.id}`} targetId={user.id}
         cards={cards} artStyle={artStyle} collapsible expanded={readerExpanded} onExpandedChange={setReaderExpanded}
         connectionTarget={usbTopbarTarget} onUsbStatus={setUsbStatus}
         active={['home', 'cards'].includes(tab) && !myPageOpen}
@@ -1809,13 +1811,7 @@ function App() {
           return true;
         }} /></div>}
       {user.role === 'user' && <section className="quick-speech" aria-labelledby="quick-speech-title" data-scan-group="quick-speech"><div><strong id="quick-speech-title">빠른 표현</strong><small>누르면 바로 말해요</small></div>{quickExpressionCards.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 바로 말하기`} onClick={() => speakText(item.label, 'card', [item.id])}>{expressionVisual(item)}{item.label}</button>)}</section>}
-      {user.role === 'user' && <section className="recovery-speech" aria-labelledby="recovery-speech-title" data-scan-group="recovery-speech"><div><strong id="recovery-speech-title">다시 말하기·고치기</strong><small>잘못 전했을 때 바로 말해요</small></div>{recoveryExpressions.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 복구 표현 말하기`} onClick={() => speakText(item.label, 'recovery')}>{expressionVisual(item)}{item.label}</button>)}<button disabled={!lastUtterance || speechState.status === 'starting'} onClick={() => lastUtterance && speakText(lastUtterance.content, lastUtterance.contentType, lastUtterance.cardIds)}><span aria-hidden="true">🔊</span>마지막 말 다시 듣기</button><button disabled={!board.length && !text} onClick={() => updateBoard([])}><span aria-hidden="true">⌫</span>현재 문장 취소</button><button disabled={!lastSentence} onClick={restoreLastSentence}><span aria-hidden="true">↶</span>직전 문장 불러오기</button></section>}
-      {user.role === 'user' && <div className="core-speech-status" data-testid="core-speech-status">
-        <details open={coreSpeechStatus.status !== 'ready'}><summary>오프라인 음성 준비 상태</summary>
-        <span role="status">{coreSpeechStatus.status === 'preparing' ? '기본 긴급·복구 음성을 준비하고 있어요.' : coreSpeechStatus.status === 'ready' ? `기본 긴급·복구 음성 ${coreSpeechStatus.saved}개 저장됨` : coreSpeechStatus.ready ? `기본 긴급·복구 음성 ${coreSpeechStatus.saved}/${coreSpeechStatus.total}개 저장됨 · 현재 ${coreSpeechStatus.ready}개 재생 가능` : '기본 긴급·복구 음성을 저장하지 못했어요. 기기 음성은 계속 사용할 수 있어요.'}</span>
-        {!['ready', 'preparing'].includes(coreSpeechStatus.status) && <button type="button" onClick={() => setCoreSpeechRetry(current => current + 1)}>기본 음성 준비 다시 시도</button>}
-        </details>
-      </div>}
+      {user.role === 'user' && tab === 'cards' && <section className="recovery-speech" aria-labelledby="recovery-speech-title" data-scan-group="recovery-speech"><div><strong id="recovery-speech-title">다시 말하기·고치기</strong><small>잘못 전했을 때 바로 말해요</small></div>{recoveryExpressions.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 복구 표현 말하기`} onClick={() => speakText(item.label, 'recovery')}>{expressionVisual(item)}{item.label}</button>)}<details className="speaking-history-tools"><summary>이전 문장·다시 듣기</summary><div><button disabled={!lastUtterance || speechState.status === 'starting'} onClick={() => lastUtterance && speakText(lastUtterance.content, lastUtterance.contentType, lastUtterance.cardIds)}><span aria-hidden="true">🔊</span>마지막 말 다시 듣기</button><button disabled={!board.length && !text} onClick={() => updateBoard([])}><span aria-hidden="true">⌫</span>현재 문장 취소</button><button disabled={!lastSentence} onClick={restoreLastSentence}><span aria-hidden="true">↶</span>직전 문장 불러오기</button></div></details></section>}
       {!myPageOpen && error && <div role="alert" className="error">{error} <button disabled={busy || offline} onClick={() => generationFailed ? generate() : load(user)}>{generationFailed ? '문장 다시 만들기' : '다시 불러오기'}</button></div>}
       {speechFailure && <div role="alert" className="speech-error"><span aria-hidden="true">🔇</span><div><strong>음성을 재생하지 못했어요.</strong><p>전달할 표현: <strong>{speechFailure.content}</strong></p><p>{speechFailureMessage(speechFailure.errorCode)} 선택한 카드와 문장은 그대로 유지됩니다.</p></div><div className="speech-error-actions">{speechFailure.retryable && <button className="primary" onClick={() => speakText(speechFailure.content, speechFailure.contentType, speechFailure.cardIds || [])}>다시 재생</button>}<button onClick={() => setSpeechFailure(null)}>닫기</button></div></div>}
       {!loaded && !error && <p role="status">카드를 불러오는 중입니다…</p>}
@@ -1848,6 +1844,7 @@ function App() {
         <ol aria-label="선택한 카드">{board.map((c, i) => <li key={`${c.id}-${i}`}><span>{c.symbol} {c.label}</span><div><button data-board-action="backward" aria-label={`${i + 1}번째 카드 앞으로`} disabled={i === 0 || busy} onClick={() => move(i, -1)}>←</button><button data-board-action="forward" aria-label={`${i + 1}번째 카드 뒤로`} disabled={i === board.length - 1 || busy} onClick={() => move(i, 1)}>→</button><button data-board-action="remove" aria-label={`${i + 1}번째 카드 삭제`} disabled={busy} onClick={() => removeBoardCard(i)}>×</button></div></li>)}</ol>
         {outputMode === 'word' && <p className="mode-guide">카드를 누르면 단어를 바로 말해요.</p>}
         <button className="primary full" disabled={!board.length} onClick={speakSelection}>🔊 고른 카드 말하기</button>
+        {((outputMode === 'natural' && privacy.guardian_consent) || text || generatedSessionId || generationFailed) && <details className="natural-sentence-tools" open={Boolean(text) || busy || generationFailed}><summary>문장 다듬기</summary><div>
         {outputMode === 'natural' && privacy.guardian_consent && <button type="button" disabled={!board.length || busy || offline} onClick={generate}>{offline ? '온라인 연결 후 문장 만들기' : busy ? '문장을 만드는 중…' : '자연스러운 문장 만들기'}</button>}
         {busy && <p className="generation-pending" role="status">문장을 다듬고 있어요. 기다리지 않고 위의 ‘고른 카드 말하기’를 사용할 수 있어요.</p>}
         {generationFailed && <div className="generation-fallback" role="status"><strong>문장 생성 없이도 말할 수 있어요.</strong><span>선택한 카드는 그대로 유지됐습니다.</span><div><button className="primary" disabled={!board.length} onClick={speakSelection}>🔊 선택 카드 그대로 말하기</button><button onClick={() => setOutputMode('word')}>단어 즉시 발화로 전환</button></div></div>}
@@ -1857,6 +1854,7 @@ function App() {
           </details></div>}
         {(text || speechActive || generatedSessionId) && <div className="actions">{text && !sentenceConfirmed ? <button className="primary" disabled={busy} onClick={() => setSentenceConfirmed(true)}>✓ 문장을 확인했어요</button> : <button className="primary" disabled={!text || busy || speechActive} onClick={speak}>🔊 확인한 문장 읽기</button>}<button disabled={!generatedSessionId || busy || speechActive} onClick={regenerate}>{busy ? '만드는 중…' : '↻ 다시 만들기'}</button>{speechState.status === 'playing' && <button onClick={pauseSpeech}>일시 정지</button>}{speechState.status === 'paused' && <button onClick={resumeSpeech}>재개</button>}<button disabled={!speechActive} onClick={stopSpeech}>중지</button></div>}
 
+        </div></details>}
         <p className="muted">카드 고르기 → 내용 확인 → 말하기</p>
       </section>
       <section id="card-library" tabIndex="-1"><div className="section-title"><h2>무엇을 말하고 싶나요?</h2><input aria-label="카드 검색" placeholder="카드 이름 검색" value={search} onChange={e => setSearch(e.target.value)} /></div>
