@@ -65,7 +65,7 @@ services:
   frontend:
     build:
       context: ./frontend
-    command: npm run dev -- --host 0.0.0.0
+    command: sh ./start-dev.sh
     ports:
       - "127.0.0.1:5173:5173"
     volumes:

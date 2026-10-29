@@ -47,6 +47,9 @@ docker compose down
 기본 구성은 시연 계정과 무인증 DB를 사용하는 **로컬 개발용**입니다. 인터넷에 공개하지 마세요.
 소스 변경은 개발 서버에 자동 반영됩니다. 개별 실행·선택형 AI·태블릿 연결은
 [로컬 개발 가이드](docs/development/LOCAL_DEVELOPMENT.md)를 참고하세요.
+프런트엔드 의존성이 변경되면 컨테이너 시작 시 `package-lock.json`을 확인해
+`frontend_node_modules` 볼륨을 자동 갱신합니다. 실행 중인 컨테이너에는
+`docker compose up -d --build frontend`로 새 시작 설정을 적용합니다.
 
 ## 사용 예제
 
