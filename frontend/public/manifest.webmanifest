@@ -3,7 +3,7 @@
   "short_name": "PESC MATE",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#f42c7e",
+  "background_color": "#fff9f0",
+  "theme_color": "#81c7b5",
   "lang": "ko-KR"
 }
