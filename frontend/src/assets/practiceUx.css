@@ -12,7 +12,7 @@
 .app .practice-choice:focus-within, .app .practice-category-option:focus-within { outline: 4px solid var(--ui-focus); outline-offset: 3px; }
 .app .practice-overview fieldset:disabled label { opacity: .6; cursor: wait; }
 .app .practice-category-option { display: inline-flex; align-items: center; gap: 8px; min-height: 46px; }
-.app .practice-category-option > span { width: 1em; visibility: hidden; }
+.app .practice-category-option > span { display: grid; place-items: center; flex: 0 0 18px; width: 18px; height: 18px; visibility: hidden; }
 .app .practice-category-option.selected > span { visibility: visible; }
 .app .practice-kicker { color: #387358; font-size: .8rem; font-weight: 800; }
 .app .practice-ready { margin-bottom: 28px; padding: 18px 22px; border: 1px solid #cce3d5; border-radius: 20px; background: #f0f9f3; }

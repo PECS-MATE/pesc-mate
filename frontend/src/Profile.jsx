@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import UiIcon from './UiIcon';
 import { request, requestBlob } from './services/api';
 import pinkProfile from './assets/profiles/PF01_pink.png';
 import orangeProfile from './assets/profiles/PF02_orange.png';
@@ -83,7 +84,7 @@ export function ProfileEditor({ user, onSaved, onCancel }) {
           <input type="radio" name="profile" checked={!custom && preset === item.id} onChange={() => { setPreset(item.id); setCustom(false); }} />
           <img className="profile-preset-image" src={PRESET_IMAGES[item.id]} alt="" />{item.label}
         </label>)}
-        <label className={custom ? 'selected' : ''}><input type="radio" name="profile" checked={custom} onChange={() => setCustom(true)} /><span className="profile-upload-mark" aria-hidden="true">+</span>직접 등록</label></div>
+        <label className={custom ? 'selected' : ''}><input type="radio" name="profile" checked={custom} onChange={() => setCustom(true)} /><span className="profile-upload-mark" aria-hidden="true"><UiIcon name="plus" size={28} /></span>직접 등록</label></div>
         {custom && <div className="profile-upload"><label>사진 선택<input type="file" accept="image/jpeg,image/png,image/webp" onChange={event => {
           const chosen = event.target.files?.[0]; setError(''); setFile(null);
           if (!chosen) return;

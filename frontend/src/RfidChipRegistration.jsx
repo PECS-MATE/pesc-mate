@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { request, requestBlob } from './services/api';
 import UsbRfidReader from './UsbRfidReader';
+import UiIcon from './UiIcon';
 
 function CardPreview({ card, artStyle }) {
   const [url, setUrl] = useState('');
@@ -85,7 +86,7 @@ export default function RfidChipRegistration({ accountId, artStyle }) {
     {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
     <div className="chip-registration-grid">
       <article aria-label="현재 인식한 칩"><h3>1. 칩 인식</h3>
-        <div className="chip-capture-heading"><span aria-hidden="true">▤</span><p>{uid ? '읽은 칩을 확인해 주세요' : '등록할 카드를 리더기에 대세요'}</p></div>
+        <div className="chip-capture-heading"><span aria-hidden="true"><UiIcon name="reader" size={24} /></span><p>{uid ? '읽은 칩을 확인해 주세요' : '등록할 카드를 리더기에 대세요'}</p></div>
         <UsbRfidReader targetId={accountId} manager canMap registration eventScope="shared" onUid={selectChip} />
         <p role="status">{armed ? '등록할 칩을 하나만 리더기에 대세요.' : '인식한 칩을 고정했습니다. 저장 또는 확인 후 다음 칩으로 이동하세요.'}</p>
         <p>UID: <output aria-label="인식한 칩 UID">{uid || '인식 대기'}</output></p>

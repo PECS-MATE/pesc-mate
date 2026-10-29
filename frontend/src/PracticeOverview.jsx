@@ -1,10 +1,11 @@
 import { LEARNING_ACTIVITIES } from './services/learningGame';
 import { useEffect, useState } from 'react';
+import UiIcon from './UiIcon';
 
 const ACTIVITY_ICONS = {
-  word_picture_match: '가',
-  sound_picture_match: '♪',
-  sentence_card_order: '↔',
+  word_picture_match: 'text',
+  sound_picture_match: 'volume',
+  sentence_card_order: 'sequence',
 };
 
 export default function PracticeOverview({ activity, category, categories, settings, progress,
@@ -24,7 +25,7 @@ export default function PracticeOverview({ activity, category, categories, setti
       <button type="button" className="primary practice-start-action" disabled={!canStart || busy} onClick={onStart}>연습 시작</button>
     </div>
     {plan && <article className="practice-ready d-flex flex-column flex-md-row align-items-md-center gap-3">
-      <div className="practice-ready-icon" aria-hidden="true">✓</div>
+      <div className="practice-ready-icon" aria-hidden="true"><UiIcon name="check" size={24} /></div>
       <div className="practice-ready-copy"><span className="practice-kicker">보호자가 준비한 연습</span>
         <h3>{LEARNING_ACTIVITIES[plan.candidate.activity_type]?.title}</h3>
         <p>{plan.candidate.settings.question_count}문제를 준비했어요. 시작할 준비가 되면 눌러 주세요.</p></div>
@@ -38,8 +39,8 @@ export default function PracticeOverview({ activity, category, categories, setti
       {Object.entries(LEARNING_ACTIVITIES).map(([id, item]) =>
         <div className="col-12 col-md-4" key={id}><label className={`practice-choice${activity === id ? ' selected' : ''}`}>
           <input type="radio" className="visually-hidden" name="practice-activity" value={id} checked={activity === id}
-            onChange={() => onActivity(id)} /><span className="practice-choice-icon" aria-hidden="true">{ACTIVITY_ICONS[id]}</span>
-          <strong>{item.title}</strong><small>{item.description}</small><span className="practice-choice-check" aria-hidden="true">✓</span></label></div>)}
+            onChange={() => onActivity(id)} /><span className="practice-choice-icon" aria-hidden="true"><UiIcon name={ACTIVITY_ICONS[id]} size={22} /></span>
+          <strong>{item.title}</strong><small>{item.description}</small><span className="practice-choice-check" aria-hidden="true"><UiIcon name="check" /></span></label></div>)}
     </fieldset>
 
     <div className="practice-step-heading"><div><h3 id="practice-category-title">카드 범위</h3></div></div>
@@ -47,7 +48,7 @@ export default function PracticeOverview({ activity, category, categories, setti
       {[{ id: 'all', name: '설정된 카드 전체' }, ...categories].map(item =>
         <label className={`practice-category-option${category === item.id ? ' selected' : ''}`} key={item.id}>
           <input type="radio" className="visually-hidden" name="practice-category" value={item.id} checked={category === item.id}
-            onChange={() => onCategory(item.id)} /><span aria-hidden="true">✓</span>{item.name}
+            onChange={() => onCategory(item.id)} /><span aria-hidden="true"><UiIcon name="check" size={18} /></span>{item.name}
         </label>)}
     </fieldset>
     </details>

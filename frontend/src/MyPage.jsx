@@ -1,11 +1,12 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import UiIcon from './UiIcon';
 
 const SECTION_DETAILS = {
-  profile: { icon: '●', description: '프로필 사진 선택' },
-  accessibility: { icon: 'Aa', description: '화면 표시와 움직임' },
-  voice: { icon: '♪', description: '목소리와 말하기 속도' },
-  guardian: { icon: '◆', description: '동의와 데이터 관리' },
-  support: { icon: '▦', description: '연결 사용자와 운영' },
+  profile: { icon: 'user', description: '프로필 사진 선택' },
+  accessibility: { icon: 'accessibility', description: '화면 표시와 움직임' },
+  voice: { icon: 'volume', description: '목소리와 말하기 속도' },
+  guardian: { icon: 'shield', description: '동의와 데이터 관리' },
+  support: { icon: 'users', description: '연결 사용자와 운영' },
 };
 
 export default function MyPage({ name, sections, notice, error, onClose }) {
@@ -53,9 +54,9 @@ export default function MyPage({ name, sections, notice, error, onClose }) {
   }
 
   return <section ref={page} id="my-page" className="my-page" aria-labelledby="my-page-title">
-    <header className="my-page-heading"><span className="my-page-heading-icon" aria-hidden="true">⚙</span>
+    <header className="my-page-heading"><span className="my-page-heading-icon" aria-hidden="true"><UiIcon name="settings" size={24} /></span>
       <div><h1 ref={heading} tabIndex="-1" id="my-page-title">마이페이지</h1><p>{name}님의 프로필과 설정</p></div>
-      <button type="button" onClick={onClose}><span aria-hidden="true">← </span>이전 화면으로</button></header>
+      <button type="button" onClick={onClose}><UiIcon name="arrow-left" />이전 화면으로</button></header>
     <div className="my-page-layout">
       <div className="my-page-menu" role="tablist" aria-label="마이페이지 설정"
         aria-orientation={compact ? 'horizontal' : 'vertical'} onKeyDown={moveSection}>
@@ -63,9 +64,9 @@ export default function MyPage({ name, sections, notice, error, onClose }) {
         {sections.map(item => <button type="button" role="tab" key={item.id} id={`${id}-${item.id}`}
           aria-selected={current.id === item.id} tabIndex={current.id === item.id ? 0 : -1}
           aria-controls="my-page-content" onClick={() => selectSection(item.id)}>
-          <span className="my-page-menu-icon" aria-hidden="true">{SECTION_DETAILS[item.id]?.icon || '⚙'}</span>
+          <span className="my-page-menu-icon" aria-hidden="true"><UiIcon name={SECTION_DETAILS[item.id]?.icon || 'settings'} /></span>
           <span className="my-page-menu-copy"><strong>{item.label}</strong><small>{SECTION_DETAILS[item.id]?.description || '설정 관리'}</small></span>
-          <span className="my-page-menu-arrow" aria-hidden="true">›</span>
+          <UiIcon name="chevron-right" className="my-page-menu-arrow" />
         </button>)}
       </div>
       <div className="my-page-main" ref={contentPanel}>

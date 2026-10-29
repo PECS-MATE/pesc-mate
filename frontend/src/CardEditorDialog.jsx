@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import UiIcon from './UiIcon';
 
 export default function CardEditorDialog({ editing, categories, targetName, privateOnly = false,
   busy, error, onSubmit, onClose }) {
@@ -72,6 +73,6 @@ export default function CardEditorDialog({ editing, categories, targetName, priv
         <button type="submit" value="submit" className="primary" disabled={busy}>{busy ? '저장 중…' : editing ? '수정 저장' : visibility === 'shared' ? '공개 승인 요청' : '카드 저장'}</button>
       </footer>
     </form>
-    <button type="button" className="card-editor-close" disabled={busy} aria-label="카드 등록창 닫기" onClick={onClose}>×</button>
+    <button type="button" className="card-editor-close" disabled={busy} aria-label="카드 등록창 닫기" onClick={onClose}><UiIcon name="close" /></button>
   </dialog>;
 }

@@ -1,3 +1,5 @@
+import UiIcon from './UiIcon';
+
 export default function SentenceOrderQuestion({ game, question, artStyle, onChange, onAnswer }) {
   const ids = game.sequenceIds || [];
   const locked = game.phase !== 'playing' || ['correct', 'incorrect'].includes(game.feedback);
@@ -24,7 +26,7 @@ export default function SentenceOrderQuestion({ game, question, artStyle, onChan
         {ids.map((id, index) => <li key={id}>
           <button type="button" disabled={locked} aria-label={`${index + 1}번째 ${byId.get(id)?.label} 빼기`}
             onClick={() => onChange(ids.filter(item => item !== id))}>
-            {index + 1}. {byId.get(id)?.label} <span aria-hidden="true">×</span>
+            {index + 1}. {byId.get(id)?.label} <UiIcon name="close" />
           </button>
         </li>)}
       </ol>
