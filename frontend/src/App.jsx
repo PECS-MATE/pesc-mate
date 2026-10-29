@@ -141,7 +141,8 @@ function App() {
   activeUserRef.current = user;
   const [myPageOpen, setMyPageOpen] = useState(false);
   const [readerExpanded, setReaderExpanded] = useState(false);
-  const [usbSidebarTarget, setUsbSidebarTarget] = useState(null);
+  const [usbTopbarTarget, setUsbTopbarTarget] = useState(null);
+  const connectionMenuRef = useRef(null);
   const [focusMode, setFocusMode] = useState(false);
   const [profileNotice, setProfileNotice] = useState('');
   const [authReady, setAuthReady] = useState(false);
@@ -1759,7 +1760,6 @@ function App() {
           <button className={tab === 'practice' ? 'active' : ''} onClick={() => openLearning(null)}><span aria-hidden="true">★</span>연습하기</button>
           <button className={tab === 'dashboard' ? 'active' : ''} onClick={() => setTab('dashboard')}><span aria-hidden="true">▥</span>나의 이용 기록</button>
         </>}</nav>
-      {user.role === 'user' && <div ref={setUsbSidebarTarget} className="sidebar-usb-slot" hidden={!['home', 'cards'].includes(tab)} />}
       <button type="button" className="profile profile-trigger" aria-label={`${user.name} 마이페이지 열기`}
         aria-haspopup="dialog" aria-expanded={myPageOpen}
         onClick={() => { stopSpeech(); setMyPageOpen(true); setProfileNotice(''); }}>
@@ -1769,7 +1769,11 @@ function App() {
     <div className={`app-content screen-${tab}`} id="main-content" tabIndex="-1">
       {!myPageOpen && profileNotice && <p role="status">{profileNotice}</p>}
       <header className="topbar"><div><p className="eyebrow">오늘은 {todayLabel}</p><h1>{pageTitle}</h1></div><div className="topbar-statuses">{canFocusActivity && <button type="button" className="focus-view-toggle" aria-pressed={focusedActivity}
-        onClick={() => setFocusMode(current => !current)}>{focusedActivity ? '메뉴와 함께 보기' : '집중 화면'}</button>}<span className={`status${offline ? ' offline' : ''}`}><b className={!offline && loaded ? 'online' : ''}></b>{offline ? '오프라인 사용 중' : loaded ? '서비스 연결됨' : '연결 대기'}</span>{speechActive && <div className={`speech-player ${speechState.status}`} role="status" aria-live="polite"><span><b aria-hidden="true">🔊</b><strong>{speechStatusLabel}</strong><small title={speechState.content}>{speechState.content}</small></span>{speechState.status === 'playing' && <button type="button" onClick={pauseSpeech}>일시 정지</button>}{speechState.status === 'paused' && <button type="button" onClick={resumeSpeech}>재개</button>}<button type="button" onClick={stopSpeech}>중지</button></div>}</div></header>
+        onClick={() => setFocusMode(current => !current)}>{focusedActivity ? '메뉴와 함께 보기' : '집중 화면'}</button>}{user.role === 'user' && loaded ? <details ref={connectionMenuRef} className="connection-menu" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}>
+          <summary className={`status${offline ? ' offline' : ''}`} aria-label={`${offline ? '오프라인 사용 중' : '서비스 연결됨'} · 장치 연결 메뉴 열기`}><b className={!offline ? 'online' : ''}></b>{offline ? '오프라인 사용 중' : '서비스 연결됨'}<span aria-hidden="true">⌄</span></summary>
+          <div className="connection-menu-panel"><div ref={setUsbTopbarTarget} className="topbar-usb-slot" />
+            <button type="button" className="connection-open-reader" onClick={() => { connectionMenuRef.current.open = false; setReaderExpanded(true); setTab('cards'); window.requestAnimationFrame(() => document.getElementById('reader-workspace')?.scrollIntoView({ block: 'start' })); }}>태그한 카드 보기</button>
+          </div></details> : <span className={`status${offline ? ' offline' : ''}`}><b className={!offline && loaded ? 'online' : ''}></b>{offline ? '오프라인 사용 중' : '연결 대기'}</span>}{speechActive && <div className={`speech-player ${speechState.status}`} role="status" aria-live="polite"><span><b aria-hidden="true">🔊</b><strong>{speechStatusLabel}</strong><small title={speechState.content}>{speechState.content}</small></span>{speechState.status === 'playing' && <button type="button" onClick={pauseSpeech}>일시 정지</button>}{speechState.status === 'paused' && <button type="button" onClick={resumeSpeech}>재개</button>}<button type="button" onClick={stopSpeech}>중지</button></div>}</div></header>
       {canManageContent && <OperationalAlerts key={user.id} refreshKey={adminSubmissions} onReview={() => setTab('admin')} />}
       {offline && <p className="offline-notice" role="status">인터넷 연결 없이 저장된 카드를 사용 중입니다. 즉시 발화와 선택 카드 그대로 발화는 계속 사용할 수 있습니다.{localKoreanVoices.length ? ` 기기에 저장된 한국어 음성 ${localKoreanVoices.length}개를 확인했습니다.` : ' 한국어 음성이 재생되지 않으면 기기 설정에서 음성 데이터를 설치해 주세요.'}{pendingSyncCount ? ` 재연결 후 동기화할 이력 ${pendingSyncCount}건이 있습니다.` : ''}</p>}
       {user.role === 'user' && privacy.guardian_consent && !offline && (pendingSyncCount > 0 || syncState === 'failed') && <div className="offline-notice" data-testid="sync-status"><span role="status">{syncState === 'syncing' ? `기기에 저장한 기록 ${pendingSyncCount}건을 동기화하고 있어요.` : syncState === 'failed' ? `저장한 기록을 모두 전송하지 못했어요. 남은 ${pendingSyncCount}건은 기기에 보관됩니다.` : `동기화할 기록 ${pendingSyncCount}건이 기기에 있습니다.`}</span> <button type="button" disabled={syncState === 'syncing'} onClick={() => syncPendingEvents(user)}>기록 동기화 다시 시도</button></div>}
@@ -1777,9 +1781,9 @@ function App() {
         cards={cards} renderPicture={cardPicture}
         onSpeak={() => setTab('cards')} onPractice={() => openLearning(null)}
         onCatalog={() => openCatalog()} />}
-      {loaded && user.role === 'user' && <div className="reader-workspace" hidden={!['home', 'cards'].includes(tab)}><RfidBoard key={`rfid-${user.id}`} targetId={user.id}
+      {loaded && user.role === 'user' && <div id="reader-workspace" className="reader-workspace" hidden={!['home', 'cards'].includes(tab)}><RfidBoard key={`rfid-${user.id}`} targetId={user.id}
         cards={cards} artStyle={artStyle} collapsible expanded={readerExpanded} onExpandedChange={setReaderExpanded}
-        connectionTarget={focusedActivity ? null : usbSidebarTarget}
+        connectionTarget={usbTopbarTarget}
         active={['home', 'cards'].includes(tab) && !myPageOpen}
         disabled={busy || speechActive || offline || myPageOpen || !['home', 'cards'].includes(tab)}
         onAppend={selection => {

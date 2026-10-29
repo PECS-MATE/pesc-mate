@@ -154,10 +154,12 @@ export default function UsbRfidReader({ targetId, manager = false, canMap = fals
 
   return <section className="usb-rfid" aria-label="USB 카드 리더기">
     <h3>USB 카드 리더기</h3>
-    {!available ? <p role="status">USB 연결은 PC의 Chrome/Edge에서 http://127.0.0.1:5173 또는 HTTPS로 열어 주세요.</p> : <>
+    {!available ? <><p role="status">USB 연결은 PC의 Chrome/Edge에서 http://127.0.0.1:5173 또는 HTTPS로 열어 주세요.</p>
+      {connectionTarget && createPortal(<div className="usb-quick-control"><strong>카드 리더기</strong>
+        <small>이 브라우저에서는 USB 포트를 열 수 없습니다. PC의 Chrome/Edge에서 열어 주세요.</small></div>, connectionTarget)}</> : <>
       <p role="status">{state === 'connected' ? fresh ? 'USB 연결됨' : 'USB 장치 응답을 기다립니다.' : state === 'connecting' ? 'USB 포트를 여는 중입니다.' : 'USB 연결 버튼을 눌러 Arduino 포트를 선택해 주세요.'}</p>
       {!compact && <p>이 브라우저에 권한을 준 포트: {granted}개 · 115200bps (0개여도 연결 버튼에서 선택 가능)</p>}
-      {connectionTarget ? createPortal(<div className="sidebar-usb-control"><strong>카드 리더기</strong>
+      {connectionTarget ? createPortal(<div className="usb-quick-control"><strong>카드 리더기</strong>
         <small>{state === 'connected' ? 'USB 연결됨' : state === 'connecting' ? '연결 중' : '연결 전'}</small>
         {connectionControls}</div>, connectionTarget) : connectionControls}
     </>}
