@@ -148,7 +148,7 @@ export default function UsbRfidReader({ targetId, manager = false, canMap = fals
     if (callback?.(selection) === true && mode === 'queue') session.current?.clear();
   }
   const connectionControls = <div className="usb-connection-controls">
-    <button type="button" disabled={state === 'connected' || state === 'connecting'} onClick={() => session.current?.connection?.connect()}>USB 장치 연결</button>
+    <button type="button" disabled={state === 'connected' || state === 'connecting'} onClick={() => session.current?.connection?.connect()}>{state === 'connecting' ? '연결 중…' : 'USB 리더기 연결하기'}</button>
     <button type="button" disabled={!['connected', 'connecting'].includes(state)} onClick={() => session.current?.connection?.disconnect()}>USB 연결 해제</button>
   </div>;
 
@@ -160,7 +160,7 @@ export default function UsbRfidReader({ targetId, manager = false, canMap = fals
       <p role="status">{state === 'connected' ? fresh ? 'USB 연결됨' : 'USB 장치 응답을 기다립니다.' : state === 'connecting' ? 'USB 포트를 여는 중입니다.' : 'USB 연결 버튼을 눌러 Arduino 포트를 선택해 주세요.'}</p>
       {!compact && <p>이 브라우저에 권한을 준 포트: {granted}개 · 115200bps (0개여도 연결 버튼에서 선택 가능)</p>}
       {connectionTarget ? createPortal(<div className="usb-quick-control"><strong>카드 리더기</strong>
-        <small>{state === 'connected' ? 'USB 연결됨' : state === 'connecting' ? '연결 중' : '연결 전'}</small>
+        <small role="status">{state === 'connected' ? fresh ? 'USB 연결됨' : '리더기 응답을 기다리고 있어요.' : state === 'connecting' ? '연결 중' : '연결 전 · 아래 버튼에서 포트를 선택해 주세요.'}</small>
         {connectionControls}</div>, connectionTarget) : connectionControls}
     </>}
     {!compact && protocol === 'legacy' && <p>{registration ? '진단 스케치에서 칩 UID를 읽고 있습니다.' : '진단 스케치에서 카드를 순서대로 모읍니다. 카드 유지·제거 판별은 USB용 펌웨어에서 지원합니다.'}</p>}

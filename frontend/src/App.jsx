@@ -1,6 +1,7 @@
 import Mascot, { EmptyState } from './Mascot';
 import { Avatar, ProfileEditor } from './Profile';
 import MyPage from './MyPage';
+import CardEditorDialog from './CardEditorDialog';
 import HomeDashboard, { CardTopics } from './HomeDashboard';
 import LandingPage from './LandingPage';
 import OperationalAlerts from './OperationalAlerts';
@@ -142,6 +143,8 @@ function App() {
   const [myPageOpen, setMyPageOpen] = useState(false);
   const [readerExpanded, setReaderExpanded] = useState(false);
   const [usbTopbarTarget, setUsbTopbarTarget] = useState(null);
+  const [usbStatus, setUsbStatus] = useState({ state: 'disconnected', fresh: false, count: 0 });
+  useEffect(() => { setUsbStatus({ state: 'disconnected', fresh: false, count: 0 }); }, [user?.id]);
   const connectionMenuRef = useRef(null);
   const [focusMode, setFocusMode] = useState(false);
   const [profileNotice, setProfileNotice] = useState('');
@@ -1624,7 +1627,7 @@ function App() {
   const speechActive = speechState.status !== 'idle';
   const isSupporter = ['caregiver', 'support_staff'].includes(user?.role);
   const canFocusActivity = user?.role === 'user' && ['cards', 'practice'].includes(tab);
-  const focusedActivity = canFocusActivity && focusMode;
+  const focusedActivity = canFocusActivity && focusMode && !myPageOpen;
   const canManageContent = user?.role === 'support_staff' && user?.account_permissions?.includes('content_manage');
   const canManageAccounts = user?.role === 'support_staff' && user?.can_manage_account_permissions === true;
   const selectedPermissions = selectedUser?.permissions || [];
@@ -1636,6 +1639,10 @@ function App() {
   const canManageBoard = selectedPermissions.includes('board_manage');
   const canManageLearning = selectedPermissions.includes('learning_manage');
   const localKoreanVoices = installedKoreanVoices(ttsVoices);
+  const usbConnected = usbStatus.state === 'connected' && usbStatus.fresh;
+  const usbConnectionLabel = usbStatus.state === 'connected'
+    ? usbStatus.fresh ? '리더기 연결됨' : '리더기 응답 대기'
+    : usbStatus.state === 'connecting' ? '리더기 연결 중' : '리더기 연결하기';
   const speechStatusLabel = ({ starting: '음성 준비 중', playing: '음성 재생 중', paused: '음성 일시 정지' })[speechState.status];
   const pageTitle = tab === 'account_permissions' && canManageAccounts ? '담당자의 운영 권한을 관리해요.'
     : tab === 'rfid_registration' && canManageContent ? '칩을 읽고 그림카드에 연결해요.'
@@ -1742,36 +1749,37 @@ function App() {
     <a className="skip-link" href="#main-content">본문 바로가기</a>
     <aside className="sidebar">
       <div className="sidebar-brand"><Mascot className="mascot-brand" /><strong>PESC<br />MATE</strong></div>
-      <nav aria-label="주 메뉴">{isSupporter ? <>
-          <button className={tab === 'support_home' ? 'active' : ''} onClick={() => setTab('support_home')}><span aria-hidden="true">⌂</span>지원 홈</button>
-          {canReadRecords && <button className={tab === 'dashboard' ? 'active' : ''} onClick={() => openSupportSection('dashboard')}><span aria-hidden="true">▥</span>의사소통 기록</button>}
-          {canManageCards && <button className={tab === 'card_settings' ? 'active' : ''} onClick={() => openSupportSection('card_settings')}><span aria-hidden="true">▤</span>개인 카드 관리</button>}
-          {(canManageQuick || canManageBoard) && <button className={tab === 'board_settings' ? 'active' : ''} onClick={() => openSupportSection('board_settings')}><span aria-hidden="true">▦</span>빠른 표현·카드판</button>}
-          {canManageVoice && <button className={tab === 'support_settings' ? 'active' : ''} onClick={() => openSupportSection('support_settings')}><span aria-hidden="true">♿</span>음성·접근 설정</button>}
-          {canManageLearning && <button className={tab === 'learning_progress' ? 'active' : ''} onClick={() => openLearning(selectedUser)}><span aria-hidden="true">★</span>학습 기록</button>}
-          {canManageBoard && <button className={tab === 'rfid' ? 'active' : ''} onClick={() => setTab('rfid')}>RFID 카드판</button>}
-          {canManageContent && <button className={tab === 'admin' ? 'active' : ''} onClick={() => setTab('admin')}><span aria-hidden="true">☑</span>공용 콘텐츠 운영<i aria-label={`승인 대기 ${adminSubmissions.filter(item => item.status === 'pending').length}개`}>{adminSubmissions.filter(item => item.status === 'pending').length}</i></button>}
-          {canManageContent && <button className={tab === 'rfid_registration' ? 'active' : ''} onClick={() => setTab('rfid_registration')}>RFID 칩 등록</button>}
-          {canManageAccounts && <button className={tab === 'account_permissions' ? 'active' : ''} onClick={() => setTab('account_permissions')}><span aria-hidden="true">⚿</span>운영 권한 관리</button>}
+      <nav aria-label="주 메뉴" onClick={event => { if (event.target.closest('button:not(:disabled)')) setMyPageOpen(false); }}>{isSupporter ? <>
+        <button aria-current={!myPageOpen && tab === 'support_home' ? 'page' : undefined} className={!myPageOpen && tab === 'support_home' ? 'active' : ''} onClick={() => setTab('support_home')}><span aria-hidden="true">⌂</span>지원 홈</button>
+        {canReadRecords && <button aria-current={!myPageOpen && tab === 'dashboard' ? 'page' : undefined} className={!myPageOpen && tab === 'dashboard' ? 'active' : ''} onClick={() => openSupportSection('dashboard')}><span aria-hidden="true">▥</span>의사소통 기록</button>}
+        {canManageCards && <button aria-current={!myPageOpen && tab === 'card_settings' ? 'page' : undefined} className={!myPageOpen && tab === 'card_settings' ? 'active' : ''} onClick={() => openSupportSection('card_settings')}><span aria-hidden="true">▤</span>개인 카드 관리</button>}
+        {(canManageQuick || canManageBoard) && <button aria-current={!myPageOpen && tab === 'board_settings' ? 'page' : undefined} className={!myPageOpen && tab === 'board_settings' ? 'active' : ''} onClick={() => openSupportSection('board_settings')}><span aria-hidden="true">▦</span>빠른 표현·카드판</button>}
+        {canManageVoice && <button aria-current={!myPageOpen && tab === 'support_settings' ? 'page' : undefined} className={!myPageOpen && tab === 'support_settings' ? 'active' : ''} onClick={() => openSupportSection('support_settings')}><span aria-hidden="true">♿</span>음성·접근 설정</button>}
+        {canManageLearning && <button aria-current={!myPageOpen && tab === 'learning_progress' ? 'page' : undefined} className={!myPageOpen && tab === 'learning_progress' ? 'active' : ''} onClick={() => openLearning(selectedUser)}><span aria-hidden="true">★</span>학습 기록</button>}
+        {canManageBoard && <button aria-current={!myPageOpen && tab === 'rfid' ? 'page' : undefined} className={!myPageOpen && tab === 'rfid' ? 'active' : ''} onClick={() => setTab('rfid')}>RFID 카드판</button>}
+        {canManageContent && <button aria-current={!myPageOpen && tab === 'admin' ? 'page' : undefined} className={!myPageOpen && tab === 'admin' ? 'active' : ''} onClick={() => setTab('admin')}><span aria-hidden="true">☑</span>공용 콘텐츠 운영<i aria-label={`승인 대기 ${adminSubmissions.filter(item => item.status === 'pending').length}개`}>{adminSubmissions.filter(item => item.status === 'pending').length}</i></button>}
+        {canManageContent && <button aria-current={!myPageOpen && tab === 'rfid_registration' ? 'page' : undefined} className={!myPageOpen && tab === 'rfid_registration' ? 'active' : ''} onClick={() => setTab('rfid_registration')}>RFID 칩 등록</button>}
+        {canManageAccounts && <button aria-current={!myPageOpen && tab === 'account_permissions' ? 'page' : undefined} className={!myPageOpen && tab === 'account_permissions' ? 'active' : ''} onClick={() => setTab('account_permissions')}><span aria-hidden="true">⚿</span>운영 권한 관리</button>}
         </> : <>
-          <button className={tab === 'home' ? 'active' : ''} onClick={() => setTab('home')}><span aria-hidden="true">⌂</span>홈</button>
-          <button className={tab === 'cards' ? 'active' : ''} onClick={() => setTab('cards')}><span aria-hidden="true">▦</span>그림으로 말하기<i aria-label={`추천 카드 ${recommended.length}개`}>{recommended.length}</i></button>
-          <button className={tab === 'catalog' ? 'active' : ''} onClick={() => setTab('catalog')}><span aria-hidden="true">▤</span>카드</button>
-          <button className={tab === 'practice' ? 'active' : ''} onClick={() => openLearning(null)}><span aria-hidden="true">★</span>연습하기</button>
-          <button className={tab === 'dashboard' ? 'active' : ''} onClick={() => setTab('dashboard')}><span aria-hidden="true">▥</span>나의 이용 기록</button>
+        <button aria-current={!myPageOpen && tab === 'home' ? 'page' : undefined} className={!myPageOpen && tab === 'home' ? 'active' : ''} onClick={() => setTab('home')}><span aria-hidden="true">⌂</span>홈</button>
+        <button aria-current={!myPageOpen && tab === 'cards' ? 'page' : undefined} className={!myPageOpen && tab === 'cards' ? 'active' : ''} onClick={() => setTab('cards')}><span aria-hidden="true">▦</span>그림으로 말하기<i aria-label={`추천 카드 ${recommended.length}개`}>{recommended.length}</i></button>
+        <button aria-current={!myPageOpen && tab === 'catalog' ? 'page' : undefined} className={!myPageOpen && tab === 'catalog' ? 'active' : ''} onClick={() => setTab('catalog')}><span aria-hidden="true">▤</span>카드</button>
+        <button aria-current={!myPageOpen && tab === 'practice' ? 'page' : undefined} className={!myPageOpen && tab === 'practice' ? 'active' : ''} onClick={() => openLearning(null)}><span aria-hidden="true">★</span>연습하기</button>
+        <button aria-current={!myPageOpen && tab === 'dashboard' ? 'page' : undefined} className={!myPageOpen && tab === 'dashboard' ? 'active' : ''} onClick={() => setTab('dashboard')}><span aria-hidden="true">▥</span>나의 이용 기록</button>
         </>}</nav>
       <button type="button" className="profile profile-trigger" aria-label={`${user.name} 마이페이지 열기`}
-        aria-haspopup="dialog" aria-expanded={myPageOpen}
+        aria-controls="my-page" aria-expanded={myPageOpen} aria-current={myPageOpen ? 'page' : undefined}
         onClick={() => { stopSpeech(); setMyPageOpen(true); setProfileNotice(''); }}>
         <Avatar user={user} /><span><strong>{user.name}</strong><small>{user.role === 'caregiver' ? '보호자 계정' : canManageContent ? '운영 권한 담당자 계정' : user.role === 'support_staff' ? '지원 담당자 계정' : 'AAC 사용자'}</small><span className="profile-settings-hint">마이페이지 · 설정</span></span><span aria-hidden="true">›</span></button>
       <button className="logout" onClick={handleLogout} disabled={busy}>로그아웃</button>
     </aside>
     <div className={`app-content screen-${tab}`} id="main-content" tabIndex="-1">
+      <div hidden={myPageOpen}>
       {!myPageOpen && profileNotice && <p role="status">{profileNotice}</p>}
       <header className="topbar"><div><p className="eyebrow">오늘은 {todayLabel}</p><h1>{pageTitle}</h1></div><div className="topbar-statuses">{canFocusActivity && <button type="button" className="focus-view-toggle" aria-pressed={focusedActivity}
         onClick={() => setFocusMode(current => !current)}>{focusedActivity ? '메뉴와 함께 보기' : '집중 화면'}</button>}{user.role === 'user' && loaded ? <details ref={connectionMenuRef} className="connection-menu" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}>
-          <summary className={`status${offline ? ' offline' : ''}`} aria-label={`${offline ? '오프라인 사용 중' : '서비스 연결됨'} · 장치 연결 메뉴 열기`}><b className={!offline ? 'online' : ''}></b>{offline ? '오프라인 사용 중' : '서비스 연결됨'}<span aria-hidden="true">⌄</span></summary>
-          <div className="connection-menu-panel"><div ref={setUsbTopbarTarget} className="topbar-usb-slot" />
+          <summary className="status" aria-label={`${usbConnectionLabel} · 연결 메뉴 열기`}><b className={usbConnected ? 'online' : ''}></b>{usbConnectionLabel}<span aria-hidden="true">⌄</span></summary>
+          <div className="connection-menu-panel"><p className="service-connection-state" role="status">{offline ? '서비스 오프라인 · 저장된 카드를 사용할 수 있어요.' : '서비스 온라인 모드'}</p><div ref={setUsbTopbarTarget} className="topbar-usb-slot" />
             <button type="button" className="connection-open-reader" onClick={() => { connectionMenuRef.current.open = false; setReaderExpanded(true); setTab('cards'); window.requestAnimationFrame(() => document.getElementById('reader-workspace')?.scrollIntoView({ block: 'start' })); }}>태그한 카드 보기</button>
           </div></details> : <span className={`status${offline ? ' offline' : ''}`}><b className={!offline && loaded ? 'online' : ''}></b>{offline ? '오프라인 사용 중' : '연결 대기'}</span>}{speechActive && <div className={`speech-player ${speechState.status}`} role="status" aria-live="polite"><span><b aria-hidden="true">🔊</b><strong>{speechStatusLabel}</strong><small title={speechState.content}>{speechState.content}</small></span>{speechState.status === 'playing' && <button type="button" onClick={pauseSpeech}>일시 정지</button>}{speechState.status === 'paused' && <button type="button" onClick={resumeSpeech}>재개</button>}<button type="button" onClick={stopSpeech}>중지</button></div>}</div></header>
       {canManageContent && <OperationalAlerts key={user.id} refreshKey={adminSubmissions} onReview={() => setTab('admin')} />}
@@ -1783,7 +1791,7 @@ function App() {
         onCatalog={() => openCatalog()} />}
       {loaded && user.role === 'user' && <div id="reader-workspace" className="reader-workspace" hidden={!['home', 'cards'].includes(tab)}><RfidBoard key={`rfid-${user.id}`} targetId={user.id}
         cards={cards} artStyle={artStyle} collapsible expanded={readerExpanded} onExpandedChange={setReaderExpanded}
-        connectionTarget={usbTopbarTarget}
+        connectionTarget={usbTopbarTarget} onUsbStatus={setUsbStatus}
         active={['home', 'cards'].includes(tab) && !myPageOpen}
         disabled={busy || speechActive || offline || myPageOpen || !['home', 'cards'].includes(tab)}
         onAppend={selection => {
@@ -1808,7 +1816,7 @@ function App() {
         {!['ready', 'preparing'].includes(coreSpeechStatus.status) && <button type="button" onClick={() => setCoreSpeechRetry(current => current + 1)}>기본 음성 준비 다시 시도</button>}
         </details>
       </div>}
-      {!myPageOpen && error && <div role="alert" className="error">{error} <button disabled={busy} onClick={() => load(user)}>다시 연결</button></div>}
+      {!myPageOpen && error && <div role="alert" className="error">{error} <button disabled={busy || offline} onClick={() => generationFailed ? generate() : load(user)}>{generationFailed ? '문장 다시 만들기' : '다시 불러오기'}</button></div>}
       {speechFailure && <div role="alert" className="speech-error"><span aria-hidden="true">🔇</span><div><strong>음성을 재생하지 못했어요.</strong><p>전달할 표현: <strong>{speechFailure.content}</strong></p><p>{speechFailureMessage(speechFailure.errorCode)} 선택한 카드와 문장은 그대로 유지됩니다.</p></div><div className="speech-error-actions">{speechFailure.retryable && <button className="primary" onClick={() => speakText(speechFailure.content, speechFailure.contentType, speechFailure.cardIds || [])}>다시 재생</button>}<button onClick={() => setSpeechFailure(null)}>닫기</button></div></div>}
       {!loaded && !error && <p role="status">카드를 불러오는 중입니다…</p>}
       {isSupporter && selectedUser && ['dashboard', 'learning_progress'].includes(tab) && <SupportRecordTabs
@@ -1836,11 +1844,12 @@ function App() {
         renderPicture={cardPicture} onSelect={openCatalog} onAll={() => openCatalog()} /> : tab === 'cards' && user.role === 'user' ? <div className="communication-layout">
       {!privacy.guardian_consent && <p className="recordless-notice" role="status">기록 없이 말하기 · 지금 고른 카드와 발화는 저장하지 않아요.</p>}
       <div className="workspace"><section className="board" ref={boardRef}><div className="section-title"><h2 tabIndex="-1">나의 문장 <small>{board.length}/12</small></h2><button disabled={!board.length || busy} onClick={() => { if (window.confirm('선택한 카드를 모두 지울까요?')) { rememberBoardFocus(0, 'remove'); updateBoard([]); } }}>비우기</button></div>
-        {!board.length && <p className="board-empty">말하고 싶은 카드를 골라 주세요.</p>}
+        {!board.length && <p className="board-empty">아래 그림카드를 누르거나 리더기로 카드를 읽어 주세요.</p>}
         <ol aria-label="선택한 카드">{board.map((c, i) => <li key={`${c.id}-${i}`}><span>{c.symbol} {c.label}</span><div><button data-board-action="backward" aria-label={`${i + 1}번째 카드 앞으로`} disabled={i === 0 || busy} onClick={() => move(i, -1)}>←</button><button data-board-action="forward" aria-label={`${i + 1}번째 카드 뒤로`} disabled={i === board.length - 1 || busy} onClick={() => move(i, 1)}>→</button><button data-board-action="remove" aria-label={`${i + 1}번째 카드 삭제`} disabled={busy} onClick={() => removeBoardCard(i)}>×</button></div></li>)}</ol>
         {outputMode === 'word' && <p className="mode-guide">카드를 누르면 단어를 바로 말해요.</p>}
         <button className="primary full" disabled={!board.length} onClick={speakSelection}>🔊 고른 카드 말하기</button>
         {outputMode === 'natural' && privacy.guardian_consent && <button type="button" disabled={!board.length || busy || offline} onClick={generate}>{offline ? '온라인 연결 후 문장 만들기' : busy ? '문장을 만드는 중…' : '자연스러운 문장 만들기'}</button>}
+        {busy && <p className="generation-pending" role="status">문장을 다듬고 있어요. 기다리지 않고 위의 ‘고른 카드 말하기’를 사용할 수 있어요.</p>}
         {generationFailed && <div className="generation-fallback" role="status"><strong>문장 생성 없이도 말할 수 있어요.</strong><span>선택한 카드는 그대로 유지됐습니다.</span><div><button className="primary" disabled={!board.length} onClick={speakSelection}>🔊 선택 카드 그대로 말하기</button><button onClick={() => setOutputMode('word')}>단어 즉시 발화로 전환</button></div></div>}
         {text && <div className="sentence" aria-live="polite"><strong>{text}</strong>
           <details className="sentence-details"><summary>선택 순서와 생성 정보</summary><div className="original-order"><small>선택한 카드 순서</small><div>{board.map((card, index) => <span key={`${card.id}-${index}`}>{card.symbol} {card.label}</span>)}</div></div>
@@ -1848,7 +1857,7 @@ function App() {
           </details></div>}
         {(text || speechActive || generatedSessionId) && <div className="actions">{text && !sentenceConfirmed ? <button className="primary" disabled={busy} onClick={() => setSentenceConfirmed(true)}>✓ 문장을 확인했어요</button> : <button className="primary" disabled={!text || busy || speechActive} onClick={speak}>🔊 확인한 문장 읽기</button>}<button disabled={!generatedSessionId || busy || speechActive} onClick={regenerate}>{busy ? '만드는 중…' : '↻ 다시 만들기'}</button>{speechState.status === 'playing' && <button onClick={pauseSpeech}>일시 정지</button>}{speechState.status === 'paused' && <button onClick={resumeSpeech}>재개</button>}<button disabled={!speechActive} onClick={stopSpeech}>중지</button></div>}
 
-        <p className="muted">카드를 고르고 말하기를 눌러 주세요.</p>
+        <p className="muted">카드 고르기 → 내용 확인 → 말하기</p>
       </section>
       <section id="card-library" tabIndex="-1"><div className="section-title"><h2>무엇을 말하고 싶나요?</h2><input aria-label="카드 검색" placeholder="카드 이름 검색" value={search} onChange={e => setSearch(e.target.value)} /></div>
         {boardLayout && <SituationBoardPicker key={user.id} layout={boardLayout} active={activeBoardSituation} disabled={busy} offline={offline}
@@ -1905,21 +1914,9 @@ function App() {
       </div>
       <div className="submission-list"><h3>나의 카드</h3>{cardSubmissions.length ? <ul>{cardSubmissions.map(item => <li key={item.id}><span><strong>{item.label}</strong><small>{item.category} · {item.sharing_notice || (item.visibility === 'private' ? '나만 사용' : '공개 요청')}</small></span><div className="submission-actions"><b className={`submission-status ${item.status}`}>{item.visibility === 'private' && item.status === 'approved' ? '나만 사용 중' : ({ draft: '작성 중', pending: '승인 대기', approved: '공개 승인', rejected: '반려', inactive: '비활성' })[item.status] || item.status}</b>{['draft', 'rejected'].includes(item.status) && <button disabled={reviewBusy === item.id} onClick={() => { setEditingSubmission(item); setCardFormError(''); setShowCardForm(true); }}>수정</button>}{item.status === 'draft' && <button className="primary" disabled={reviewBusy === item.id} onClick={() => submitDraft(item)}>{item.visibility === 'private' ? '나만 사용 시작' : '공개 승인 요청'}</button>}</div></li>)}</ul> : <p className="muted">아직 등록한 카드가 없어요.</p>}</div>
       {loaded && !filteredCards.length && <EmptyState>조건에 맞는 카드가 없어요. 다른 검색어나 카테고리를 선택해 보세요.</EmptyState>}
-      {showCardForm && <div className="modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setShowCardForm(false); }}>
-        <section className="card-form-modal" role="dialog" aria-modal="true" aria-labelledby="card-form-title">
-          <div className="modal-heading"><div><h2 id="card-form-title">{editingSubmission ? '카드 수정' : '새 카드 등록'}</h2><p className="muted">{editingSubmission ? '반려 사유를 확인하고 정보를 수정해 주세요.' : '등록할 카드의 정보를 입력해 주세요.'}</p></div><button type="button" aria-label="등록 폼 닫기" onClick={() => { setShowCardForm(false); setEditingSubmission(null); }}>×</button></div>
-          <form key={editingSubmission?.id || 'new'} className="card-form" onSubmit={submitCard}>
-            {cardFormError && <div role="alert" className="error">{cardFormError}</div>}
-            <label>카드명<input name="label" required maxLength="30" placeholder="예: 연필" defaultValue={editingSubmission?.label || ''} /></label>
-            <label>카드 뜻<textarea name="meaning" required maxLength="120" rows="3" placeholder="카드가 나타내는 뜻을 적어 주세요." defaultValue={editingSubmission?.meaning || ''} /></label>
-            <label>카테고리<select name="category" required defaultValue={editingSubmission?.category || ''}><option value="" disabled>카테고리 선택</option>{cardCategories.map(item => <option key={item.id} value={item.name}>{item.name}</option>)}</select></label>
-            <label>공개 범위<select name="visibility" defaultValue={editingSubmission?.visibility || 'private'}><option value="private">나만 사용 · 운영 담당자에게 공유되지 않음</option><option value="shared">운영 담당자 승인 후 모든 사용자에게 공개</option></select></label>
-            {!editingSubmission && <label>카드 이미지<input name="image" required type="file" accept="image/jpeg,image/png,image/webp" capture="environment" /></label>}
-            <p className="form-notice">개인 카드는 운영 담당자에게 공유되지 않고 저장 즉시 나만 사용할 수 있어요. 공개 카드는 운영 담당자 승인 후 모두에게 표시됩니다. JPG, PNG, WebP 파일을 5MB 이하, 가로·세로 128~4096px로 올려 주세요.</p>
-            <div className="modal-actions"><button type="button" disabled={cardFormBusy} onClick={() => { setShowCardForm(false); setEditingSubmission(null); }}>취소</button>{!editingSubmission && <button type="submit" value="draft" disabled={cardFormBusy}>임시 저장</button>}<button type="submit" value="submit" className="primary" disabled={cardFormBusy}>{cardFormBusy ? '저장 중…' : editingSubmission ? '수정 저장' : '저장 또는 공개 요청'}</button></div>
-          </form>
-        </section>
-      </div>}
+      {showCardForm && <CardEditorDialog key={editingSubmission?.id || 'new-card'} editing={editingSubmission}
+        categories={cardCategories} busy={cardFormBusy} error={cardFormError} onSubmit={submitCard}
+        onClose={() => { setShowCardForm(false); setEditingSubmission(null); setCardFormError(''); }} />}
     </section> : tab === 'card_settings' && isSupporter && canManageCards ? <section className="card-catalog">
       <div className="catalog-toolbar"><div><h2>{selectedUser?.name}님의 개인 카드</h2><p className="muted">연결 사용자만 사용하는 카드를 대신 등록하고 관리합니다.</p></div><button className="primary" onClick={() => { setEditingSubmission(null); setCardFormError(''); setShowCardForm(true); }}>+ 개인 카드 등록</button></div>
       <label className="user-picker">관리 사용자<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)} disabled={cardFormBusy}>{linkedUsers.filter(person => person.permissions.includes('cards_manage')).map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>
@@ -1940,7 +1937,10 @@ function App() {
         </li>)}</ul>
       </section>}
       <div className="submission-list"><h3>등록 카드</h3>{cardSubmissions.length ? <ul>{cardSubmissions.map(item => <li key={item.id}><span><strong>{item.label}</strong><small>{item.category} · {item.sharing_notice || (item.visibility === 'private' ? '연결 사용자만 사용' : '공개 요청')}</small></span><div className="submission-actions"><b className={`submission-status ${item.status}`}>{item.visibility === 'private' && item.status === 'approved' ? '사용 중' : ({ draft: '작성 중', pending: '승인 대기', approved: '공개 승인', rejected: '반려', inactive: '비활성' })[item.status] || item.status}</b>{['draft', 'rejected'].includes(item.status) && <button disabled={reviewBusy === item.id} onClick={() => { setEditingSubmission(item); setCardFormError(''); setShowCardForm(true); }}>수정</button>}{item.status === 'draft' && <button className="primary" disabled={reviewBusy === item.id} onClick={() => submitDraft(item)}>{item.visibility === 'private' ? '사용 시작' : '공개 승인 요청'}</button>}</div></li>)}</ul> : <p className="muted">등록된 개인 카드가 없습니다.</p>}</div>
-      {showCardForm && <div className="modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setShowCardForm(false); }}><section className="card-form-modal" role="dialog" aria-modal="true" aria-labelledby="support-card-form-title"><div className="modal-heading"><div><h2 id="support-card-form-title">{editingSubmission ? '개인 카드 수정' : '개인 카드 등록'}</h2><p className="muted">{selectedUser?.name}님 계정에 저장할 카드입니다.</p></div><button type="button" aria-label="등록 폼 닫기" onClick={() => { setShowCardForm(false); setEditingSubmission(null); }}>×</button></div><form key={editingSubmission?.id || 'support-new'} className="card-form" onSubmit={submitCard}>{cardFormError && <div role="alert" className="error">{cardFormError}</div>}<label>카드명<input name="label" required maxLength="30" placeholder="예: 연필" defaultValue={editingSubmission?.label || ''} /></label><label>카드 뜻<textarea name="meaning" required maxLength="120" rows="3" placeholder="카드가 나타내는 뜻을 적어 주세요." defaultValue={editingSubmission?.meaning || ''} /></label><label>카테고리<select name="category" required defaultValue={editingSubmission?.category || ''}><option value="" disabled>카테고리 선택</option>{cardCategories.map(item => <option key={item.id} value={item.name}>{item.name}</option>)}</select></label><input name="visibility" type="hidden" value="private" />{!editingSubmission && <label>카드 이미지<input name="image" required type="file" accept="image/jpeg,image/png,image/webp" capture="environment" /></label>}<p className="form-notice">개인 카드는 연결 사용자에게만 표시되며 운영 담당자의 공개 승인 목록에는 나타나지 않습니다.</p><div className="modal-actions"><button type="button" disabled={cardFormBusy} onClick={() => { setShowCardForm(false); setEditingSubmission(null); }}>취소</button>{!editingSubmission && <button type="submit" value="draft" disabled={cardFormBusy}>임시 저장</button>}<button type="submit" value="submit" className="primary" disabled={cardFormBusy}>{cardFormBusy ? '저장 중…' : editingSubmission ? '수정 저장' : '카드 저장'}</button></div></form></section></div>}
+      {showCardForm && <CardEditorDialog key={`${selectedUser?.id}:${editingSubmission?.id || 'new-card'}`}
+        editing={editingSubmission} categories={cardCategories} privateOnly targetName={selectedUser?.name}
+        busy={cardFormBusy} error={cardFormError} onSubmit={submitCard}
+        onClose={() => { setShowCardForm(false); setEditingSubmission(null); setCardFormError(''); }} />}
     </section> : tab === 'learning_progress' && isSupporter && canManageLearning ? <section className="learning-hub"
       role="tabpanel" id="support-record-panel-learning_progress" aria-labelledby="support-record-tab-learning_progress" tabIndex="0">
       <div className="panel-heading"><span aria-hidden="true">★</span><div><h2>연결 사용자 학습 기록</h2><p className="muted">{selectedUser?.name} · 최근 30일 · 완료한 연습 기준 · 학습 기록 조회·설정 관리 권한</p></div></div>
@@ -2063,6 +2063,7 @@ function App() {
         </li>)}</ul>}</div>}
       </section> : <EmptyState>이 화면을 볼 수 있는 연결 권한이 없습니다. 지원 홈에서 사용자를 다시 선택해 주세요.</EmptyState>}
       <footer>실행용 프로토타입 · 실제 개인정보를 입력하지 마세요.</footer>
+      </div>
       {myPageOpen && <MyPage key={user.id} name={user.name} sections={settingsSections}
         notice={profileNotice} error={error} onClose={() => setMyPageOpen(false)} />}
       {confirmation}

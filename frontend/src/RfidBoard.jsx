@@ -6,7 +6,7 @@ import UsbRfidReader from './UsbRfidReader';
 const statusText = { EMPTY: '카드 없음', ERROR: '리더기 오류', STALE: '새 상태를 기다려 주세요',
   UNMAPPED: '등록되지 않은 카드', UNAVAILABLE: '사용할 수 없는 카드', PRESENT: '카드 인식' };
 
-export default function RfidBoard({ targetId, manager = false, canMap = false, cards = [], artStyle = () => ({}), onApply, onAppend, disabled = false, collapsible = false, expanded = false, onExpandedChange, active = true, connectionTarget }) {
+export default function RfidBoard({ targetId, manager = false, canMap = false, cards = [], artStyle = () => ({}), onApply, onAppend, disabled = false, collapsible = false, expanded = false, onExpandedChange, active = true, connectionTarget, onUsbStatus }) {
   const [open, setOpen] = useState(manager);
   const [devices, setDevices] = useState([]), [deviceId, setDeviceId] = useState('');
   const [snapshot, setSnapshot] = useState(null), [bindings, setBindings] = useState([]), [choices, setChoices] = useState([]);
@@ -25,6 +25,8 @@ export default function RfidBoard({ targetId, manager = false, canMap = false, c
     && localStorage.getItem('pesc-mate-token') === token;
   const current = sequence => sameSession(sequence) && navigator.onLine;
   const selected = devices.find(item => item.device_id === deviceId);
+
+  useEffect(() => { onUsbStatus?.(usbSummary); }, [usbSummary, onUsbStatus]);
 
   useEffect(() => {
     if (collapsible && usbSummary.count > previousUsbCount.current) onExpandedChange?.(true);
@@ -110,7 +112,7 @@ export default function RfidBoard({ targetId, manager = false, canMap = false, c
     <div className="reader-heading"><div><h2>{manager ? 'RFID 실물 카드판' : '실물 카드로 말하기'}</h2>
       {!manager && <p>카드를 읽고, 문장에 담은 뒤 말해요.</p>}</div>
       {collapsible && <><span className={`reader-status ${usbSummary.state}`} role="status">
-        {usbSummary.state === 'connected' ? `USB 연결됨 · ${usbSummary.count ? `읽은 카드 ${usbSummary.count}장` : '카드 대기 중'}` : usbSummary.state === 'connecting' ? 'USB 연결 중' : 'USB 연결 전'}
+        {usbSummary.state === 'connected' ? usbSummary.fresh ? `USB 연결됨 · ${usbSummary.count ? `읽은 카드 ${usbSummary.count}장` : '카드 대기 중'}` : '리더기 응답 대기' : usbSummary.state === 'connecting' ? 'USB 연결 중' : 'USB 연결 전'}
       </span><button type="button" aria-expanded={expanded} onClick={() => onExpandedChange?.(!expanded)}>
         {expanded ? '카드 리더기 접기' : '카드 리더기 열기'}</button></>}
     </div>
