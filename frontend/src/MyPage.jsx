@@ -9,7 +9,7 @@ const SECTION_DETAILS = {
   support: { icon: 'users', description: '연결 사용자와 운영' },
 };
 
-export default function MyPage({ name, sections, notice, error, onClose }) {
+export default function MyPage({ name, sections, notice, error, onClose, variant = 'default' }) {
   const page = useRef(null);
   const heading = useRef(null);
   const contentPanel = useRef(null);
@@ -53,6 +53,32 @@ export default function MyPage({ name, sections, notice, error, onClose }) {
     event.currentTarget.querySelectorAll('[role="tab"]')[next].focus();
   }
 
+  if (variant === 'caregiver') return <section ref={page} id="my-page" className="my-page caregiver-my-page" aria-labelledby="my-page-title">
+    <header className="my-page-heading">
+      <button type="button" className="caregiver-settings-back" aria-label="이전 화면으로" onClick={onClose}><UiIcon name="arrow-left" /></button>
+      <div><h1 ref={heading} tabIndex="-1" id="my-page-title">설정 및 관리</h1><p>{name}님의 보호자 계정 설정</p></div>
+    </header>
+    <div className="my-page-layout">
+      <nav className="caregiver-settings-nav" aria-label="설정 영역">
+        {sections.map(item => <button type="button" key={item.id} aria-controls={`${id}-section-${item.id}`}
+          aria-current={current.id === item.id ? 'location' : undefined} onClick={() => {
+            setSection(item.id);
+            const target = document.getElementById(`${id}-section-${item.id}`);
+            target?.scrollIntoView({ block: 'start' });
+            target?.querySelector('h2')?.focus({ preventScroll: true });
+          }}><UiIcon name={SECTION_DETAILS[item.id]?.icon || 'settings'} />{item.label}</button>)}
+      </nav>
+      <div className="caregiver-settings-content">
+        {notice && <p role="status">{notice}</p>}{error && <p className="error" role="alert">{error}</p>}
+        {sections.map(item => <section key={item.id} id={`${id}-section-${item.id}`} className="caregiver-settings-card"
+          aria-labelledby={`${id}-heading-${item.id}`} onFocusCapture={() => setSection(item.id)}>
+          <header><span aria-hidden="true"><UiIcon name={SECTION_DETAILS[item.id]?.icon || 'settings'} size={24} /></span>
+            <h2 tabIndex="-1" id={`${id}-heading-${item.id}`}>{item.label}</h2></header>
+          {item.content}
+        </section>)}
+      </div>
+    </div>
+  </section>;
   return <section ref={page} id="my-page" className="my-page" aria-labelledby="my-page-title">
     <header className="my-page-heading"><span className="my-page-heading-icon" aria-hidden="true"><UiIcon name="settings" size={24} /></span>
       <div><h1 ref={heading} tabIndex="-1" id="my-page-title">마이페이지</h1><p>{name}님의 프로필과 설정</p></div>

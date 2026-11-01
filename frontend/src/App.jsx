@@ -1,6 +1,7 @@
 import Mascot, { EmptyState } from './Mascot';
 import { Avatar, ProfileEditor } from './Profile';
 import MyPage from './MyPage';
+import './assets/caregiverUx.css';
 import UiIcon from './UiIcon';
 import OfflineSpeechStatus from './OfflineSpeechStatus';
 import CardEditorDialog from './CardEditorDialog';
@@ -1655,6 +1656,7 @@ function App() {
   }).format(new Date());
   const speechActive = speechState.status !== 'idle';
   const isSupporter = ['caregiver', 'support_staff'].includes(user?.role);
+  const isCaregiver = user?.role === 'caregiver';
   const canManageContent = user?.role === 'support_staff' && user?.account_permissions?.includes('content_manage');
   const canManageAccounts = user?.role === 'support_staff' && user?.can_manage_account_permissions === true;
   const selectedPermissions = selectedUser?.permissions || [];
@@ -1772,10 +1774,10 @@ function App() {
     setCategory(value); setSearch(''); setCardPage(0); setTab('catalog');
   }
   function navigateFromMyPage(action) { setMyPageOpen(false); action(); }
-  return <main ref={entryPageRef} className={`app${sidebarCollapsed ? ' sidebar-collapsed' : ''} display-${accessibility.display_mode} card-size-${accessibility.card_size} text-size-${accessibility.text_size}${accessibility.reduced_motion ? ' reduced-motion' : ''}${accessibility.high_contrast ? ' high-contrast' : ''}`}>
+  return <main ref={entryPageRef} className={`app${isCaregiver ? ' caregiver-ui' : ''}${sidebarCollapsed ? ' sidebar-collapsed' : ''} display-${accessibility.display_mode} card-size-${accessibility.card_size} text-size-${accessibility.text_size}${accessibility.reduced_motion ? ' reduced-motion' : ''}${accessibility.high_contrast ? ' high-contrast' : ''}`}>
     <a className="skip-link" href="#main-content">본문 바로가기</a>
     <aside className="sidebar" id="app-sidebar" hidden={sidebarCollapsed}>
-      <div className="sidebar-brand"><Mascot className="mascot-brand" /><strong>PESC<br />MATE</strong></div>
+      <div className="sidebar-brand"><Mascot className="mascot-brand" /><strong>{isCaregiver ? 'PESC MATE' : <>PESC<br />MATE</>}</strong></div>
       <nav aria-label="주 메뉴" onClick={event => { if (event.target.closest('button:not(:disabled)')) setMyPageOpen(false); }}>{isSupporter ? <>
         <button aria-current={!myPageOpen && tab === 'support_home' ? 'page' : undefined} className={!myPageOpen && tab === 'support_home' ? 'active' : ''} onClick={() => setTab('support_home')}><span aria-hidden="true"><UiIcon name="home" /></span>지원 홈</button>
         {canReadRecords && <button aria-current={!myPageOpen && tab === 'dashboard' ? 'page' : undefined} className={!myPageOpen && tab === 'dashboard' ? 'active' : ''} onClick={() => openSupportSection('dashboard')}><span aria-hidden="true"><UiIcon name="chart" /></span>의사소통 기록</button>}
@@ -1854,6 +1856,7 @@ function App() {
         </select></label>
         <RfidBoard key={`rfid-${user.id}-${selectedUser.id}-${canManageCards}`} targetId={selectedUser.id} manager canMap={canManageCards} />
       </div> : tab === 'support_home' && isSupporter ? <section className="support-home">
+        <div className="support-home-panel">
         <div className="panel-heading"><span aria-hidden="true"><UiIcon name="users" /></span><div><h2>{user.role === 'caregiver' ? '보호자 지원 홈' : '담당자 지원 홈'}</h2><p className="muted">연결 사용자를 선택하면 부여된 권한 범위의 메뉴만 표시됩니다.</p></div></div>
         {linkedUsers.length ? <><label className="user-picker">지원할 사용자<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)}>{linkedUsers.map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>
           <div className="support-action-grid">
@@ -1864,8 +1867,9 @@ function App() {
             {canManageLearning && <button onClick={() => openLearning(selectedUser)}><span aria-hidden="true"><UiIcon name="book" /></span><strong>학습 기록</strong><small>최근 30일 연습 참여·단어별 기록 · 학습 관리 권한</small></button>}
             {selectedPermissions.includes('notes_write') && <article><span aria-hidden="true"><UiIcon name="check" /></span><strong>{SUPPORT_PERMISSION_LABELS.notes_write}</strong><small>의사소통 기록 화면에서 사용할 수 있습니다.</small></article>}
           </div>
-          {selectedUser && canManageLearning && canReadRecords && <PracticeSuggestionsPanel key={`${user.id}:${selectedUser.id}`} accountId={user.id} target={selectedUser} onDirectSelect={() => openLearning(selectedUser)} />}
         </> : <EmptyState>연결된 사용자가 없습니다.</EmptyState>}
+        </div>
+        {selectedUser && canManageLearning && canReadRecords && <PracticeSuggestionsPanel key={`${user.id}:${selectedUser.id}`} accountId={user.id} target={selectedUser} onDirectSelect={() => openLearning(selectedUser)} />}
       </section> : tab === 'home' && user.role === 'user' ? <CardTopics categories={cardCategories} cards={cards}
         renderPicture={cardPicture} onSelect={openCatalog} onAll={() => openCatalog()} /> : tab === 'cards' && user.role === 'user' ? <div className="communication-layout">
       {!privacy.guardian_consent && <p className="recordless-notice" role="status">기록 없이 말하기 · 지금 고른 카드와 발화는 저장하지 않아요.</p>}
@@ -1946,8 +1950,8 @@ function App() {
         categories={cardCategories} busy={cardFormBusy} error={cardFormError} onSubmit={submitCard}
         onClose={() => { setShowCardForm(false); setEditingSubmission(null); setCardFormError(''); }} />}
     </section> : tab === 'card_settings' && isSupporter && canManageCards ? <section className="card-catalog">
-      <div className="catalog-toolbar"><div><h2>{selectedUser?.name}님의 개인 카드</h2><p className="muted">연결 사용자만 사용하는 카드를 대신 등록하고 관리합니다.</p></div><button className="primary" onClick={() => { setEditingSubmission(null); setCardFormError(''); setShowCardForm(true); }}>+ 개인 카드 등록</button></div>
-      <label className="user-picker">관리 사용자<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)} disabled={cardFormBusy}>{linkedUsers.filter(person => person.permissions.includes('cards_manage')).map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>
+      <div className="caregiver-card-toolbar"><div className="catalog-toolbar"><div><h2>{selectedUser?.name}님의 개인 카드</h2><p className="muted">연결 사용자만 사용하는 카드를 대신 등록하고 관리합니다.</p></div><button className="primary" onClick={() => { setEditingSubmission(null); setCardFormError(''); setShowCardForm(true); }}><UiIcon name="plus" />개인 카드 등록</button></div>
+      <label className="user-picker">관리 사용자<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)} disabled={cardFormBusy}>{linkedUsers.filter(person => person.permissions.includes('cards_manage')).map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label></div>
       {user.role === 'caregiver' && selectedUser && <CardPrintEditor key={`print-${user.id}:${selectedUser.id}`}
         targetId={selectedUser.id} targetName={selectedUser.name} categories={cardCategories} existingCards={cardSubmissions}
         disabled={offline || statsBusy || cardFormBusy} onSaved={() => loadSupportCards(selectedUser)} />}
@@ -1967,7 +1971,7 @@ function App() {
             onRefresh={() => loadSupportCards(selectedUser).catch(failure => setError(failure.message))} />
         </li>)}</ul>
       </section>}
-      <div className="submission-list"><h3>등록 카드</h3>{cardSubmissions.length ? <ul>{cardSubmissions.map(item => <li key={item.id}><span><strong>{item.label}</strong><small>{item.category} · {item.sharing_notice || (item.visibility === 'private' ? '연결 사용자만 사용' : '공개 요청')}</small></span><div className="submission-actions"><b className={`submission-status ${item.status}`}>{item.visibility === 'private' && item.status === 'approved' ? '사용 중' : ({ draft: '작성 중', pending: '승인 대기', approved: '공개 승인', rejected: '반려', inactive: '비활성' })[item.status] || item.status}</b>{['draft', 'rejected'].includes(item.status) && <button disabled={reviewBusy === item.id} onClick={() => { setEditingSubmission(item); setCardFormError(''); setShowCardForm(true); }}>수정</button>}{item.status === 'draft' && <button className="primary" disabled={reviewBusy === item.id} onClick={() => submitDraft(item)}>{item.visibility === 'private' ? '사용 시작' : '공개 승인 요청'}</button>}</div></li>)}</ul> : <p className="muted">등록된 개인 카드가 없습니다.</p>}</div>
+      <div className="submission-list"><h3>등록 카드</h3>{cardSubmissions.length ? <ul>{cardSubmissions.map(item => <li key={item.id}><span><strong>{item.label}</strong><small>{item.category} · {item.sharing_notice || (item.visibility === 'private' ? '연결 사용자만 사용' : '공개 요청')}</small></span><div className="submission-actions"><b className={`submission-status ${item.status}`}>{item.visibility === 'private' && item.status === 'approved' ? '사용 중' : ({ draft: '작성 중', pending: '승인 대기', approved: '공개 승인', rejected: '반려', inactive: '비활성' })[item.status] || item.status}</b>{['draft', 'rejected'].includes(item.status) && <button disabled={reviewBusy === item.id} onClick={() => { setEditingSubmission(item); setCardFormError(''); setShowCardForm(true); }}>수정</button>}{item.status === 'draft' && <button className="primary" disabled={reviewBusy === item.id} onClick={() => submitDraft(item)}>{item.visibility === 'private' ? '사용 시작' : '공개 승인 요청'}</button>}</div></li>)}</ul> : <div className="caregiver-card-empty"><UiIcon name="cards" size={44} /><strong>등록된 개인 카드가 없습니다.</strong><p>새로운 카드를 등록하여 아이의 소통을 도와주세요.</p></div>}</div>
       {showCardForm && <CardEditorDialog key={`${selectedUser?.id}:${editingSubmission?.id || 'new-card'}`}
         editing={editingSubmission} categories={cardCategories} privateOnly targetName={selectedUser?.name}
         busy={cardFormBusy} error={cardFormError} onSubmit={submitCard}
@@ -2062,9 +2066,9 @@ function App() {
       aria-labelledby={isSupporter ? 'support-record-tab-dashboard' : undefined} tabIndex={isSupporter ? 0 : undefined}>
       <div className="panel-heading"><span aria-hidden="true"><UiIcon name="chart" /></span><div><h2>{isSupporter ? '연결 사용자 의사소통 기록' : '나의 의사소통 기록'}</h2><p className="muted">{(selectedUser || user).name} · {period === 'all' ? '전체 기간' : `최근 ${period}일`} · 문장 저장 기준{isSupporter ? ' · 의사소통 기록 조회 권한' : ''}</p></div></div>
       <p className="record-scope-note">저장한 문장과 그 문장에 포함된 카드만 집계합니다. 연습 결과와 실제 음성 재생 성공 횟수는 이 지표에 포함하지 않습니다.</p>
-      {isSupporter && selectedUser && <div className="profile"><Avatar user={selectedUser} /><strong>{selectedUser.name}</strong></div>}
+      <div className="caregiver-report-toolbar">{isSupporter && selectedUser && <div className="profile"><Avatar user={selectedUser} /><strong>{selectedUser.name}</strong></div>}
       {isSupporter && <label className="user-picker">조회 사용자<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)} disabled={statsBusy}>{linkedUsers.filter(person => person.permissions.includes('records_read')).map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>}
-      <div className="period-filter" aria-label="조회 기간">{[['7', '최근 7일'], ['30', '최근 30일'], ['all', '전체']].map(([value, label]) => <button key={value} className={period === value ? 'active' : ''} aria-pressed={period === value} disabled={statsBusy} onClick={() => changePeriod(value)}>{label}</button>)}</div>
+      <div className="period-filter" aria-label="조회 기간">{[['7', '최근 7일'], ['30', '최근 30일'], ['all', '전체']].map(([value, label]) => <button key={value} className={period === value ? 'active' : ''} aria-pressed={period === value} disabled={statsBusy} onClick={() => changePeriod(value)}>{label}</button>)}</div></div>
       {isSupporter && stats && selectedUser && <RecordExport key={`communication-${user.id}-${selectedUser.id}-${period}`}
         domain="communication" targetId={selectedUser.id} days={period === 'all' ? null : Number(period)} disabled={offline || statsBusy} />}
       {statsBusy && <p className="muted" role="status">통계를 불러오는 중입니다…</p>}
@@ -2101,6 +2105,7 @@ function App() {
       <footer>실행용 프로토타입 · 실제 개인정보를 입력하지 마세요.</footer>
       </div>
       {myPageOpen && <MyPage key={user.id} name={user.name} sections={settingsSections}
+        variant={isCaregiver ? 'caregiver' : 'default'}
         notice={profileNotice} error={error} onClose={() => setMyPageOpen(false)} />}
       {confirmation}
     </div>
