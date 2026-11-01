@@ -9,7 +9,7 @@
 .app.caregiver-ui .sidebar nav button { gap: 12px; min-height: 48px; padding: 12px 16px; border-radius: 12px; font-size: .85rem; line-height: 1.45; }
 .app.caregiver-ui .sidebar nav button[aria-current="page"] { color: var(--color-text); background: var(--color-selected); }
 .app.caregiver-ui .sidebar nav button[aria-current="page"]::after { top: 0; bottom: 0; border-radius: 0 12px 12px 0; }
-.app.caregiver-ui .sidebar .profile-trigger { margin-top: auto; padding: 16px 10px; border-radius: 20px; background: var(--color-selected); gap: 8px; }
+.app.caregiver-ui .sidebar .profile-trigger { margin-top: auto; padding: 16px 10px; border-radius: 12px; background: var(--color-surface); gap: 8px; }
 .app.caregiver-ui .profile-trigger .profile-avatar { flex-basis: 40px; width: 40px; height: 40px; }
 .app.caregiver-ui .profile-trigger strong { font-size: .85rem; }
 .app.caregiver-ui .profile-trigger small, .app.caregiver-ui .profile-settings-hint { font-size: .7rem; }
