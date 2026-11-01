@@ -25,10 +25,20 @@
 .app .screen-cards .board > ol > li > span { color: var(--color-text); font-weight: 700; }
 .app .screen-cards .board > ol > li > div { display: flex; gap: 8px; }
 .app .screen-cards .board > ol > li button { flex: 1; margin: 0; padding: 6px 10px; border: 1px solid var(--color-border-control); border-radius: 10px; background: var(--color-surface); box-shadow: none; }
+.app .screen-cards .board > .sentence-strip { list-style: none; }
+.app .screen-cards .board > .sentence-strip > li { position: relative; display: block; width: 144px; min-width: 144px; padding: 0; background: var(--color-surface); }
+.app .screen-cards .sentence-strip .sentence-card-move { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; padding: 16px 12px 12px; border: 0; background: var(--color-surface); color: var(--color-text); touch-action: pan-y; cursor: grab; user-select: none; }
+.app .sentence-card-picture { display: block; width: 112px; height: 112px; background-color: var(--color-surface); background-size: contain !important; background-position: center; background-repeat: no-repeat; }
+.app .sentence-card-picture.image-fallback { display: grid; place-items: center; }
+.app .screen-cards .sentence-strip .sentence-card-remove { position: absolute; right: 2px; top: 2px; display: grid; place-items: center; width: 44px; height: 44px; padding: 10px; }
+.app .screen-cards .sentence-strip > li.picked { outline: 3px solid var(--color-primary-action); outline-offset: -3px; }
+.app .screen-cards .sentence-strip > li.dragging { opacity: .55; }
+.app .screen-cards .sentence-strip > li.drop-target { outline: 3px dashed var(--color-primary-action); outline-offset: -3px; }
+.app .sentence-card-ghost { position: fixed; z-index: 100; display: grid; justify-items: center; gap: 6px; padding: 12px; border: 2px solid var(--color-primary-action); border-radius: 14px; background: var(--color-surface); color: var(--color-text); pointer-events: none; transform: translate(-50%, -60%); box-shadow: 0 8px 24px var(--color-shadow); }
+.app .sentence-strip-guide { color: var(--color-text-secondary); font-size: .85rem; line-height: 1.6; }
 .app .screen-cards .board > .primary.full { min-height: 52px; margin-bottom: 10px; border-radius: 14px; }
-.app .natural-sentence-tools { margin-top: 8px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: 12px; }
-.app .natural-sentence-tools > summary, .app .speaking-history-tools > summary { min-height: 44px; align-content: center; cursor: pointer; color: var(--ui-muted); font-size: .9rem; font-weight: 700; }
-.app .natural-sentence-tools > div { padding-block: 8px 12px; }
+.app .board > .natural-sentence-tools { margin-top: 8px; padding: 12px; border: 1px solid var(--color-border); border-radius: 12px; box-shadow: none; }
+.app .speaking-history-tools > summary { min-height: 44px; align-content: center; cursor: pointer; color: var(--ui-muted); font-size: .9rem; font-weight: 700; }
 .app .recommendation-disclosure { padding: 0; border: 0; }
 .app .recommendation-disclosure > summary { min-height: 48px; align-content: center; cursor: pointer; color: var(--ui-muted); font-weight: 700; }
 .app .recommendation-disclosure[open] > summary { margin-bottom: 12px; }
@@ -37,7 +47,7 @@
 .app .connection-menu-panel > .core-speech-status { display: block; width: 100%; margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--color-border); }
 .app .connection-menu-panel > .core-speech-status > summary { min-height: 44px; align-content: center; cursor: pointer; }
 .app.high-contrast .natural-sentence-tools, .app.high-contrast .home-topics-disclosure > summary { border-color: var(--color-contrast); }
-.app.high-contrast .natural-sentence-tools > summary, .app.high-contrast .speaking-history-tools > summary, .app.high-contrast .home-catalog-link, .app.high-contrast .home-topics-disclosure > summary { color: var(--color-contrast); }
+.app.high-contrast .speaking-history-tools > summary, .app.high-contrast .home-catalog-link, .app.high-contrast .home-topics-disclosure > summary { color: var(--color-contrast); }
 .app .screen-cards .speech-options { margin: 12px 0; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 12px; }
 .app .screen-cards .speech-options summary { min-height: 44px; align-content: center; cursor: pointer; font-weight: 700; }
 .app .screen-cards .board .sentence { min-height: 0; margin: 12px 0; padding: 16px; border: 1px solid var(--color-border); border-radius: 14px; background: var(--color-selected); }

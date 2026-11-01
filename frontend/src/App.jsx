@@ -35,6 +35,7 @@ import { clearBoard, loadBoard, saveBoard } from "./services/boardStorage";
 import { LEARNING_ACTIVITIES, learningQuestions } from "./services/learningGame";
 import LearningQuestion from './LearningQuestion';
 import SentenceOrderQuestion from './SentenceOrderQuestion';
+import SentenceStrip from './SentenceStrip';
 import { availableSentenceExamples, sentenceLearningQuestions, sentenceOrderMatches, validSentenceDraft, validSentenceQuestion } from './services/sentenceLearning';
 import { localKoreanVoices as installedKoreanVoices, selectTtsVoice } from "./services/ttsVoice";
 import { createRequestId } from "./services/requestId";
@@ -202,6 +203,9 @@ function App() {
   const [generationAttempt, setGenerationAttempt] = useState(1);
   const [sentenceConfirmed, setSentenceConfirmed] = useState(false);
   const [generationFailed, setGenerationFailed] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const generationInFlightRef = useRef(false);
+  const sentenceContextRef = useRef('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -279,6 +283,16 @@ function App() {
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const activityConsentRef = useRef(false);
   activityConsentRef.current = user?.role === 'user' && privacy.guardian_consent;
+  const sentenceContext = JSON.stringify([user?.id, user?.role, loaded, requestId, board.map(card => [card.id, card.selected_at]),
+    tab, myPageOpen, outputMode, offline, privacy.guardian_consent]);
+  sentenceContextRef.current = sentenceContext;
+  useEffect(() => {
+    if (user?.role !== 'user' || tab !== 'cards' || myPageOpen || !loaded || busy || generating
+        || offline || !privacy.guardian_consent || outputMode !== 'natural'
+        || !board.length || text || generationFailed) return;
+    const timer = window.setTimeout(() => generate(), 700);
+    return () => window.clearTimeout(timer);
+  }, [sentenceContext, loaded, busy, generating, text, generationFailed]);
   useEffect(() => {
     if (user?.role !== 'user' || tab !== 'practice' || !loaded || offline || !privacy.guardian_consent) {
       setActivePracticePlan(null);
@@ -725,6 +739,8 @@ function App() {
   }
 
   function updateBoard(next) {
+    // Invalidate pending generation before React commits the new selection.
+    sentenceContextRef.current = '';
     stopSpeech();
     const activity = makeActivity('card_selection', next.map(card => card.id));
     selectionEventRef.current = activity?.event.id || null;
@@ -735,10 +751,11 @@ function App() {
     if (board.length >= 12) { setError('카드는 최대 12장까지 선택할 수 있어요.'); return; }
     setError(''); updateBoard([...board, { ...card, selected_at: new Date().toISOString() }]);
   }
-  function move(index, offset) {
-    rememberBoardFocus(index + offset, offset < 0 ? 'backward' : 'forward');
+  function move(index, destination) {
+    if (index === destination || destination < 0 || destination >= board.length) return;
+    rememberBoardFocus(destination, 'move');
     const next = [...board];
-    [next[index], next[index + offset]] = [next[index + offset], next[index]];
+    next.splice(destination, 0, next.splice(index, 1)[0]);
     updateBoard(next);
   }
   function rememberBoardFocus(index, action) {
@@ -749,39 +766,47 @@ function App() {
     updateBoard(board.filter((_, position) => position !== index));
   }
   async function generate() {
-    if (!privacy.guardian_consent) { speakSelection(); return; }
-    setBusy(true); setError(''); setGenerationFailed(false); setSentenceConfirmed(false);
+    if (!privacy.guardian_consent || offline || !board.length || generationInFlightRef.current) return;
+    generationInFlightRef.current = true;
+    const context = sentenceContextRef.current;
+    const sessionToken = localStorage.getItem('pesc-mate-token');
+    const isCurrent = () => sentenceContextRef.current === context && localStorage.getItem('pesc-mate-token') === sessionToken;
+    setGenerating(true); setError(''); setGenerationFailed(false); setSentenceConfirmed(false);
     try {
       const result = await request('/sentences', { method: 'POST', body: JSON.stringify({ cards: board.map(c => c.id),
         selected_at: board.map(card => card.selected_at || null), request_id: requestId }) });
+      if (!isCurrent()) return;
       setText(result.sentence);
       setGenerationSource(result.generation_source || 'rule');
       setGeneratedSessionId(result.id);
       setGenerationAttempt(result.generation_attempt || 1);
-      const sessionToken = localStorage.getItem('pesc-mate-token');
       request(dashboardPath()).then(stats => {
         if (localStorage.getItem('pesc-mate-token') === sessionToken) setStats(stats);
       }).catch(() => {});
-    } catch (e) { setGenerationFailed(true); setError(`${e.message} 선택한 카드는 유지되며 로컬 음성은 계속 사용할 수 있어요.`); }
-    finally { setBusy(false); }
+    } catch (e) { if (isCurrent()) { setGenerationFailed(true); setError(`${e.message} 선택한 카드는 유지되며 로컬 음성은 계속 사용할 수 있어요.`); } }
+    finally { generationInFlightRef.current = false; setGenerating(false); }
   }
   async function regenerate() {
-    if (!privacy.guardian_consent || !generatedSessionId) return;
-    setBusy(true); setError(''); setGenerationFailed(false); setSentenceConfirmed(false);
+    if (!privacy.guardian_consent || offline || !generatedSessionId || generationInFlightRef.current) return;
+    generationInFlightRef.current = true;
+    const context = sentenceContextRef.current;
+    const sessionToken = localStorage.getItem('pesc-mate-token');
+    const isCurrent = () => sentenceContextRef.current === context && localStorage.getItem('pesc-mate-token') === sessionToken;
+    setGenerating(true); setError(''); setGenerationFailed(false); setSentenceConfirmed(false);
     try {
       const result = await request(`/sentences/${generatedSessionId}/regenerate`, {
         method: 'POST', body: JSON.stringify({ request_id: createRequestId() }),
       });
+      if (!isCurrent()) return;
       setText(result.sentence);
       setGenerationSource(result.generation_source || 'rule');
       setGeneratedSessionId(result.id);
       setGenerationAttempt(result.generation_attempt || generationAttempt + 1);
-      const sessionToken = localStorage.getItem('pesc-mate-token');
       request(dashboardPath()).then(stats => {
         if (localStorage.getItem('pesc-mate-token') === sessionToken) setStats(stats);
       }).catch(() => {});
-    } catch (e) { setGenerationFailed(true); setError(`${e.message} 선택한 카드는 유지되며 로컬 음성은 계속 사용할 수 있어요.`); }
-    finally { setBusy(false); }
+    } catch (e) { if (isCurrent()) { setGenerationFailed(true); setError(`${e.message} 선택한 카드는 유지되며 로컬 음성은 계속 사용할 수 있어요.`); } }
+    finally { generationInFlightRef.current = false; setGenerating(false); }
   }
   function finishSpeechEvent(event, status, errorCode = '') {
     if (!event) return Promise.resolve();
@@ -901,7 +926,7 @@ function App() {
     });
     return () => { if (isCurrent()) { speechRunRef.current += 1; speechPlayback.stop(); setSpeechState({ status: 'idle', content: '' }); } };
   }
-  function speak() { if (sentenceConfirmed) rememberAndSpeakSentence(text); }
+  function speak() { if (text) { setSentenceConfirmed(true); rememberAndSpeakSentence(text); } }
   function speakSelection() { rememberAndSpeakSentence(board.map(card => card.label).join(' ')); }
   function restoreLastSentence() {
     if (!lastSentence) return;
@@ -1816,7 +1841,7 @@ function App() {
         }} /></div>}
       {user.role === 'user' && <section className="quick-speech" aria-labelledby="quick-speech-title" data-scan-group="quick-speech"><div><strong id="quick-speech-title">빠른 표현</strong><small>누르면 바로 말해요</small></div>{quickExpressionCards.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 바로 말하기`} onClick={() => speakText(item.label, 'card', [item.id])}>{expressionVisual(item)}{item.label}</button>)}</section>}
       {user.role === 'user' && tab === 'cards' && <section className="recovery-speech" aria-labelledby="recovery-speech-title" data-scan-group="recovery-speech"><div><strong id="recovery-speech-title">다시 말하기·고치기</strong><small>잘못 전했을 때 바로 말해요</small></div>{recoveryExpressions.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 복구 표현 말하기`} onClick={() => speakText(item.label, 'recovery')}>{expressionVisual(item)}{item.label}</button>)}<details className="speaking-history-tools"><summary>이전 문장·다시 듣기</summary><div><button disabled={!lastUtterance || speechState.status === 'starting'} onClick={() => lastUtterance && speakText(lastUtterance.content, lastUtterance.contentType, lastUtterance.cardIds)}><span aria-hidden="true"><UiIcon name="volume" /></span>마지막 말 다시 듣기</button><button disabled={!board.length && !text} onClick={() => updateBoard([])}><span aria-hidden="true"><UiIcon name="erase" /></span>현재 문장 취소</button><button disabled={!lastSentence} onClick={restoreLastSentence}><span aria-hidden="true"><UiIcon name="undo" /></span>직전 문장 불러오기</button></div></details></section>}
-      {!myPageOpen && error && <div role="alert" className="error">{error} <button disabled={busy || offline} onClick={() => generationFailed ? generate() : load(user)}>{generationFailed ? '문장 다시 만들기' : '다시 불러오기'}</button></div>}
+      {!myPageOpen && error && <div role="alert" className="error">{error} <button disabled={busy || generating || offline} onClick={() => generationFailed ? generate() : load(user)}>{generationFailed ? '문장 다시 만들기' : '다시 불러오기'}</button></div>}
       {speechFailure && <div role="alert" className="speech-error"><span aria-hidden="true"><UiIcon name="volume-off" /></span><div><strong>음성을 재생하지 못했어요.</strong><p>전달할 표현: <strong>{speechFailure.content}</strong></p><p>{speechFailureMessage(speechFailure.errorCode)} 선택한 카드와 문장은 그대로 유지됩니다.</p></div><div className="speech-error-actions">{speechFailure.retryable && <button className="primary" onClick={() => speakText(speechFailure.content, speechFailure.contentType, speechFailure.cardIds || [])}>다시 재생</button>}<button onClick={() => setSpeechFailure(null)}>닫기</button></div></div>}
       {!loaded && !error && <p role="status">카드를 불러오는 중입니다…</p>}
       {isSupporter && selectedUser && ['dashboard', 'learning_progress'].includes(tab) && <SupportRecordTabs
@@ -1845,20 +1870,20 @@ function App() {
       {!privacy.guardian_consent && <p className="recordless-notice" role="status">기록 없이 말하기 · 지금 고른 카드와 발화는 저장하지 않아요.</p>}
       <div className="workspace"><section className="board" ref={boardRef}><div className="section-title"><h2 tabIndex="-1">나의 문장 <small>{board.length}/12</small></h2><button disabled={!board.length || busy} onClick={() => { if (window.confirm('선택한 카드를 모두 지울까요?')) { rememberBoardFocus(0, 'remove'); updateBoard([]); } }}>비우기</button></div>
         {!board.length && <p className="board-empty">아래 그림카드를 누르거나 리더기로 카드를 읽어 주세요.</p>}
-        <ol aria-label="선택한 카드">{board.map((c, i) => <li key={`${c.id}-${i}`}><span>{c.symbol} {c.label}</span><div><button data-board-action="backward" aria-label={`${i + 1}번째 카드 앞으로`} disabled={i === 0 || busy} onClick={() => move(i, -1)}><UiIcon name="arrow-left" /></button><button data-board-action="forward" aria-label={`${i + 1}번째 카드 뒤로`} disabled={i === board.length - 1 || busy} onClick={() => move(i, 1)}><UiIcon name="arrow-right" /></button><button data-board-action="remove" aria-label={`${i + 1}번째 카드 삭제`} disabled={busy} onClick={() => removeBoardCard(i)}><UiIcon name="close" /></button></div></li>)}</ol>
+        <SentenceStrip cards={board} renderPicture={cardPicture} onMove={move} onRemove={removeBoardCard} />
         {outputMode === 'word' && <p className="mode-guide">카드를 누르면 단어를 바로 말해요.</p>}
         <button className="primary full" disabled={!board.length} onClick={speakSelection}><UiIcon name="volume" />고른 카드 말하기</button>
-        {((outputMode === 'natural' && privacy.guardian_consent) || text || generatedSessionId || generationFailed) && <details className="natural-sentence-tools" open={Boolean(text) || busy || generationFailed}><summary>문장 다듬기</summary><div>
-        {outputMode === 'natural' && privacy.guardian_consent && <button type="button" disabled={!board.length || busy || offline} onClick={generate}>{offline ? '온라인 연결 후 문장 만들기' : busy ? '문장을 만드는 중…' : '자연스러운 문장 만들기'}</button>}
-        {busy && <p className="generation-pending" role="status">문장을 다듬고 있어요. 기다리지 않고 위의 ‘고른 카드 말하기’를 사용할 수 있어요.</p>}
+        {((outputMode === 'natural' && privacy.guardian_consent) || text || generatedSessionId || generationFailed) && <section className="natural-sentence-tools" aria-label="자동으로 만든 문장">
+        {outputMode === 'natural' && privacy.guardian_consent && !text && !generationFailed && <p className="generation-pending" role="status">{offline ? '온라인으로 연결하면 문장을 자동으로 만들어요.' : generating ? '문장을 만들고 있어요. 카드를 더 고르거나 고른 카드 그대로 말할 수 있어요.' : board.length ? '카드를 고르면 문장을 자동으로 만들어요.' : '그림카드를 골라 주세요. 문장은 자동으로 만들어요.'}</p>}
+        {generating && text && <p className="generation-pending" role="status">새 문장을 만들고 있어요.</p>}
         {generationFailed && <div className="generation-fallback" role="status"><strong>문장 생성 없이도 말할 수 있어요.</strong><span>선택한 카드는 그대로 유지됐습니다.</span><div><button className="primary" disabled={!board.length} onClick={speakSelection}><UiIcon name="volume" />선택 카드 그대로 말하기</button><button onClick={() => setOutputMode('word')}>단어 즉시 발화로 전환</button></div></div>}
         {text && <div className="sentence" aria-live="polite"><strong>{text}</strong>
           <details className="sentence-details"><summary>선택 순서와 생성 정보</summary><div className="original-order"><small>선택한 카드 순서</small><div>{board.map((card, index) => <span key={`${card.id}-${index}`}>{card.symbol} {card.label}</span>)}</div></div>
             <small className={`source-badge ${generationSource}`}>{generationSource === 'ollama' ? 'Qwen · Ollama 생성' : '규칙 기반 생성'}{generationAttempt > 1 ? ` · 재생성 ${generationAttempt}회` : ''}</small>
           </details></div>}
-        {(text || generatedSessionId) && <div className="actions">{text && !sentenceConfirmed ? <button className="primary" disabled={busy} onClick={() => setSentenceConfirmed(true)}><UiIcon name="check" />문장을 확인했어요</button> : <button className="primary" disabled={!text || busy || speechActive} onClick={speak}><UiIcon name="volume" />확인한 문장 읽기</button>}<button disabled={!generatedSessionId || busy || speechActive} onClick={regenerate}>{busy ? '만드는 중…' : <><UiIcon name="refresh" />다시 만들기</>}</button></div>}
+        {(text || generatedSessionId) && <div className="actions"><button className="primary" disabled={!text || busy || generating || speechActive} onClick={speak}><UiIcon name="volume" />{sentenceConfirmed ? '문장 다시 말하기' : '이 문장 말하기'}</button><button disabled={!generatedSessionId || busy || generating || speechActive || offline} onClick={regenerate}>{generating ? '만드는 중…' : <><UiIcon name="refresh" />다시 만들기</>}</button></div>}
 
-        </div></details>}
+        </section>}
         <p className="muted">카드 고르기 → 내용 확인 → 말하기</p>
       </section>
       <section id="card-library" tabIndex="-1"><div className="section-title"><h2>무엇을 말하고 싶나요?</h2><input aria-label="카드 검색" placeholder="카드 이름 검색" value={search} onChange={e => setSearch(e.target.value)} /></div>
