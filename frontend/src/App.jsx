@@ -149,7 +149,7 @@ function App() {
   const [usbStatus, setUsbStatus] = useState({ state: 'disconnected', fresh: false, count: 0 });
   useEffect(() => { setUsbStatus({ state: 'disconnected', fresh: false, count: 0 }); }, [user?.id]);
   const connectionMenuRef = useRef(null);
-  const [focusMode, setFocusMode] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileNotice, setProfileNotice] = useState('');
   const [authReady, setAuthReady] = useState(false);
   const [username, setUsername] = useState('demo');
@@ -299,7 +299,7 @@ function App() {
   useLayoutEffect(() => {
     if (authReady) entryPageRef.current?.scrollIntoView?.({ block: 'start' });
   }, [authReady, user?.id, Boolean(user?.profile)]);
-  useEffect(() => { setFocusMode(false); }, [user?.id, tab]);
+  useEffect(() => { setSidebarCollapsed(false); }, [user?.id]);
 
   useEffect(() => {
     activityStreamRef.current = { id: createRequestId(), sequence: 0 };
@@ -1629,8 +1629,6 @@ function App() {
   }).format(new Date());
   const speechActive = speechState.status !== 'idle';
   const isSupporter = ['caregiver', 'support_staff'].includes(user?.role);
-  const canFocusActivity = user?.role === 'user' && ['cards', 'practice'].includes(tab);
-  const focusedActivity = canFocusActivity && focusMode && !myPageOpen;
   const canManageContent = user?.role === 'support_staff' && user?.account_permissions?.includes('content_manage');
   const canManageAccounts = user?.role === 'support_staff' && user?.can_manage_account_permissions === true;
   const selectedPermissions = selectedUser?.permissions || [];
@@ -1748,9 +1746,9 @@ function App() {
     setCategory(value); setSearch(''); setCardPage(0); setTab('catalog');
   }
   function navigateFromMyPage(action) { setMyPageOpen(false); action(); }
-  return <main ref={entryPageRef} className={`app${focusedActivity ? ' focus-mode' : ''} display-${accessibility.display_mode} card-size-${accessibility.card_size} text-size-${accessibility.text_size}${accessibility.reduced_motion ? ' reduced-motion' : ''}${accessibility.high_contrast ? ' high-contrast' : ''}`}>
+  return <main ref={entryPageRef} className={`app${sidebarCollapsed ? ' sidebar-collapsed' : ''} display-${accessibility.display_mode} card-size-${accessibility.card_size} text-size-${accessibility.text_size}${accessibility.reduced_motion ? ' reduced-motion' : ''}${accessibility.high_contrast ? ' high-contrast' : ''}`}>
     <a className="skip-link" href="#main-content">본문 바로가기</a>
-    <aside className="sidebar">
+    <aside className="sidebar" id="app-sidebar" hidden={sidebarCollapsed}>
       <div className="sidebar-brand"><Mascot className="mascot-brand" /><strong>PESC<br />MATE</strong></div>
       <nav aria-label="주 메뉴" onClick={event => { if (event.target.closest('button:not(:disabled)')) setMyPageOpen(false); }}>{isSupporter ? <>
         <button aria-current={!myPageOpen && tab === 'support_home' ? 'page' : undefined} className={!myPageOpen && tab === 'support_home' ? 'active' : ''} onClick={() => setTab('support_home')}><span aria-hidden="true"><UiIcon name="home" /></span>지원 홈</button>
@@ -1777,10 +1775,14 @@ function App() {
       <button className="logout" onClick={handleLogout} disabled={busy}><UiIcon name="logout" />로그아웃</button>
     </aside>
     <div className={`app-content screen-${tab}`} id="main-content" tabIndex="-1">
+      <div className="sidebar-toggle-bar"><button type="button" className="sidebar-toggle"
+        aria-label={sidebarCollapsed ? '주 메뉴 펼치기' : '주 메뉴 접기'}
+        title={sidebarCollapsed ? '주 메뉴 펼치기' : '주 메뉴 접기'}
+        aria-controls="app-sidebar" aria-expanded={!sidebarCollapsed}
+        onClick={() => setSidebarCollapsed(current => !current)}><UiIcon name="menu" /></button></div>
       <div hidden={myPageOpen}>
       {!myPageOpen && profileNotice && <p role="status">{profileNotice}</p>}
-      <header className="topbar"><div><p className="eyebrow">오늘은 {todayLabel}</p><h1>{pageTitle}</h1></div><div className="topbar-statuses">{canFocusActivity && <button type="button" className="focus-view-toggle" aria-pressed={focusedActivity}
-        onClick={() => setFocusMode(current => !current)}>{focusedActivity ? '메뉴와 함께 보기' : '집중 화면'}</button>}{user.role === 'user' && loaded ? <details ref={connectionMenuRef} className="connection-menu" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}>
+      <header className="topbar"><div><p className="eyebrow">오늘은 {todayLabel}</p><h1>{pageTitle}</h1></div><div className="topbar-statuses">{user.role === 'user' && loaded ? <details ref={connectionMenuRef} className="connection-menu" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}>
           <summary className="status" aria-label={`${usbConnectionLabel} · 연결 메뉴 열기`}><b className={usbConnected ? 'online' : ''} aria-hidden="true"></b><span className="connection-menu-label">{usbConnectionLabel}</span><UiIcon name="chevron-down" className="connection-menu-chevron" /></summary>
           <div className="connection-menu-panel"><p className="service-connection-state" role="status">{offline ? '서비스 오프라인 · 저장된 카드를 사용할 수 있어요.' : '서비스 온라인 모드'}</p><div ref={setUsbTopbarTarget} className="topbar-usb-slot" />
             <button type="button" className="connection-open-reader" onClick={() => { connectionMenuRef.current.open = false; setReaderExpanded(true); setTab('cards'); window.requestAnimationFrame(() => document.getElementById('reader-workspace')?.scrollIntoView({ block: 'start' })); }}>태그한 카드 보기</button>
@@ -1854,7 +1856,7 @@ function App() {
           <details className="sentence-details"><summary>선택 순서와 생성 정보</summary><div className="original-order"><small>선택한 카드 순서</small><div>{board.map((card, index) => <span key={`${card.id}-${index}`}>{card.symbol} {card.label}</span>)}</div></div>
             <small className={`source-badge ${generationSource}`}>{generationSource === 'ollama' ? 'Qwen · Ollama 생성' : '규칙 기반 생성'}{generationAttempt > 1 ? ` · 재생성 ${generationAttempt}회` : ''}</small>
           </details></div>}
-        {(text || speechActive || generatedSessionId) && <div className="actions">{text && !sentenceConfirmed ? <button className="primary" disabled={busy} onClick={() => setSentenceConfirmed(true)}><UiIcon name="check" />문장을 확인했어요</button> : <button className="primary" disabled={!text || busy || speechActive} onClick={speak}><UiIcon name="volume" />확인한 문장 읽기</button>}<button disabled={!generatedSessionId || busy || speechActive} onClick={regenerate}>{busy ? '만드는 중…' : <><UiIcon name="refresh" />다시 만들기</>}</button>{speechState.status === 'playing' && <button onClick={pauseSpeech}>일시 정지</button>}{speechState.status === 'paused' && <button onClick={resumeSpeech}>재개</button>}<button disabled={!speechActive} onClick={stopSpeech}>중지</button></div>}
+        {(text || generatedSessionId) && <div className="actions">{text && !sentenceConfirmed ? <button className="primary" disabled={busy} onClick={() => setSentenceConfirmed(true)}><UiIcon name="check" />문장을 확인했어요</button> : <button className="primary" disabled={!text || busy || speechActive} onClick={speak}><UiIcon name="volume" />확인한 문장 읽기</button>}<button disabled={!generatedSessionId || busy || speechActive} onClick={regenerate}>{busy ? '만드는 중…' : <><UiIcon name="refresh" />다시 만들기</>}</button></div>}
 
         </div></details>}
         <p className="muted">카드 고르기 → 내용 확인 → 말하기</p>

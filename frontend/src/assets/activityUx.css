@@ -4,15 +4,11 @@
 .board-organization-suggestions legend { font-weight: 700; }
 .board-organization-suggestions fieldset > label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-block: 12px; }
 .board-organization-suggestions input:not([type="checkbox"]) { max-width: 100%; margin: 0; }
-.app .focus-view-toggle { min-height: 44px; padding: 9px 14px; border: 1px solid var(--color-border-control); border-radius: 12px; color: var(--color-text); background: var(--color-surface); box-shadow: none; }
-.app .focus-view-toggle[aria-pressed="true"] { border-color: var(--color-primary-action); background: var(--color-selected); color: var(--color-primary-action); }
-.app.focus-mode { grid-template-columns: minmax(0, 1fr); }
-.app.focus-mode > .sidebar { display: none; }
-.app.focus-mode .app-content { width: 100%; max-width: 1520px; margin-inline: auto; padding-inline: clamp(16px, 4vw, 56px); }
-.app.focus-mode .topbar { margin-bottom: 20px; }
-.app.focus-mode .quick-speech > div, .app.focus-mode .recovery-speech > div { flex: 0 1 auto; }
-.app.focus-mode .quick-speech > div small { display: none; }
-.app.focus-mode .quick-speech, .app.focus-mode .recovery-speech { padding: 10px 12px; }
+.app .sidebar-toggle-bar { display: flex; align-items: center; margin-bottom: 12px; }
+.app .sidebar-toggle { display: inline-flex; align-items: center; justify-content: center; width: 44px; min-height: 44px; padding: 10px; border: 1px solid var(--color-border-control); border-radius: 12px; color: var(--color-text); background: var(--color-surface); box-shadow: none; }
+.app .sidebar-toggle[aria-expanded="false"] { border-color: var(--color-primary-action); background: var(--color-selected); color: var(--color-primary-action); }
+.app.sidebar-collapsed { grid-template-columns: minmax(0, 1fr); }
+.app > .sidebar[hidden] { display: none; }
 .app .screen-home .quick-speech, .app .screen-practice .quick-speech { padding: 8px 10px; border-width: 1px; box-shadow: none; }
 .app .screen-home .quick-speech button, .app .screen-practice .quick-speech button { min-height: 44px; box-shadow: none; }
 .app .screen-home .quick-speech .expression-visual, .app .screen-practice .quick-speech .expression-visual { flex-basis: 28px; width: 28px; height: 28px; }
@@ -142,8 +138,8 @@
 .app .catalog-card strong { color: var(--color-text); font-size: 1rem; }
 .app .catalog-card[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--color-primary-action); }
 
-.app.high-contrast .focus-view-toggle[aria-pressed="true"], .app.high-contrast .screen-cards .categories button[aria-pressed="true"] { color: var(--color-surface); border-color: var(--color-contrast); background: var(--color-contrast); }
-.app.high-contrast .focus-view-toggle, .app.high-contrast .board h2, .app.high-contrast .board-empty, .app.high-contrast .sentence-details summary, .app.high-contrast .report-breakdown h3, .app.high-contrast .report-card-ranking strong { color: var(--color-contrast); }
+.app.high-contrast .sidebar-toggle[aria-expanded="false"], .app.high-contrast .screen-cards .categories button[aria-pressed="true"] { color: var(--color-surface); border-color: var(--color-contrast); background: var(--color-contrast); }
+.app.high-contrast .sidebar-toggle, .app.high-contrast .board h2, .app.high-contrast .board-empty, .app.high-contrast .sentence-details summary, .app.high-contrast .report-breakdown h3, .app.high-contrast .report-card-ranking strong { color: var(--color-contrast); }
 .app.high-contrast .screen-cards .board, .app.high-contrast .chip-registration, .app.high-contrast .report-breakdown > article { border-color: var(--color-contrast); color: var(--color-contrast); background: var(--color-surface); }
 .app.high-contrast .screen-cards .situation-board-picker { color: var(--color-contrast); background: var(--color-surface) !important; }
 .app.high-contrast .board > ol > li, .app.high-contrast .chip-capture-heading, .app.high-contrast .chip-preview-surface, .app.high-contrast .chip-registration-steps li, .app.high-contrast .report-card-ranking > li, .app.high-contrast .guardian-summary > div, .app.high-contrast .learning-metrics > div { color: var(--color-contrast); border: 1px solid var(--color-contrast); background: var(--color-surface); }
