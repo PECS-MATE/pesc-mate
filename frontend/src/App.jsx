@@ -190,6 +190,9 @@ function App() {
   const [cardSubmissions, setCardSubmissions] = useState([]);
   const [cardFormBusy, setCardFormBusy] = useState(false);
   const [cardFormError, setCardFormError] = useState('');
+  const [managedCardSearch, setManagedCardSearch] = useState('');
+  const [managedCardCategory, setManagedCardCategory] = useState('');
+  const [managedCardNotice, setManagedCardNotice] = useState(null);
   const [editingSubmission, setEditingSubmission] = useState(null);
   const [adminSubmissions, setAdminSubmissions] = useState([]);
   const [adminCategories, setAdminCategories] = useState([]);
@@ -241,6 +244,7 @@ function App() {
   const [requestId, setRequestId] = useState(() => createRequestId());
   const [linkedUsers, setLinkedUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
+  useEffect(() => { setManagedCardSearch(''); setManagedCardCategory(''); setManagedCardNotice(null); }, [selectedUser?.id]);
   const selectedUserRef = useRef(null);
   selectedUserRef.current = selectedUser;
   const supportRecordRequestRef = useRef(0);
@@ -1490,6 +1494,10 @@ function App() {
     const formData = new FormData(form);
     formData.set('submission_mode', event.nativeEvent.submitter?.value || 'submit');
     const targetQuery = isSupporter && selectedUser ? `?user_id=${encodeURIComponent(selectedUser.id)}` : '';
+    const actorId = user.id, targetId = selectedUser?.id;
+    const token = localStorage.getItem('pesc-mate-token');
+    const current = () => activeUserRef.current?.id === actorId && token === localStorage.getItem('pesc-mate-token')
+      && (!isSupporter || selectedUserRef.current?.id === targetId);
     if (isSupporter && selectedUser) formData.set('user_id', selectedUser.id);
     setCardFormBusy(true); setCardFormError(''); setError('');
     try {
@@ -1498,17 +1506,22 @@ function App() {
           method: 'PATCH', body: JSON.stringify(Object.fromEntries(['label', 'meaning', 'category', 'visibility'].map(key => [key, formData.get(key)]))),
         })
         : await request('/cards/submissions', { method: 'POST', body: formData });
+      if (!current()) return;
       setCardSubmissions(current => editingSubmission
         ? current.map(item => item.id === saved.id ? saved : item)
         : [saved, ...current]);
       setShowCardForm(false);
       setEditingSubmission(null);
+      if (user.role === 'caregiver') {
+        setManagedCardSearch(''); setManagedCardCategory('');
+        setManagedCardNotice({ targetId, label: saved.label, id: saved.id, draft: saved.status === 'draft' });
+      }
       form.reset();
       if (saved.status === 'approved') {
         if (isSupporter) await loadSupportCards(selectedUser);
         else await load(user);
       }
-    } catch (e) { setCardFormError(e.message); }
+    } catch (e) { if (current()) { setCardFormError(e.message); setError(e.message); } }
     finally { setCardFormBusy(false); }
   }
   async function submitDraft(item) {
@@ -1658,6 +1671,8 @@ function App() {
   const speechActive = speechState.status !== 'idle';
   const isSupporter = ['caregiver', 'support_staff'].includes(user?.role);
   const isCaregiver = user?.role === 'caregiver';
+  const visibleManagedCards = isCaregiver ? cardSubmissions.filter(item => (!managedCardCategory || item.category === managedCardCategory)
+    && item.label.toLocaleLowerCase('ko-KR').includes(managedCardSearch.trim().toLocaleLowerCase('ko-KR'))) : cardSubmissions;
   const canManageContent = user?.role === 'support_staff' && user?.account_permissions?.includes('content_manage');
   const canManageAccounts = user?.role === 'support_staff' && user?.can_manage_account_permissions === true;
   const selectedPermissions = selectedUser?.permissions || [];
@@ -1681,7 +1696,7 @@ function App() {
     : isSupporter
     ? tab === 'support_home' ? isCaregiver ? '아이의 소통을 함께 도와요.' : '연결된 사용자를 지원해요.'
       : tab === 'dashboard' ? `${selectedUser?.name || '연결 사용자'}의 의사소통 기록을 살펴봐요.`
-      : tab === 'learning_progress' ? `${selectedUser?.name || '연결 사용자'}의 학습 기록을 살펴봐요.`
+      : tab === 'learning_progress' ? isCaregiver ? `${selectedUser?.name || '아이'}의 연습을 관리해요.` : `${selectedUser?.name || '연결 사용자'}의 학습 기록을 살펴봐요.`
       : `${selectedUser?.name || '연결 사용자'}의 설정과 기록을 살펴봐요.`
     : tab === 'home'
       ? '오늘은 무엇을 해볼까요?'
@@ -1785,7 +1800,7 @@ function App() {
         {canManageCards && <button aria-current={!myPageOpen && tab === 'card_settings' ? 'page' : undefined} className={!myPageOpen && tab === 'card_settings' ? 'active' : ''} onClick={() => openSupportSection('card_settings')}><span aria-hidden="true"><UiIcon name="cards" /></span>개인 카드 관리</button>}
         {(canManageQuick || canManageBoard) && <button aria-current={!myPageOpen && tab === 'board_settings' ? 'page' : undefined} className={!myPageOpen && tab === 'board_settings' ? 'active' : ''} onClick={() => openSupportSection('board_settings')}><span aria-hidden="true"><UiIcon name="grid" /></span>빠른 표현·카드판</button>}
         {canManageVoice && <button aria-current={!myPageOpen && tab === 'support_settings' ? 'page' : undefined} className={!myPageOpen && tab === 'support_settings' ? 'active' : ''} onClick={() => openSupportSection('support_settings')}><span aria-hidden="true"><UiIcon name="accessibility" /></span>음성·접근 설정</button>}
-        {canManageLearning && <button aria-current={!myPageOpen && tab === 'learning_progress' ? 'page' : undefined} className={!myPageOpen && tab === 'learning_progress' ? 'active' : ''} onClick={() => openLearning(selectedUser)}><span aria-hidden="true"><UiIcon name="book" /></span>학습 기록</button>}
+        {canManageLearning && <button aria-current={!myPageOpen && tab === 'learning_progress' ? 'page' : undefined} className={!myPageOpen && tab === 'learning_progress' ? 'active' : ''} onClick={() => openLearning(selectedUser)}><span aria-hidden="true"><UiIcon name="book" /></span>{isCaregiver ? '연습 관리' : '학습 기록'}</button>}
         {canManageBoard && <button aria-current={!myPageOpen && tab === 'rfid' ? 'page' : undefined} className={!myPageOpen && tab === 'rfid' ? 'active' : ''} onClick={() => setTab('rfid')}><span aria-hidden="true"><UiIcon name="reader" /></span>RFID 카드판</button>}
         {canManageContent && <button aria-current={!myPageOpen && tab === 'admin' ? 'page' : undefined} className={!myPageOpen && tab === 'admin' ? 'active' : ''} onClick={() => setTab('admin')}><span aria-hidden="true"><UiIcon name="check-square" /></span>공용 콘텐츠 운영<i aria-label={`승인 대기 ${adminSubmissions.filter(item => item.status === 'pending').length}개`}>{adminSubmissions.filter(item => item.status === 'pending').length}</i></button>}
         {canManageContent && <button aria-current={!myPageOpen && tab === 'rfid_registration' ? 'page' : undefined} className={!myPageOpen && tab === 'rfid_registration' ? 'active' : ''} onClick={() => setTab('rfid_registration')}><span aria-hidden="true"><UiIcon name="tag" /></span>RFID 칩 등록</button>}
@@ -1859,7 +1874,7 @@ function App() {
       </div> : tab === 'support_home' && isCaregiver ? <CaregiverHome accountId={user.username || user.id} users={linkedUsers}
         target={selectedUser} offline={offline} onSelect={changeLinkedUser}
         onOpen={next => next === 'rfid' ? setTab('rfid') : openSupportSection(next)} onPractice={() => openLearning(selectedUser)}>
-        {selectedUser && canManageLearning && canReadRecords && <PracticeSuggestionsPanel key={`${user.id}:${selectedUser.id}`} accountId={user.id} target={selectedUser} onDirectSelect={() => openLearning(selectedUser)} />}
+        {selectedUser && canManageLearning && canReadRecords && <PracticeSuggestionsPanel key={`${user.id}:${selectedUser.id}`} variant="caregiver" accountId={user.id} target={selectedUser} onDirectSelect={() => openLearning(selectedUser)} />}
       </CaregiverHome> : tab === 'support_home' && isSupporter ? <section className="support-home">
         <div className="support-home-panel">
         <div className="panel-heading"><span aria-hidden="true"><UiIcon name="users" /></span><div><h2>{user.role === 'caregiver' ? '보호자 지원 홈' : '담당자 지원 홈'}</h2><p className="muted">연결 사용자를 선택하면 부여된 권한 범위의 메뉴만 표시됩니다.</p></div></div>
@@ -1960,6 +1975,15 @@ function App() {
       {user.role === 'caregiver' && selectedUser && <CardPrintEditor key={`print-${user.id}:${selectedUser.id}`}
         targetId={selectedUser.id} targetName={selectedUser.name} categories={cardCategories} existingCards={cardSubmissions}
         disabled={offline || statsBusy || cardFormBusy} onSaved={() => loadSupportCards(selectedUser)} />}
+      {isCaregiver && <div className="caregiver-card-search"><label>카드 검색<input value={managedCardSearch} onChange={event => setManagedCardSearch(event.target.value)} placeholder="등록한 카드 이름" /></label>
+        <label>분류<select value={managedCardCategory} onChange={event => setManagedCardCategory(event.target.value)}><option value="">모든 분류</option>{[...new Set(cardSubmissions.map(item => item.category))].map(name => <option key={name} value={name}>{name}</option>)}</select></label></div>}
+      {isCaregiver && managedCardNotice?.targetId === selectedUser?.id && <div className="caregiver-save-result">
+        <p role="status">{selectedUser.name}님의 ‘{managedCardNotice.label}’ 카드를 {managedCardNotice.draft ? '임시 저장했어요. 사용 시작 전에는 아이에게 표시되지 않아요.' : '저장했어요.'}</p>
+        <button type="button" onClick={() => { setManagedCardSearch(''); setManagedCardCategory(''); requestAnimationFrame(() => {
+          const target = document.getElementById(`managed-card-${managedCardNotice.id}`); target?.scrollIntoView({ block: 'center' }); target?.focus({ preventScroll: true });
+        }); }}>등록한 카드 보기</button>
+        {canManageBoard && <button type="button" onClick={() => openSupportSection('board_settings')}>카드판 관리로 이동</button>}
+      </div>}
       {selectedUser && <BulkCardImport key={`${user.id}:${selectedUser.id}`} targetId={selectedUser.id} targetName={selectedUser.name}
         canManageBoard={canManageBoard}
         categories={cardCategories} existingCards={cardSubmissions} disabled={offline || statsBusy || cardFormBusy}
@@ -1967,6 +1991,7 @@ function App() {
           if (activeUserRef.current?.id !== user.id || selectedUserRef.current?.id !== selectedUser.id) return;
           supportCardRequestRef.current += 1;
           setCardSubmissions(current => [saved, ...current.filter(item => item.id !== saved.id)]);
+          if (isCaregiver) setManagedCardNotice({ targetId: selectedUser.id, label: saved.label, id: saved.id, draft: saved.status === 'draft' });
         }} />}
       {cardSubmissions.some(item => item.visibility === 'private') && <section className="private-card-photos" aria-label="개인 카드 사진 교체 목록">
         <h3>개인 카드 사진만 교체</h3><p>기존 카드의 문구와 위치를 유지하면서 사진만 바꿉니다. 공유 카드와 잠긴 핵심 카드는 이 경로로 변경하지 않습니다.</p>
@@ -1976,7 +2001,7 @@ function App() {
             onRefresh={() => loadSupportCards(selectedUser).catch(failure => setError(failure.message))} />
         </li>)}</ul>
       </section>}
-      <div className="submission-list"><h3>등록 카드</h3>{cardSubmissions.length ? <ul>{cardSubmissions.map(item => <li key={item.id}><span><strong>{item.label}</strong><small>{item.category} · {item.sharing_notice || (item.visibility === 'private' ? '연결 사용자만 사용' : '공개 요청')}</small></span><div className="submission-actions"><b className={`submission-status ${item.status}`}>{item.visibility === 'private' && item.status === 'approved' ? '사용 중' : ({ draft: '작성 중', pending: '승인 대기', approved: '공개 승인', rejected: '반려', inactive: '비활성' })[item.status] || item.status}</b>{['draft', 'rejected'].includes(item.status) && <button disabled={reviewBusy === item.id} onClick={() => { setEditingSubmission(item); setCardFormError(''); setShowCardForm(true); }}>수정</button>}{item.status === 'draft' && <button className="primary" disabled={reviewBusy === item.id} onClick={() => submitDraft(item)}>{item.visibility === 'private' ? '사용 시작' : '공개 승인 요청'}</button>}</div></li>)}</ul> : <div className="caregiver-card-empty"><UiIcon name="cards" size={44} /><strong>등록된 개인 카드가 없습니다.</strong><p>새로운 카드를 등록하여 아이의 소통을 도와주세요.</p></div>}</div>
+      <div className="submission-list" id="managed-card-list"><h3>등록 카드</h3>{statsBusy ? <p role="status">카드를 불러오고 있어요.</p> : visibleManagedCards.length ? <ul>{visibleManagedCards.map(item => <li key={item.id} id={`managed-card-${item.id}`} tabIndex="-1"><span><strong>{item.label}</strong><small>{item.category} · {item.sharing_notice || (item.visibility === 'private' ? '연결 사용자만 사용' : '공개 요청')}</small></span><div className="submission-actions"><b className={`submission-status ${item.status}`}>{item.visibility === 'private' && item.status === 'approved' ? '사용 중' : ({ draft: '작성 중', pending: '승인 대기', approved: '공개 승인', rejected: '반려', inactive: '비활성' })[item.status] || item.status}</b>{['draft', 'rejected'].includes(item.status) && <button disabled={reviewBusy === item.id} onClick={() => { setEditingSubmission(item); setCardFormError(''); setShowCardForm(true); }}>수정</button>}{item.status === 'draft' && <button className="primary" disabled={reviewBusy === item.id} onClick={() => submitDraft(item)}>{item.visibility === 'private' ? '사용 시작' : '공개 승인 요청'}</button>}</div></li>)}</ul> : <div className="caregiver-card-empty"><UiIcon name="cards" size={44} /><strong>{cardSubmissions.length ? '검색 조건에 맞는 카드가 없어요.' : '등록된 개인 카드가 없습니다.'}</strong><p>{cardSubmissions.length ? '검색어나 분류를 바꿔 주세요.' : '개인 카드 등록 또는 사진 일괄 등록으로 카드를 추가해 주세요.'}</p></div>}</div>
       {showCardForm && <CardEditorDialog key={`${selectedUser?.id}:${editingSubmission?.id || 'new-card'}`}
         editing={editingSubmission} categories={cardCategories} privateOnly targetName={selectedUser?.name}
         busy={cardFormBusy} error={cardFormError} onSubmit={submitCard}
