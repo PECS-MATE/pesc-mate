@@ -14,7 +14,8 @@
 .app .screen-home .quick-speech .expression-visual, .app .screen-practice .quick-speech .expression-visual { flex-basis: 28px; width: 28px; height: 28px; }
 
 .app .screen-cards .workspace { display: flex; flex-direction: column; align-items: stretch; gap: 22px; }
-.app .screen-cards .workspace > .board { position: sticky; top: 14px; z-index: 4; padding: 18px 22px; border: 1px solid var(--color-border); border-radius: 20px; box-shadow: 0 8px 24px var(--color-shadow); max-height: 48dvh; overflow: auto; overscroll-behavior: contain; }
+.app .screen-cards .board { position: sticky; top: 0; z-index: 4; margin-bottom: 22px; padding: 18px 22px; border: 1px solid var(--color-border); border-radius: 20px; box-shadow: 0 8px 24px var(--color-shadow); max-height: 48dvh; overflow: auto; overscroll-behavior: contain; scroll-padding-block: 8px; }
+.app .screen-cards #card-library { scroll-margin-top: 50dvh; }
 .app .screen-cards .board > .section-title { margin-bottom: 12px; }
 .app .screen-cards .board h2 { color: var(--color-text); font-size: 1.1rem; }
 .app .screen-cards .board h2 small { margin-left: 8px; color: var(--color-text-secondary); }
@@ -155,11 +156,10 @@
 .app.high-contrast .board > ol > li, .app.high-contrast .chip-capture-heading, .app.high-contrast .chip-preview-surface, .app.high-contrast .chip-registration-steps li, .app.high-contrast .report-card-ranking > li, .app.high-contrast .guardian-summary > div, .app.high-contrast .learning-metrics > div { color: var(--color-contrast); border: 1px solid var(--color-contrast); background: var(--color-surface); }
 .app.high-contrast .learning-options button, .app.high-contrast .learning-options button.correct, .app.high-contrast .learning-options button.incorrect { border-color: var(--color-contrast); color: var(--color-contrast); background: var(--color-surface); }
 @media (max-width: 1000px) {
-  .app .screen-cards .workspace > .board { position: static; max-height: none; }
   .app .chip-registration-grid, .app .report-breakdown { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
-  .app .screen-cards .workspace > .board { padding: 14px; border-radius: 16px; }
+  .app .screen-cards .board { padding: 14px; border-radius: 16px; }
   .app .screen-cards .workspace > #card-library { padding: 16px; border-radius: 16px; }
   .app .screen-cards .board > ol > li { min-width: 136px; }
   .app .learning-game { padding: 22px 16px; border-radius: 22px; }
