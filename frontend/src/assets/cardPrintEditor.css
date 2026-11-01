@@ -1,0 +1,13 @@
+.app .card-print-editor { margin-block: 20px; padding: 16px; border: 1px solid var(--color-border); border-radius: 14px; background: var(--color-surface); }
+.app .card-print-editor > summary { min-height: 44px; align-content: center; font-weight: 700; cursor: pointer; }
+.app .card-print-options { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; min-width: 0; }
+.app .card-print-editor label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.app .card-print-editor input:not([type="checkbox"]), .app .card-print-editor select { max-width: 100%; }
+.app .card-print-rows { display: grid; gap: 16px; padding: 0; list-style: none; }
+.app .card-print-rows > li { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 12px; padding: 12px; border: 1px solid var(--color-border); border-radius: 12px; }
+.app .card-print-rows img { width: 90px; height: 90px; object-fit: contain; background: var(--color-surface); }
+.app .card-print-rows fieldset { display: flex; flex: 1 1 220px; flex-wrap: wrap; align-items: center; gap: 10px; min-width: 0; }
+.app .card-print-publish { min-height: 44px; font-weight: 700; }
+.app .card-print-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-block: 16px; }
+.app .card-print-preview { max-height: 650px; padding: 12px; overflow: auto; border: 1px solid var(--color-border); background: var(--color-selected); }
+.app .card-print-frame { position: fixed; left: 0; bottom: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; border: 0; }

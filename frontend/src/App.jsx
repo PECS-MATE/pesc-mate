@@ -4,6 +4,7 @@ import MyPage from './MyPage';
 import UiIcon from './UiIcon';
 import OfflineSpeechStatus from './OfflineSpeechStatus';
 import CardEditorDialog from './CardEditorDialog';
+import CardPrintEditor from './CardPrintEditor';
 import HomeDashboard, { CardTopics } from './HomeDashboard';
 import LandingPage from './LandingPage';
 import OperationalAlerts from './OperationalAlerts';
@@ -1947,6 +1948,9 @@ function App() {
     </section> : tab === 'card_settings' && isSupporter && canManageCards ? <section className="card-catalog">
       <div className="catalog-toolbar"><div><h2>{selectedUser?.name}님의 개인 카드</h2><p className="muted">연결 사용자만 사용하는 카드를 대신 등록하고 관리합니다.</p></div><button className="primary" onClick={() => { setEditingSubmission(null); setCardFormError(''); setShowCardForm(true); }}>+ 개인 카드 등록</button></div>
       <label className="user-picker">관리 사용자<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)} disabled={cardFormBusy}>{linkedUsers.filter(person => person.permissions.includes('cards_manage')).map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>
+      {user.role === 'caregiver' && selectedUser && <CardPrintEditor key={`print-${user.id}:${selectedUser.id}`}
+        targetId={selectedUser.id} targetName={selectedUser.name} categories={cardCategories} existingCards={cardSubmissions}
+        disabled={offline || statsBusy || cardFormBusy} onSaved={() => loadSupportCards(selectedUser)} />}
       {selectedUser && <BulkCardImport key={`${user.id}:${selectedUser.id}`} targetId={selectedUser.id} targetName={selectedUser.name}
         canManageBoard={canManageBoard}
         categories={cardCategories} existingCards={cardSubmissions} disabled={offline || statsBusy || cardFormBusy}

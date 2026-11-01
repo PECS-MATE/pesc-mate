@@ -1,0 +1,6 @@
+.card-print-page { display: grid; gap: 3mm; align-content: start; width: 190mm; height: 277mm; box-sizing: border-box; background: white; break-after: page; }
+.card-print-page:last-child { break-after: auto; }
+.card-print-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1mm; padding: 2mm; box-sizing: border-box; border: .25mm solid #718c83; background: white; overflow: hidden; break-inside: avoid; }
+.card-print-cell img { display: block; width: 100%; min-height: 0; flex: 1 1 0; object-fit: contain; }
+.card-print-cell strong { display: block; flex: 0 0 auto; max-width: 100%; font-size: 12pt; line-height: 1.25; text-align: center; overflow-wrap: anywhere; }
+@media screen { .card-print-page { margin-bottom: 12px; } }
