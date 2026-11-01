@@ -1862,7 +1862,7 @@ function App() {
       <button type="button" className="profile profile-trigger" aria-label={`${user.name} 마이페이지 열기`}
         aria-controls="my-page" aria-expanded={myPageOpen} aria-current={myPageOpen ? 'page' : undefined}
         onClick={() => { if (!confirmCaregiverLeave()) return; stopSpeech(); setMyPageOpen(true); setProfileNotice(''); }}>
-        <Avatar user={user} /><span><strong>{user.name}</strong><small>{user.role === 'caregiver' ? '보호자 계정' : canManageContent ? '운영 권한 담당자 계정' : user.role === 'support_staff' ? '지원 담당자 계정' : 'AAC 사용자'}</small><span className="profile-settings-hint">마이페이지 · 설정</span></span><span className="profile-settings-icon" aria-hidden="true"><UiIcon name="settings" /></span></button>
+        <Avatar user={user} /><span><strong>{user.name}</strong></span><span className="profile-settings-icon" aria-hidden="true"><UiIcon name="settings" /></span></button>
       <button className="logout" onClick={handleLogout} disabled={busy}><UiIcon name="logout" />로그아웃</button>
     </aside>
     <div className={`app-content screen-${tab}`} id="main-content" tabIndex="-1">

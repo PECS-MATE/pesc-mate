@@ -371,9 +371,8 @@ body::before, body::after { display: none; }
 .sidebar-brand .mascot-brand { width: 46px; height: 46px; object-fit: contain; }
 .profile { display: flex; align-items: center; gap: 12px; padding: 30px 2px 24px; }
 .profile .profile-avatar { flex: 0 0 48px; width: 48px; height: 48px; border: 1px solid var(--color-border-control); background: var(--color-surface); box-shadow: none; font-size: 1.45rem; }
-.profile strong, .profile small { display: block; }
+.profile strong { display: block; }
 .profile strong { color: var(--color-text); }
-.profile small { margin-top: 4px; color: var(--ui-muted); }
 .sidebar nav { display: grid; gap: 8px; margin: 0; }
 .sidebar nav button {
   position: relative;
@@ -982,7 +981,6 @@ button { min-width: 44px; min-height: 44px !important; }
 /* The account name opens all settings without replacing the current activity. */
 .sidebar .profile-trigger { width: 100%; min-width: 0; text-align: left; border: 0; border-radius: 12px; background: transparent; box-shadow: none; }
 .profile-trigger > span:nth-child(2) { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.profile-trigger .profile-settings-hint { display: block; margin-top: 6px; color: var(--color-text-secondary); font-size: .75rem; }
 .sidebar .profile-trigger[aria-current="page"] { background: var(--color-surface); box-shadow: none; }
 .sidebar .profile-trigger[aria-current="page"] .profile-avatar { border: 2px solid var(--color-primary-action); }
 .profile-trigger > .profile-settings-icon { display: grid; place-items: center; flex: 0 0 38px; width: 38px; height: 38px; border: 1px solid var(--color-border); border-radius: 50%; background: var(--color-surface); color: var(--color-text-secondary); }

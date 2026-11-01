@@ -12,7 +12,6 @@
 .app.caregiver-ui .sidebar .profile-trigger { margin-top: auto; padding: 16px 10px; border-radius: 12px; background: var(--color-surface); gap: 8px; }
 .app.caregiver-ui .profile-trigger .profile-avatar { flex-basis: 40px; width: 40px; height: 40px; }
 .app.caregiver-ui .profile-trigger strong { font-size: .85rem; }
-.app.caregiver-ui .profile-trigger small, .app.caregiver-ui .profile-settings-hint { font-size: .7rem; }
 .app.caregiver-ui .profile-trigger .profile-settings-icon { flex-basis: 30px; width: 30px; height: 30px; border-radius: 50%; background: var(--color-surface); }
 .app.caregiver-ui .logout { width: 100%; margin-top: 12px; border-radius: 12px; font-size: .8rem; }
 .app.caregiver-ui .app-content { padding: 24px 36px 28px; }
@@ -216,7 +215,7 @@
 .app.caregiver-ui select, .app.caregiver-ui input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) { min-height: 44px; padding: 8px 12px; }
 .app.caregiver-ui input[type="range"], .app.caregiver-ui .check-setting, .app.caregiver-ui .privacy-check { min-height: 44px; }
 .app.caregiver-ui button, .app.caregiver-ui input, .app.caregiver-ui select, .app.caregiver-ui textarea { font-size: 1rem; line-height: 1.5; }
-.app.caregiver-ui small, .app.caregiver-ui .muted, .app.caregiver-ui .eyebrow, .app.caregiver-ui .panel-heading p, .app.caregiver-ui .record-scope-note, .app.caregiver-ui .record-export p, .app.caregiver-ui .profile-trigger small, .app.caregiver-ui .profile-settings-hint { font-size: .875rem; line-height: 1.6; }
+.app.caregiver-ui small, .app.caregiver-ui .muted, .app.caregiver-ui .eyebrow, .app.caregiver-ui .panel-heading p, .app.caregiver-ui .record-scope-note, .app.caregiver-ui .record-export p { font-size: .875rem; line-height: 1.6; }
 .app.caregiver-ui .sidebar nav button, .app.caregiver-ui .profile-trigger strong, .app.caregiver-ui .user-picker, .app.caregiver-ui .period-filter button { font-size: 1rem; }
 .app.caregiver-ui .topbar h1 { font-size: clamp(1.5rem, 2vw, 1.75rem); line-height: 1.35; }
 .app.caregiver-ui .panel-heading h2, .app.caregiver-ui .caregiver-card-toolbar h2, .app.caregiver-ui .caregiver-settings-card > header h2 { font-size: 1.25rem; line-height: 1.4; }
