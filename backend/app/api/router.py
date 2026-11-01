@@ -41,6 +41,7 @@ from app.services.support_links import (
     revoke_support, support_access_for,
 )
 from app.services.board_layout import audit_for as board_audit_for
+from app.services.board_organization import suggestions_for as board_organization_suggestions
 from app.services.board_layout import (
     layout_for, save_quick_expressions, save_recovery_expressions, save_slots, save_locks, change_situations,
 )
@@ -480,8 +481,8 @@ class SituationBoardRequest(BaseModel):
             raise ValueError('상황 이름이 필요합니다.')
         if self.operation == 'update' and self.card_ids is None:
             raise ValueError('상황 슬롯이 필요합니다.')
-        if self.operation != 'update' and self.card_ids is not None:
-            raise ValueError('슬롯 수정은 상황 편집에서만 허용합니다.')
+        if self.operation not in {'create', 'update'} and self.card_ids is not None:
+            raise ValueError('카드 지정은 새 상황 만들기 또는 상황 편집에서만 허용합니다.')
         if self.operation in {'create', 'copy'} and self.situation_id is not None:
             raise ValueError('새 상황의 ID는 서버가 정합니다.')
         if self.operation == 'copy' and self.source_id == 'default':
@@ -971,6 +972,13 @@ def put_situation_board(request: SituationBoardRequest,
                         user_id: str = Query(min_length=1, max_length=64), user=Depends(current_user)):
     target = _require_support_manager(user, user_id, 'board_manage')
     return change_situations(target, user, **request.model_dump())
+
+
+@api_router.get('/board/layout/organization-suggestions', tags=['카드판'])
+def get_board_organization_suggestions(user_id: str = Query(min_length=1, max_length=64),
+                                      user=Depends(current_user)):
+    return JSONResponse(board_organization_suggestions(user_id, user),
+                        headers={'Cache-Control': 'no-store'})
 
 
 @api_router.get('/board/layout/audit', response_model=list[BoardAuditResponse], tags=['카드판'])

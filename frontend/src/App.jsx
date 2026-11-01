@@ -23,6 +23,7 @@ import CardPhotoReplacement from './CardPhotoReplacement';
 import BoardSlotsEditor from './BoardSlotsEditor';
 import CoreCardLocks from './CoreCardLocks';
 import SituationBoards from './SituationBoards';
+import BoardOrganizationSuggestions from './BoardOrganizationSuggestions';
 import SituationBoardPicker from './SituationBoardPicker';
 import RfidBoard from './RfidBoard';
 import RfidChipRegistration from './RfidChipRegistration';
@@ -1967,6 +1968,11 @@ function App() {
         {canManageBoard && selectedUser && <SituationBoards key={`situations-${user.id}-${selectedUser.id}`} layout={boardLayout}
           targetId={selectedUser.id} disabled={offline || Boolean(boardConfigBusy) || statsBusy || boardConflict}
           onSaved={setBoardLayout} onRefresh={reloadBoardConfiguration} />}
+        {user.role === 'caregiver' && canManageBoard && canReadRecords && selectedUser && boardLayout.user_id === selectedUser.id &&
+          <BoardOrganizationSuggestions key={`organization-${user.id}-${selectedUser.id}`}
+            layout={boardLayout} targetId={selectedUser.id}
+            disabled={offline || Boolean(boardConfigBusy) || statsBusy || boardConflict}
+            onSaved={setBoardLayout} onRefresh={reloadBoardConfiguration} />}
       </fieldset>}
       {canManageBoard && selectedUser && <RecommendationSettings key={`${user.id}-${selectedUser.id}`}
         targetId={selectedUser.id} canReadRecords={canReadRecords} />}

@@ -163,6 +163,11 @@ def change_situations(user_id, requester, expected_revision, operation, *,
             return [updated if item['id'] == situation_id else item for item in entries]
         if len(entries) >= MAX_SITUATIONS:
             raise HTTPException(422, f'상황 카드판은 최대 {MAX_SITUATIONS}개입니다.')
+        if operation == 'create' and card_ids is not None:
+            ids = _validate_card_ids(user_id, card_ids, 1, MAX_BOARD_SLOTS, '상황 카드판')
+            entries.append({'id': str(uuid4()), 'name': label, 'slots': [
+                {'position': index + 1, 'card_id': card_id} for index, card_id in enumerate(ids)]})
+            return entries
         source = (_public(document, available) if operation == 'create' else
                   next((item for item in entries if item['id'] == source_id), None))
         if not source:
