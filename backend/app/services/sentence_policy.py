@@ -4,6 +4,7 @@ PERSONA_VERSION = 'aac-ko-v1'
 OUTPUT_RULES_VERSION = 'sentence-output-v2'
 RULE_ENGINE_VERSION = 'ko-particle-v2'
 SAFETY_POLICY_VERSION = 'sentence-safety-v1'
+PROMPT_TEMPLATE_VERSION = 'sentence-prompt-v3'
 
 PERSONA = (
     '당신은 어린 사용자가 그림 카드로 의사를 표현하도록 돕는 '
@@ -32,4 +33,5 @@ def policy_versions():
         'output_rules': OUTPUT_RULES_VERSION,
         'rule_engine': RULE_ENGINE_VERSION,
         'safety': SAFETY_POLICY_VERSION,
+        'prompt_template': PROMPT_TEMPLATE_VERSION,
     }

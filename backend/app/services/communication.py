@@ -216,10 +216,23 @@ def sentence(ids, card_index=None):
 
 def save_session(request, user_id, custom_cards=None, regeneration_of=None, generation_attempt=1):
     card_ids = list(request.cards)
+    request_id = str(request.request_id)
+    try:
+        collection = _collection()
+        existing = collection.find_one({'_id': request_id, 'user_id': user_id})
+        if existing:
+            if (existing['cards'] != card_ids or
+                    existing.get('regeneration_of') != regeneration_of):
+                raise HTTPException(409, '같은 요청 번호에 다른 카드가 전달되었습니다.')
+            return _public(existing)
+    except PyMongoError as exc:
+        raise HTTPException(503, 'MongoDB에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.') from exc
     custom_index = {card['id']: with_inferred_metadata(card) for card in (custom_cards or [])}
     card_index = INDEX | custom_index
     fallback = sentence(card_ids, card_index)
-    result, generation_source = generate_sentence([card_index[key]['label'] for key in card_ids], fallback)
+    performance = {}
+    result, generation_source = generate_sentence(
+        [card_index[key]['label'] for key in card_ids], fallback, metrics=performance)
     initial_source = generation_source
     validation = validate_semantics([card_index[key] for key in card_ids], result)
     safety = validate_safety(result)
@@ -232,15 +245,7 @@ def save_session(request, user_id, custom_cards=None, regeneration_of=None, gene
     if not fallback_safety['passed']:
         logger.warning('MODEL | BLOCKED | 안전하지 않은 문장 차단 (%s)', ','.join(fallback_safety['flags']))
         raise HTTPException(422, '안전한 문장을 만들지 못했습니다. 다른 카드를 선택해 주세요.')
-    request_id = str(request.request_id)
     try:
-        collection = _collection()
-        existing = collection.find_one({'_id': request_id, 'user_id': user_id})
-        if existing:
-            if (existing['cards'] != card_ids or
-                    existing.get('regeneration_of') != regeneration_of):
-                raise HTTPException(409, '같은 요청 번호에 다른 카드가 전달되었습니다.')
-            return _public(existing)
         snapshots = {key: {field: card_index[key].get(field) for field in (
             'id', 'label', 'symbol', 'category', 'meaning', 'part_of_speech', 'has_batchim',
             'sentence_role', 'semantic_group', 'safety_relevant')}
@@ -251,6 +256,7 @@ def save_session(request, user_id, custom_cards=None, regeneration_of=None, gene
             'initial_source': initial_source,
             'model': model_status()['model'] if initial_source == 'ollama' else None,
             'versions': versions,
+            'performance': performance,
             'validation': {
                 'semantics': validation,
                 'initial_safety': safety,

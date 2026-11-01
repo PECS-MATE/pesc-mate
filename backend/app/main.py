@@ -7,6 +7,7 @@ from app.api.router import api_router
 from app.services.indexes import ensure_indexes
 from app.services.observability import configure_observability
 from app.services.database_config import connection_options
+from app.services.model import enabled as model_enabled, warmup, warmup_enabled
 
 
 @asynccontextmanager
@@ -15,6 +16,8 @@ async def lifespan(_app):
     connection_options()
     # Index creation must not delay startup or fail it while MongoDB is still starting.
     Thread(target=ensure_indexes, name='mongodb-indexes', daemon=True).start()
+    if model_enabled() and warmup_enabled():
+        Thread(target=warmup, name='sentence-model-warmup', daemon=True).start()
     yield
 
 
