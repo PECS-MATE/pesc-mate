@@ -173,6 +173,15 @@
 }
 
 /* Readability follow-up: hierarchy before decoration. */
+.support-settings-fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+.app.caregiver-ui .caregiver-record-scope { margin-bottom: 24px; border-bottom: 1px solid var(--color-border); }
+.app.caregiver-ui .caregiver-record-scope details { margin-block: 8px 16px; }
+.app.caregiver-ui .caregiver-record-scope summary, .app.caregiver-ui .record-export summary, .app.caregiver-ui .usb-rfid summary { min-height: 44px; align-content: center; cursor: pointer; }
+.app.caregiver-ui .record-export { margin-block: 16px; padding: 0 16px; border: 1px solid var(--color-border); background: transparent; }
+.app.caregiver-ui .caregiver-unsaved { padding: 12px 16px; border-left: 3px solid var(--color-warning); background: var(--color-warning-surface); color: var(--color-warning); }
+.app.caregiver-ui .support-settings-grid > article > button.primary { margin-top: 16px; }
+.app.caregiver-ui .usb-rfid .usb-connection-controls button.primary { background: var(--color-primary-action); color: var(--color-on-action); }
+.app.caregiver-ui .learning-overview-grid { grid-template-columns: minmax(0, 1fr); }
 .app.caregiver-ui .caregiver-card-search { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 16px; margin-block: 24px; }
 .app.caregiver-ui .caregiver-card-search label { display: grid; gap: 8px; flex: 1 1 200px; }
 .app.caregiver-ui .caregiver-save-result { margin-block: 24px; padding: 16px; border-left: 3px solid var(--color-success); }
@@ -203,7 +212,9 @@
 .app.caregiver-ui .caregiver-connection-guide { padding: 24px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); }
 .app.caregiver-ui .caregiver-connection-guide li { margin-block: 12px; }
 .app.caregiver-ui .caregiver-home > .practice-suggestions { margin-top: 32px; padding: 24px 0; border: 0; border-top: 1px solid var(--color-border); border-radius: 0; background: transparent; }
-.app.caregiver-ui { font-size: 16px; line-height: 1.6; }
+.app.caregiver-ui { grid-template-columns: 240px minmax(0, 1fr); font-size: 16px; line-height: 1.6; }
+.app.caregiver-ui select, .app.caregiver-ui input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) { min-height: 44px; padding: 8px 12px; }
+.app.caregiver-ui input[type="range"], .app.caregiver-ui .check-setting, .app.caregiver-ui .privacy-check { min-height: 44px; }
 .app.caregiver-ui button, .app.caregiver-ui input, .app.caregiver-ui select, .app.caregiver-ui textarea { font-size: 1rem; line-height: 1.5; }
 .app.caregiver-ui small, .app.caregiver-ui .muted, .app.caregiver-ui .eyebrow, .app.caregiver-ui .panel-heading p, .app.caregiver-ui .record-scope-note, .app.caregiver-ui .record-export p, .app.caregiver-ui .profile-trigger small, .app.caregiver-ui .profile-settings-hint { font-size: .875rem; line-height: 1.6; }
 .app.caregiver-ui .sidebar nav button, .app.caregiver-ui .profile-trigger strong, .app.caregiver-ui .user-picker, .app.caregiver-ui .period-filter button { font-size: 1rem; }

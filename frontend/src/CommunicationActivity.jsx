@@ -18,7 +18,7 @@ function EventSummary({ event, cards }) {
 }
 
 // The parent keys this panel by account, linked user, permission and period.
-export default function CommunicationActivity({ targetId, days, cards }) {
+export default function CommunicationActivity({ targetId, days, cards, variant = 'default' }) {
   const [report, setReport] = useState(null);
   const [error, setError] = useState('');
   const [reload, setReload] = useState(0);
@@ -43,7 +43,7 @@ export default function CommunicationActivity({ targetId, days, cards }) {
     {error ? <div role="alert">{error}<button onClick={() => setReload(value => value + 1)}>활동 조회 다시 시도</button></div>
       : !report ? <p role="status">활동 기록을 불러오는 중입니다…</p> : <>
         <p>선택한 기간의 활동 {report.total}건 · 최근 {report.recent_limit}건 표시</p>
-        <RecordExport domain="activity" targetId={targetId} days={days} />
+        <RecordExport domain="activity" targetId={targetId} days={days} variant={variant} />
         <h4>상황별 사용 추이</h4>
         <p>선택 변경과 발화 결과는 문장 저장·학습 참여 횟수에 합산하지 않습니다. 상황 간 우열이나 진단을 나타내지 않습니다.</p>
         {report.situations.length ? <div className="record-table"><table><caption>직접 지정한 상황별 활동</caption>

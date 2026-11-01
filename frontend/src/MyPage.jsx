@@ -56,7 +56,7 @@ export default function MyPage({ name, sections, notice, error, onClose, variant
   if (variant === 'caregiver') return <section ref={page} id="my-page" className="my-page caregiver-my-page" aria-labelledby="my-page-title">
     <header className="my-page-heading">
       <button type="button" className="caregiver-settings-back" aria-label="이전 화면으로" onClick={onClose}><UiIcon name="arrow-left" /></button>
-      <div><h1 ref={heading} tabIndex="-1" id="my-page-title">설정 및 관리</h1><p>{name}님의 보호자 계정 설정</p></div>
+      <div><h1 ref={heading} tabIndex="-1" id="my-page-title">내 계정 설정</h1><p>{name}님의 보호자 프로필이에요. 아이의 설정은 ‘아이 관리로 이동’에서 확인해 주세요.</p></div>
     </header>
     <div className="my-page-layout">
       <nav className="caregiver-settings-nav" aria-label="설정 영역">

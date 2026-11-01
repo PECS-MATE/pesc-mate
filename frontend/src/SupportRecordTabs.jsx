@@ -3,7 +3,7 @@ const RECORD_DOMAINS = [
   { id: 'learning_progress', label: '학습 기록', permission: 'learning_manage' },
 ];
 
-export default function SupportRecordTabs({ active, permissions, onSelect }) {
+export default function SupportRecordTabs({ active, permissions, onSelect, variant = 'default' }) {
   const available = RECORD_DOMAINS.filter(item => permissions.includes(item.permission));
   function navigate(event, current) {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
@@ -24,7 +24,7 @@ export default function SupportRecordTabs({ active, permissions, onSelect }) {
         disabled={!permissions.includes(item.permission)}
         onClick={() => { if (active !== item.id) onSelect(item.id); }}
         onKeyDown={event => navigate(event, item.id)}>
-        {item.label}{!permissions.includes(item.permission) && <small>조회 권한 없음</small>}
+        {variant === 'caregiver' && item.id === 'learning_progress' ? '연습 기록' : item.label}{!permissions.includes(item.permission) && <small>조회 권한 없음</small>}
       </button>)}
     </div>
     <p className="muted">두 기록은 별도 권한으로 조회하며 서로의 지표에 합산하지 않습니다.</p>

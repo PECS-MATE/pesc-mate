@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { requestBlob } from './services/api';
 
 // Key this component by domain, account, target and period. A closed/replaced view cannot download late data.
-export default function RecordExport({ domain, targetId, days, disabled = false }) {
+export default function RecordExport({ domain, targetId, days, disabled = false, variant = 'default' }) {
   const generation = useRef(0);
   const pending = useRef(false);
   const enabled = useRef(!disabled);
@@ -41,12 +41,14 @@ export default function RecordExport({ domain, targetId, days, disabled = false 
     }
   }
 
-  return <section className="record-export" aria-label={domain === 'activity' ? '활동 기록 내보내기' : '기록 내보내기'}>
+  const Container = variant === 'caregiver' ? 'details' : 'section';
+  return <Container className="record-export" aria-label={domain === 'activity' ? '활동 기록 내보내기' : '기록 내보내기'}>
+    {variant === 'caregiver' && <summary>기록 파일 내보내기 (CSV·JSON)</summary>}
     <p>현재 영역·조회 기간의 전체 기록을 내려받습니다. 지원 메모와 다른 영역의 기록은 제외됩니다.
       파일에는 개인적인 표현이 포함될 수 있으니 보관·공유에 주의해 주세요. 10,000개 초과 시 기간을 줄여 주세요.</p>
     <div>{['csv', 'json'].map(format => <button key={format} type="button" disabled={disabled || busy}
       onClick={() => download(format)}>{domain === 'activity' ? '활동 ' : ''}{format.toUpperCase()} 내보내기</button>)}</div>
     {busy && <small role="status">기록 파일을 준비하고 있습니다…</small>}
     {error && <p role="alert">{error}</p>}
-  </section>;
+  </Container>;
 }
