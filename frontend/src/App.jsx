@@ -1,6 +1,7 @@
 import Mascot, { EmptyState } from './Mascot';
 import { Avatar, ProfileEditor } from './Profile';
 import MyPage from './MyPage';
+import CaregiverHome from './CaregiverHome';
 import './assets/caregiverUx.css';
 import UiIcon from './UiIcon';
 import OfflineSpeechStatus from './OfflineSpeechStatus';
@@ -1678,7 +1679,7 @@ function App() {
     : tab === 'admin' && canManageContent
     ? '카드 등록 요청을 검토해요.'
     : isSupporter
-    ? tab === 'support_home' ? '연결된 사용자를 지원해요.'
+    ? tab === 'support_home' ? isCaregiver ? '아이의 소통을 함께 도와요.' : '연결된 사용자를 지원해요.'
       : tab === 'dashboard' ? `${selectedUser?.name || '연결 사용자'}의 의사소통 기록을 살펴봐요.`
       : tab === 'learning_progress' ? `${selectedUser?.name || '연결 사용자'}의 학습 기록을 살펴봐요.`
       : `${selectedUser?.name || '연결 사용자'}의 설정과 기록을 살펴봐요.`
@@ -1779,7 +1780,7 @@ function App() {
     <aside className="sidebar" id="app-sidebar" hidden={sidebarCollapsed}>
       <div className="sidebar-brand"><Mascot className="mascot-brand" /><strong>{isCaregiver ? 'PESC MATE' : <>PESC<br />MATE</>}</strong></div>
       <nav aria-label="주 메뉴" onClick={event => { if (event.target.closest('button:not(:disabled)')) setMyPageOpen(false); }}>{isSupporter ? <>
-        <button aria-current={!myPageOpen && tab === 'support_home' ? 'page' : undefined} className={!myPageOpen && tab === 'support_home' ? 'active' : ''} onClick={() => setTab('support_home')}><span aria-hidden="true"><UiIcon name="home" /></span>지원 홈</button>
+        <button aria-current={!myPageOpen && tab === 'support_home' ? 'page' : undefined} className={!myPageOpen && tab === 'support_home' ? 'active' : ''} onClick={() => setTab('support_home')}><span aria-hidden="true"><UiIcon name="home" /></span>{isCaregiver ? '보호자 홈' : '지원 홈'}</button>
         {canReadRecords && <button aria-current={!myPageOpen && tab === 'dashboard' ? 'page' : undefined} className={!myPageOpen && tab === 'dashboard' ? 'active' : ''} onClick={() => openSupportSection('dashboard')}><span aria-hidden="true"><UiIcon name="chart" /></span>의사소통 기록</button>}
         {canManageCards && <button aria-current={!myPageOpen && tab === 'card_settings' ? 'page' : undefined} className={!myPageOpen && tab === 'card_settings' ? 'active' : ''} onClick={() => openSupportSection('card_settings')}><span aria-hidden="true"><UiIcon name="cards" /></span>개인 카드 관리</button>}
         {(canManageQuick || canManageBoard) && <button aria-current={!myPageOpen && tab === 'board_settings' ? 'page' : undefined} className={!myPageOpen && tab === 'board_settings' ? 'active' : ''} onClick={() => openSupportSection('board_settings')}><span aria-hidden="true"><UiIcon name="grid" /></span>빠른 표현·카드판</button>}
@@ -1855,7 +1856,11 @@ function App() {
           {linkedUsers.filter(person => person.permissions.includes('board_manage')).map(person => <option key={person.id} value={person.id}>{person.name}</option>)}
         </select></label>
         <RfidBoard key={`rfid-${user.id}-${selectedUser.id}-${canManageCards}`} targetId={selectedUser.id} manager canMap={canManageCards} />
-      </div> : tab === 'support_home' && isSupporter ? <section className="support-home">
+      </div> : tab === 'support_home' && isCaregiver ? <CaregiverHome accountId={user.username || user.id} users={linkedUsers}
+        target={selectedUser} offline={offline} onSelect={changeLinkedUser}
+        onOpen={next => next === 'rfid' ? setTab('rfid') : openSupportSection(next)} onPractice={() => openLearning(selectedUser)}>
+        {selectedUser && canManageLearning && canReadRecords && <PracticeSuggestionsPanel key={`${user.id}:${selectedUser.id}`} accountId={user.id} target={selectedUser} onDirectSelect={() => openLearning(selectedUser)} />}
+      </CaregiverHome> : tab === 'support_home' && isSupporter ? <section className="support-home">
         <div className="support-home-panel">
         <div className="panel-heading"><span aria-hidden="true"><UiIcon name="users" /></span><div><h2>{user.role === 'caregiver' ? '보호자 지원 홈' : '담당자 지원 홈'}</h2><p className="muted">연결 사용자를 선택하면 부여된 권한 범위의 메뉴만 표시됩니다.</p></div></div>
         {linkedUsers.length ? <><label className="user-picker">지원할 사용자<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)}>{linkedUsers.map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>
