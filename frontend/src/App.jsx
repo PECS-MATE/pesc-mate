@@ -207,10 +207,7 @@ function App() {
   const [tab, setTab] = useState('home');
   const { askPassword, confirmation } = useReauthentication(`${user?.id || ''}:${tab}:${myPageOpen}`);
   const [text, setText] = useState('');
-  const [generationSource, setGenerationSource] = useState('');
   const [generatedSessionId, setGeneratedSessionId] = useState('');
-  const [generationAttempt, setGenerationAttempt] = useState(1);
-  const [sentenceConfirmed, setSentenceConfirmed] = useState(false);
   const [generationFailed, setGenerationFailed] = useState(false);
   const [generating, setGenerating] = useState(false);
   const generationInFlightRef = useRef(false);
@@ -307,13 +304,6 @@ function App() {
   function confirmCaregiverLeave() {
     return !caregiverSettingsDirty || window.confirm('저장하지 않은 아이 설정이 있어요. 저장하지 않고 이동할까요?');
   }
-  useEffect(() => {
-    if (user?.role !== 'user' || tab !== 'cards' || myPageOpen || !loaded || busy || generating
-        || offline || !privacy.guardian_consent || outputMode !== 'natural'
-        || !board.length || text || generationFailed) return;
-    const timer = window.setTimeout(() => generate(), 700);
-    return () => window.clearTimeout(timer);
-  }, [sentenceContext, loaded, busy, generating, text, generationFailed]);
   useEffect(() => {
     if (user?.role !== 'user' || tab !== 'practice' || !loaded || offline || !privacy.guardian_consent) {
       setActivePracticePlan(null);
@@ -753,7 +743,7 @@ function App() {
     setToken(null); setUser(null); setLoaded(false); setMyPageOpen(false); setReaderExpanded(false); setProfileNotice(''); setSyncState('idle'); setPendingSyncCount(0);
     setAuthMode('login'); setPassword(''); setPasswordConfirm(''); setName(''); setRegistrationConsent(false);
     [...cards, ...recommended, ...adminSubmissions].forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); });
-    setCards([]); setCardCategories([]); setRecommended([]); setStats(null); setBoard([]); setCardSubmissions([]); setAdminSubmissions([]); setAdminCategories([]); setCategoryEdits({}); setCategoryError(''); setLinkedUsers([]); setSelectedUser(null); setBoardLayout(null); setBoardLayoutAudit([]); setQuickDraft([]); setRecoveryDraft([]); setSlotDraft([]); setLearningSettings(null); setLearningProgress(null); setLearningGame(null); setPracticeCategory('all'); setText(''); setGeneratedSessionId(''); setGenerationAttempt(1); setSentenceConfirmed(false); setGenerationFailed(false); setError(''); setTab('home');
+    setCards([]); setCardCategories([]); setRecommended([]); setStats(null); setBoard([]); setCardSubmissions([]); setAdminSubmissions([]); setAdminCategories([]); setCategoryEdits({}); setCategoryError(''); setLinkedUsers([]); setSelectedUser(null); setBoardLayout(null); setBoardLayoutAudit([]); setQuickDraft([]); setRecoveryDraft([]); setSlotDraft([]); setLearningSettings(null); setLearningProgress(null); setLearningGame(null); setPracticeCategory('all'); setText(''); setGeneratedSessionId(''); setGenerationFailed(false); setError(''); setTab('home');
     setTtsSettings(DEFAULT_TTS_SETTINGS); setTtsSettingsSaved(false); setAccessibility(DEFAULT_ACCESSIBILITY); setAccessibilitySaved(true); setPrivacy(DEFAULT_PRIVACY); setPrivacyCaregivers([]); setPrivacyAudit([]); setSpeechFailure(null); setLastUtterance(null); setLastSentence(null); setBusy(false);
     if (sessionExpired) setError('계정 접근 또는 로그인 상태가 변경되었습니다. 다시 로그인해 주세요.');
     setLocalDeletionStatus('');
@@ -767,7 +757,7 @@ function App() {
     const activity = makeActivity('card_selection', next.map(card => card.id));
     selectionEventRef.current = activity?.event.id || null;
     persistActivity(activity);
-    setBoard(next); if (privacy.guardian_consent) saveBoard(user?.id, next); setText(''); setGenerationSource(''); setGeneratedSessionId(''); setGenerationAttempt(1); setSentenceConfirmed(false); setGenerationFailed(false); setSpeechFailure(null); setRequestId(createRequestId());
+    setBoard(next); if (privacy.guardian_consent) saveBoard(user?.id, next); setText(''); setGeneratedSessionId(''); setGenerationFailed(false); setSpeechFailure(null); setRequestId(createRequestId());
   }
   function add(card) {
     if (board.length >= 12) { setError('카드는 최대 12장까지 선택할 수 있어요.'); return; }
@@ -787,43 +777,43 @@ function App() {
     rememberBoardFocus(index, 'remove');
     updateBoard(board.filter((_, position) => position !== index));
   }
-  async function generate() {
+  async function generate(speakResult = false) {
     if (!privacy.guardian_consent || offline || !board.length || generationInFlightRef.current) return;
     generationInFlightRef.current = true;
     const context = sentenceContextRef.current;
+    const speechRun = speechRunRef.current;
     const sessionToken = localStorage.getItem('pesc-mate-token');
     const isCurrent = () => sentenceContextRef.current === context && localStorage.getItem('pesc-mate-token') === sessionToken;
-    setGenerating(true); setError(''); setGenerationFailed(false); setSentenceConfirmed(false);
+    setGenerating(true); setError(''); setGenerationFailed(false);
     try {
       const result = await request('/sentences', { method: 'POST', body: JSON.stringify({ cards: board.map(c => c.id),
         selected_at: board.map(card => card.selected_at || null), request_id: requestId }) });
       if (!isCurrent()) return;
       setText(result.sentence);
-      setGenerationSource(result.generation_source || 'rule');
+      if (speakResult && speechRunRef.current === speechRun) rememberAndSpeakSentence(result.sentence, result.id);
       setGeneratedSessionId(result.id);
-      setGenerationAttempt(result.generation_attempt || 1);
       request(dashboardPath()).then(stats => {
         if (localStorage.getItem('pesc-mate-token') === sessionToken) setStats(stats);
       }).catch(() => {});
     } catch (e) { if (isCurrent()) { setGenerationFailed(true); setError(`${e.message} 선택한 카드는 유지되며 로컬 음성은 계속 사용할 수 있어요.`); } }
     finally { generationInFlightRef.current = false; setGenerating(false); }
   }
-  async function regenerate() {
+  async function regenerate(speakResult = false) {
     if (!privacy.guardian_consent || offline || !generatedSessionId || generationInFlightRef.current) return;
     generationInFlightRef.current = true;
     const context = sentenceContextRef.current;
+    const speechRun = speechRunRef.current;
     const sessionToken = localStorage.getItem('pesc-mate-token');
     const isCurrent = () => sentenceContextRef.current === context && localStorage.getItem('pesc-mate-token') === sessionToken;
-    setGenerating(true); setError(''); setGenerationFailed(false); setSentenceConfirmed(false);
+    setGenerating(true); setError(''); setGenerationFailed(false);
     try {
       const result = await request(`/sentences/${generatedSessionId}/regenerate`, {
         method: 'POST', body: JSON.stringify({ request_id: createRequestId() }),
       });
       if (!isCurrent()) return;
       setText(result.sentence);
-      setGenerationSource(result.generation_source || 'rule');
+      if (speakResult && speechRunRef.current === speechRun) rememberAndSpeakSentence(result.sentence, result.id);
       setGeneratedSessionId(result.id);
-      setGenerationAttempt(result.generation_attempt || generationAttempt + 1);
       request(dashboardPath()).then(stats => {
         if (localStorage.getItem('pesc-mate-token') === sessionToken) setStats(stats);
       }).catch(() => {});
@@ -854,7 +844,7 @@ function App() {
     if (errorCode === 'unsupported') return '이 표현의 음성을 재생할 수 없습니다. 기본 긴급·복구 음성을 준비하거나 기기의 한국어 음성을 확인해 주세요.';
     return '기기의 한국어 음성 설정과 음량을 확인한 뒤 다시 재생해 주세요.';
   }
-  function speakText(content, contentType = 'sentence', cardIds = []) {
+  function speakText(content, contentType = 'sentence', cardIds = [], sessionId = '') {
     if (ttsSettings.volume <= 0) {
       setSpeechFailure({ content, contentType, cardIds, errorCode: 'volume-zero', retryable: false });
       return;
@@ -873,7 +863,7 @@ function App() {
     speechEvent.activity = contentType === 'preview' ? null : makeActivity(recoveryId ? 'recovery_speech' : 'speech_result', cardIds,
       { ...(recoveryId ? { recovery_id: recoveryId } : {}),
         ...(contentType === 'sentence' && selectionEventRef.current ? { selection_id: selectionEventRef.current } : {}),
-        ...(contentType === 'sentence' && content === text && generatedSessionId ? { session_id: generatedSessionId } : {}) });
+        ...(contentType === 'sentence' && (sessionId || (content === text && generatedSessionId)) ? { session_id: sessionId || generatedSessionId } : {}) });
     const startTracking = () => request('/tts/events', { method: 'POST', body: JSON.stringify({
       request_id: speechEvent.id, content_type: contentType, char_count: content.length,
     }) }).then(() => true).catch(async e => {
@@ -921,10 +911,10 @@ function App() {
     });
     resolveStarted(speechEvent.recordingAllowed ? startTracking() : false);
   }
-  function rememberAndSpeakSentence(content) {
+  function rememberAndSpeakSentence(content, sessionId = '') {
     const cardIds = board.map(card => card.id);
     setLastSentence({ content, cards: [...board] });
-    speakText(content, 'sentence', cardIds);
+    speakText(content, 'sentence', cardIds, sessionId);
   }
   function playLearningPrompt(card, callbacks) {
     const voice = selectTtsVoice(ttsVoices, ttsSettings.voiceName, offline);
@@ -948,12 +938,11 @@ function App() {
     });
     return () => { if (isCurrent()) { speechRunRef.current += 1; speechPlayback.stop(); setSpeechState({ status: 'idle', content: '' }); } };
   }
-  function speak() { if (text) { setSentenceConfirmed(true); rememberAndSpeakSentence(text); } }
   function speakSelection() { rememberAndSpeakSentence(board.map(card => card.label).join(' ')); }
   function restoreLastSentence() {
     if (!lastSentence) return;
     updateBoard([...lastSentence.cards]);
-    setText(lastSentence.content); setSentenceConfirmed(true);
+    setText(lastSentence.content);
   }
   function pauseSpeech() {
     if (speechState.status !== 'playing') return;
@@ -1883,19 +1872,10 @@ function App() {
       <section className="board" ref={boardRef}><div className="section-title"><h2 tabIndex="-1">나의 문장 <small>{board.length}/12</small></h2><div className="sentence-toolbar" role="group" aria-label="문장 도구">
         <button type="button" aria-label="고른 카드 모두 비우기" title="고른 카드 모두 비우기" disabled={!board.length || busy} onClick={() => { if (window.confirm('선택한 카드를 모두 지울까요?')) { rememberBoardFocus(0, 'remove'); updateBoard([]); } }}><UiIcon name="trash" size={24} /></button>
         <button type="button" className="primary" aria-label="고른 카드 말하기" title="고른 카드 말하기" disabled={!board.length} onClick={speakSelection}><UiIcon name="volume" size={24} /></button>
-        <button type="button" aria-label={generating ? '문장 만드는 중' : generatedSessionId ? '문장 다시 만들기' : '문장 만들기'} title={!privacy.guardian_consent ? '문장 생성은 보호자 동의 후 사용할 수 있어요.' : offline ? '문장 생성은 온라인 연결이 필요해요.' : generating ? '문장 만드는 중' : generatedSessionId ? '문장 다시 만들기' : '문장 만들기'} aria-busy={generating} disabled={!board.length || busy || generating || speechActive || offline || !privacy.guardian_consent} onClick={() => generatedSessionId ? regenerate() : generate()}><UiIcon name="sparkles" size={24} /></button>
+        <button type="button" aria-label={generating ? '문장 만드는 중' : generatedSessionId ? '문장 다시 만들어 말하기' : '문장 만들어 말하기'} title={!privacy.guardian_consent ? '문장 생성은 보호자 동의 후 사용할 수 있어요.' : offline ? '문장 생성은 온라인 연결이 필요해요.' : generating ? '문장 만드는 중' : generatedSessionId ? '문장 다시 만들어 말하기' : '문장 만들어 말하기'} aria-busy={generating} disabled={!board.length || busy || generating || speechActive || offline || !privacy.guardian_consent} onClick={() => generatedSessionId ? regenerate(true) : generate(true)}><UiIcon name="sparkles" size={24} /></button>
       </div></div>
         <SentenceStrip cards={board} renderPicture={cardPicture} onMove={move} onRemove={removeBoardCard} />
-        {(generating || text || generatedSessionId || generationFailed) && <section className="natural-sentence-tools" aria-label="자동으로 만든 문장">
-        {generating && <p className="generation-pending" role="status">문장 만드는 중…</p>}
-        {generationFailed && <div className="generation-fallback" role="status"><strong>문장 생성 없이도 말할 수 있어요.</strong><span>선택한 카드는 그대로 유지됐습니다.</span><div><button className="primary" disabled={!board.length} onClick={speakSelection}><UiIcon name="volume" />선택 카드 그대로 말하기</button><button onClick={() => setOutputMode('word')}>단어 즉시 발화로 전환</button></div></div>}
-        {text && <div className="sentence" aria-live="polite"><strong>{text}</strong>
-          <details className="sentence-details"><summary>선택 순서와 생성 정보</summary><div className="original-order"><small>선택한 카드 순서</small><div>{board.map((card, index) => <span key={`${card.id}-${index}`}>{card.symbol} {card.label}</span>)}</div></div>
-            <small className={`source-badge ${generationSource}`}>{generationSource === 'ollama' ? 'Qwen · Ollama 생성' : '규칙 기반 생성'}{generationAttempt > 1 ? ` · 재생성 ${generationAttempt}회` : ''}</small>
-          </details></div>}
-        {(text || generatedSessionId) && <div className="actions"><button className="primary" disabled={!text || busy || generating || speechActive} onClick={speak}><UiIcon name="volume" />{sentenceConfirmed ? '문장 다시 말하기' : '이 문장 말하기'}</button></div>}
-
-        </section>}
+        {generating && <span className="visually-hidden" role="status">문장 만드는 중</span>}
       </section>
       </>}
       {canManageContent && <OperationalAlerts key={user.id} refreshKey={adminSubmissions} onReview={() => setTab('admin')} />}
