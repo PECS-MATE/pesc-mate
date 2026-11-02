@@ -16,10 +16,10 @@ export function A4Pages({ rows, layout, selected, onSelect, onDrop, locked = fal
       {(back ? backs : slots).slice(page * geometry.capacity, (page + 1) * geometry.capacity).map((slot, localIndex) => {
         const index = page * geometry.capacity + localIndex, row = slot && byId.get(slot.rowId);
         const content = row ? back ? <strong style={{ fontSize: `${slot.fontSize}pt` }}>{slot.label || row.label}</strong> : <><span className="a4-image-window"><img src={row.preview} alt={slot.label || row.label} draggable="false"
-          style={{ objectFit: slot.fit, transform: `scale(${slot.zoom})` }} /></span>{settings.labels && <strong style={{ fontSize: `${slot.fontSize}pt` }}>{slot.label}</strong>}</> : onSelect ? <span className="a4-empty-slot">＋</span> : null;
+          style={{ objectFit: slot.fit, transform: `scale(${slot.zoom})` }} /></span>{settings.labels && slot.label && <strong style={{ fontSize: `${slot.fontSize}pt` }}>{slot.label}</strong>}</> : onSelect ? <span className="a4-empty-slot">＋</span> : null;
         return onSelect ? <button type="button" key={index} disabled={locked} draggable={!!row && !locked}
           className={`card-print-cell a4-editable-cell${selected === index ? ' selected' : ''}${row ? '' : ' empty'}`}
-          aria-label={`${page + 1}쪽 ${localIndex + 1}번 칸${row ? `, ${slot.label || row.label}` : ', 빈칸'}`} aria-pressed={selected === index}
+          aria-label={`${page + 1}쪽 ${localIndex + 1}번 칸${row ? `, ${slot.label || row.label || '카드 이미지'}` : ', 빈칸'}`} aria-pressed={selected === index}
           onClick={() => onSelect(index)} onDragStart={event => event.dataTransfer.setData('application/x-pecs-slot', String(index))}
           onDragOver={event => { if (!locked) event.preventDefault(); }} onDrop={event => { event.preventDefault(); if (!locked) onDrop(index, event.dataTransfer); }}>{content}</button>
           : <div key={index} className={`card-print-cell${row ? '' : ' a4-print-empty'}`}>{content}</div>;
@@ -83,8 +83,9 @@ export default function A4Workspace({ rows, layout, onChange, locked, onNotice, 
     <div className="a4-workspace">
       <section className="a4-library" aria-label="배치할 카드"><h4>카드 보관함</h4><p className="muted">칸을 고른 뒤 카드를 누르거나 끌어 놓으세요.</p>
         <button type="button" disabled={locked || !rows.length} onClick={fill}>빈칸 자동 채우기</button>
-        <div className="a4-library-grid">{rows.map(row => <button type="button" key={row.id} disabled={locked} draggable={!locked}
-          onDragStart={event => event.dataTransfer.setData('application/x-pecs-card', row.id)} onClick={() => put(row)}><img src={row.preview} alt="" /><span>{row.label || '이름 없음'}</span></button>)}</div>
+        <div className="a4-library-grid">{rows.map((row, index) => <button type="button" key={row.id} disabled={locked} draggable={!locked}
+          aria-label={`${row.label || `사진 ${index + 1}`} 배치`}
+          onDragStart={event => event.dataTransfer.setData('application/x-pecs-card', row.id)} onClick={() => put(row)}><img src={row.preview} alt="" /></button>)}</div>
         {!rows.length && <p>사진이나 등록 카드를 추가해 주세요.</p>}
       </section>
       <section className="a4-canvas" aria-label="A4 편집 영역"><div className="a4-canvas-tools">
@@ -97,7 +98,7 @@ export default function A4Workspace({ rows, layout, onChange, locked, onNotice, 
         <div className="a4-sheet-scroll"><div style={{ zoom: zoom / 100 }}><A4Pages rows={rows} layout={layout} selected={selection} onSelect={setSelected} onDrop={drop} locked={locked} /></div></div>
       </section>
       <fieldset className="a4-properties" disabled={locked}><legend>선택한 칸 · {selection + 1}</legend>
-        {activeRow ? <><label>인쇄 이름<input maxLength="30" value={slot.label} onChange={event => updateSlot({ label: event.target.value })} /></label>
+        {activeRow ? <><label>인쇄 이름<input maxLength="30" placeholder="카드 이름 입력" value={slot.label} onChange={event => updateSlot({ label: event.target.value })} /></label>
           <label>글자 크기<select value={slot.fontSize} onChange={event => updateSlot({ fontSize: Number(event.target.value) })}>{[8, 10, 12, 14, 16, 20, 24].map(size => <option key={size} value={size}>{size}pt</option>)}</select></label>
           <label>그림 맞춤<select value={slot.fit} onChange={event => updateSlot({ fit: event.target.value })}><option value="contain">전체 보이기</option><option value="cover">꽉 채우기 · 일부 잘림</option></select></label>
           <label>그림 확대<input type="range" min="1" max="2" step=".1" value={slot.zoom} onChange={event => updateSlot({ zoom: Number(event.target.value) })} /></label>

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { request, requestBlob } from './services/api';
 import { createRequestId } from './services/requestId';
-import { fileIssue, filenameLabel, importIssues, MAX_IMPORT_FILES } from './services/cardImport';
+import { fileIssue, importIssues, MAX_IMPORT_FILES } from './services/cardImport';
 import printCss from './assets/cardPrintPage.css?inline';
 import './assets/cardPrintEditor.css';
 import A4Workspace, { A4Pages } from './A4Workspace';
@@ -126,7 +126,7 @@ export default function CardPrintEditor({ targetId, targetName, categories, exis
     const issue = files.map(fileIssue).find(Boolean);
     if (issue) { setNotice(issue); return; }
     const added = files.map(file => ({ id: createRequestId(), file, preview: previewFor(file),
-      label: filenameLabel(file.name), meaning: filenameLabel(file.name), category: '',
+      label: '', meaning: '', category: '',
       status: 'ready' }));
     setRows(current => [...current, ...added]);
     setNotice('사진은 아직 서버에 전송하지 않았어요. 인쇄만 하거나 아이 계정에 저장할 수 있어요.');
