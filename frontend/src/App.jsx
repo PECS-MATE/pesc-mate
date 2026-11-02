@@ -1767,7 +1767,7 @@ function App() {
       : '나의 의사소통 기록을 확인해요.';
   if (!authReady) return <main className="login-page"><p role="status">로그인 정보를 확인하는 중입니다…</p></main>;
   if (!user) return <LandingPage pageRef={entryPageRef} onLogin={() => openAuthentication('login')} onStart={() => openAuthentication('register')}
-    busy={busy} previewCards={['me', 'water', 'drink'].map(id => ({ ...CARD_META[id], image: bundledCardImage(CARD_META[id].label) }))}>
+    busy={busy}>
     <section className="login-card" ref={authPanelRef} aria-labelledby="auth-title">
     <div className="login-mascot"><Mascot /></div><p className="auth-brand">PESC MATE</p>
     <h2 id="auth-title">{authMode === 'login' ? '로그인' : '사용자 가입'}</h2><p className="muted">{authMode === 'login' ? '내 카드로 이야기를 시작해요.' : 'AAC 사용자 계정을 만들고 바로 시작합니다.'}</p>
