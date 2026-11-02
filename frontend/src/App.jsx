@@ -38,7 +38,7 @@ import LearningQuestion from './LearningQuestion';
 import SentenceOrderQuestion from './SentenceOrderQuestion';
 import SentenceStrip from './SentenceStrip';
 import { availableSentenceExamples, sentenceLearningQuestions, sentenceOrderMatches, validSentenceDraft, validSentenceQuestion } from './services/sentenceLearning';
-import { localKoreanVoices as installedKoreanVoices, selectTtsVoice } from "./services/ttsVoice";
+import { koreanVoices, localKoreanVoices as installedKoreanVoices, selectTtsVoice } from "./services/ttsVoice";
 import { createRequestId } from "./services/requestId";
 import { createCoreSpeechCache } from './services/coreSpeech';
 import { createSpeechPlayback } from './services/speechPlayback';
@@ -641,7 +641,7 @@ function App() {
 
   useEffect(() => {
     const synthesis = window.speechSynthesis;
-    const updateVoices = () => setTtsVoices((synthesis?.getVoices() || []).filter(voice => voice.lang.toLowerCase().startsWith('ko')));
+    const updateVoices = () => setTtsVoices(koreanVoices(synthesis?.getVoices() || []));
     const handleVisibility = () => {
       if (document.visibilityState === 'hidden') {
         finishSpeechEvent(speechEventRef.current, 'cancelled', 'screen-hidden');
@@ -794,6 +794,7 @@ function App() {
   }
   async function generate(speakResult = false) {
     if (!privacy.guardian_consent || offline || !board.length || generationInFlightRef.current) return;
+    if (speakResult) speechPlayback.unlock();
     generationInFlightRef.current = true;
     const context = sentenceContextRef.current;
     const speechRun = speechRunRef.current;
@@ -815,6 +816,7 @@ function App() {
   }
   async function regenerate(speakResult = false) {
     if (!privacy.guardian_consent || offline || !generatedSessionId || generationInFlightRef.current) return;
+    if (speakResult) speechPlayback.unlock();
     generationInFlightRef.current = true;
     const context = sentenceContextRef.current;
     const speechRun = speechRunRef.current;
@@ -854,12 +856,12 @@ function App() {
   }
   function speechFailureMessage(errorCode) {
     if (errorCode === 'volume-zero') return '기본 볼륨이 0입니다. 음성 설정에서 볼륨을 올려 주세요.';
-    if (errorCode === 'not-allowed') return '브라우저의 음성 재생 권한과 기기 음량을 확인한 뒤 다시 시도해 주세요.';
+    if (errorCode === 'not-allowed') return '이 기기의 브라우저가 음성 재생을 막았어요. 다시 재생을 직접 눌러 주세요. 기기 음량과 블루투스 출력도 확인해 주세요.';
     if (['language-unavailable', 'voice-unavailable'].includes(errorCode)) return '기기에 한국어 음성을 설치하거나 음성 설정에서 다른 음성을 선택해 주세요.';
     if (errorCode === 'unsupported') return '이 표현의 음성을 재생할 수 없습니다. 기본 긴급·복구 음성을 준비하거나 기기의 한국어 음성을 확인해 주세요.';
     return '기기의 한국어 음성 설정과 음량을 확인한 뒤 다시 재생해 주세요.';
   }
-  function speakText(content, contentType = 'sentence', cardIds = [], sessionId = '') {
+  function speakText(content, contentType = 'sentence', cardIds = [], sessionId = '', playback = {}) {
     if (ttsSettings.volume <= 0) {
       setSpeechFailure({ content, contentType, cardIds, errorCode: 'volume-zero', retryable: false });
       return;
@@ -897,12 +899,15 @@ function App() {
     speechEventRef.current = speechEvent;
     setSpeechFailure(null);
     const runId = ++speechRunRef.current;
-    const voice = selectTtsVoice(ttsVoices, ttsSettings.voiceName, offline);
+    const currentVoices = koreanVoices(window.speechSynthesis?.getVoices() || []);
+    const voice = selectTtsVoice(currentVoices.length ? currentVoices : ttsVoices, ttsSettings.voiceName, offline);
+    speechPlayback.unlock();
     setSpeechState({ status: 'starting', content });
     speechPlayback.speak({
       text: content, voice, rate: ttsSettings.rate, pitch: ttsSettings.pitch, volume: ttsSettings.volume,
-      audioUrl: contentType === 'preview' ? undefined : coreSpeechCache.urlFor(content),
-      preferAudio: offline || !ttsVoices.length,
+      audioUrl: coreSpeechCache.urlFor(content, { online: !offline }),
+      preferAudio: playback.preferAudio || offline || !voice,
+      allowSpeechFallback: !playback.audioOnly,
       onStart: () => {
         speechEvent.startupMs = Math.max(0, Date.now() - speechEvent.requestedAt);
         if (speechRunRef.current === runId) setSpeechState({ status: 'playing', content });
@@ -919,7 +924,7 @@ function App() {
         setSpeechState({ status: 'idle', content: '' });
         if (!['canceled', 'interrupted'].includes(errorCode)) {
           lastSpeechTapRef.current = { content: '', at: 0 };
-          setSpeechFailure({ content, contentType, cardIds, errorCode, retryable: true });
+          setSpeechFailure({ content, contentType, cardIds, errorCode, retryable: true, playback });
         }
       },
     });
@@ -930,7 +935,8 @@ function App() {
     speakText(content, 'sentence', cardIds, sessionId);
   }
   function playLearningPrompt(card, callbacks) {
-    const voice = selectTtsVoice(ttsVoices, ttsSettings.voiceName, offline);
+    const currentVoices = koreanVoices(window.speechSynthesis?.getVoices() || []);
+    const voice = selectTtsVoice(currentVoices.length ? currentVoices : ttsVoices, ttsSettings.voiceName, offline);
     if (ttsSettings.volume <= 0 || (offline && voice?.localService !== true)) {
       callbacks.onError(ttsSettings.volume <= 0 ? '음량을 올린 뒤 다시 들어 주세요.' : '오프라인 문제 소리는 기기에 저장된 한국어 음성이 필요해요. 다른 연습은 계속 사용할 수 있어요.');
       return () => {};
@@ -1793,7 +1799,7 @@ function App() {
             <label>음높이 <output>{ttsSettings.pitch.toFixed(2)}</output><input type="range" min="0.5" max="1.5" step="0.05" value={ttsSettings.pitch} onChange={event => updateTtsSettings({ pitch: Number(event.target.value) })} /></label>
             <label>기본 볼륨 <output>{Math.round(ttsSettings.volume * 100)}%</output><input type="range" min="0" max="1" step="0.05" value={ttsSettings.volume} onChange={event => updateTtsSettings({ volume: Number(event.target.value) })} /></label>
           </div>
-          <div className="tts-preview"><small role="status">{localKoreanVoices.length ? `기기에 저장된 한국어 음성 ${localKoreanVoices.length}개를 확인했습니다.` : ttsVoices.length ? `한국어 음성 ${ttsVoices.length}개가 있지만 오프라인 사용 여부는 비행기 모드에서 확인해 주세요.` : '한국어 음성이 없으면 기기 설정에서 음성 데이터를 설치해 주세요.'}</small><span><button type="button" disabled={busy || ttsSettingsBusy} onClick={() => speakText('안녕하세요. 목소리를 확인해 보세요.', 'preview')}>미리 듣기</button><button type="button" className="primary" disabled={ttsSettingsBusy || ttsSettingsSaved} onClick={saveTtsSettings}>{ttsSettingsBusy ? '저장 중…' : ttsSettingsSaved ? '저장됨' : '설정 저장'}</button></span></div>
+          <div className="tts-preview"><small role="status">{localKoreanVoices.length ? `이 기기에 저장된 한국어 음성 ${localKoreanVoices.length}개` : ttsVoices.length ? `이 기기의 한국어 음성 ${ttsVoices.length}개 · 오프라인 사용은 별도 확인` : '이 기기에서 한국어 음성을 아직 찾지 못했어요. 기기 음성 테스트를 눌러 확인해 주세요.'}</small><span><button type="button" disabled={busy || ttsSettingsBusy} onClick={() => speakText('안녕하세요. 목소리를 확인해 보세요.', 'preview')}>기기 음성 테스트</button><button type="button" disabled={busy || ttsSettingsBusy} onClick={() => speakText('도와주세요', 'preview', [], '', { preferAudio: true, audioOnly: true })}>기본 녹음 테스트</button><button type="button" className="primary" disabled={ttsSettingsBusy || ttsSettingsSaved} onClick={saveTtsSettings}>{ttsSettingsBusy ? '저장 중…' : ttsSettingsSaved ? '저장됨' : '설정 저장'}</button></span></div>
         </section> },
       { id: 'guardian', label: '보호자 설정', content: <div className="guardian-settings">
         <h3>보호자 설정</h3><p>계정 소유자·법정대리인이 동의와 데이터 관리를 확인하는 영역입니다.</p>
@@ -1900,7 +1906,7 @@ function App() {
         }} />}
       {user.role === 'user' && tab !== 'cards' && <section className="quick-speech" aria-labelledby="quick-speech-title" data-scan-group="quick-speech"><div><strong id="quick-speech-title">빠른 표현</strong></div>{quickExpressionCards.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 바로 말하기`} onClick={() => speakText(item.label, 'card', [item.id])}>{expressionVisual(item)}{item.label}</button>)}</section>}
       {!myPageOpen && error && <div role="alert" className="error">{error} <button disabled={busy || generating || offline} onClick={() => generationFailed ? generate() : load(user)}>{generationFailed ? '문장 다시 만들기' : '다시 불러오기'}</button></div>}
-      {speechFailure && <div role="alert" className="speech-error"><span aria-hidden="true"><UiIcon name="volume-off" /></span><div><strong>음성을 재생하지 못했어요.</strong><p>전달할 표현: <strong>{speechFailure.content}</strong></p><p>{speechFailureMessage(speechFailure.errorCode)} 선택한 카드와 문장은 그대로 유지됩니다.</p></div><div className="speech-error-actions">{speechFailure.retryable && <button className="primary" onClick={() => speakText(speechFailure.content, speechFailure.contentType, speechFailure.cardIds || [])}>다시 재생</button>}<button onClick={() => setSpeechFailure(null)}>닫기</button></div></div>}
+      {speechFailure && <div role="alert" className="speech-error"><span aria-hidden="true"><UiIcon name="volume-off" /></span><div><strong>음성을 재생하지 못했어요.</strong><p>전달할 표현: <strong>{speechFailure.content}</strong></p><p>{speechFailureMessage(speechFailure.errorCode)} 선택한 카드와 문장은 그대로 유지됩니다.</p></div><div className="speech-error-actions">{speechFailure.retryable && <button className="primary" onClick={() => speakText(speechFailure.content, speechFailure.contentType, speechFailure.cardIds || [], '', speechFailure.playback)}>다시 재생</button>}<button onClick={() => setSpeechFailure(null)}>닫기</button></div></div>}
       {!loaded && !error && <p role="status">카드를 불러오는 중입니다…</p>}
       {isSupporter && selectedUser && ['dashboard', 'learning_progress'].includes(tab) && <SupportRecordTabs
         active={tab} permissions={selectedPermissions} variant={isCaregiver ? 'caregiver' : 'default'}

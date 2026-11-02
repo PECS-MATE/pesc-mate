@@ -1,4 +1,5 @@
 import { cacheCoreSpeech, cachedCoreSpeech } from './offlineStore.js';
+import bundledManifest from '../../public/audio/core/v1/manifest.json';
 
 export const CORE_SPEECH_VERSION = 'v1';
 const ASSET_BASE = `/audio/core/${CORE_SPEECH_VERSION}/`;
@@ -108,7 +109,12 @@ export function createCoreSpeechCache({
       })().finally(() => { if (run === generation) { pending = null; onlineRequested = false; } });
       return pending;
     },
-    urlFor(text) { return urls.get(text); },
+    urlFor(text, { online = true } = {}) {
+      const cached = urls.get(text);
+      if (cached || !online) return cached;
+      const entry = validManifest(bundledManifest) && bundledManifest.entries.find(item => item.text === text);
+      return entry ? `${ASSET_BASE}${encodeURIComponent(entry.file)}` : undefined;
+    },
     dispose() {
       generation += 1;
       pending = null;

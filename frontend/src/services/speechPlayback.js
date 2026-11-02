@@ -14,9 +14,46 @@ export function createSpeechPlayback({
   Audio = globalThis.Audio,
   setTimer = globalThis.setTimeout,
   clearTimer = globalThis.clearTimeout,
-  startupTimeoutMs = 2500,
+  startupTimeoutMs = 6000,
 } = {}) {
   let current = null;
+  let sharedAudio = null;
+  let unlocking = false;
+
+  function audioElement() {
+    if (!sharedAudio && Audio) {
+      sharedAudio = new Audio();
+      sharedAudio.preload = 'auto';
+      sharedAudio.playsInline = true;
+    }
+    return sharedAudio;
+  }
+
+  // Call directly in a click/touch handler, before a model/network await.
+  // Reuse this same element for fallback clips; unlocking a different element is insufficient on iOS.
+  function unlock() {
+    if (current || unlocking || !Audio) return;
+    let audio;
+    try {
+      audio = audioElement();
+      const wave = new Uint8Array(444), view = new DataView(wave.buffer);
+      for (const [offset, value] of [[0, 'RIFF'], [8, 'WAVE'], [12, 'fmt '], [36, 'data']]) {
+        [...value].forEach((char, index) => { wave[offset + index] = char.charCodeAt(0); });
+      }
+      view.setUint32(4, 436, true); view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+      view.setUint32(24, 8000, true); view.setUint32(28, 8000, true);
+      view.setUint16(32, 1, true); view.setUint16(34, 8, true); view.setUint32(40, 400, true);
+      wave.fill(128, 44);
+      audio.src = `data:audio/wav;base64,${btoa(String.fromCharCode(...wave))}`;
+      audio.volume = 1;
+      unlocking = true;
+      Promise.resolve(audio.play()).catch(() => {}).finally(() => {
+        unlocking = false;
+        if (audio.src.startsWith('data:audio/wav;') && current?.media?.audio !== audio) audio.pause();
+      });
+    } catch { unlocking = false; /* Real playback still reports permission/device errors. */ }
+  }
 
   const active = (run, media) => current === run && run.media === media;
 
@@ -101,38 +138,47 @@ export function createSpeechPlayback({
       return;
     }
     try {
-      const audio = new Audio(run.options.audioUrl);
+      const audio = audioElement();
       media.audio = audio;
+      run.attemptedAudio = true;
+      audio.src = run.options.audioUrl;
       audio.preload = 'auto';
       audio.volume = run.options.volume ?? 1;
       audio.playbackRate = run.options.rate ?? 1;
       audio.onplaying = () => playing(run, media);
       audio.onpause = () => paused(run, media);
       audio.onended = () => finish(run, media);
-      audio.onerror = () => finish(run, media, 'audio-unavailable');
+      audio.onerror = () => audioFailed(run, media, 'audio-unavailable');
       playAudio(run, media);
     } catch (error) {
-      finish(run, media, playbackError(error, 'audio-unavailable'));
+      audioFailed(run, media, playbackError(error, 'audio-unavailable'));
     }
   }
 
   function playAudio(run, media) {
     const audio = media.audio;
-    watchStartup(run, media, error => finish(run, media, error));
+    watchStartup(run, media, error => audioFailed(run, media, error));
     try {
       Promise.resolve(audio.play()).then(() => {
         // play() can resolve after cancellation. Retire only that old element.
-        if (!active(run, media)) releaseAudio(audio);
-      }, error => finish(run, media, playbackError(error, 'audio-unavailable')));
+        if (!active(run, media) && current?.media?.audio !== audio) releaseAudio(audio);
+      }, error => audioFailed(run, media, playbackError(error, 'audio-unavailable')));
     } catch (error) {
-      finish(run, media, playbackError(error, 'audio-unavailable'));
+      audioFailed(run, media, playbackError(error, 'audio-unavailable'));
     }
   }
 
   function speechFailed(run, media, error) {
     if (!active(run, media)) return;
-    if (run.options.audioUrl && !CANCELLED_ERRORS.has(error)) startAudio(run);
+    if (run.options.audioUrl && !run.attemptedAudio && !CANCELLED_ERRORS.has(error)) startAudio(run);
     else finish(run, media, error);
+  }
+
+  function audioFailed(run, media, error) {
+    if (!active(run, media)) return;
+    if (run.options.allowSpeechFallback !== false && !run.attemptedSpeech && synthesis && Utterance && !CANCELLED_ERRORS.has(error)) {
+      release(media); startSpeech(run);
+    } else finish(run, media, error);
   }
 
   function speak(options) {
@@ -141,7 +187,7 @@ export function createSpeechPlayback({
     current = run;
     if (options.preferAudio || !synthesis || !Utterance) {
       if (options.audioUrl) startAudio(run);
-      else if (!synthesis || !Utterance) {
+      else if (!synthesis || !Utterance || options.allowSpeechFallback === false) {
         const media = { kind: 'none', timer: null };
         run.media = media;
         finish(run, media, 'unsupported');
@@ -150,6 +196,7 @@ export function createSpeechPlayback({
   }
 
   function startSpeech(run) {
+    run.attemptedSpeech = true;
     const media = { kind: 'speech', utterance: null, timer: null };
     run.media = media;
     try {
@@ -202,5 +249,5 @@ export function createSpeechPlayback({
     }
   }
 
-  return { speak, pause, resume, stop };
+  return { speak, pause, resume, stop, unlock };
 }
