@@ -1,6 +1,5 @@
 .app .card-print-editor { margin-block: 20px; padding: 16px; border: 1px solid var(--color-border); border-radius: 14px; background: var(--color-surface); }
 .app .card-print-editor > summary { min-height: 44px; align-content: center; font-weight: 700; cursor: pointer; }
-.app .card-print-options { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; min-width: 0; }
 .app .card-print-editor label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .app .card-print-editor input:not([type="checkbox"]), .app .card-print-editor select { max-width: 100%; }
 .app .card-print-rows { display: grid; gap: 16px; padding: 0; list-style: none; }
@@ -9,10 +8,14 @@
 .app .card-print-rows fieldset { display: flex; flex: 1 1 220px; flex-wrap: wrap; align-items: center; gap: 10px; min-width: 0; }
 .app .card-print-publish { min-height: 44px; font-weight: 700; }
 .app .card-print-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-block: 16px; }
-.app .card-print-preview { max-height: 650px; padding: 12px; overflow: auto; border: 1px solid var(--color-border); background: var(--color-selected); }
 .app .card-print-frame { position: fixed; left: 0; bottom: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; border: 0; }
-.app .a4-layout-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; min-width: 0; margin-block: 16px; padding: 12px; border: 1px solid var(--color-border); }
-.app .a4-layout-toolbar input[type="number"] { width: 72px; }
+.app .a4-import-toolbar, .app .a4-layout-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-width: 0; margin-block: 12px; }
+.app .a4-import-toolbar button, .app .a4-layout-toolbar button { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; min-height: 44px; padding: 10px; border-radius: 10px; box-shadow: none; }
+.app .a4-tool-separator { width: 1px; height: 24px; margin-inline: 4px; background: var(--color-border); }
+.app .a4-redo-icon { transform: scaleX(-1); }
+.app .a4-existing-picker { margin-block: 12px; padding: 12px; background: var(--color-selected); border-radius: 10px; }
+.app .a4-existing-picker[hidden] { display: none; }
+.app .a4-existing-picker select { flex: 1; min-width: 0; }
 .app .a4-workspace { display: grid; grid-template-columns: 170px minmax(0, 1fr) 190px; gap: 16px; align-items: start; }
 .app .a4-library, .app .a4-properties, .app .a4-canvas { min-width: 0; margin: 0; }
 .app .a4-library h4 { margin-block: 0 12px; }
@@ -58,6 +61,9 @@
 .a4-print-settings input[type="radio"] { width: 20px; height: 20px; margin: 0; accent-color: var(--color-primary-action); }
 .a4-print-count { justify-content: space-between; }
 .a4-print-count input { width: 100px; min-width: 0; padding: 10px; border: 1px solid var(--color-border-control); border-radius: 8px; background: var(--color-surface); color: var(--color-text); }
+.a4-print-count select { max-width: 180px; min-width: 0; padding: 10px; border: 1px solid var(--color-border-control); border-radius: 8px; background: var(--color-surface); color: var(--color-text); }
+.a4-print-advanced summary { min-height: 44px; align-content: center; cursor: pointer; }
+.a4-print-advanced label { display: flex; margin-block: 10px; }
 .a4-print-note { margin: 0; font-size: .875rem; line-height: 1.65; color: var(--color-text-secondary); }
 .a4-print-dialog-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: auto; }
 .a4-print-confirm { background: var(--color-primary-action); color: var(--color-on-action); border-color: var(--color-primary-action); }

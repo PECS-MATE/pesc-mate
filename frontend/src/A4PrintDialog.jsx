@@ -44,10 +44,15 @@ export default function A4PrintDialog({ rows, layout: initialLayout, onClose, on
     </div>
     <div className="a4-print-settings"><h2 id={title}>프린트 설정</h2>
       <fieldset><legend>레이아웃 · A4</legend>{[['portrait', '세로'], ['landscape', '가로']].map(([value, label]) => <label key={value}><input type="radio" name={`${title}-orientation`} checked={settings.orientation === value} onChange={() => configure({ orientation: value })} />{label}</label>)}</fieldset>
+      <label className="a4-print-count">카드 크기<select value={settings.size} onChange={event => configure({ size: Number(event.target.value) })}><option value="40">4×4cm</option><option value="50">5×5cm</option><option value="60">6×6cm</option><option value="0">행·열 직접 구성</option></select></label>
       <label className="a4-print-count">가로 카드 수<input type="number" min="1" max="8" value={settings.columns} onChange={event => configure({ columns: Number(event.target.value), size: 0 })} /></label>
       <label className="a4-print-count">세로 카드 수<input type="number" min="1" max="10" value={settings.rows} onChange={event => configure({ rows: Number(event.target.value), size: 0 })} /></label>
       <fieldset><legend>카드 이름</legend>{[[true, '표시'], [false, '숨기기']].map(([value, label]) => <label key={label}><input type="radio" name={`${title}-labels`} checked={settings.labels === value} onChange={() => configure({ labels: value })} />{label}</label>)}</fieldset>
       <fieldset><legend>양면 구성</legend>{[[false, '단면 카드'], [true, '양면 카드']].map(([value, label]) => <label key={label}><input type="radio" name={`${title}-duplex`} checked={duplex === value} onChange={() => setDuplex(value)} />{label}</label>)}</fieldset>
+      <details className="a4-print-advanced"><summary>여백·간격</summary>
+        <label className="a4-print-count">용지 여백 mm<input type="number" min="5" max="20" value={settings.margin} onChange={event => configure({ margin: Number(event.target.value) })} /></label>
+        <label className="a4-print-count">카드 간격 mm<input type="number" min="0" max="10" value={settings.gap} onChange={event => configure({ gap: Number(event.target.value) })} /></label>
+      </details>
       {duplex && <p className="a4-print-note">앞면은 그림, 뒷면은 카드 이름입니다. 인쇄창에서 양면 인쇄와 {settings.orientation === 'portrait' ? '긴 쪽' : '짧은 쪽'} 넘김을 선택하세요. 프린터의 양면 지원과 정렬은 별도 확인이 필요합니다.</p>}
       <p className="a4-print-note">카드 크기 {geometry.cellWidth.toFixed(1)} × {geometry.cellHeight.toFixed(1)}mm · 출력 {pages * (duplex ? 2 : 1)}면</p>
       <p className="a4-print-note">여기서 바꾼 설정은 이번 출력에만 적용됩니다.</p>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { request, requestBlob } from './services/api';
 import { createRequestId } from './services/requestId';
@@ -7,6 +7,7 @@ import printCss from './assets/cardPrintPage.css?inline';
 import './assets/cardPrintEditor.css';
 import A4Workspace, { A4Pages } from './A4Workspace';
 import A4PrintDialog from './A4PrintDialog';
+import UiIcon from './UiIcon';
 import { DEFAULT_A4, validateA4Project, MAX_A4_FILE_BYTES } from './services/a4Layout';
 
 const PRINT_DOCUMENT = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>PECS Mate 카드 인쇄</title><style>html, body { margin: 0; padding: 0; background: white; color: #344b46; font-family: Arial, sans-serif; } ${printCss}</style></head><body></body></html>`;
@@ -23,6 +24,9 @@ export default function CardPrintEditor({ targetId, targetName, categories, exis
   const [frameDocument, setFrameDocument] = useState(null);
   const [printDialog, setPrintDialog] = useState(false);
   const [printJob, setPrintJob] = useState(null);
+  const [showCardPicker, setShowCardPicker] = useState(false);
+  const photoInput = useRef(null), cameraInput = useRef(null), projectInput = useRef(null);
+  const cardPicker = useRef(null), cardPickerButton = useRef(null), cardPickerId = useId();
   const printedJob = useRef(null);
   const frame = useRef(null);
   const urls = useRef(new Set());
@@ -133,6 +137,7 @@ export default function CardPrintEditor({ targetId, targetName, categories, exis
   }
   async function addExisting(event) {
     const id = event.target.value; event.target.value = '';
+    setShowCardPicker(false); cardPickerButton.current?.focus();
     const card = existingCards.find(item => item.id === id);
     if (!card || running.current || disabled || rows.length >= 60) return;
     running.current = true; setBusy(true); setNotice('인쇄용 이미지를 불러오고 있어요.');
@@ -228,17 +233,28 @@ export default function CardPrintEditor({ targetId, targetName, categories, exis
   return <details className="card-print-editor">
     <summary>A4 그림카드 만들기·인쇄</summary>
     <h3>{targetName}님의 인쇄 카드 편집기</h3>
-    <p>용지를 나누고 필요한 카드만 넣으세요. 편집본을 다운로드하면 다음에 이어서 수정할 수 있어요.</p>
-    <fieldset disabled={locked} className="card-print-options"><legend>카드 가져오기와 인쇄 설정</legend>
-      <label>새 사진 선택<input type="file" accept="image/png,image/jpeg,image/webp" multiple onChange={chooseFiles} /></label>
-      <label>사진 촬영<input type="file" accept="image/*" capture="environment" onChange={chooseFiles} /></label>
-      <label>등록 카드 추가<select defaultValue="" disabled={locked || disabled || rows.length >= 60} onChange={addExisting}><option value="">개인 카드 선택</option>
+    <p>카드를 배치한 뒤 프린트에서 용지를 설정하세요.</p>
+    <div className="a4-import-toolbar" role="group" aria-label="카드와 편집본 도구">
+      <button type="button" disabled={locked || rows.length >= 60} aria-label="사진 추가" title="사진 추가" onClick={() => photoInput.current?.click()}><UiIcon name="image" /></button>
+      <button type="button" disabled={locked || rows.length >= 60} aria-label="사진 촬영" title="사진 촬영" onClick={() => cameraInput.current?.click()}><UiIcon name="camera" /></button>
+      <button ref={cardPickerButton} type="button" disabled={locked || disabled || rows.length >= 60} aria-label="등록 카드 가져오기" title="등록 카드 가져오기" aria-expanded={showCardPicker} aria-controls={cardPickerId} onClick={() => {
+        setShowCardPicker(value => !value);
+        if (!showCardPicker) window.requestAnimationFrame(() => cardPicker.current?.focus());
+      }}><UiIcon name="cards" /></button>
+      <span className="a4-tool-separator" aria-hidden="true" />
+      <button type="button" disabled={locked} aria-label="편집본 불러오기" title="편집본 불러오기" onClick={() => projectInput.current?.click()}><UiIcon name="folder" /></button>
+      <button type="button" disabled={locked} aria-label="편집본 다운로드" title="편집본 다운로드" onClick={exportProject}><UiIcon name="download" /></button>
+      <input ref={photoInput} hidden disabled={locked} type="file" aria-label="사진 파일 선택" accept="image/png,image/jpeg,image/webp" multiple onChange={chooseFiles} />
+      <input ref={cameraInput} hidden disabled={locked} type="file" aria-label="촬영 사진 선택" accept="image/*" capture="environment" onChange={chooseFiles} />
+      <input ref={projectInput} hidden disabled={locked} type="file" aria-label="A4 편집본 파일 선택" accept="application/json,.json" onChange={importProject} />
+    </div>
+    <div id={cardPickerId} hidden={!showCardPicker} className="a4-existing-picker" onKeyDown={event => {
+      if (event.key === 'Escape') { event.preventDefault(); setShowCardPicker(false); cardPickerButton.current?.focus(); }
+    }}><label>등록 카드<select ref={cardPicker} defaultValue="" disabled={locked || disabled || rows.length >= 60} onChange={addExisting}><option value="">개인 카드 선택</option>
         {existingCards.filter(card => card.visibility === 'private' && !rows.some(row => row.existingId === card.id || row.savedId === card.id))
           .map(card => <option key={card.id} value={card.id}>{card.label}</option>)}
       </select></label>
-      <button type="button" onClick={exportProject}>편집본 다운로드</button>
-      <label>편집본 불러오기<input type="file" accept="application/json,.json" onChange={importProject} /></label>
-    </fieldset>
+    </div>
     <A4Workspace rows={rows} layout={layout} onChange={changeLayout} locked={locked} onNotice={setNotice}
       history={{ canUndo: !!history.past.length, canRedo: !!history.future.length }} onUndo={undoLayout} onRedo={redoLayout} />
     <details className="a4-source-details"><summary>보관함 카드 정보·아이 계정 등록</summary><ol className="card-print-rows">{rows.map((row, index) => <li key={row.id}>

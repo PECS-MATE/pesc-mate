@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { a4Geometry, a4Preset, a4Resize, a4BackSlots, MAX_A4_PAGES } from './services/a4Layout';
+import { a4Geometry, a4BackSlots, MAX_A4_PAGES } from './services/a4Layout';
+import UiIcon from './UiIcon';
 
 export function A4Pages({ rows, layout, selected, onSelect, onDrop, locked = false, duplex = false }) {
   const geometry = a4Geometry(layout.settings);
@@ -37,13 +38,6 @@ export default function A4Workspace({ rows, layout, onChange, locked, onNotice, 
   const selection = Math.min(selected, slots.length - 1), slot = slots[selection];
   const activeRow = slot && rows.find(row => row.id === slot.rowId);
   const pages = slots.length / geometry.capacity;
-  function configure(fields) {
-    try {
-      let next = { ...settings, ...fields };
-      if (next.size && !('columns' in fields || 'rows' in fields)) next = a4Preset(next, next.size);
-      onChange(a4Resize(layout, next));
-    } catch (error) { onNotice(error.message); }
-  }
   function put(row, index = selection) {
     const next = [...slots];
     next[index] = { rowId: row.id, label: row.label, zoom: 1, fontSize: 12, fit: 'contain' };
@@ -70,16 +64,10 @@ export default function A4Workspace({ rows, layout, onChange, locked, onNotice, 
     if (cursor < rows.length) onNotice('빈칸까지만 채웠어요. 쪽을 추가하거나 나머지 카드를 직접 배치해 주세요.');
   }
   return <>
-    <fieldset className="a4-layout-toolbar" disabled={locked}><legend>용지와 배치</legend>
-      <label>방향<select value={settings.orientation} onChange={event => configure({ orientation: event.target.value })}><option value="portrait">A4 세로</option><option value="landscape">A4 가로</option></select></label>
-      <label>양식<select value={settings.size} onChange={event => configure({ size: Number(event.target.value) })}><option value="40">4×4cm</option><option value="50">5×5cm</option><option value="60">6×6cm</option><option value="0">행·열 직접 구성</option></select></label>
-      <label>열<input type="number" min="1" max="8" value={settings.columns} onChange={event => configure({ columns: Number(event.target.value), size: 0 })} /></label>
-      <label>행<input type="number" min="1" max="10" value={settings.rows} onChange={event => configure({ rows: Number(event.target.value), size: 0 })} /></label>
-      <label>여백 mm<input type="number" min="5" max="20" value={settings.margin} onChange={event => configure({ margin: Number(event.target.value) })} /></label>
-      <label>간격 mm<input type="number" min="0" max="10" value={settings.gap} onChange={event => configure({ gap: Number(event.target.value) })} /></label>
-      <label><input type="checkbox" checked={settings.labels} onChange={event => configure({ labels: event.target.checked })} />이름 인쇄</label>
-      <button type="button" disabled={!history.canUndo} onClick={onUndo}>배치 실행 취소</button><button type="button" disabled={!history.canRedo} onClick={onRedo}>배치 다시 실행</button>
-    </fieldset>
+    <div className="a4-layout-toolbar" role="group" aria-label="배치 도구">
+      <button type="button" disabled={locked || !history.canUndo} aria-label="배치 실행 취소" title="배치 실행 취소" onClick={onUndo}><UiIcon name="undo" /></button>
+      <button type="button" disabled={locked || !history.canRedo} aria-label="배치 다시 실행" title="배치 다시 실행" onClick={onRedo}><UiIcon name="undo" className="a4-redo-icon" /></button>
+    </div>
     <div className="a4-workspace">
       <section className="a4-library" aria-label="배치할 카드"><h4>카드 보관함</h4><p className="muted">칸을 고른 뒤 카드를 누르거나 끌어 놓으세요.</p>
         <button type="button" disabled={locked || !rows.length} onClick={fill}>빈칸 자동 채우기</button>
