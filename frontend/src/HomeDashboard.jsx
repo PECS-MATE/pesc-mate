@@ -2,7 +2,7 @@ import Mascot from './Mascot';
 import UiIcon from './UiIcon';
 
 export default function HomeDashboard({ name, selectedCount, cards = [], renderPicture, onSpeak, onPractice, onCatalog }) {
-  const visual = index => <span className="home-activity-pictures" aria-hidden="true">{cards[index] && renderPicture?.(cards[index])}</span>;
+  const visual = index => <span className="home-activity-pictures" aria-hidden="true">{cards[index] && renderPicture?.(cards[index], 'home-activity-picture')}</span>;
   return <section className="home-screen" aria-labelledby="home-activities-title">
     <div className="home-heading"><h2 id="home-activities-title">{name}님, 무엇을 할까요?</h2><Mascot className="mascot-heading" /></div>
     <div className="home-mode-grid" aria-label="주요 활동">

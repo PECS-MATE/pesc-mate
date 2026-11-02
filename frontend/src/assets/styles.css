@@ -478,9 +478,9 @@ footer { color: var(--color-text-secondary); }
 .home-mode-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
 .home-activity { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; min-width: 0; min-height: 200px; padding: 22px; text-align: left; border: 1px solid var(--color-border); border-radius: 22px; background: var(--color-surface); color: var(--color-text); box-shadow: 0 6px 18px var(--color-shadow); }
 .home-activity .activity-icon { display: grid; place-items: center; width: 46px; height: 46px; margin-bottom: 10px; border-radius: 14px; font-size: 1.6rem; background: var(--color-selected); }
-.home-activity-pictures { display: flex; align-items: center; min-height: 48px; margin-bottom: 8px; }
-.home-activity-pictures .mini-card { width: 46px; height: 46px; margin-right: -8px; border: 2px solid var(--color-border); border-radius: 12px; background-size: contain !important; background-position: center; background-repeat: no-repeat; }
-.home-activity-pictures .mini-card:last-child { margin-right: 0; }
+.home-activity-pictures { display: flex; align-items: center; flex-shrink: 0; width: 88px; height: 88px; margin-bottom: 8px; }
+.home-activity-picture { display: block; flex: 0 0 100%; width: 100%; height: 100%; padding: 6px; box-sizing: border-box; border: 0; border-radius: 14px; background-color: var(--color-surface); background-size: contain !important; background-origin: content-box; background-clip: padding-box; background-position: center; background-repeat: no-repeat; box-shadow: none; }
+.home-activity-picture.image-fallback { display: grid; place-items: center; color: var(--color-text); }
 .home-activity strong { font-size: 1.4rem; }
 .home-activity small { max-width: calc(100% - 18px); color: inherit; font-size: .85rem; line-height: 1.55; font-weight: 500; }
 .home-activity > b { position: absolute; right: 20px; bottom: 20px; font-size: 1.3rem; }
@@ -1063,9 +1063,9 @@ button { min-width: 44px; min-height: 44px !important; }
   .sidebar .profile-trigger { grid-column: 1; grid-row: 2; margin: 0; padding: 0; }
   .sidebar .logout { position: static; grid-column: 2; grid-row: 2; align-self: center; margin: 0; }
   .home-mode-grid { grid-template-columns: 1fr; gap: 10px; }
-  .home-activity { display: grid; grid-template-columns: 46px minmax(0, 1fr) 22px; gap: 6px 14px; min-height: 106px; padding: 18px; align-items: center; }
+  .home-activity { display: grid; grid-template-columns: 64px minmax(0, 1fr) 22px; gap: 6px 14px; min-height: 106px; padding: 18px; align-items: center; }
   .home-activity .activity-icon { grid-column: 1; grid-row: 1 / 3; margin: 0; }
-  .home-activity-pictures { grid-column: 1; grid-row: 1 / 3; width: 48px; overflow: hidden; margin: 0; }
+  .home-activity-pictures { grid-column: 1; grid-row: 1 / 3; width: 64px; height: 64px; margin: 0; }
   .home-activity strong { grid-column: 2; font-size: 1.2rem; }
   .home-activity small { grid-column: 2; max-width: 100%; }
   .home-activity > b { position: static; grid-column: 3; grid-row: 1 / 3; }
