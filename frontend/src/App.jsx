@@ -4,7 +4,6 @@ import MyPage from './MyPage';
 import CaregiverHome from './CaregiverHome';
 import './assets/caregiverUx.css';
 import UiIcon from './UiIcon';
-import OfflineSpeechStatus from './OfflineSpeechStatus';
 import CardEditorDialog from './CardEditorDialog';
 import CardPrintEditor from './CardPrintEditor';
 import HomeDashboard, { CardTopics } from './HomeDashboard';
@@ -28,6 +27,7 @@ import SituationBoards from './SituationBoards';
 import BoardOrganizationSuggestions from './BoardOrganizationSuggestions';
 import SpeakingCardLibrary from './SpeakingCardLibrary';
 import RfidBoard from './RfidBoard';
+import UsbRfidReader from './UsbRfidReader';
 import RfidChipRegistration from './RfidChipRegistration';
 import useReauthentication from './useReauthentication';
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -147,7 +147,6 @@ function App() {
   const activeUserRef = useRef(null);
   activeUserRef.current = user;
   const [myPageOpen, setMyPageOpen] = useState(false);
-  const [readerExpanded, setReaderExpanded] = useState(false);
   const [usbTopbarTarget, setUsbTopbarTarget] = useState(null);
   const [usbStatus, setUsbStatus] = useState({ state: 'disconnected', fresh: false, count: 0 });
   useEffect(() => { setUsbStatus({ state: 'disconnected', fresh: false, count: 0 }); }, [user?.id]);
@@ -198,6 +197,8 @@ function App() {
   const [cards, setCards] = useState([]);
   const [cardCategories, setCardCategories] = useState([]);
   const [board, setBoard] = useState([]);
+  const boardCardsRef = useRef(board);
+  boardCardsRef.current = board;
   const boardRef = useRef(null);
   const boardFocusRef = useRef(null);
   useLayoutEffect(() => {
@@ -258,8 +259,6 @@ function App() {
   const lastSpeechTapRef = useRef({ content: '', at: 0 });
   const [speechPlayback] = useState(() => createSpeechPlayback());
   const [coreSpeechCache] = useState(() => createCoreSpeechCache());
-  const [coreSpeechStatus, setCoreSpeechStatus] = useState({ status: 'preparing', ready: 0, saved: 0, total: 0 });
-  const [coreSpeechRetry, setCoreSpeechRetry] = useState(0);
   const [offlineSync] = useState(() => createOfflineSync());
   const [syncState, setSyncState] = useState('idle');
   const [ttsVoices, setTtsVoices] = useState([]);
@@ -637,15 +636,9 @@ function App() {
 
   useEffect(() => {
     if (user?.role !== 'user') return;
-    let active = true;
-    setCoreSpeechStatus(current => ({ ...current, status: 'preparing' }));
-    coreSpeechCache.prepare({ online: !offline }).then(status => {
-      if (active) setCoreSpeechStatus(status);
-    }).catch(() => {
-      if (active) setCoreSpeechStatus({ status: 'unavailable', ready: 0, saved: 0, total: 0 });
-    });
-    return () => { active = false; };
-  }, [user?.id, user?.role, offline, coreSpeechRetry]);
+    // Prepare fallback audio in the background; playback failures still have their own alert.
+    coreSpeechCache.prepare({ online: !offline }).catch(() => {});
+  }, [user?.id, user?.role, offline]);
 
   useEffect(() => {
     const synthesis = window.speechSynthesis;
@@ -740,7 +733,7 @@ function App() {
       const path = authMode === 'register' ? '/auth/register' : '/auth/login';
       const body = authMode === 'register' ? { username, password, name, guardian_consent: registrationConsent } : { username, password };
       const result = await request(path, { method: 'POST', body: JSON.stringify(body) });
-      setToken(result.access_token); setUser(result.user); setMyPageOpen(false); setReaderExpanded(false); setProfileNotice('');
+      setToken(result.access_token); setUser(result.user); setMyPageOpen(false); setProfileNotice('');
       setPassword(''); setPasswordConfirm('');
       cacheAccountForOffline(result.user, result.expires_at).catch(() => {});
       await load(result.user);
@@ -762,7 +755,7 @@ function App() {
     clearBoard(user?.id);
     const clearCache = clearCachedAccount().catch(() => {});
     const clearUserData = user?.id ? clearOfflineUserData(user.id).catch(() => {}) : Promise.resolve();
-    setToken(null); setUser(null); setLoaded(false); setMyPageOpen(false); setReaderExpanded(false); setProfileNotice(''); setSyncState('idle'); setPendingSyncCount(0);
+    setToken(null); setUser(null); setLoaded(false); setMyPageOpen(false); setProfileNotice(''); setSyncState('idle'); setPendingSyncCount(0);
     setAuthMode('login'); setPassword(''); setPasswordConfirm(''); setName(''); setRegistrationConsent(false);
     [...cards, ...adminSubmissions].forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); });
     setCards([]); setCardCategories([]); setStats(null); setBoard([]); setCardSubmissions([]); setAdminSubmissions([]); setAdminCategories([]); setCategoryEdits({}); setCategoryError(''); setLinkedUsers([]); setSelectedUser(null); setBoardLayout(null); setBoardLayoutAudit([]); setQuickDraft([]); setRecoveryDraft([]); setSlotDraft([]); setLearningSettings(null); setLearningProgress(null); setLearningGame(null); setPracticeCategory('all'); setText(''); setGeneratedSessionId(''); setGenerationFailed(false); setError(''); setTab('home');
@@ -773,6 +766,7 @@ function App() {
   }
 
   function updateBoard(next) {
+    boardCardsRef.current = next;
     // Invalidate pending generation before React commits the new selection.
     sentenceContextRef.current = '';
     stopSpeech();
@@ -1731,8 +1725,8 @@ function App() {
   const localKoreanVoices = installedKoreanVoices(ttsVoices);
   const usbConnected = usbStatus.state === 'connected' && usbStatus.fresh;
   const usbConnectionLabel = usbStatus.state === 'connected'
-    ? usbStatus.fresh ? '리더기 연결됨' : '리더기 응답 대기'
-    : usbStatus.state === 'connecting' ? '리더기 연결 중' : '리더기 연결하기';
+    ? usbStatus.fresh ? '기기 연결됨' : '기기 응답 대기'
+    : usbStatus.state === 'connecting' ? '기기 연결 중' : '기기 연결';
   const speechStatusLabel = ({ starting: '음성 준비 중', playing: '음성 재생 중', paused: '음성 일시 정지' })[speechState.status];
   const pageTitle = tab === 'account_permissions' && canManageAccounts ? '담당자의 운영 권한을 관리해요.'
     : tab === 'rfid_registration' && canManageContent ? '칩을 읽고 그림카드에 연결해요.'
@@ -1873,9 +1867,7 @@ function App() {
       {!myPageOpen && profileNotice && <p role="status">{profileNotice}</p>}
       <header className="topbar"><div><p className="eyebrow">오늘은 {todayLabel}</p><h1>{pageTitle}</h1></div><div className="topbar-statuses">{user.role === 'user' && loaded ? <details ref={connectionMenuRef} className="connection-menu" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}>
           <summary className="status" aria-label={`${usbConnectionLabel} · 연결 메뉴 열기`}><b className={usbConnected ? 'online' : ''} aria-hidden="true"></b><span className="connection-menu-label">{usbConnectionLabel}</span><UiIcon name="chevron-down" className="connection-menu-chevron" /></summary>
-          <div className="connection-menu-panel"><p className="service-connection-state" role="status">{offline ? '서비스 오프라인 · 저장된 카드를 사용할 수 있어요.' : '서비스 온라인 모드'}</p><div ref={setUsbTopbarTarget} className="topbar-usb-slot" />
-            <button type="button" className="connection-open-reader" onClick={() => { connectionMenuRef.current.open = false; setReaderExpanded(true); setTab('cards'); window.requestAnimationFrame(() => document.getElementById('reader-workspace')?.scrollIntoView({ block: 'start' })); }}>태그한 카드 보기</button>
-            <OfflineSpeechStatus status={coreSpeechStatus} onRetry={() => setCoreSpeechRetry(current => current + 1)} />
+          <div className="connection-menu-panel"><div ref={setUsbTopbarTarget} className="topbar-usb-slot" />
           </div></details> : <span className={`status${offline ? ' offline' : ''}`}><b className={!offline && loaded ? 'online' : ''}></b>{offline ? '오프라인 사용 중' : '연결 대기'}</span>}<span className="visually-hidden" role="status">{speechActive ? speechStatusLabel : ''}</span>{speechActive && <div className="speech-player" role="group" aria-label="음성 재생 제어">{speechState.status === 'playing' && <button type="button" onClick={pauseSpeech}>일시 정지</button>}{speechState.status === 'paused' && <button type="button" onClick={resumeSpeech}>재개</button>}<button type="button" onClick={stopSpeech}>중지</button></div>}</div></header>
       {user.role === 'user' && tab === 'cards' && <>
       <section className="board" ref={boardRef}><div className="section-title"><h2 tabIndex="-1">나의 문장 <small>{board.length}/12</small></h2><div className="sentence-toolbar" role="group" aria-label="문장 도구">
@@ -1894,25 +1886,19 @@ function App() {
         cards={cards} renderPicture={cardPicture}
         onSpeak={() => setTab('cards')} onPractice={() => openLearning(null)}
         onCatalog={() => openCatalog()} />}
-      {loaded && user.role === 'user' && <div id="reader-workspace" className="reader-workspace" hidden={tab !== 'cards' || !readerExpanded}><RfidBoard key={`rfid-${user.id}`} targetId={user.id}
-        cards={cards} artStyle={artStyle} collapsible expanded={readerExpanded} onExpandedChange={setReaderExpanded}
-        connectionTarget={usbTopbarTarget} onUsbStatus={setUsbStatus}
-        active={['home', 'cards'].includes(tab) && !myPageOpen}
-        disabled={busy || speechActive || offline || myPageOpen || !['home', 'cards'].includes(tab)}
+      {loaded && user.role === 'user' && <UsbRfidReader key={`rfid-${user.id}`} targetId={user.id} cards={cards} autoAppend
+        connectionTarget={usbTopbarTarget} onStatus={setUsbStatus} onReadError={setError}
+        appendScope={`${requestId}:${tab}:${myPageOpen}:${compactSidebar && !sidebarCollapsed}:${offline}`}
+        disabled={busy || speechActive || offline || myPageOpen || (compactSidebar && !sidebarCollapsed) || !['home', 'cards'].includes(tab)}
         onAppend={selection => {
-          if (busy || speechActive || offline || myPageOpen || !['home', 'cards'].includes(tab) || document.visibilityState === 'hidden') return false;
-          if (board.length + selection.length > 12) { setError('문장은 최대 12장입니다. 현재 문장을 정리한 뒤 다시 추가해 주세요.'); return false; }
-          updateBoard([...board, ...selection.map(card => ({ ...card, selected_at: new Date().toISOString() }))]);
+          if (busy || speechActive || offline || myPageOpen || (compactSidebar && !sidebarCollapsed) || !['home', 'cards'].includes(tab) || document.visibilityState === 'hidden') return false;
+          const currentBoard = boardCardsRef.current;
+          if (currentBoard.length + selection.length > 12) { setError('문장은 최대 12장입니다. 현재 문장을 정리한 뒤 카드를 다시 대주세요.'); return false; }
+          setError('');
+          updateBoard([...currentBoard, ...selection.map(card => ({ ...card, selected_at: new Date().toISOString() }))]);
           setTab('cards');
           return true;
-        }}
-        onApply={selection => {
-          if (busy || speechActive || offline || myPageOpen || !['home', 'cards'].includes(tab) || document.visibilityState === 'hidden') return false;
-          if ((board.length || text) && !window.confirm('현재 선택 문장을 RFID 배열로 바꿀까요? 고정 카드판은 변경하지 않습니다.')) return false;
-          updateBoard(selection.map(card => ({ ...card, selected_at: new Date().toISOString() })));
-          setTab('cards');
-          return true;
-        }} /></div>}
+        }} />}
       {user.role === 'user' && tab !== 'cards' && <section className="quick-speech" aria-labelledby="quick-speech-title" data-scan-group="quick-speech"><div><strong id="quick-speech-title">빠른 표현</strong><small>누르면 바로 말해요</small></div>{quickExpressionCards.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 바로 말하기`} onClick={() => speakText(item.label, 'card', [item.id])}>{expressionVisual(item)}{item.label}</button>)}</section>}
       {!myPageOpen && error && <div role="alert" className="error">{error} <button disabled={busy || generating || offline} onClick={() => generationFailed ? generate() : load(user)}>{generationFailed ? '문장 다시 만들기' : '다시 불러오기'}</button></div>}
       {speechFailure && <div role="alert" className="speech-error"><span aria-hidden="true"><UiIcon name="volume-off" /></span><div><strong>음성을 재생하지 못했어요.</strong><p>전달할 표현: <strong>{speechFailure.content}</strong></p><p>{speechFailureMessage(speechFailure.errorCode)} 선택한 카드와 문장은 그대로 유지됩니다.</p></div><div className="speech-error-actions">{speechFailure.retryable && <button className="primary" onClick={() => speakText(speechFailure.content, speechFailure.contentType, speechFailure.cardIds || [])}>다시 재생</button>}<button onClick={() => setSpeechFailure(null)}>닫기</button></div></div>}
