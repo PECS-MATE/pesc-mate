@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { a4Geometry, a4BackSlots, MAX_A4_PAGES } from './services/a4Layout';
 import UiIcon from './UiIcon';
 
@@ -30,9 +30,11 @@ export function A4Pages({ rows, layout, selected, onSelect, onDrop, locked = fal
   });
 }
 
-export default function A4Workspace({ rows, layout, onChange, locked, onNotice, history, onUndo, onRedo }) {
+export default function A4Workspace({ rows, layout, onChange, locked, onNotice }) {
   const [selected, setSelected] = useState(0);
   const [zoom, setZoom] = useState(60);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const helpId = useId(), helpButton = useRef(null);
   const { settings, slots } = layout;
   const geometry = a4Geometry(settings);
   const selection = Math.min(selected, slots.length - 1), slot = slots[selection];
@@ -64,14 +66,14 @@ export default function A4Workspace({ rows, layout, onChange, locked, onNotice, 
     if (cursor < rows.length) onNotice('빈칸까지만 채웠어요. 쪽을 추가하거나 나머지 카드를 직접 배치해 주세요.');
   }
   return <>
-    <div className="a4-layout-toolbar" role="group" aria-label="배치 도구">
-      <button type="button" disabled={locked || !history.canUndo} aria-label="배치 실행 취소" title="배치 실행 취소" onClick={onUndo}><UiIcon name="undo" /></button>
-      <button type="button" disabled={locked || !history.canRedo} aria-label="배치 다시 실행" title="배치 다시 실행" onClick={onRedo}><UiIcon name="undo" className="a4-redo-icon" /></button>
-    </div>
     <div className="a4-workspace">
-      <section className="a4-library" aria-label="배치할 카드"><h4>카드 보관함</h4><p className="muted">칸을 고른 뒤 카드를 누르거나 끌어 놓으세요.</p>
-        <button type="button" disabled={locked || !rows.length} onClick={fill}>빈칸 자동 채우기</button>
-        <div className="a4-library-grid">{rows.map((row, index) => <button type="button" key={row.id} disabled={locked} draggable={!locked}
+      <section className="a4-library" aria-label="배치할 카드" onKeyDown={event => {
+        if (event.key === 'Escape' && helpOpen) { event.preventDefault(); setHelpOpen(false); helpButton.current?.focus(); }
+      }}><div className="a4-library-heading"><h4>카드 보관함</h4>
+        <button ref={helpButton} type="button" className="a4-library-help" aria-label="카드 보관함 사용 방법" title="카드 보관함 사용 방법" aria-expanded={helpOpen} aria-controls={helpId} aria-describedby={helpOpen ? helpId : undefined} onClick={() => setHelpOpen(value => !value)}><UiIcon name="info" /></button>
+        <button type="button" className="a4-library-fill" disabled={locked || !rows.length} onClick={fill}>빈칸 자동 채우기</button></div>
+        <p id={helpId} className="a4-library-hint" hidden={!helpOpen}>칸을 고른 뒤 카드를 누르거나 끌어 놓으세요.</p>
+        <div className="a4-library-grid" role="region" aria-label="카드 보관함 가로 목록" tabIndex="0">{rows.map((row, index) => <button type="button" key={row.id} disabled={locked} draggable={!locked}
           aria-label={`${row.label || `사진 ${index + 1}`} 배치`}
           onDragStart={event => event.dataTransfer.setData('application/x-pecs-card', row.id)} onClick={() => put(row)}><img src={row.preview} alt="" /></button>)}</div>
         {!rows.length && <p>사진이나 등록 카드를 추가해 주세요.</p>}
@@ -92,7 +94,7 @@ export default function A4Workspace({ rows, layout, onChange, locked, onNotice, 
           <label>그림 확대<input type="range" min="1" max="2" step=".1" value={slot.zoom} onChange={event => updateSlot({ zoom: Number(event.target.value) })} /></label>
           <button type="button" onClick={() => { const next = [...slots]; next[selection] = null; onChange({ ...layout, slots: next }); }}>칸 비우기</button>
           <small>인쇄 이름·그림 조정은 이 칸에만 적용됩니다.</small>
-        </> : <p>왼쪽에서 카드를 선택해 넣으세요.</p>}
+        </> : <p>위에서 카드를 선택해 넣으세요.</p>}
       </fieldset>
     </div>
   </>;

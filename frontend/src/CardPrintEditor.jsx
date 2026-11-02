@@ -244,6 +244,9 @@ export default function CardPrintEditor({ targetId, targetName, categories, exis
       <span className="a4-tool-separator" aria-hidden="true" />
       <button type="button" disabled={locked} aria-label="편집본 불러오기" title="편집본 불러오기" onClick={() => projectInput.current?.click()}><UiIcon name="folder" /></button>
       <button type="button" disabled={locked} aria-label="편집본 다운로드" title="편집본 다운로드" onClick={exportProject}><UiIcon name="download" /></button>
+      <span className="a4-tool-separator" aria-hidden="true" />
+      <button type="button" disabled={locked || !history.past.length} aria-label="배치 실행 취소" title="배치 실행 취소" onClick={undoLayout}><UiIcon name="undo" /></button>
+      <button type="button" disabled={locked || !history.future.length} aria-label="배치 다시 실행" title="배치 다시 실행" onClick={redoLayout}><UiIcon name="undo" className="a4-redo-icon" /></button>
       <input ref={photoInput} hidden disabled={locked} type="file" aria-label="사진 파일 선택" accept="image/png,image/jpeg,image/webp" multiple onChange={chooseFiles} />
       <input ref={cameraInput} hidden disabled={locked} type="file" aria-label="촬영 사진 선택" accept="image/*" capture="environment" onChange={chooseFiles} />
       <input ref={projectInput} hidden disabled={locked} type="file" aria-label="A4 편집본 파일 선택" accept="application/json,.json" onChange={importProject} />
@@ -255,8 +258,7 @@ export default function CardPrintEditor({ targetId, targetName, categories, exis
           .map(card => <option key={card.id} value={card.id}>{card.label}</option>)}
       </select></label>
     </div>
-    <A4Workspace rows={rows} layout={layout} onChange={changeLayout} locked={locked} onNotice={setNotice}
-      history={{ canUndo: !!history.past.length, canRedo: !!history.future.length }} onUndo={undoLayout} onRedo={redoLayout} />
+    <A4Workspace rows={rows} layout={layout} onChange={changeLayout} locked={locked} onNotice={setNotice} />
     <details className="a4-source-details"><summary>보관함 카드 정보·아이 계정 등록</summary><ol className="card-print-rows">{rows.map((row, index) => <li key={row.id}>
       <img src={row.preview} alt={row.label} />
       <fieldset disabled={locked}><legend>{index + 1}번째 카드 · {STATUS[row.status]}</legend>
