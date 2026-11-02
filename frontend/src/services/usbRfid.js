@@ -8,6 +8,10 @@ export function normalizeUsbUid(value) {
 export function parseUsbLine(line) {
   const text = line.trim();
   if (!text) return null;
+  const readerScan = /^Reader ([12]) UID:\s*(.+)$/.exec(text);
+  if (readerScan) return { type: 'scan', reader_id: Number(readerScan[1]), uid: normalizeUsbUid(readerScan[2]), protocol: 'legacy' };
+  const readerVersion = /^Reader ([12]) Version: 0x([\dA-F]{1,2})$/i.exec(text);
+  if (readerVersion) return { type: ['00', '0', 'FF'].includes(readerVersion[2].toUpperCase()) ? 'reader_error' : 'version', reader_id: Number(readerVersion[1]), version: readerVersion[2].toUpperCase().padStart(2, '0') };
   if (text.startsWith('UID:')) return { type: 'scan', uid: normalizeUsbUid(text.slice(4)), protocol: 'legacy' };
   if (/^RC522 Version: 0x[\dA-F]{1,2}$/i.test(text)) return { type: 'version', version: text.split('0x')[1].toUpperCase() };
   if (text === 'RFID Reader Connected') return { type: 'reader_ready' };
@@ -44,12 +48,14 @@ export class SerialLineBuffer {
 }
 
 export class UsbPresentationTracker {
-  constructor() { this.boot = null; this.sequence = 0; this.previous = null; this.legacy = null; }
+  constructor() { this.boot = null; this.sequence = 0; this.previous = null; this.legacy = new Map(); }
   accept(frame, now = Date.now()) {
     if (frame.type === 'scan') {
-      if (this.legacy?.uid === frame.uid && now - this.legacy.at < 800) return null;
-      this.legacy = { uid: frame.uid, at: now };
-      return { mode: 'queue', rows: [{ reader_id: 1, status: 'PRESENT', uid: frame.uid }], reset: false };
+      const readerId = frame.reader_id || 1;
+      const previous = this.legacy.get(readerId);
+      if (previous?.uid === frame.uid && now - previous.at < 800) return null;
+      this.legacy.set(readerId, { uid: frame.uid, at: now });
+      return { mode: 'queue', rows: [{ reader_id: readerId, status: 'PRESENT', uid: frame.uid }], reset: false };
     }
     if (frame.type !== 'snapshot') return null;
     const reset = this.boot !== null && this.boot !== frame.boot_id;

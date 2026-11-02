@@ -2,8 +2,8 @@
 #include <SPI.h>
 #include <MFRC522.h>
 
-// Verify one physical reader first, then change to 2 or 3 after wiring checks.
-#define RFID_READER_COUNT 1
+// Current hardware: two readers, SS 10/8 and RST 9/6.
+#define RFID_READER_COUNT 2
 #if RFID_READER_COUNT < 1 || RFID_READER_COUNT > 3
 #error "RFID_READER_COUNT must be 1, 2 or 3"
 #endif
@@ -80,7 +80,7 @@ void setup() {
   Serial.begin(115200);
   randomSeed(analogRead(A0) ^ micros());
   bootId = String(random(1, 2147483646L), HEX) + "-" + String(micros(), HEX);
-  for (byte index = 0; index < 3; index++) { pinMode(SS_PINS[index], OUTPUT); digitalWrite(SS_PINS[index], HIGH); }
+  for (byte index = 0; index < RFID_READER_COUNT; index++) { pinMode(SS_PINS[index], OUTPUT); digitalWrite(SS_PINS[index], HIGH); }
   SPI.begin();
   for (byte index = 0; index < RFID_READER_COUNT; index++) {
     readers[index].PCD_Init(SS_PINS[index], RST_PINS[index]); readers[index].PCD_AntennaOff();
