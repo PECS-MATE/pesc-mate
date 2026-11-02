@@ -59,7 +59,7 @@ export default function SentenceStrip({ cards, renderPicture, onMove, onRemove }
     }
   }
   return <>
-    {cards.length > 1 && <p className="sentence-strip-guide" id="sentence-strip-help">그림카드를 옆으로 끌어 옮겨요. 카드를 누른 뒤 옮길 자리의 카드를 눌러도 돼요.</p>}
+    {cards.length > 1 && <p className="visually-hidden" id="sentence-strip-help">그림카드를 옆으로 끌어 옮겨요. 카드를 누른 뒤 옮길 자리의 카드를 눌러도 돼요. 키보드 방향키로도 순서를 바꿀 수 있어요.</p>}
     <ol ref={listRef} className="sentence-strip" aria-label="선택한 그림카드 순서">
       {cards.map((card, index) => <li key={`${card.id}-${index}`}
         className={`${picked === index ? 'picked' : ''}${drag?.from === index ? ' dragging' : ''}${drag && drag.to === index ? ' drop-target' : ''}`}>

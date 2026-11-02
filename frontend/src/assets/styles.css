@@ -302,7 +302,6 @@ button.primary:hover:not(:disabled), button.active:hover:not(:disabled) { backgr
 .output-mode { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: 14px; background: var(--color-selected); }
 .output-mode > span { margin-right: 4px; color: var(--color-text-secondary); font-weight: 800; }
 .output-mode button { min-height: 44px; padding: 8px 14px; }
-.mode-guide { min-height: 52px; display: grid; place-items: center; margin: 0; padding: 10px; border: 2px dashed var(--color-border); border-radius: 14px; color: var(--color-text-secondary); background: var(--color-selected); font-weight: 700; text-align: center; }
 .card.speak-on-tap { border-color: var(--color-border-control); box-shadow: 0 4px 0 var(--color-shadow), 0 0 0 3px var(--color-shadow) inset; }
 .card.speak-on-tap::after { content: "눌러서 말하기"; position: absolute; z-index: 3; top: 7px; left: 7px; padding: 4px 7px; border-radius: 999px; color: var(--color-text); background: var(--color-selected); font-size: .66rem; font-weight: 800; }
 input { border-color: var(--color-border-control); }

@@ -1885,12 +1885,9 @@ function App() {
         <button type="button" className="primary" aria-label="고른 카드 말하기" title="고른 카드 말하기" disabled={!board.length} onClick={speakSelection}><UiIcon name="volume" size={24} /></button>
         <button type="button" aria-label={generating ? '문장 만드는 중' : generatedSessionId ? '문장 다시 만들기' : '문장 만들기'} title={!privacy.guardian_consent ? '문장 생성은 보호자 동의 후 사용할 수 있어요.' : offline ? '문장 생성은 온라인 연결이 필요해요.' : generating ? '문장 만드는 중' : generatedSessionId ? '문장 다시 만들기' : '문장 만들기'} aria-busy={generating} disabled={!board.length || busy || generating || speechActive || offline || !privacy.guardian_consent} onClick={() => generatedSessionId ? regenerate() : generate()}><UiIcon name="sparkles" size={24} /></button>
       </div></div>
-        {!board.length && <p className="board-empty">아래 그림카드를 누르거나 리더기로 카드를 읽어 주세요.</p>}
         <SentenceStrip cards={board} renderPicture={cardPicture} onMove={move} onRemove={removeBoardCard} />
-        {outputMode === 'word' && <p className="mode-guide">카드를 누르면 단어를 바로 말해요.</p>}
-        {((outputMode === 'natural' && privacy.guardian_consent) || text || generatedSessionId || generationFailed) && <section className="natural-sentence-tools" aria-label="자동으로 만든 문장">
-        {outputMode === 'natural' && privacy.guardian_consent && !text && !generationFailed && <p className="generation-pending" role="status">{offline ? '온라인으로 연결하면 문장을 자동으로 만들어요.' : generating ? '문장을 만들고 있어요. 카드를 더 고르거나 고른 카드 그대로 말할 수 있어요.' : board.length ? '카드를 고르면 문장을 자동으로 만들어요.' : '그림카드를 골라 주세요. 문장은 자동으로 만들어요.'}</p>}
-        {generating && text && <p className="generation-pending" role="status">새 문장을 만들고 있어요.</p>}
+        {(generating || text || generatedSessionId || generationFailed) && <section className="natural-sentence-tools" aria-label="자동으로 만든 문장">
+        {generating && <p className="generation-pending" role="status">문장 만드는 중…</p>}
         {generationFailed && <div className="generation-fallback" role="status"><strong>문장 생성 없이도 말할 수 있어요.</strong><span>선택한 카드는 그대로 유지됐습니다.</span><div><button className="primary" disabled={!board.length} onClick={speakSelection}><UiIcon name="volume" />선택 카드 그대로 말하기</button><button onClick={() => setOutputMode('word')}>단어 즉시 발화로 전환</button></div></div>}
         {text && <div className="sentence" aria-live="polite"><strong>{text}</strong>
           <details className="sentence-details"><summary>선택 순서와 생성 정보</summary><div className="original-order"><small>선택한 카드 순서</small><div>{board.map((card, index) => <span key={`${card.id}-${index}`}>{card.symbol} {card.label}</span>)}</div></div>
@@ -1899,7 +1896,6 @@ function App() {
         {(text || generatedSessionId) && <div className="actions"><button className="primary" disabled={!text || busy || generating || speechActive} onClick={speak}><UiIcon name="volume" />{sentenceConfirmed ? '문장 다시 말하기' : '이 문장 말하기'}</button></div>}
 
         </section>}
-        <p className="muted">카드 고르기 → 내용 확인 → 말하기</p>
       </section>
       </>}
       {canManageContent && <OperationalAlerts key={user.id} refreshKey={adminSubmissions} onReview={() => setTab('admin')} />}
