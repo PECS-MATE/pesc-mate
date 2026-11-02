@@ -17,6 +17,8 @@
 .app .screen-cards .board { position: sticky; top: 0; z-index: 4; margin-bottom: 22px; padding: 18px 22px; border: 1px solid var(--color-border); border-radius: 20px; box-shadow: 0 8px 24px var(--color-shadow); max-height: 48dvh; overflow: auto; overscroll-behavior: contain; scroll-padding-block: 8px; }
 .app .screen-cards #card-library { scroll-margin-top: 50dvh; }
 .app .screen-cards .board > .section-title { margin-bottom: 12px; }
+.app .screen-cards .sentence-toolbar { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; }
+.app .screen-cards .sentence-toolbar button { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; min-height: 48px; padding: 10px; border-radius: 12px; box-shadow: none; }
 .app .screen-cards .board h2 { color: var(--color-text); font-size: 1.1rem; }
 .app .screen-cards .board h2 small { margin-left: 8px; color: var(--color-text-secondary); }
 .app .screen-cards .board-empty { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin: 10px 0 16px; padding: 14px 16px; border-radius: 12px; background: var(--color-selected); color: var(--color-text-secondary); line-height: 1.7; }
@@ -37,7 +39,6 @@
 .app .screen-cards .sentence-strip > li.drop-target { outline: 3px dashed var(--color-primary-action); outline-offset: -3px; }
 .app .sentence-card-ghost { position: fixed; z-index: 100; display: grid; justify-items: center; gap: 6px; padding: 12px; border: 2px solid var(--color-primary-action); border-radius: 14px; background: var(--color-surface); color: var(--color-text); pointer-events: none; transform: translate(-50%, -60%); box-shadow: 0 8px 24px var(--color-shadow); }
 .app .sentence-strip-guide { color: var(--color-text-secondary); font-size: .85rem; line-height: 1.6; }
-.app .screen-cards .board > .primary.full { min-height: 52px; margin-bottom: 10px; border-radius: 14px; }
 .app .board > .natural-sentence-tools { margin-top: 8px; padding: 12px; border: 1px solid var(--color-border); border-radius: 12px; box-shadow: none; }
 .app .speaking-history-tools > summary { min-height: 44px; align-content: center; cursor: pointer; color: var(--ui-muted); font-size: .9rem; font-weight: 700; }
 .app .recommendation-disclosure { padding: 0; border: 0; }
