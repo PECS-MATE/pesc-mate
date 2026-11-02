@@ -55,6 +55,7 @@ from app.services.card_submissions import (
     review_submission, submissions_for, submissions_for_review, submit_draft,
     update_submission, replace_submission_image,
 )
+from app.services.card_ocr import recognize_card
 from app.services.categories import (
     active_categories, categories_for_admin, create_category, update_category,
 )
@@ -1064,6 +1065,17 @@ def _card_owner(user, user_id=None):
     if not user_id:
         raise HTTPException(422, '관리할 연결 사용자를 선택해 주세요.')
     return require_link_permission(user, user_id, 'cards_manage')
+
+
+@api_router.post('/cards/ocr', tags=['카드'])
+def recognize_card_image(user_id: str = Form(min_length=1, max_length=64),
+                         image: UploadFile = File(), user=Depends(current_user)):
+    if user['role'] not in SUPPORT_ROLES:
+        raise HTTPException(403, '보호자 또는 지원자만 사진 글자 인식을 사용할 수 있습니다.')
+    owner_id = _card_owner(user, user_id)
+    require_guardian_consent({'id': owner_id})
+    result = recognize_card(image.file.read(MAX_IMAGE_BYTES + 1), image.content_type)
+    return JSONResponse(result, headers={'Cache-Control': 'no-store'})
 
 
 @api_router.get('/cards/submissions', response_model=list[CardSubmissionResponse], tags=['카드'])

@@ -1,0 +1,7 @@
+.card-ocr-assist { display: grid; gap: .625rem; margin-block: .75rem; min-width: 0; }
+.card-ocr-assist > button { justify-self: start; }
+.card-ocr-assist small { color: var(--color-text-secondary); font-size: .875rem; line-height: 1.5; }
+.card-ocr-assist p { margin: 0; }
+.card-ocr-assist p:empty { display: none; }
+.card-ocr-assist label { display: grid; gap: .375rem; }
+.card-ocr-assist input { width: 100%; min-width: 0; }

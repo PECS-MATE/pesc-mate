@@ -1,6 +1,7 @@
 import { useId, useRef, useState } from 'react';
 import { a4Geometry, a4BackSlots, MAX_A4_PAGES } from './services/a4Layout';
 import UiIcon from './UiIcon';
+import CardOcrAssist from './CardOcrAssist';
 
 export function A4Pages({ rows, layout, selected, onSelect, onDrop, locked = false, duplex = false }) {
   const geometry = a4Geometry(layout.settings);
@@ -30,7 +31,7 @@ export function A4Pages({ rows, layout, selected, onSelect, onDrop, locked = fal
   });
 }
 
-export default function A4Workspace({ rows, layout, onChange, locked, onNotice }) {
+export default function A4Workspace({ rows, layout, onChange, locked, onNotice, targetId, ocrDisabled }) {
   const [selected, setSelected] = useState(0);
   const [zoom, setZoom] = useState(60);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -89,6 +90,8 @@ export default function A4Workspace({ rows, layout, onChange, locked, onNotice }
       </section>
       <fieldset className="a4-properties" disabled={locked}><legend>선택한 칸 · {selection + 1}</legend>
         {activeRow ? <><label>인쇄 이름<input maxLength="30" placeholder="카드 이름 입력" value={slot.label} onChange={event => updateSlot({ label: event.target.value })} /></label>
+          <CardOcrAssist key={`${targetId}:${selection}:${activeRow.id}`} file={activeRow.file} targetId={targetId}
+            disabled={locked || ocrDisabled} onApply={label => updateSlot({ label })} />
           <label>글자 크기<select value={slot.fontSize} onChange={event => updateSlot({ fontSize: Number(event.target.value) })}>{[8, 10, 12, 14, 16, 20, 24].map(size => <option key={size} value={size}>{size}pt</option>)}</select></label>
           <label>그림 맞춤<select value={slot.fit} onChange={event => updateSlot({ fit: event.target.value })}><option value="contain">전체 보이기</option><option value="cover">꽉 채우기 · 일부 잘림</option></select></label>
           <label>그림 확대<input type="range" min="1" max="2" step=".1" value={slot.zoom} onChange={event => updateSlot({ zoom: Number(event.target.value) })} /></label>

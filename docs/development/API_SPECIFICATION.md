@@ -1392,3 +1392,23 @@ preflight는 요청 ID와 지표 집계를 유지하지만 콘솔 요청 로그�
 ## 사용자 프로필 API
 
 프로필 조회·저장·사진 접근 권한과 응답 필드는 [사용자 프로필 정책](../policies/PROFILE_POLICY.md#api)을 참고한다. 인증 응답과 연결 사용자 응답의 `profile` 필드는 미설정 계정에서 `null`이다.
+
+## 카드 사진 글자 인식 API
+
+- `POST /api/cards/ocr`: 인증된 보호자·지원자 전용 multipart 요청.
+  `user_id`는 연결 사용자 ID, `image`는 JPG·PNG·WebP 한 장이다.
+- 해당 사용자에 대한 `cards_manage` 권한과 기존 보호자 동의 정책을 확인한다.
+  일반 아동 계정은 사용할 수 없다. 카드 등록·DB 저장·RFID 연결은 수행하지 않는다.
+- 기존 업로드 검사와 동일하게 5MiB 이하, 각 변 128~4096px, 1600만 화소 이하를
+  허용하며 파일 서명·MIME·디코딩·메타데이터를 검사한다.
+- 응답: `{ "suggested_label": "사과", "candidates": ["사과"] }`.
+  이름은 최대 30자, 후보는 최대 8개다. 글자를 찾지 못하면 빈 문자열·빈 배열을 반환한다.
+  인식값은 확인용 제안이며 자동으로 카드 이름이나 뜻을 저장하지 않는다.
+- 현재 백엔드의 Tesseract 한국어·영어 언어팩으로 처리한다. 사진/인식 텍스트를 외부
+  OCR 서비스로 전송하거나 별도 기록하지 않는다. 임시 처리 파일은 종료·오류 시 제거한다.
+- 프로세스당 한 건만 처리한다. 동시 요청 429, 도구 없음·인식 실패 503,
+  20초 초과 504를 반환한다. 응답은 `Cache-Control: no-store`다.
+- Docker 백엔드 이미지를 다시 빌드해야 언어팩이 설치된다. Docker 이외의 실행 환경은
+  `tesseract` 명령과 `kor`, `eng` 학습 데이터를 별도로 설치해야 한다.
+- 설치·명령 형식: [Tesseract 설치 문서](https://tesseract-ocr.github.io/tessdoc/Installation.html),
+  [명령행 사용법](https://tesseract-ocr.github.io/tessdoc/Command-Line-Usage.html).

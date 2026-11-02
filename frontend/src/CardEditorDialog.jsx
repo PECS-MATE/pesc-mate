@@ -1,7 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import UiIcon from './UiIcon';
+import CardOcrAssist from './CardOcrAssist';
 
-export default function CardEditorDialog({ editing, categories, targetName, privateOnly = false,
+export default function CardEditorDialog({ editing, categories, targetName, targetId, ocrDisabled, privateOnly = false,
   busy, error, onSubmit, onClose }) {
   const dialog = useRef(null);
   const errorMessage = useRef(null);
@@ -10,6 +11,7 @@ export default function CardEditorDialog({ editing, categories, targetName, priv
   const descriptionId = useId();
   const imageHelpId = useId();
   const [visibility, setVisibility] = useState(privateOnly ? 'private' : editing?.visibility || 'private');
+  const [image, setImage] = useState(null);
 
   useEffect(() => {
     const modal = dialog.current;
@@ -61,8 +63,12 @@ export default function CardEditorDialog({ editing, categories, targetName, priv
               <option value="private">나만 사용</option><option value="shared">승인 후 모두에게 공개</option>
             </select></label>}
           {!editing && <label>카드 이미지<input name="image" required type="file" accept="image/jpeg,image/png,image/webp"
-            aria-describedby={imageHelpId} /></label>}
+            aria-describedby={imageHelpId} onChange={event => setImage(event.target.files?.[0] || null)} /></label>}
         </fieldset>
+        {!editing && <CardOcrAssist file={image} targetId={targetId} disabled={busy || ocrDisabled} onApply={value => {
+          const input = dialog.current?.querySelector('input[name="label"]');
+          if (input) { input.value = value; input.focus(); }
+        }} />}
         {!editing && <p id={imageHelpId} className="form-notice">JPG·PNG·WebP, 5MB 이하, 가로·세로 128~4096px 이미지를 선택해 주세요.</p>}
         <p className="form-notice">{privateOnly ? '연결 사용자만 사용할 수 있으며 공개 승인 목록에는 표시되지 않습니다.'
           : visibility === 'shared' ? '공개 요청은 운영 담당자 승인 후 모든 사용자에게 표시됩니다.' : '저장하면 나만 사용할 수 있으며 운영 담당자에게 공유되지 않습니다.'}</p>

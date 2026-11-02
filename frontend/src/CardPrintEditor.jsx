@@ -258,7 +258,8 @@ export default function CardPrintEditor({ targetId, targetName, categories, exis
           .map(card => <option key={card.id} value={card.id}>{card.label}</option>)}
       </select></label>
     </div>
-    <A4Workspace rows={rows} layout={layout} onChange={changeLayout} locked={locked} onNotice={setNotice} />
+    <A4Workspace rows={rows} layout={layout} onChange={changeLayout} locked={locked} onNotice={setNotice}
+      targetId={targetId} ocrDisabled={disabled} />
     <details className="a4-source-details"><summary>보관함 카드 정보·아이 계정 등록</summary><ol className="card-print-rows">{rows.map((row, index) => <li key={row.id}>
       <img src={row.preview} alt={row.label} />
       <fieldset disabled={locked}><legend>{index + 1}번째 카드 · {STATUS[row.status]}</legend>
