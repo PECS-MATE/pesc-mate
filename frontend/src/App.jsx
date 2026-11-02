@@ -154,8 +154,40 @@ function App() {
   useEffect(() => { setUsbStatus({ state: 'disconnected', fresh: false, count: 0 }); }, [user?.id]);
   const connectionMenuRef = useRef(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.matchMedia('(max-width: 1000px)').matches);
-  const [profileNotice, setProfileNotice] = useState('');
+  const [compactSidebar, setCompactSidebar] = useState(() => window.matchMedia('(max-width: 1000px)').matches);
   const [authReady, setAuthReady] = useState(false);
+  const sidebarOpenRef = useRef(null);
+  const sidebarCloseRef = useRef(null);
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 1000px)');
+    const update = () => setCompactSidebar(query.matches);
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  useEffect(() => {
+    if (!authReady || !user?.profile || !compactSidebar || sidebarCollapsed) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    sidebarCloseRef.current?.focus({ preventScroll: true });
+    document.addEventListener('keydown', handleSidebarKeyDown, true);
+    return () => { document.body.style.overflow = previous; document.removeEventListener('keydown', handleSidebarKeyDown, true); };
+  }, [authReady, user?.id, Boolean(user?.profile), compactSidebar, sidebarCollapsed]);
+  function toggleSidebar(collapsed) {
+    setSidebarCollapsed(collapsed);
+    window.requestAnimationFrame(() => (collapsed ? sidebarOpenRef : sidebarCloseRef).current?.focus({ preventScroll: true }));
+  }
+  function handleSidebarKeyDown(event) {
+    if (!compactSidebar) return;
+    if (event.key === 'Escape') { event.preventDefault(); toggleSidebar(true); return; }
+    if (event.key !== 'Tab') return;
+    const controls = [...document.getElementById('app-sidebar').querySelectorAll('button:not(:disabled), a[href], input, select, textarea, [tabindex="0"]')]
+      .filter(control => control.getClientRects().length);
+    const first = controls[0], last = controls.at(-1);
+    if (!controls.includes(document.activeElement)) { event.preventDefault(); first?.focus(); }
+    else if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+  }
+  const [profileNotice, setProfileNotice] = useState('');
   const [username, setUsername] = useState('demo');
   const [password, setPassword] = useState('demo1234');
   const [authMode, setAuthMode] = useState('login');
@@ -1828,9 +1860,10 @@ function App() {
   function navigateFromMyPage(action) { setMyPageOpen(false); action(); }
   return <main ref={entryPageRef} className={`app${isCaregiver ? ' caregiver-ui' : ''}${sidebarCollapsed ? ' sidebar-collapsed' : ''} display-${accessibility.display_mode} card-size-${accessibility.card_size} text-size-${accessibility.text_size}${accessibility.reduced_motion ? ' reduced-motion' : ''}${accessibility.high_contrast ? ' high-contrast' : ''}`}>
     <a className="skip-link" href="#main-content">본문 바로가기</a>
-    <aside className="sidebar" id="app-sidebar" hidden={sidebarCollapsed}>
-      <div className="sidebar-brand"><Mascot className="mascot-brand" /><strong>{isCaregiver ? 'PESC MATE' : <>PESC<br />MATE</>}</strong></div>
-      <nav aria-label="주 메뉴" onClickCapture={event => { const button = event.target.closest('button'); if (button && button.getAttribute('aria-current') !== 'page' && !confirmCaregiverLeave()) { event.preventDefault(); event.stopPropagation(); } }} onClick={event => { if (event.target.closest('button:not(:disabled)')) setMyPageOpen(false); }}>{isSupporter ? <>
+    {compactSidebar && !sidebarCollapsed && <div className="sidebar-backdrop" aria-hidden="true" onClick={() => toggleSidebar(true)} />}
+    <aside className="sidebar" id="app-sidebar" hidden={sidebarCollapsed} role={compactSidebar ? 'dialog' : undefined} aria-modal={compactSidebar && !sidebarCollapsed ? true : undefined} aria-label="주 메뉴">
+      <div className="sidebar-heading"><div className="sidebar-brand"><Mascot className="mascot-brand" /><strong>{isCaregiver ? 'PESC MATE' : <>PESC<br />MATE</>}</strong></div><button ref={sidebarCloseRef} type="button" className="sidebar-toggle" aria-label="주 메뉴 접기" title="주 메뉴 접기" aria-controls="app-sidebar" aria-expanded="true" onClick={() => toggleSidebar(true)}><UiIcon name="menu" /></button></div>
+      <nav aria-label="주 메뉴" onClickCapture={event => { const button = event.target.closest('button'); if (button && button.getAttribute('aria-current') !== 'page' && !confirmCaregiverLeave()) { event.preventDefault(); event.stopPropagation(); } }} onClick={event => { if (event.target.closest('button:not(:disabled)')) { setMyPageOpen(false); if (compactSidebar) toggleSidebar(true); } }}>{isSupporter ? <>
         <button aria-current={!myPageOpen && tab === 'support_home' ? 'page' : undefined} className={!myPageOpen && tab === 'support_home' ? 'active' : ''} onClick={() => setTab('support_home')}><span aria-hidden="true"><UiIcon name="home" /></span>{isCaregiver ? '보호자 홈' : '지원 홈'}</button>
         {canReadRecords && <button aria-current={!myPageOpen && tab === 'dashboard' ? 'page' : undefined} className={!myPageOpen && tab === 'dashboard' ? 'active' : ''} onClick={() => openSupportSection('dashboard')}><span aria-hidden="true"><UiIcon name="chart" /></span>의사소통 기록</button>}
         {canManageCards && <button aria-current={!myPageOpen && tab === 'card_settings' ? 'page' : undefined} className={!myPageOpen && tab === 'card_settings' ? 'active' : ''} onClick={() => openSupportSection('card_settings')}><span aria-hidden="true"><UiIcon name="cards" /></span>개인 카드 관리</button>}
@@ -1850,16 +1883,15 @@ function App() {
         </>}</nav>
       <button type="button" className="profile profile-trigger" aria-label={`${user.name} 마이페이지 열기`}
         aria-controls="my-page" aria-expanded={myPageOpen} aria-current={myPageOpen ? 'page' : undefined}
-        onClick={() => { if (!confirmCaregiverLeave()) return; stopSpeech(); setMyPageOpen(true); setProfileNotice(''); }}>
+        onClick={() => { if (!confirmCaregiverLeave()) return; stopSpeech(); setMyPageOpen(true); setProfileNotice(''); if (compactSidebar) toggleSidebar(true); }}>
         <Avatar user={user} /><span><strong>{user.name}</strong></span><span className="profile-settings-icon" aria-hidden="true"><UiIcon name="settings" /></span></button>
       <button className="logout" onClick={handleLogout} disabled={busy}><UiIcon name="logout" />로그아웃</button>
     </aside>
-    <div className={`app-content screen-${tab}`} id="main-content" tabIndex="-1">
-      <div className="sidebar-toggle-bar"><button type="button" className="sidebar-toggle"
-        aria-label={sidebarCollapsed ? '주 메뉴 펼치기' : '주 메뉴 접기'}
-        title={sidebarCollapsed ? '주 메뉴 펼치기' : '주 메뉴 접기'}
-        aria-controls="app-sidebar" aria-expanded={!sidebarCollapsed}
-        onClick={() => setSidebarCollapsed(current => !current)}><UiIcon name="menu" /></button></div>
+    <div className={`app-content screen-${tab}`} id="main-content" tabIndex="-1" inert={compactSidebar && !sidebarCollapsed ? true : undefined}>
+      {sidebarCollapsed && <div className="sidebar-toggle-bar"><button ref={sidebarOpenRef} type="button" className="sidebar-toggle"
+        aria-label="주 메뉴 펼치기" title="주 메뉴 펼치기"
+        aria-controls="app-sidebar" aria-expanded="false"
+        onClick={() => toggleSidebar(false)}><UiIcon name="menu" /></button></div>}
       <div hidden={myPageOpen}>
       {!myPageOpen && profileNotice && <p role="status">{profileNotice}</p>}
       <header className="topbar"><div><p className="eyebrow">오늘은 {todayLabel}</p><h1>{pageTitle}</h1></div><div className="topbar-statuses">{user.role === 'user' && loaded ? <details ref={connectionMenuRef} className="connection-menu" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}>
