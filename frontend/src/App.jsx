@@ -27,7 +27,7 @@ import BoardSlotsEditor from './BoardSlotsEditor';
 import CoreCardLocks from './CoreCardLocks';
 import SituationBoards from './SituationBoards';
 import BoardOrganizationSuggestions from './BoardOrganizationSuggestions';
-import SituationBoardPicker from './SituationBoardPicker';
+import SpeakingCardLibrary from './SpeakingCardLibrary';
 import RfidBoard from './RfidBoard';
 import RfidChipRegistration from './RfidChipRegistration';
 import useReauthentication from './useReauthentication';
@@ -300,11 +300,6 @@ function App() {
   const [newSupportPermissions, setNewSupportPermissions] = useState(['records_read']);
   const [supportPermissionDrafts, setSupportPermissionDrafts] = useState({});
   const [boardLayout, setBoardLayout] = useState(null);
-  const [boardSituation, setBoardSituation] = useState(null);
-  useEffect(() => {
-    if (!privacy?.guardian_consent || ['in_progress', 'failed', 'completed'].includes(privacy?.deletion_status)) setBoardSituation(null);
-  }, [user?.id, privacy?.guardian_consent, privacy?.deletion_status]);
-  useEffect(() => { setBoardSituation(null); }, [user?.id]);
   const [boardLayoutAudit, setBoardLayoutAudit] = useState([]);
   const [quickDraft, setQuickDraft] = useState([]);
   const [recoveryDraft, setRecoveryDraft] = useState([]);
@@ -1704,11 +1699,6 @@ function App() {
   }
   const layoutCards = boardLayout?.available_cards || cards;
   const layoutCardsById = new Map(layoutCards.map(card => [card.id, card]));
-  const activeBoardSituation = boardSituation?.user_id === user?.id ? boardSituation : null;
-  const configuredBoardCards = boardLayout
-    ? (activeBoardSituation?.slots || boardLayout.slots).map(slot => cards.find(card => card.id === slot.card_id) || layoutCardsById.get(slot.card_id)).filter(Boolean)
-    : cards;
-  const activeCardSource = tab === 'cards' ? configuredBoardCards : cards;
   const quickExpressionCards = boardLayout
     ? boardLayout.quick_expression_ids.map(id => cards.find(card => card.id === id) || layoutCardsById.get(id)).filter(Boolean)
     : DEFAULT_QUICK_EXPRESSIONS;
@@ -1720,7 +1710,7 @@ function App() {
     ? availableSentenceExamples(availablePracticeCards(item.id)).length > 0
     : availablePracticeCards(item.id).length >= (learningSettings?.option_count || 3));
   const currentLearningQuestion = learningGame?.questions?.[learningGame.questionIndex];
-  const filteredCards = activeCardSource.filter(card =>
+  const filteredCards = cards.filter(card =>
     (category === '전체' || card.category === category)
     && card.label.includes(search.trim())
   );
@@ -1936,8 +1926,7 @@ function App() {
           setTab('cards');
           return true;
         }} /></div>}
-      {user.role === 'user' && <section className="quick-speech" aria-labelledby="quick-speech-title" data-scan-group="quick-speech"><div><strong id="quick-speech-title">빠른 표현</strong><small>누르면 바로 말해요</small></div>{quickExpressionCards.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 바로 말하기`} onClick={() => speakText(item.label, 'card', [item.id])}>{expressionVisual(item)}{item.label}</button>)}</section>}
-      {user.role === 'user' && tab === 'cards' && <section className="recovery-speech" aria-labelledby="recovery-speech-title" data-scan-group="recovery-speech"><div><strong id="recovery-speech-title">다시 말하기·고치기</strong><small>잘못 전했을 때 바로 말해요</small></div>{recoveryExpressions.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 복구 표현 말하기`} onClick={() => speakText(item.label, 'recovery')}>{expressionVisual(item)}{item.label}</button>)}<details className="speaking-history-tools"><summary>이전 문장·다시 듣기</summary><div><button disabled={!lastUtterance || speechState.status === 'starting'} onClick={() => lastUtterance && speakText(lastUtterance.content, lastUtterance.contentType, lastUtterance.cardIds)}><span aria-hidden="true"><UiIcon name="volume" /></span>마지막 말 다시 듣기</button><button disabled={!board.length && !text} onClick={() => updateBoard([])}><span aria-hidden="true"><UiIcon name="erase" /></span>현재 문장 취소</button><button disabled={!lastSentence} onClick={restoreLastSentence}><span aria-hidden="true"><UiIcon name="undo" /></span>직전 문장 불러오기</button></div></details></section>}
+      {user.role === 'user' && tab !== 'cards' && <section className="quick-speech" aria-labelledby="quick-speech-title" data-scan-group="quick-speech"><div><strong id="quick-speech-title">빠른 표현</strong><small>누르면 바로 말해요</small></div>{quickExpressionCards.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 바로 말하기`} onClick={() => speakText(item.label, 'card', [item.id])}>{expressionVisual(item)}{item.label}</button>)}</section>}
       {!myPageOpen && error && <div role="alert" className="error">{error} <button disabled={busy || generating || offline} onClick={() => generationFailed ? generate() : load(user)}>{generationFailed ? '문장 다시 만들기' : '다시 불러오기'}</button></div>}
       {speechFailure && <div role="alert" className="speech-error"><span aria-hidden="true"><UiIcon name="volume-off" /></span><div><strong>음성을 재생하지 못했어요.</strong><p>전달할 표현: <strong>{speechFailure.content}</strong></p><p>{speechFailureMessage(speechFailure.errorCode)} 선택한 카드와 문장은 그대로 유지됩니다.</p></div><div className="speech-error-actions">{speechFailure.retryable && <button className="primary" onClick={() => speakText(speechFailure.content, speechFailure.contentType, speechFailure.cardIds || [])}>다시 재생</button>}<button onClick={() => setSpeechFailure(null)}>닫기</button></div></div>}
       {!loaded && !error && <p role="status">카드를 불러오는 중입니다…</p>}
@@ -1972,18 +1961,14 @@ function App() {
         renderPicture={cardPicture} onSelect={openCatalog} onAll={() => openCatalog()} /> : tab === 'cards' && user.role === 'user' ? <div className="communication-layout">
       {!privacy.guardian_consent && <p className="recordless-notice" role="status">기록 없이 말하기 · 지금 고른 카드와 발화는 저장하지 않아요.</p>}
       <div className="workspace">
-      <section id="card-library" tabIndex="-1"><div className="section-title"><h2>무엇을 말하고 싶나요?</h2><input aria-label="카드 검색" placeholder="카드 이름 검색" value={search} onChange={e => setSearch(e.target.value)} /></div>
-        {boardLayout && <SituationBoardPicker key={user.id} layout={boardLayout} active={activeBoardSituation} disabled={busy} offline={offline}
-          onSelect={value => { setBoardSituation(value ? { ...value, user_id: user.id } : null); setCategory('전체'); setSearch(''); setCardPage(0); }} />}
-        <details className="speech-options"><summary>말하기 상세 설정</summary><label className="situation-picker">기록 상황 (선택)<select aria-label="기록 상황 (선택)" value={situation} onChange={event => setSituation(event.target.value)}>
-          {Object.entries(SITUATIONS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
-        </select><small>기록에만 사용하며 카드 위치·추천·학습 범위는 바꾸지 않습니다.</small></label>
-        <p>카드를 누르면 {outputMode === 'word' ? '단어를 바로 말해요.' : '문장에 담아요.'}</p></details>
-        <div className="categories" aria-label="카테고리" data-scan-group="categories">{['전체', ...cardCategories.map(item => item.name)].map(c => <button key={c} aria-pressed={category === c} className={category === c ? 'active' : ''} onClick={() => setCategory(c)}>{c}</button>)}</div>
-        <div className="cards" data-scan-group="cards">{visibleCards.map(tile)}</div>
-        {cardPagination()}
-        {loaded && !filteredCards.length && <EmptyState>검색 결과가 없어요.</EmptyState>}
-      </section></div>
+      <SpeakingCardLibrary key={`${user.id}:${privacy.guardian_consent}`} accountId={user.id} persistFavorites={privacy.guardian_consent}
+        cards={cards} categories={cardCategories} layout={boardLayout} recoveryCards={recoveryExpressions}
+        renderPicture={cardPicture} pageSize={accessibility.cards_per_page} busy={busy}
+        renderCard={card => recoveryExpressions.some(item => item.id === card.id)
+          ? <div className="card-tile"><button type="button" className="card" disabled={speechState.status === 'starting'} aria-label={`${card.label} 복구 표현 말하기`} onClick={() => speakText(card.label, 'recovery')}>{cardArt(card)}<strong>{card.label}</strong></button><button type="button" className="card-speaker" aria-label={`${card.label} 다시 듣기`} onClick={() => speakText(card.label, 'recovery')}><UiIcon name="volume" /></button></div>
+          : tile(card)} />
+      {user.role === 'user' && tab === 'cards' && <details className="speaking-history-tools"><summary>이전 문장·다시 듣기</summary><div><button disabled={!lastUtterance || speechState.status === 'starting'} onClick={() => lastUtterance && speakText(lastUtterance.content, lastUtterance.contentType, lastUtterance.cardIds)}><span aria-hidden="true"><UiIcon name="volume" /></span>마지막 말 다시 듣기</button><button disabled={!board.length && !text} onClick={() => updateBoard([])}><span aria-hidden="true"><UiIcon name="erase" /></span>현재 문장 취소</button><button disabled={!lastSentence} onClick={restoreLastSentence}><span aria-hidden="true"><UiIcon name="undo" /></span>직전 문장 불러오기</button></div></details>}
+      </div>
       {privacy.guardian_consent && <RecommendationsPanel key={user.id} accountId={user.id} selectedIds={board.map(card => card.id)} cards={cards}
         offline={offline} renderCard={tile} onCards={setRecommended} historyKey={generatedSessionId}
         onOpenLibrary={() => { setCategory('전체'); setSearch(''); setTab('catalog'); }} />}

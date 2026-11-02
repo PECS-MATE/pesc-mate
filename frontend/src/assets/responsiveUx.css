@@ -1,7 +1,7 @@
 /* Compact app layout; keep controls readable and scroll within card rows, not the page. */
 .app .sidebar-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
 .app .sidebar-heading .sidebar-brand { flex: 1; min-width: 0; }
-.app .sidebar-toggle, .app.caregiver-ui .sidebar-toggle, .app.high-contrast .sidebar-toggle[aria-expanded="false"] { flex: 0 0 44px; width: 44px; min-height: 44px; padding: 10px; border: 0; border-radius: 0; background: transparent; color: var(--color-text); box-shadow: none; }
+.app .sidebar-toggle, .app .sidebar-toggle[aria-expanded="false"], .app.caregiver-ui .sidebar-toggle, .app.high-contrast .sidebar-toggle[aria-expanded="false"] { flex: 0 0 44px; width: 44px; min-height: 44px; padding: 10px; border: 0; border-radius: 0; background: transparent; color: var(--color-text); box-shadow: none; }
 .app .sidebar-toggle:hover:not(:disabled) { background: transparent; transform: none; box-shadow: none; }
 .app.caregiver-ui .sidebar-toggle:not(.primary):not(.active):not([aria-current="page"]):not([aria-selected="true"]) { background-color: transparent; }
 .app.high-contrast .sidebar-toggle { color: var(--color-contrast); }

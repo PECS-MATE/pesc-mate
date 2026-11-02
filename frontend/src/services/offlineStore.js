@@ -179,4 +179,5 @@ export async function clearOfflineUserData(userId) {
   });
   const attempts = await pendingLearningAttempts(userId);
   await removeLearningAttempts(attempts.map(attempt => attempt.request_id));
+  localStorage.removeItem(`pesc-mate-favorites:${userId}`);
 }

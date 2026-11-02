@@ -9,6 +9,7 @@ import "./assets/landing.css";
 import "./assets/activityUx.css";
 import "./assets/practiceUx.css";
 import "./assets/responsiveUx.css";
+import "./assets/speakingLibrary.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

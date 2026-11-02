@@ -37,6 +37,8 @@ const PATHS = {
   image: 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2ZM3 17l6-6 4 4 3-3 5 5M16 7h.01',
   logout: 'M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4M9 12h12m-5-5 5 5-5 5',
   plus: 'M12 4v16M4 12h16',
+  clock: 'M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0ZM12 6v6l4 2',
+  folder: 'M3 5h6l2 3h10v11H3Z',
 };
 
 // Interface icons are decorative; the surrounding control supplies its accessible name.
