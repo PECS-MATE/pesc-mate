@@ -17,7 +17,6 @@ import { CardCombinations, SessionDetails } from './CommunicationInsights';
 import CommunicationActivity, { SITUATIONS } from './CommunicationActivity';
 import NoteHistory from './NoteHistory';
 import DeletionReceipt from './DeletionReceipt';
-import RecommendationsPanel from './RecommendationsPanel';
 import PracticeSuggestionsPanel from './PracticeSuggestionsPanel';
 import PracticeOverview from './PracticeOverview';
 import RecommendationSettings from './RecommendationSettings';
@@ -198,7 +197,6 @@ function App() {
   const [registrationConsent, setRegistrationConsent] = useState(false);
   const [cards, setCards] = useState([]);
   const [cardCategories, setCardCategories] = useState([]);
-  const [recommended, setRecommended] = useState([]);
   const [board, setBoard] = useState([]);
   const boardRef = useRef(null);
   const boardFocusRef = useRef(null);
@@ -252,8 +250,6 @@ function App() {
   const [statsBusy, setStatsBusy] = useState(false);
   const [speechState, setSpeechState] = useState({ status: 'idle', content: '' });
   const [speechFailure, setSpeechFailure] = useState(null);
-  const [lastUtterance, setLastUtterance] = useState(null);
-  const [lastSentence, setLastSentence] = useState(null);
   const speechRunRef = useRef(0);
   const speechEventRef = useRef(null);
   const activityStreamRef = useRef({ id: createRequestId(), sequence: 0 });
@@ -483,8 +479,7 @@ function App() {
   async function applyOfflineSnapshot(account, snapshot) {
     if (!snapshot) return false;
     const all = restoreCachedCards(snapshot.cards);
-    const rec = restoreCachedCards(snapshot.recommended);
-    setCards(all); setCardCategories(snapshot.categories || []); setRecommended(rec);
+    setCards(all); setCardCategories(snapshot.categories || []);
     setStats(snapshot.dashboard || null); setCardSubmissions(snapshot.submissions || []);
     setBoard(snapshot.privacy?.guardian_consent ? loadBoard(account.id, all) : []); setTtsSettings(normalizeTtsSettings(snapshot.tts_settings));
     const access = normalizeAccessibility(snapshot.accessibility, account);
@@ -565,7 +560,7 @@ function App() {
           [...targetImages, ...adminImages].forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); });
           return;
         }
-        setLinkedUsers(people); setSelectedUser(target); setCards([]); setCardCategories(activeCategories); setRecommended([]);
+        setLinkedUsers(people); setSelectedUser(target); setCards([]); setCardCategories(activeCategories);
         setCardSubmissions(targetImages);
         setAdminSubmissions(adminImages);
         setAdminCategories(categories);
@@ -574,12 +569,12 @@ function App() {
         setStats(null); setLoaded(true);
         return;
       }
-      const [rawCards, rawCategories, rawRecommended, dashboard, submissions, voiceSettings, accessibilitySettings, privacySettings, caregivers, privacyHistory, layout] = await Promise.all([request('/cards'), request('/categories'), Promise.resolve([]), request(dashboardPath()), request('/cards/submissions'), request('/tts/settings'), request('/accessibility/settings'), request('/privacy/settings'), request('/support/links'), request('/privacy/audit'), request('/board/layout')]);
+      const [rawCards, rawCategories, dashboard, submissions, voiceSettings, accessibilitySettings, privacySettings, caregivers, privacyHistory, layout] = await Promise.all([request('/cards'), request('/categories'), request(dashboardPath()), request('/cards/submissions'), request('/tts/settings'), request('/accessibility/settings'), request('/privacy/settings'), request('/support/links'), request('/privacy/audit'), request('/board/layout')]);
       if (privacySettings.deletion_status === 'completed' && !privacySettings.guardian_consent) {
         await clearOfflineUserData(account.id);
       }
-      const [all, rec] = await Promise.all([hydrateImages(rawCards), hydrateImages(rawRecommended)]);
-      setCards(all); setCardCategories(rawCategories); setRecommended(rec); setStats(dashboard); setCardSubmissions(submissions); setBoard(privacySettings.guardian_consent ? loadBoard(account?.id, all) : []);
+      const all = await hydrateImages(rawCards);
+      setCards(all); setCardCategories(rawCategories); setStats(dashboard); setCardSubmissions(submissions); setBoard(privacySettings.guardian_consent ? loadBoard(account?.id, all) : []);
       setTtsSettings(normalizeTtsSettings(voiceSettings));
       const access = normalizeAccessibility(accessibilitySettings, account);
       setAccessibility(access); setAccessibilitySaved(true);
@@ -592,7 +587,7 @@ function App() {
       setTtsSettingsSaved(true); setLoaded(true); setOffline(false);
       cacheSnapshot(account.id, {
         cards: cacheableCards(all), categories: rawCategories,
-        recommended: cacheableCards(rec), dashboard, submissions,
+        dashboard, submissions,
         tts_settings: normalizeTtsSettings(voiceSettings),
         accessibility: accessibilitySettings, privacy: privacySettings,
         caregivers, privacy_audit: privacyHistory, board_layout: layout,
@@ -769,9 +764,9 @@ function App() {
     const clearUserData = user?.id ? clearOfflineUserData(user.id).catch(() => {}) : Promise.resolve();
     setToken(null); setUser(null); setLoaded(false); setMyPageOpen(false); setReaderExpanded(false); setProfileNotice(''); setSyncState('idle'); setPendingSyncCount(0);
     setAuthMode('login'); setPassword(''); setPasswordConfirm(''); setName(''); setRegistrationConsent(false);
-    [...cards, ...recommended, ...adminSubmissions].forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); });
-    setCards([]); setCardCategories([]); setRecommended([]); setStats(null); setBoard([]); setCardSubmissions([]); setAdminSubmissions([]); setAdminCategories([]); setCategoryEdits({}); setCategoryError(''); setLinkedUsers([]); setSelectedUser(null); setBoardLayout(null); setBoardLayoutAudit([]); setQuickDraft([]); setRecoveryDraft([]); setSlotDraft([]); setLearningSettings(null); setLearningProgress(null); setLearningGame(null); setPracticeCategory('all'); setText(''); setGeneratedSessionId(''); setGenerationFailed(false); setError(''); setTab('home');
-    setTtsSettings(DEFAULT_TTS_SETTINGS); setTtsSettingsSaved(false); setAccessibility(DEFAULT_ACCESSIBILITY); setAccessibilitySaved(true); setPrivacy(DEFAULT_PRIVACY); setPrivacyCaregivers([]); setPrivacyAudit([]); setSpeechFailure(null); setLastUtterance(null); setLastSentence(null); setBusy(false);
+    [...cards, ...adminSubmissions].forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); });
+    setCards([]); setCardCategories([]); setStats(null); setBoard([]); setCardSubmissions([]); setAdminSubmissions([]); setAdminCategories([]); setCategoryEdits({}); setCategoryError(''); setLinkedUsers([]); setSelectedUser(null); setBoardLayout(null); setBoardLayoutAudit([]); setQuickDraft([]); setRecoveryDraft([]); setSlotDraft([]); setLearningSettings(null); setLearningProgress(null); setLearningGame(null); setPracticeCategory('all'); setText(''); setGeneratedSessionId(''); setGenerationFailed(false); setError(''); setTab('home');
+    setTtsSettings(DEFAULT_TTS_SETTINGS); setTtsSettingsSaved(false); setAccessibility(DEFAULT_ACCESSIBILITY); setAccessibilitySaved(true); setPrivacy(DEFAULT_PRIVACY); setPrivacyCaregivers([]); setPrivacyAudit([]); setSpeechFailure(null); setBusy(false);
     if (sessionExpired) setError('계정 접근 또는 로그인 상태가 변경되었습니다. 다시 로그인해 주세요.');
     setLocalDeletionStatus('');
     await Promise.all([clearCache, clearUserData]);
@@ -817,7 +812,7 @@ function App() {
         selected_at: board.map(card => card.selected_at || null), request_id: requestId }) });
       if (!isCurrent()) return;
       setText(result.sentence);
-      if (speakResult && speechRunRef.current === speechRun) rememberAndSpeakSentence(result.sentence, result.id);
+      if (speakResult && speechRunRef.current === speechRun) speakBoardSentence(result.sentence, result.id);
       setGeneratedSessionId(result.id);
       request(dashboardPath()).then(stats => {
         if (localStorage.getItem('pesc-mate-token') === sessionToken) setStats(stats);
@@ -839,7 +834,7 @@ function App() {
       });
       if (!isCurrent()) return;
       setText(result.sentence);
-      if (speakResult && speechRunRef.current === speechRun) rememberAndSpeakSentence(result.sentence, result.id);
+      if (speakResult && speechRunRef.current === speechRun) speakBoardSentence(result.sentence, result.id);
       setGeneratedSessionId(result.id);
       request(dashboardPath()).then(stats => {
         if (localStorage.getItem('pesc-mate-token') === sessionToken) setStats(stats);
@@ -879,7 +874,6 @@ function App() {
     const tappedAt = Date.now();
     if (lastSpeechTapRef.current.content === content && tappedAt - lastSpeechTapRef.current.at < 600) return;
     lastSpeechTapRef.current = { content, at: tappedAt };
-    if (contentType !== 'preview') setLastUtterance({ content, contentType, cardIds });
     finishSpeechEvent(speechEventRef.current, 'cancelled', 'replaced');
     const speechEvent = {
       id: createRequestId(), finished: false, requestedAt: Date.now(), startupMs: null,
@@ -938,9 +932,8 @@ function App() {
     });
     resolveStarted(speechEvent.recordingAllowed ? startTracking() : false);
   }
-  function rememberAndSpeakSentence(content, sessionId = '') {
+  function speakBoardSentence(content, sessionId = '') {
     const cardIds = board.map(card => card.id);
-    setLastSentence({ content, cards: [...board] });
     speakText(content, 'sentence', cardIds, sessionId);
   }
   function playLearningPrompt(card, callbacks) {
@@ -965,12 +958,7 @@ function App() {
     });
     return () => { if (isCurrent()) { speechRunRef.current += 1; speechPlayback.stop(); setSpeechState({ status: 'idle', content: '' }); } };
   }
-  function speakSelection() { rememberAndSpeakSentence(board.map(card => card.label).join(' ')); }
-  function restoreLastSentence() {
-    if (!lastSentence) return;
-    updateBoard([...lastSentence.cards]);
-    setText(lastSentence.content);
-  }
+  function speakSelection() { speakBoardSentence(board.map(card => card.label).join(' ')); }
   function pauseSpeech() {
     if (speechState.status !== 'playing') return;
     speechPlayback.pause();
@@ -1687,10 +1675,9 @@ function App() {
     const hasImage = Boolean(cardImage(item));
     return <span className={`expression-visual${hasImage ? ' has-image' : ''}`} aria-hidden="true" style={hasImage ? artStyle(item) : undefined}>{!hasImage && item.symbol}</span>;
   }
-  function tile(card, recommendationSelected) {
+  function tile(card) {
     const speakOnTap = outputMode === 'word';
     return <div className="card-tile" key={card.id}><button type="button" className={`card${speakOnTap ? ' speak-on-tap' : ''}`} disabled={busy} aria-label={`${card.label} ${speakOnTap ? '바로 말하기' : '문장에 담기'}`} onClick={() => {
-      if ((speakOnTap || board.length < 12) && typeof recommendationSelected === 'function') recommendationSelected();
       if (speakOnTap) speakText(card.label, 'card', [card.id]); else add(card);
     }}>
       {cardArt(card)}
@@ -1866,7 +1853,7 @@ function App() {
         {canManageAccounts && <button aria-current={!myPageOpen && tab === 'account_permissions' ? 'page' : undefined} className={!myPageOpen && tab === 'account_permissions' ? 'active' : ''} onClick={() => setTab('account_permissions')}><span aria-hidden="true"><UiIcon name="key" /></span>운영 권한 관리</button>}
         </> : <>
         <button aria-current={!myPageOpen && tab === 'home' ? 'page' : undefined} className={!myPageOpen && tab === 'home' ? 'active' : ''} onClick={() => setTab('home')}><span aria-hidden="true"><UiIcon name="home" /></span>홈</button>
-        <button aria-current={!myPageOpen && tab === 'cards' ? 'page' : undefined} className={!myPageOpen && tab === 'cards' ? 'active' : ''} onClick={() => setTab('cards')}><span aria-hidden="true"><UiIcon name="message" /></span>그림으로 말하기<i aria-label={`추천 카드 ${recommended.length}개`}>{recommended.length}</i></button>
+        <button aria-current={!myPageOpen && tab === 'cards' ? 'page' : undefined} className={!myPageOpen && tab === 'cards' ? 'active' : ''} onClick={() => setTab('cards')}><span aria-hidden="true"><UiIcon name="message" /></span>그림으로 말하기</button>
         <button aria-current={!myPageOpen && tab === 'catalog' ? 'page' : undefined} className={!myPageOpen && tab === 'catalog' ? 'active' : ''} onClick={() => setTab('catalog')}><span aria-hidden="true"><UiIcon name="cards" /></span>카드</button>
         <button aria-current={!myPageOpen && tab === 'practice' ? 'page' : undefined} className={!myPageOpen && tab === 'practice' ? 'active' : ''} onClick={() => openLearning(null)}><span aria-hidden="true"><UiIcon name="book" /></span>연습하기</button>
         <button aria-current={!myPageOpen && tab === 'dashboard' ? 'page' : undefined} className={!myPageOpen && tab === 'dashboard' ? 'active' : ''} onClick={() => setTab('dashboard')}><span aria-hidden="true"><UiIcon name="chart" /></span>나의 이용 기록</button>
@@ -1967,11 +1954,7 @@ function App() {
         renderCard={card => recoveryExpressions.some(item => item.id === card.id)
           ? <div className="card-tile"><button type="button" className="card" disabled={speechState.status === 'starting'} aria-label={`${card.label} 복구 표현 말하기`} onClick={() => speakText(card.label, 'recovery')}>{cardArt(card)}<strong>{card.label}</strong></button><button type="button" className="card-speaker" aria-label={`${card.label} 다시 듣기`} onClick={() => speakText(card.label, 'recovery')}><UiIcon name="volume" /></button></div>
           : tile(card)} />
-      {user.role === 'user' && tab === 'cards' && <details className="speaking-history-tools"><summary>이전 문장·다시 듣기</summary><div><button disabled={!lastUtterance || speechState.status === 'starting'} onClick={() => lastUtterance && speakText(lastUtterance.content, lastUtterance.contentType, lastUtterance.cardIds)}><span aria-hidden="true"><UiIcon name="volume" /></span>마지막 말 다시 듣기</button><button disabled={!board.length && !text} onClick={() => updateBoard([])}><span aria-hidden="true"><UiIcon name="erase" /></span>현재 문장 취소</button><button disabled={!lastSentence} onClick={restoreLastSentence}><span aria-hidden="true"><UiIcon name="undo" /></span>직전 문장 불러오기</button></div></details>}
       </div>
-      {privacy.guardian_consent && <RecommendationsPanel key={user.id} accountId={user.id} selectedIds={board.map(card => card.id)} cards={cards}
-        offline={offline} renderCard={tile} onCards={setRecommended} historyKey={generatedSessionId}
-        onOpenLibrary={() => { setCategory('전체'); setSearch(''); setTab('catalog'); }} />}
     </div> : tab === 'practice' && user.role === 'user' ? <section className="learning-hub">
       <div className="panel-heading"><span aria-hidden="true"><UiIcon name="book" /></span><div><h2>연습하기</h2><p className="muted">연습 결과는 실제 의사소통 기록과 섞이지 않고 따로 저장됩니다.</p></div></div>
       {learningBusy ? <p role="status">학습 정보를 불러오는 중입니다…</p> : learningGame?.phase === 'playing' || learningGame?.phase === 'saving' ? <article className="learning-game" aria-labelledby="learning-question-title">

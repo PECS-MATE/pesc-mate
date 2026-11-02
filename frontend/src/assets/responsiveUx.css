@@ -39,7 +39,7 @@
   .app .screen-cards .sentence-card-move { padding: 16px 8px 8px; }
   .app .screen-cards .sentence-card-picture { width: 88px; height: 88px; }
   .app .quick-speech, .app .recovery-speech { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); gap: 8px; margin: 12px 0; padding: 12px; }
-  .app .quick-speech > div, .app .recovery-speech > div, .app .speaking-history-tools { grid-column: 1 / -1; min-width: 0; }
+  .app .quick-speech > div, .app .recovery-speech > div { grid-column: 1 / -1; min-width: 0; }
   .app .quick-speech button, .app .recovery-speech button { width: 100%; min-width: 0; min-height: 44px; justify-content: flex-start; white-space: normal; overflow-wrap: anywhere; }
   .app .screen-cards .workspace { gap: 14px; }
   .app .screen-cards .workspace > #card-library { min-width: 0; padding: 14px; border-radius: 16px; }
