@@ -16,7 +16,7 @@ void setup() {
     digitalWrite(ssPins[i], HIGH);
   }
   SPI.begin();
-  Serial.println("=== PECS Mate 2 RFID TEST ===");
+  Serial.println("=== PECS MATE 2 RFID TEST ===");
   for (byte i = 0; i < READER_COUNT; i++) {
     readers[i].PCD_Init(ssPins[i], rstPins[i]);
     delay(100);

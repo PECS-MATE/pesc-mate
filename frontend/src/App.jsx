@@ -1510,7 +1510,7 @@ function App() {
     try {
       const exported = await request('/privacy/export');
       const url = URL.createObjectURL(new Blob([JSON.stringify(exported, null, 2)], { type: 'application/json' }));
-      const anchor = document.createElement('a'); anchor.href = url; anchor.download = `pesc-mate-${user.id}-data.json`; anchor.click();
+      const anchor = document.createElement('a'); anchor.href = url; anchor.download = `pecsmate-${user.id}-data.json`; anchor.click();
       URL.revokeObjectURL(url);
     } catch (e) { setError(e.message); }
     finally { setPrivacyBusy(''); }
@@ -1750,7 +1750,7 @@ function App() {
   if (!user) return <LandingPage pageRef={entryPageRef} onLogin={() => openAuthentication('login')} onStart={() => openAuthentication('register')}
     busy={busy}>
     <section className="login-card" ref={authPanelRef} aria-labelledby="auth-title">
-    <div className="login-mascot"><Mascot /></div><p className="auth-brand">PESC MATE</p>
+    <div className="login-mascot"><Mascot /></div><p className="auth-brand">PECS MATE</p>
     <h2 id="auth-title">{authMode === 'login' ? '로그인' : '사용자 가입'}</h2><p className="muted">{authMode === 'login' ? '내 카드로 이야기를 시작해요.' : 'AAC 사용자 계정을 만들고 바로 시작합니다.'}</p>
     {error && <div role="alert" className="error">{error}</div>}
     <form onSubmit={handleLogin}>
@@ -1833,7 +1833,7 @@ function App() {
     <a className="skip-link" href="#main-content">본문 바로가기</a>
     {compactSidebar && !sidebarCollapsed && <div className="sidebar-backdrop" aria-hidden="true" onClick={() => toggleSidebar(true)} />}
     <aside className="sidebar" id="app-sidebar" hidden={sidebarCollapsed} role={compactSidebar ? 'dialog' : undefined} aria-modal={compactSidebar && !sidebarCollapsed ? true : undefined} aria-label="주 메뉴">
-      <div className="sidebar-heading"><div className="sidebar-brand"><Mascot className="mascot-brand" /><strong>{isCaregiver ? 'PESC MATE' : <>PESC<br />MATE</>}</strong></div><button ref={sidebarCloseRef} type="button" className="sidebar-toggle" aria-label="주 메뉴 접기" title="주 메뉴 접기" aria-controls="app-sidebar" aria-expanded="true" onClick={() => toggleSidebar(true)}><UiIcon name="menu" /></button></div>
+      <div className="sidebar-heading"><div className="sidebar-brand"><Mascot className="mascot-brand" /><strong>{isCaregiver ? 'PECS MATE' : <>PECS <br />MATE</>}</strong></div><button ref={sidebarCloseRef} type="button" className="sidebar-toggle" aria-label="주 메뉴 접기" title="주 메뉴 접기" aria-controls="app-sidebar" aria-expanded="true" onClick={() => toggleSidebar(true)}><UiIcon name="menu" /></button></div>
       <nav aria-label="주 메뉴" onClickCapture={event => { const button = event.target.closest('button'); if (button && button.getAttribute('aria-current') !== 'page' && !confirmCaregiverLeave()) { event.preventDefault(); event.stopPropagation(); } }} onClick={event => { if (event.target.closest('button:not(:disabled)')) { setMyPageOpen(false); if (compactSidebar) toggleSidebar(true); } }}>{isSupporter ? <>
         <button aria-current={!myPageOpen && tab === 'support_home' ? 'page' : undefined} className={!myPageOpen && tab === 'support_home' ? 'active' : ''} onClick={() => setTab('support_home')}><span aria-hidden="true"><UiIcon name="home" /></span>{isCaregiver ? '보호자 홈' : '지원 홈'}</button>
         {canReadRecords && <button aria-current={!myPageOpen && tab === 'dashboard' ? 'page' : undefined} className={!myPageOpen && tab === 'dashboard' ? 'active' : ''} onClick={() => openSupportSection('dashboard')}><span aria-hidden="true"><UiIcon name="chart" /></span>의사소통 기록</button>}

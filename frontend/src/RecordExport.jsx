@@ -28,7 +28,7 @@ export default function RecordExport({ domain, targetId, days, disabled = false,
       try {
         const anchor = document.createElement('a');
         anchor.href = url;
-        anchor.download = `pesc-mate-${domain}-${days ?? 'all'}.${format}`;
+        anchor.download = `pecsmate-${domain}-${days ?? 'all'}.${format}`;
         anchor.click();
       } finally {
         // Allow the browser to start the download before revoking the temporary URL.

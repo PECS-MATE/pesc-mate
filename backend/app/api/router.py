@@ -1274,7 +1274,7 @@ def download_records(domain: Literal['communication', 'learning', 'activity'],
     target = dashboard_user(user, user_id, permission)
     exported = export_records(target, domain, days)
     headers = {'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
-               'Content-Disposition': f'attachment; filename="pesc-mate-{domain}-{days or "all"}.{format}"'}
+               'Content-Disposition': f'attachment; filename="pecsmate-{domain}-{days or "all"}.{format}"'}
     if format == 'csv':
         return Response(records_csv(exported), media_type='text/csv', headers=headers)
     return JSONResponse(exported, headers=headers)

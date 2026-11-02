@@ -39,9 +39,9 @@ export function a4BackSlots(layout) {
 }
 
 export function validateA4Project(project, targetId) {
-  if (project?.format !== 'pecs-mate-a4' || project.version !== 1 || project.targetId !== targetId
+  if (!['pecsmate-a4', 'pecs-mate-a4'].includes(project?.format) || project.version !== 1 || project.targetId !== targetId
     || !Array.isArray(project.cards) || project.cards.length > 60 || !Array.isArray(project.layout?.slots)) {
-    throw new Error('이 아이의 PECS Mate A4 편집 파일을 선택해 주세요.');
+    throw new Error('이 아이의 PECS MATE A4 편집 파일을 선택해 주세요.');
   }
   const { capacity } = a4Geometry(project.layout.settings);
   const slots = project.layout.slots;

@@ -77,7 +77,7 @@ export function ProfileEditor({ user, onSaved, onCancel }) {
   }
   return <section className="profile-editor" aria-labelledby="profile-title">
     <h2 id="profile-title">{user.profile ? '프로필 설정' : '처음 사용할 프로필을 골라 주세요'}</h2>
-    <p>좋아하는 색의 PESC MATE 캐릭터 또는 직접 등록한 사진을 사용할 수 있어요.</p>
+    <p>좋아하는 색의 PECS MATE 캐릭터 또는 직접 등록한 사진을 사용할 수 있어요.</p>
     <form onSubmit={save}>
       <fieldset disabled={busy}><legend>프로필 이미지 선택</legend>
         <div className="profile-options">{presets.map(item => <label key={item.id} className={(!custom && preset === item.id) ? 'selected' : ''}>

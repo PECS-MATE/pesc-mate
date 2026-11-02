@@ -1,5 +1,5 @@
 ---
-title: "PESC MATE API 명세서"
+title: "PECS MATE API 명세서"
 date: "2026년 10월 28일"
 lang: ko-KR
 ---
@@ -8,7 +8,7 @@ lang: ko-KR
 
 | 항목 | 내용 |
 |---|---|
-| API 이름 | PESC MATE API |
+| API 이름 | PECS MATE API |
 | 버전 | 0.1.0 |
 | 개발 기본 URL | `http://127.0.0.1:8000` |
 | API 기본 경로 | `/api` |
@@ -397,7 +397,7 @@ GET /
 
 ```json
 {
-  "message": "PESC MATE API"
+  "message": "PECS MATE API"
 }
 ```
 

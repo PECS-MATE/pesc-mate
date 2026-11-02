@@ -1,6 +1,6 @@
 # 세 위치 Wi-Fi RFID 카드판
 
-UNO R4 WiFi와 MFRC522 리더기 3개가 현재 카드 배열을 기존 PECS Mate 서버에 전송한다.
+UNO R4 WiFi와 MFRC522 리더기 3개가 현재 카드 배열을 기존 PECS MATE 서버에 전송한다.
 웹에서 배열을 명시적으로 적용한 뒤 기존 문장 생성·확인·TTS 버튼으로 말한다.
 전체 배선 제안·권한·API·실물 검수표는 [연동 안내](../../../docs/development/RFID_WIFI_INTEGRATION.md)를 참고한다.
 

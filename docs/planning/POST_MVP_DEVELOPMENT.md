@@ -157,7 +157,7 @@ ollama pull qwen3:4b-instruct
 ## 5. 복사해서 사용할 개발 요청 프롬프트
 
 ```text
-현재 PESC MATE의 기존 MVP는 완료되었고 후속 개선을 개발한다.
+현재 PECS MATE의 기존 MVP는 완료되었고 후속 개선을 개발한다.
 docs/planning/POST_MVP_DEVELOPMENT.md를 요구사항으로 읽고 구현해줘.
 
 먼저 AGENTS.md, 현재 코드와 git 상태, 관련 정책을 확인해줘.

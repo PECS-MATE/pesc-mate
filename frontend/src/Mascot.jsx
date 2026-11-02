@@ -1,4 +1,4 @@
-import mascot from './assets/pesc-mate-mascot.png';
+import mascot from './assets/pecsmate-mascot.png';
 
 export default function Mascot({ className = '' }) {
   return <img className={`mascot ${className}`} src={mascot} alt="" aria-hidden="true" width="128" height="128" draggable="false" />;

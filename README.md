@@ -1,10 +1,10 @@
-# PESC MATE
+# PECS MATE
 
 > 익숙한 그림 한 장이 나의 말이 되도록, 개인 맞춤형 AAC 웹 애플리케이션
 
-<img src="frontend/public/pecs-mate.png" width="340" alt="하트 카드와 물 카드를 든 PESC MATE 대표 캐릭터" />
+<img src="frontend/public/pecsmate.png" width="340" alt="하트 카드와 물 카드를 든 PECS MATE 대표 캐릭터" />
 
-PESC MATE는 말로 의사를 표현하기 어려운 아동이 그림·사진·글자 카드를 선택해
+PECS MATE는 말로 의사를 표현하기 어려운 아동이 그림·사진·글자 카드를 선택해
 자신의 뜻을 음성으로 전달하는 AAC(보완대체의사소통) 프로젝트입니다.
 실물 카드북의 휴대·분류·교체 부담을 줄이고, 아동의 말하기와 보호자·담당자의 지원을 연결합니다.
 

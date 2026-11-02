@@ -10,7 +10,7 @@ import A4PrintDialog from './A4PrintDialog';
 import UiIcon from './UiIcon';
 import { DEFAULT_A4, validateA4Project, MAX_A4_FILE_BYTES } from './services/a4Layout';
 
-const PRINT_DOCUMENT = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>PECS Mate 카드 인쇄</title><style>html, body { margin: 0; padding: 0; background: white; color: #344b46; font-family: Arial, sans-serif; } ${printCss}</style></head><body></body></html>`;
+const PRINT_DOCUMENT = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>PECS MATE 카드 인쇄</title><style>html, body { margin: 0; padding: 0; background: white; color: #344b46; font-family: Arial, sans-serif; } ${printCss}</style></head><body></body></html>`;
 const STATUS = { ready: '미등록', saving: '저장 중', saved: '아이 계정 사용 가능', failed: '저장 실패', uncertain: '저장 여부 확인 필요' };
 
 export default function CardPrintEditor({ targetId, targetName, categories, existingCards, disabled, onSaved }) {
@@ -76,13 +76,13 @@ export default function CardPrintEditor({ targetId, targetName, categories, exis
         cards.push({ id: row.id, label: row.label, meaning: row.meaning || '', category: row.category || '',
           status: row.status === 'saving' ? 'uncertain' : row.status, existingId: row.existingId, savedId: row.savedId, image });
       }
-      const project = { format: 'pecs-mate-a4', version: 1, targetId, cards, layout };
+      const project = { format: 'pecsmate-a4', version: 1, targetId, cards, layout };
       validateA4Project(project, targetId);
       const blob = new Blob([JSON.stringify(project)], { type: 'application/json' });
       if (blob.size > MAX_A4_FILE_BYTES) throw new Error('편집본은 30MB까지 저장할 수 있어요. 보관함 사진 수나 원본 용량을 줄여 주세요.');
       if (!mounted.current || token !== localStorage.getItem('pesc-mate-token')) return;
       const url = previewFor(blob), link = document.createElement('a');
-      link.href = url; link.download = 'pecs-mate-a4.json'; link.click();
+      link.href = url; link.download = 'pecsmate-a4.json'; link.click();
       window.setTimeout(() => { URL.revokeObjectURL(url); urls.current.delete(url); }, 60000);
       setNotice('편집본을 다운로드했어요. 사진이 포함된 파일이므로 안전한 곳에 보관해 주세요. 서버에는 저장하지 않았어요.');
     } catch (error) { if (mounted.current) setNotice(error.message); }
