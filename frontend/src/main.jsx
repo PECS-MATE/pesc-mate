@@ -8,6 +8,7 @@ import "./assets/styles.css";
 import "./assets/landing.css";
 import "./assets/activityUx.css";
 import "./assets/practiceUx.css";
+import "./assets/responsiveUx.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
