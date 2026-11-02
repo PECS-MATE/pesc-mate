@@ -45,7 +45,7 @@ API, 데이터 구조, 카드·마스코트 자산과 협업 규칙을 관리한
 | [추천 통제·탐색 보조](development/RECOMMENDATION_POLICY.md) | 추천 근거·승인·숨김·노출 기록과 장애 격리 |
 | [업로드 이미지 정규화·원본 보관](development/IMAGE_UPLOAD_NORMALIZATION.md) | 로컬 원본 보관과 화면용 WebP 분리, 형식 검증·메타데이터 제거·삭제 연동 |
 | [로컬 이미지 저장 안정화](development/LOCAL_IMAGE_STORAGE.md) | 화면·썸네일 규격, ETag, 저장 한도, 고아 정리·보강·백업 삭제 연동 |
-| [개인 카드 사진 일괄 등록](development/BULK_CARD_IMPORT.md) | 다중 사진 미리보기·이름/분류·중복 후보·부분 실패 재시도와 대상 경계 |
+| [사진 일괄 등록 이전 기록](development/BULK_CARD_IMPORT.md) | 별도 화면은 제거됨. 과거 구현·검증 기록이며 현재는 개별 등록과 A4 편집기 사용 |
 | [개인 카드 사진 교체](development/PRIVATE_CARD_PHOTO_REPLACEMENT.md) | 카드 ID·문구·배치 유지, 사진 버전 충돌·원본 교체와 권한 경계 |
 | [상황별 카드판과 보드 복사](development/SITUATION_BOARDS.md) | 같은 아동의 독립 보드 생성·복사·삭제, 명시 전환과 오프라인 캐시 |
 | [보호자 동의 관리 흐름](development/GUARDIAN_CONSENT_FLOW.md) | 아동의 강제 동의 화면 제거, 확정 동의·초안 분리와 기록 없는 기본 사용 |

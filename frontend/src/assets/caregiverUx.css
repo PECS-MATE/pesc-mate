@@ -60,12 +60,12 @@
 .app.caregiver-ui .caregiver-card-toolbar h2 { margin: 0 0 8px; font-size: 1.5rem; }
 .app.caregiver-ui .caregiver-card-toolbar p { margin: 0; }
 .app.caregiver-ui .caregiver-card-toolbar .primary { min-height: 48px; border-radius: 14px; }
-.app.caregiver-ui .card-print-editor, .app.caregiver-ui .bulk-card-import { display: block; margin-block: 14px; padding: 0 22px; border: 1px solid var(--color-border); border-radius: 22px; background: var(--color-surface); }
-.app.caregiver-ui .card-print-editor > summary, .app.caregiver-ui .bulk-card-import > summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 68px; padding-block: 12px; color: var(--color-text); font-size: 1rem; font-weight: 700; list-style: none; cursor: pointer; }
-.app.caregiver-ui .card-print-editor > summary::-webkit-details-marker, .app.caregiver-ui .bulk-card-import > summary::-webkit-details-marker { display: none; }
-.app.caregiver-ui .card-print-editor > summary::after, .app.caregiver-ui .bulk-card-import > summary::after { content: ''; flex: 0 0 9px; width: 9px; height: 9px; margin-right: 4px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); }
-.app.caregiver-ui .card-print-editor[open] > summary::after, .app.caregiver-ui .bulk-card-import[open] > summary::after { transform: rotate(225deg); }
-.app.caregiver-ui .card-print-editor[open], .app.caregiver-ui .bulk-card-import[open] { padding-bottom: 20px; }
+.app.caregiver-ui .card-print-editor { display: block; margin-block: 14px; padding: 0 22px; border: 1px solid var(--color-border); border-radius: 22px; background: var(--color-surface); }
+.app.caregiver-ui .card-print-editor > summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 68px; padding-block: 12px; color: var(--color-text); font-size: 1rem; font-weight: 700; list-style: none; cursor: pointer; }
+.app.caregiver-ui .card-print-editor > summary::-webkit-details-marker { display: none; }
+.app.caregiver-ui .card-print-editor > summary::after { content: ''; flex: 0 0 9px; width: 9px; height: 9px; margin-right: 4px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); }
+.app.caregiver-ui .card-print-editor[open] > summary::after { transform: rotate(225deg); }
+.app.caregiver-ui .card-print-editor[open] { padding-bottom: 20px; }
 .app.caregiver-ui .submission-list { margin-top: 32px; }
 .app.caregiver-ui .submission-list > h3 { display: table; margin-block: 0 24px; padding-bottom: 10px; border-bottom: 3px solid var(--color-primary-action); font-size: 1.2rem; }
 .app.caregiver-ui .submission-list > ul { padding: 0; list-style: none; }
@@ -181,8 +181,11 @@
 .app.caregiver-ui .support-settings-grid > article > button.primary { margin-top: 16px; }
 .app.caregiver-ui .usb-rfid .usb-connection-controls button.primary { background: var(--color-primary-action); color: var(--color-on-action); }
 .app.caregiver-ui .learning-overview-grid { grid-template-columns: minmax(0, 1fr); }
-.app.caregiver-ui .caregiver-card-search { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 16px; margin-block: 24px; }
-.app.caregiver-ui .caregiver-card-search label { display: grid; gap: 8px; flex: 1 1 200px; }
+.app.caregiver-ui .caregiver-card-search { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 16px; margin-block: 24px; }
+.app.caregiver-ui .caregiver-card-search label { display: grid; grid-template-rows: auto 48px; min-width: 0; gap: 8px; margin: 0; }
+.app.caregiver-ui .caregiver-card-search input, .app.caregiver-ui .caregiver-card-search select { box-sizing: border-box; width: 100%; min-width: 0; height: 48px; min-height: 48px; margin: 0; padding: 10px 12px; border: 1px solid var(--color-border-control); border-radius: 12px; background: var(--color-surface); color: var(--color-text); }
+.app.caregiver-ui .caregiver-card-toolbar h2 { margin: 0; }
+@media (max-width: 600px) { .app.caregiver-ui .caregiver-card-search { grid-template-columns: minmax(0, 1fr); } }
 .app.caregiver-ui .caregiver-save-result { margin-block: 24px; padding: 16px; border-left: 3px solid var(--color-success); }
 .app.caregiver-ui .caregiver-save-result button { margin: 0 8px 8px 0; }
 .app.caregiver-ui .practice-candidate-list { grid-template-columns: minmax(0, 1fr); }
@@ -230,7 +233,7 @@
 .app.caregiver-ui .support-action-grid small { font-size: .875rem; line-height: 1.6; }
 .app.caregiver-ui .support-action-grid > button > span, .app.caregiver-ui .support-action-grid > article > span, .app.caregiver-ui .panel-heading > span { background: transparent; }
 .app.caregiver-ui .support-home > .practice-suggestions { padding: 24px 0; border: 0; border-top: 1px solid var(--color-border); border-radius: 0; background: transparent; box-shadow: none; }
-.app.caregiver-ui .card-print-editor, .app.caregiver-ui .bulk-card-import, .app.caregiver-ui .record-export, .app.caregiver-ui .record-scope-note { border-radius: 12px; }
+.app.caregiver-ui .card-print-editor, .app.caregiver-ui .record-export, .app.caregiver-ui .record-scope-note { border-radius: 12px; }
 .app.caregiver-ui .guardian-summary > div, .app.caregiver-ui .guardian-grid > article, .app.caregiver-ui .report-breakdown > article, .app.caregiver-ui .history > li { border-radius: 12px; box-shadow: none; }
 .app.caregiver-ui .screen-rfid .rfid-panel { padding: 24px; border: 1px solid var(--color-border); border-radius: 16px; background: var(--color-surface); }
 .app.caregiver-ui .rfid-panel .usb-rfid { padding: 0; border: 0; border-radius: 0; box-shadow: none; }

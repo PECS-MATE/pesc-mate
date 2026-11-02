@@ -930,26 +930,6 @@ button { min-width: 44px; min-height: 44px !important; }
 .reauthentication-dialog form, .reauthentication-dialog label { display: grid; gap: 12px; }
 .reauthentication-dialog input { width: 100%; min-width: 0; box-sizing: border-box; }
 .reauthentication-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
-.bulk-card-import { border: 1px solid var(--color-border); border-radius: 12px; padding: 16px; margin-block: 16px; }
-.bulk-card-import summary { cursor: pointer; font-weight: 700; min-height: 44px; display: list-item; align-content: center; }
-.bulk-card-import section { min-width: 0; }
-.bulk-card-import label, .bulk-import-fields { display: grid; gap: 8px; min-width: 0; }
-.bulk-card-import input, .bulk-card-import select, .bulk-card-import textarea { width: 100%; min-width: 0; box-sizing: border-box; font: inherit; }
-.bulk-card-import p, .bulk-card-import span { overflow-wrap: anywhere; }
-.bulk-import-actions { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; margin-block: 16px; }
-.bulk-import-list { list-style: none; padding: 0; display: grid; gap: 16px; }
-.bulk-import-list li { display: flex; align-items: start; flex-wrap: wrap; gap: 16px; border: 1px solid var(--color-border); border-radius: 10px; padding: 12px; }
-.bulk-import-list img { object-fit: contain; flex: 0 0 96px; }
-.bulk-import-preview { flex: 0 0 96px; width: 96px; height: 96px; overflow: hidden; }
-.bulk-import-preview img { display: block; width: 96px; height: 96px; }
-.bulk-image-edits { display: grid; gap: 8px; min-width: 0; border: 1px solid var(--color-border); }
-.bulk-image-edits .bulk-crop-option { display: flex; align-items: center; }
-.bulk-image-edits input[type="checkbox"] { width: auto; min-width: 24px; min-height: 24px; }
-.bulk-import-fields { flex: 1 1 240px; }
-.bulk-import-issue { margin: 0; font-weight: 700; }
-.imported-board-order { border-top: 1px solid var(--color-border); padding-top: 16px; margin-top: 16px; }
-.imported-board-preview { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 16px; }
-.imported-board-preview ol { max-height: 260px; overflow: auto; overflow-wrap: anywhere; }
 .private-card-photos { margin-block: 16px; }
 .private-card-photos ul { list-style: none; padding: 0; display: grid; gap: 8px; }
 .private-card-photos li { display: flex; align-items: center; justify-content: space-between; gap: 12px; }

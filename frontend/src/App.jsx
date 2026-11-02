@@ -19,7 +19,6 @@ import DeletionReceipt from './DeletionReceipt';
 import PracticeSuggestionsPanel from './PracticeSuggestionsPanel';
 import PracticeOverview from './PracticeOverview';
 import RecommendationSettings from './RecommendationSettings';
-import BulkCardImport from './BulkCardImport';
 import CardPhotoReplacement from './CardPhotoReplacement';
 import BoardSlotsEditor from './BoardSlotsEditor';
 import CoreCardLocks from './CoreCardLocks';
@@ -1985,7 +1984,7 @@ function App() {
         categories={cardCategories} busy={cardFormBusy} error={cardFormError} onSubmit={submitCard}
         onClose={() => { setShowCardForm(false); setEditingSubmission(null); setCardFormError(''); }} />}
     </section> : tab === 'card_settings' && isSupporter && canManageCards ? <section className="card-catalog">
-      <div className="caregiver-card-toolbar"><div className="catalog-toolbar"><div><h2>{selectedUser?.name}님의 개인 카드</h2><p className="muted">연결 사용자만 사용하는 카드를 대신 등록하고 관리합니다.</p></div><button className="primary" onClick={() => { setEditingSubmission(null); setCardFormError(''); setShowCardForm(true); }}><UiIcon name="plus" />개인 카드 등록</button></div>
+      <div className="caregiver-card-toolbar"><div className="catalog-toolbar"><div><h2>{selectedUser?.name}님의 개인 카드</h2></div><button className="primary" onClick={() => { setEditingSubmission(null); setCardFormError(''); setShowCardForm(true); }}><UiIcon name="plus" />개인 카드 등록</button></div>
       <label className="user-picker">{isCaregiver ? '아이 선택' : '관리 사용자'}<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)} disabled={cardFormBusy}>{linkedUsers.filter(person => person.permissions.includes('cards_manage')).map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label></div>
       {user.role === 'caregiver' && selectedUser && <CardPrintEditor key={`print-${user.id}:${selectedUser.id}`}
         targetId={selectedUser.id} targetName={selectedUser.name} categories={cardCategories} existingCards={cardSubmissions}
@@ -1999,24 +1998,15 @@ function App() {
         }); }}>등록한 카드 보기</button>
         {canManageBoard && <button type="button" onClick={() => openSupportSection('board_settings')}>카드판 관리로 이동</button>}
       </div>}
-      {selectedUser && <BulkCardImport key={`${user.id}:${selectedUser.id}`} targetId={selectedUser.id} targetName={selectedUser.name}
-        canManageBoard={canManageBoard}
-        categories={cardCategories} existingCards={cardSubmissions} disabled={offline || statsBusy || cardFormBusy}
-        onImported={saved => {
-          if (activeUserRef.current?.id !== user.id || selectedUserRef.current?.id !== selectedUser.id) return;
-          supportCardRequestRef.current += 1;
-          setCardSubmissions(current => [saved, ...current.filter(item => item.id !== saved.id)]);
-          if (isCaregiver) setManagedCardNotice({ targetId: selectedUser.id, label: saved.label, id: saved.id, draft: saved.status === 'draft' });
-        }} />}
       {cardSubmissions.some(item => item.visibility === 'private') && <section className="private-card-photos" aria-label="개인 카드 사진 교체 목록">
-        <h3>개인 카드 사진만 교체</h3><p>기존 카드의 문구와 위치를 유지하면서 사진만 바꿉니다. 공유 카드와 잠긴 핵심 카드는 이 경로로 변경하지 않습니다.</p>
+        <h3>사진 교체</h3>
         <ul>{cardSubmissions.filter(item => item.visibility === 'private').map(item => <li key={`${user.id}:${selectedUser.id}:${item.id}`}>
           <span>{item.label}</span><CardPhotoReplacement card={item} targetId={selectedUser.id} disabled={offline || statsBusy || cardFormBusy}
             onReplaced={() => loadSupportCards(selectedUser)}
             onRefresh={() => loadSupportCards(selectedUser).catch(failure => setError(failure.message))} />
         </li>)}</ul>
       </section>}
-      <div className="submission-list" id="managed-card-list"><h3>등록 카드</h3>{statsBusy ? <p role="status">카드를 불러오고 있어요.</p> : visibleManagedCards.length ? <ul>{visibleManagedCards.map(item => <li key={item.id} id={`managed-card-${item.id}`} tabIndex="-1"><span><strong>{item.label}</strong><small>{item.category} · {item.sharing_notice || (item.visibility === 'private' ? '연결 사용자만 사용' : '공개 요청')}</small></span><div className="submission-actions"><b className={`submission-status ${item.status}`}>{item.visibility === 'private' && item.status === 'approved' ? '사용 중' : ({ draft: '작성 중', pending: '승인 대기', approved: '공개 승인', rejected: '반려', inactive: '비활성' })[item.status] || item.status}</b>{['draft', 'rejected'].includes(item.status) && <button disabled={reviewBusy === item.id} onClick={() => { setEditingSubmission(item); setCardFormError(''); setShowCardForm(true); }}>수정</button>}{item.status === 'draft' && <button className="primary" disabled={reviewBusy === item.id} onClick={() => submitDraft(item)}>{item.visibility === 'private' ? '사용 시작' : '공개 승인 요청'}</button>}</div></li>)}</ul> : <div className="caregiver-card-empty"><UiIcon name="cards" size={44} /><strong>{cardSubmissions.length ? '검색 조건에 맞는 카드가 없어요.' : '등록된 개인 카드가 없습니다.'}</strong><p>{cardSubmissions.length ? '검색어나 분류를 바꿔 주세요.' : '개인 카드 등록 또는 사진 일괄 등록으로 카드를 추가해 주세요.'}</p></div>}</div>
+      <div className="submission-list" id="managed-card-list"><h3>등록 카드</h3>{statsBusy ? <p role="status">카드를 불러오고 있어요.</p> : visibleManagedCards.length ? <ul>{visibleManagedCards.map(item => <li key={item.id} id={`managed-card-${item.id}`} tabIndex="-1"><span><strong>{item.label}</strong><small>{item.category}{!isCaregiver && <> · {item.sharing_notice || (item.visibility === 'private' ? '연결 사용자만 사용' : '공개 요청')}</>}</small></span><div className="submission-actions"><b className={`submission-status ${item.status}`}>{item.visibility === 'private' && item.status === 'approved' ? '사용 중' : ({ draft: '작성 중', pending: '승인 대기', approved: '공개 승인', rejected: '반려', inactive: '비활성' })[item.status] || item.status}</b>{['draft', 'rejected'].includes(item.status) && <button disabled={reviewBusy === item.id} onClick={() => { setEditingSubmission(item); setCardFormError(''); setShowCardForm(true); }}>수정</button>}{item.status === 'draft' && <button className="primary" disabled={reviewBusy === item.id} onClick={() => submitDraft(item)}>{item.visibility === 'private' ? '사용 시작' : '공개 승인 요청'}</button>}</div></li>)}</ul> : <div className="caregiver-card-empty"><UiIcon name="cards" size={44} /><strong>{cardSubmissions.length ? '검색 조건에 맞는 카드가 없어요.' : '등록된 개인 카드가 없습니다.'}</strong></div>}</div>
       {showCardForm && <CardEditorDialog key={`${selectedUser?.id}:${editingSubmission?.id || 'new-card'}`}
         editing={editingSubmission} categories={cardCategories} privateOnly targetName={selectedUser?.name}
         busy={cardFormBusy} error={cardFormError} onSubmit={submitCard}
