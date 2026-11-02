@@ -45,3 +45,26 @@
   .app .a4-sheet-scroll { max-height: 550px; padding: 8px; }
   .app .a4-properties { grid-column: auto; }
 }
+.a4-print-overlay { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; padding: 24px; background: var(--color-overlay); }
+.a4-print-dialog { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; width: min(1400px, 100%); max-height: calc(100dvh - 48px); padding: 24px; overflow: auto; border-radius: 18px; background: var(--color-surface); color: var(--color-text); }
+.a4-print-preview-panel { min-width: 0; }
+.a4-print-preview-panel > label { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.a4-print-preview-scroll { max-height: 76dvh; padding: 20px; overflow: auto; background: var(--color-selected); border: 1px solid var(--color-border); }
+.a4-print-settings { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+.a4-print-settings h2 { margin: 0; font-size: 1.5rem; }
+.a4-print-settings fieldset { display: flex; flex-wrap: wrap; gap: 16px; margin: 0; padding: 10px 0; border: 0; }
+.a4-print-settings legend { margin-bottom: 8px; font-weight: 700; }
+.a4-print-settings label { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
+.a4-print-settings input[type="radio"] { width: 20px; height: 20px; margin: 0; accent-color: var(--color-primary-action); }
+.a4-print-count { justify-content: space-between; }
+.a4-print-count input { width: 100px; min-width: 0; padding: 10px; border: 1px solid var(--color-border-control); border-radius: 8px; background: var(--color-surface); color: var(--color-text); }
+.a4-print-note { margin: 0; font-size: .875rem; line-height: 1.65; color: var(--color-text-secondary); }
+.a4-print-dialog-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: auto; }
+.a4-print-confirm { background: var(--color-primary-action); color: var(--color-on-action); border-color: var(--color-primary-action); }
+.a4-print-confirm:hover:not(:disabled) { background: var(--color-primary-hover); }
+@media (max-width: 850px) {
+  .a4-print-overlay { padding: 8px; }
+  .a4-print-dialog { grid-template-columns: minmax(0, 1fr); max-height: calc(100dvh - 16px); padding: 16px; }
+  .a4-print-preview-scroll { max-height: 40dvh; padding: 10px; }
+  .a4-print-settings { gap: 14px; }
+}

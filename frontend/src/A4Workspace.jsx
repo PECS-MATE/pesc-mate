@@ -1,17 +1,21 @@
 import { useState } from 'react';
-import { a4Geometry, a4Preset, a4Resize, MAX_A4_PAGES } from './services/a4Layout';
+import { a4Geometry, a4Preset, a4Resize, a4BackSlots, MAX_A4_PAGES } from './services/a4Layout';
 
-export function A4Pages({ rows, layout, selected, onSelect, onDrop, locked = false }) {
+export function A4Pages({ rows, layout, selected, onSelect, onDrop, locked = false, duplex = false }) {
   const geometry = a4Geometry(layout.settings);
   const byId = new Map(rows.map(row => [row.id, row]));
   const { settings, slots } = layout;
-  return Array.from({ length: slots.length / geometry.capacity }, (_, page) => <div className="a4-sheet-group" key={page}>
+  const faces = duplex && !onSelect ? 2 : 1;
+  const backs = faces === 2 ? a4BackSlots(layout) : slots;
+  return Array.from({ length: slots.length / geometry.capacity * faces }, (_, face) => {
+    const page = Math.floor(face / faces), back = faces === 2 && face % 2 === 1;
+    return <div className="a4-sheet-group" key={face}>
     {onSelect && <p className="a4-page-number">{page + 1}쪽</p>}
-    <div className="card-print-page" aria-label={`A4 ${page + 1}쪽`} style={{ width: `${geometry.width}mm`, height: `${geometry.height}mm`, padding: `${settings.margin}mm`,
-      gap: `${settings.gap}mm`, gridTemplateColumns: `repeat(${settings.columns}, ${geometry.cellWidth}mm)`, gridTemplateRows: `repeat(${settings.rows}, ${geometry.cellHeight}mm)` }}>
-      {slots.slice(page * geometry.capacity, (page + 1) * geometry.capacity).map((slot, localIndex) => {
+    <div className="card-print-page" aria-label={`A4 ${page + 1}쪽${faces === 2 ? back ? ' 뒷면' : ' 앞면' : ''}`} style={{ width: `${geometry.width}mm`, height: `${geometry.height}mm`, padding: `${settings.margin}mm`,
+      gap: `${settings.gap}mm`, justifyContent: back ? 'end' : 'start', gridTemplateColumns: `repeat(${settings.columns}, ${geometry.cellWidth}mm)`, gridTemplateRows: `repeat(${settings.rows}, ${geometry.cellHeight}mm)` }}>
+      {(back ? backs : slots).slice(page * geometry.capacity, (page + 1) * geometry.capacity).map((slot, localIndex) => {
         const index = page * geometry.capacity + localIndex, row = slot && byId.get(slot.rowId);
-        const content = row ? <><span className="a4-image-window"><img src={row.preview} alt={slot.label || row.label} draggable="false"
+        const content = row ? back ? <strong style={{ fontSize: `${slot.fontSize}pt` }}>{slot.label || row.label}</strong> : <><span className="a4-image-window"><img src={row.preview} alt={slot.label || row.label} draggable="false"
           style={{ objectFit: slot.fit, transform: `scale(${slot.zoom})` }} /></span>{settings.labels && <strong style={{ fontSize: `${slot.fontSize}pt` }}>{slot.label}</strong>}</> : onSelect ? <span className="a4-empty-slot">＋</span> : null;
         return onSelect ? <button type="button" key={index} disabled={locked} draggable={!!row && !locked}
           className={`card-print-cell a4-editable-cell${selected === index ? ' selected' : ''}${row ? '' : ' empty'}`}
@@ -21,7 +25,8 @@ export function A4Pages({ rows, layout, selected, onSelect, onDrop, locked = fal
           : <div key={index} className={`card-print-cell${row ? '' : ' a4-print-empty'}`}>{content}</div>;
       })}
     </div>
-  </div>);
+  </div>;
+  });
 }
 
 export default function A4Workspace({ rows, layout, onChange, locked, onNotice, history, onUndo, onRedo }) {

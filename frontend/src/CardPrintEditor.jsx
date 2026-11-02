@@ -6,6 +6,7 @@ import { fileIssue, filenameLabel, importIssues, MAX_IMPORT_FILES } from './serv
 import printCss from './assets/cardPrintPage.css?inline';
 import './assets/cardPrintEditor.css';
 import A4Workspace, { A4Pages } from './A4Workspace';
+import A4PrintDialog from './A4PrintDialog';
 import { DEFAULT_A4, validateA4Project, MAX_A4_FILE_BYTES } from './services/a4Layout';
 
 const PRINT_DOCUMENT = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>PECS Mate 카드 인쇄</title><style>html, body { margin: 0; padding: 0; background: white; color: #344b46; font-family: Arial, sans-serif; } ${printCss}</style></head><body></body></html>`;
@@ -20,6 +21,9 @@ export default function CardPrintEditor({ targetId, targetName, categories, exis
   const [printing, setPrinting] = useState(false);
   const [notice, setNotice] = useState('');
   const [frameDocument, setFrameDocument] = useState(null);
+  const [printDialog, setPrintDialog] = useState(false);
+  const [printJob, setPrintJob] = useState(null);
+  const printedJob = useRef(null);
   const frame = useRef(null);
   const urls = useRef(new Set());
   const mounted = useRef(false);
@@ -30,6 +34,12 @@ export default function CardPrintEditor({ targetId, targetName, categories, exis
     mounted.current = true;
     return () => { mounted.current = false; urls.current.forEach(url => URL.revokeObjectURL(url)); urls.current.clear(); };
   }, []);
+  useEffect(() => {
+    if (!printJob || printedJob.current === printJob) return;
+    printedJob.current = printJob;
+    // The output portal has committed this job before the effect prepares its images.
+    void print(printJob);
+  }, [printJob]);
   function previewFor(blob) {
     const url = URL.createObjectURL(blob);
     urls.current.add(url);
@@ -192,15 +202,15 @@ export default function CardPrintEditor({ targetId, targetName, categories, exis
       }
     }
   }
-  async function print() {
-    if (!count || busy || printing || !frameDocument) return;
-    setPrinting(true); setNotice('인쇄용 그림이 준비될 때까지 기다려 주세요.');
+  async function print(job) {
+    setNotice('인쇄용 그림이 준비될 때까지 기다려 주세요.');
+    const token = localStorage.getItem('pesc-mate-token');
     try {
       await frameDocument.fonts.ready;
       await Promise.all([...frameDocument.images].map(image => image.decode()));
-      if (!mounted.current) return;
+      if (!mounted.current || token !== localStorage.getItem('pesc-mate-token')) return;
       frame.current.contentWindow.focus(); frame.current.contentWindow.print();
-      setNotice(`인쇄 창에서 A4 ${layout.settings.orientation === 'portrait' ? '세로' : '가로'}, 배율 100%, 여백 없음, 머리글·바닥글 끄기를 확인해 주세요. PDF 저장도 가능해요.`);
+      setNotice(`인쇄 창에서 A4 ${job.layout.settings.orientation === 'portrait' ? '세로' : '가로'}, 배율 100%, 여백 없음, 머리글·바닥글 끄기를 확인해 주세요.${job.duplex ? ` 양면 인쇄와 ${job.layout.settings.orientation === 'portrait' ? '긴 쪽' : '짧은 쪽'} 넘김을 선택해 주세요.` : ''} PDF 저장도 가능해요.`);
     } catch { if (mounted.current) setNotice('이미지를 준비하지 못했어요. 깨진 이미지가 없는지 확인한 뒤 다시 인쇄해 주세요.'); }
     finally { if (mounted.current) setPrinting(false); }
   }
@@ -248,11 +258,15 @@ export default function CardPrintEditor({ targetId, targetName, categories, exis
     <div className="card-print-actions"><button type="button" disabled={!publish || disabled || locked || !candidates.length || issues.length > 0} onClick={save}>아이 계정에 카드 저장</button>
       <button type="button" disabled={disabled || locked} onClick={refresh}>등록 목록 다시 불러오기</button></div>
     </details>
-    <div className="card-print-actions"><button type="button" className="primary" disabled={!count || locked || !frameDocument} onClick={print}>A4 인쇄·PDF 저장 ({count}장)</button></div>
+    <div className="card-print-actions"><button type="button" className="primary" disabled={!count || locked || !frameDocument} onClick={() => setPrintDialog(true)}>프린트 ({count}장)</button></div>
     {notice && <p role="status">{notice}</p>}
     <style>{printCss}</style>
     <iframe ref={frame} title="카드 인쇄 전용 문서" className="card-print-frame" tabIndex="-1" aria-hidden="true" srcDoc={PRINT_DOCUMENT}
       onLoad={() => setFrameDocument(frame.current.contentDocument)} />
-    {frameDocument && createPortal(<><style>{`@page { size: A4 ${layout.settings.orientation}; margin: 0; }`}</style><A4Pages rows={rows} layout={layout} /></>, frameDocument.body)}
+    {frameDocument && createPortal(<><style>{`@page { size: A4 ${(printJob?.layout || layout).settings.orientation}; margin: 0; }`}</style><A4Pages rows={rows} layout={printJob?.layout || layout} duplex={printJob?.duplex || false} /></>, frameDocument.body)}
+    {printDialog && <A4PrintDialog rows={rows} layout={layout} onClose={() => setPrintDialog(false)} onPrint={job => {
+      if (busy || printing || !frameDocument) return;
+      setPrinting(true); setPrintJob(job); setPrintDialog(false);
+    }} />}
   </details>;
 }

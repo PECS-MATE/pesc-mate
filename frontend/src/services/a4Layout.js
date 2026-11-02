@@ -32,6 +32,12 @@ export function a4Resize(layout, settings) {
   return { settings, slots: Array.from({ length: pages * after.capacity }, (_, index) => layout.slots[index] || null) };
 }
 
+// Back faces mirror columns for portrait long-edge / landscape short-edge duplex.
+export function a4BackSlots(layout) {
+  const { columns } = layout.settings;
+  return layout.slots.map((_, index) => layout.slots[Math.floor(index / columns) * columns + columns - 1 - index % columns]);
+}
+
 export function validateA4Project(project, targetId) {
   if (project?.format !== 'pecs-mate-a4' || project.version !== 1 || project.targetId !== targetId
     || !Array.isArray(project.cards) || project.cards.length > 60 || !Array.isArray(project.layout?.slots)) {
