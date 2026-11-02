@@ -20,13 +20,14 @@ function readFavorites(accountId, persist) {
 }
 
 export default function SpeakingCardLibrary({ accountId, persistFavorites, cards, categories, layout, recoveryCards,
-  renderCard, renderPicture, pageSize, busy }) {
+  renderCard, renderPicture, hasPicture = () => false, pageSize, busy }) {
   const [tab, setTab] = useState('home');
   const [folderId, setFolderId] = useState(null);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [favorites, setFavorites] = useState(() => readFavorites(accountId, persistFavorites));
   const [notice, setNotice] = useState('');
+  const [showTools, setShowTools] = useState(false);
   const contentRef = useRef(null);
   const folderRef = useRef(null);
   const pool = [...cards, ...recoveryCards.filter(card => !cards.some(item => item.id === card.id))];
@@ -38,7 +39,7 @@ export default function SpeakingCardLibrary({ accountId, persistFavorites, cards
     ...categories.map(item => ({ id: `category:${item.id}`, name: item.name, cards: cards.filter(card => card.category === item.name) })),
     ...(recoveryCards.length ? [{ id: 'recovery', name: '다시 말하기', cards: recoveryCards }] : []),
     { id: 'all', name: '모든 카드', cards },
-  ];
+  ].filter(item => item.cards.length > 0 || item.id === 'all');
   const folder = folders.find(item => item.id === folderId);
   let selection = folder ? folder.cards : tab === 'home' ? HOME_IDS.map(id => byId.get(id)).filter(Boolean)
     : tab === 'favorites' ? favorites.map(id => byId.get(id)).filter(Boolean)
@@ -75,17 +76,21 @@ export default function SpeakingCardLibrary({ accountId, persistFavorites, cards
     <nav className="speaking-tabs" aria-label="말하기 카드 분류" data-scan-group="categories">
       {TABS.map(item => <button type="button" key={item.id} aria-pressed={tab === item.id} onClick={() => selectTab(item.id)}><UiIcon name={item.icon} /><span>{item.name}</span></button>)}
     </nav>
-    <div className="speaking-library-search"><input aria-label="말하기 카드 검색" placeholder="카드 검색" value={search} onChange={event => setSearch(event.target.value)} /></div>
+    <div className="speaking-library-search"><input aria-label="말하기 카드 검색" placeholder="카드 검색" value={search} onChange={event => setSearch(event.target.value)} /><button type="button" aria-pressed={showTools} onClick={() => setShowTools(current => !current)}><UiIcon name="settings" />카드 도구</button></div>
     {folder && <div className="symbol-folder-heading"><button type="button" onClick={closeFolder}><UiIcon name="arrow-left" />폴더 목록</button><h2 ref={contentRef} tabIndex="-1">{folder.name}</h2></div>}
     {!folder && <h2 className="visually-hidden">{search.trim() ? '카드 검색 결과' : TABS.find(item => item.id === tab)?.name}</h2>}
-    <div className="cards speaking-library-cards" data-scan-group="cards">{visible.map(card => <div className="speaking-library-tile" key={card.id}>
-      {renderCard(card)}<button type="button" className="card-favorite" aria-pressed={favorites.includes(card.id)} aria-label={`${card.label} 즐겨찾기 ${favorites.includes(card.id) ? '해제' : '추가'}`} title={`${card.label} 즐겨찾기`} onClick={() => toggleFavorite(card)}><UiIcon name="star" />{favorites.includes(card.id) && <span className="visually-hidden">선택됨</span>}</button>
-    </div>)}</div>
+    <div className={`cards speaking-library-cards${showTools ? ' showing-tools' : ''}`} data-scan-group="cards">{visible.map(card => <div className="speaking-library-tile" key={card.id}>
+      {renderCard(card)}{showTools && <button type="button" className="card-favorite" aria-pressed={favorites.includes(card.id)} aria-label={`${card.label} 즐겨찾기 ${favorites.includes(card.id) ? '해제' : '추가'}`} title={`${card.label} 즐겨찾기`} onClick={() => toggleFavorite(card)}><UiIcon name="star" />{favorites.includes(card.id) && <span className="visually-hidden">선택됨</span>}</button>}
+    </div>)}
+    {showingFolders && folders.map(item => {
+      const cover = item.cards.find(hasPicture);
+      return <button type="button" key={`folder:${item.id}`} data-folder-id={item.id} className="symbol-folder" disabled={busy} onClick={() => openFolder(item.id)} aria-label={`${item.name} 폴더, 카드 ${item.cards.length}장`}>
+        <svg className="symbol-folder-frame" viewBox="0 0 160 180" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path d="M16 2H54Q60 2 65 8L72 18H144Q158 18 158 32V164Q158 178 144 178H16Q2 178 2 164V16Q2 2 16 2Z" /></svg>
+        <span className="symbol-folder-pictures" aria-hidden="true">{cover ? renderPicture(cover, 'folder-card-picture') : <UiIcon name="folder" size={40} className="folder-placeholder" />}</span><strong>{item.name}</strong>
+      </button>;
+    })}</div>
     {!selection.length && <p className="empty" role="status">{tab === 'favorites' && !search.trim() ? '카드의 별을 누르면 여기에 모여요.' : search.trim() ? '검색한 카드가 없어요.' : '아직 등록된 카드가 없어요.'}</p>}
     {count > 1 && <nav className="card-pagination" aria-label="말하기 카드 페이지"><button disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>이전</button><span>{currentPage + 1} / {count}</span><button disabled={currentPage >= count - 1} onClick={() => setPage(currentPage + 1)}>다음</button></nav>}
-    {showingFolders && <div className="symbol-folders" aria-label="상황별 카드 폴더">{folders.map(item => <button type="button" key={item.id} data-folder-id={item.id} className="symbol-folder" disabled={busy} onClick={() => openFolder(item.id)}>
-      <span className="symbol-folder-pictures" aria-hidden="true"><UiIcon name="folder" size={36} />{item.cards.slice(0, 2).map(card => <span key={card.id}>{renderPicture(card, 'folder-card-picture')}</span>)}</span><strong>{item.name}</strong><small>{item.cards.length}장</small>
-    </button>)}</div>}
     {notice && <p role="status">{notice}</p>}
   </section>;
 }

@@ -1963,7 +1963,7 @@ function App() {
       <div className="workspace">
       <SpeakingCardLibrary key={`${user.id}:${privacy.guardian_consent}`} accountId={user.id} persistFavorites={privacy.guardian_consent}
         cards={cards} categories={cardCategories} layout={boardLayout} recoveryCards={recoveryExpressions}
-        renderPicture={cardPicture} pageSize={accessibility.cards_per_page} busy={busy}
+        renderPicture={cardPicture} hasPicture={card => Boolean(cardImage(card))} pageSize={accessibility.cards_per_page} busy={busy}
         renderCard={card => recoveryExpressions.some(item => item.id === card.id)
           ? <div className="card-tile"><button type="button" className="card" disabled={speechState.status === 'starting'} aria-label={`${card.label} 복구 표현 말하기`} onClick={() => speakText(card.label, 'recovery')}>{cardArt(card)}<strong>{card.label}</strong></button><button type="button" className="card-speaker" aria-label={`${card.label} 다시 듣기`} onClick={() => speakText(card.label, 'recovery')}><UiIcon name="volume" /></button></div>
           : tile(card)} />
