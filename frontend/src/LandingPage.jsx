@@ -1,5 +1,7 @@
 import Mascot from './Mascot';
 import UiIcon from './UiIcon';
+import tagScene from './assets/main/태그이미지.png';
+import aacScene from './assets/main/aac사용.png';
 
 const features = [
   { icon: 'tag', title: '실물 카드 태그', text: '실물 카드를 태그해 화면으로 가져오세요. 읽은 카드를 확인하고, 전하고 싶은 문장에 담을 수 있어요.' },
@@ -7,8 +9,8 @@ const features = [
   { icon: 'message', title: '그림으로 말하기', text: '실물 카드가 없어도 괜찮아요. 화면의 그림카드를 눌러 문장을 담고, 말하기 버튼으로 마음을 전해요.' },
 ];
 
-function ImagePlaceholder({ title, description }) {
-  return <figure className="landing-image-placeholder"><span aria-hidden="true"><UiIcon name="image" size={32} /></span><figcaption><strong>{title}</strong><p>{description}</p></figcaption></figure>;
+function SceneImage({ src, alt, caption, lazy = false }) {
+  return <figure className="landing-scene"><img src={src} alt={alt} width="1448" height="1086" loading={lazy ? 'lazy' : 'eager'} decoding="async" /><figcaption>{caption}</figcaption></figure>;
 }
 
 export default function LandingPage({ children, onLogin, onStart, busy = false, pageRef }) {
@@ -31,7 +33,7 @@ export default function LandingPage({ children, onLogin, onStart, busy = false, 
         <div className="landing-hero-actions"><a className="landing-cta" href="#landing-account" onClick={start} aria-disabled={busy}>나의 소통 시작하기 <UiIcon name="arrow-right" /></a><a className="landing-text-link" href="#landing-how">이용 방법 보기 <UiIcon name="arrow-down" /></a></div>
         <p className="landing-hero-note">화면 터치로도 사용할 수 있어요. 실물 카드 태그는 선택 사항이에요.</p>
       </div>
-      <ImagePlaceholder title="카드 태그 사용 장면 이미지 영역" description="실물 카드를 태그하고, 화면에서 읽은 카드를 확인하며 소통하는 장면을 넣을 자리입니다." />
+      <SceneImage src={tagScene} alt="아이가 보호자와 함께 사과 그림카드를 기기에 태그하는 장면" caption="실물 카드 태그 사용 장면 예시" />
     </section>
 
     <section className="landing-features" id="landing-features" aria-labelledby="landing-features-title"><div className="landing-container">
@@ -40,7 +42,7 @@ export default function LandingPage({ children, onLogin, onStart, busy = false, 
     </div></section>
 
     <section className="landing-showcase" aria-labelledby="landing-showcase-title"><div className="landing-container landing-showcase-inner">
-      <ImagePlaceholder title="태블릿 사용 화면 이미지 영역" description="태블릿에서 그림카드와 나의 문장을 함께 보는 실제 서비스 화면을 넣을 자리입니다." />
+      <SceneImage src={aacScene} alt="아이가 보호자와 함께 태블릿의 그림카드를 선택해 소통하는 장면" caption="AAC 사용 장면 예시 · 실제 서비스 화면과 다를 수 있습니다." lazy />
       <div><p className="landing-eyebrow">내가 사용하는 화면에 맞게</p><h2 id="landing-showcase-title">큰 화면에서도,<br />작은 화면에서도 편안하게.</h2><p className="landing-description">PC와 태블릿, 작은 화면에서도 카드를 찾고 문장을 담을 수 있도록 화면 폭에 맞춰 배치가 달라져요.</p>
         <ul className="landing-benefits"><li><UiIcon name="check" />누르기 쉬운 카드와 버튼</li><li><UiIcon name="check" />화면 폭에 맞춰 조정되는 배치</li><li><UiIcon name="check" />별도 앱 설치 없이 브라우저에서 사용</li></ul>
         <p className="landing-device-note">카드 태그 연결은 지원되는 PC 브라우저에서 사용해 주세요. 터치 화면 사용과 연결 지원 범위는 다를 수 있어요.</p>
