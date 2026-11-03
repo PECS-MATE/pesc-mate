@@ -1756,7 +1756,7 @@ function App() {
       ? `그림 카드 ${cards.length}개를 살펴보세요.`
       : tab === 'practice'
       ? '카드로 차근차근 연습해요.'
-      : '나의 의사소통 기록을 확인해요.';
+      : '그림으로 마음을 전해요.';
   if (!authReady) return <main className="login-page"><p role="status">로그인 정보를 확인하는 중입니다…</p></main>;
   if (!user) return <LandingPage pageRef={entryPageRef} onLogin={() => openAuthentication('login')} onStart={() => openAuthentication('register')}
     busy={busy}>
@@ -1873,7 +1873,6 @@ function App() {
         <button aria-current={!myPageOpen && tab === 'cards' ? 'page' : undefined} className={!myPageOpen && tab === 'cards' ? 'active' : ''} onClick={() => setTab('cards')}><span aria-hidden="true"><UiIcon name="message" /></span>그림으로 말하기</button>
         <button aria-current={!myPageOpen && tab === 'catalog' ? 'page' : undefined} className={!myPageOpen && tab === 'catalog' ? 'active' : ''} onClick={() => setTab('catalog')}><span aria-hidden="true"><UiIcon name="cards" /></span>카드</button>
         <button aria-current={!myPageOpen && tab === 'practice' ? 'page' : undefined} className={!myPageOpen && tab === 'practice' ? 'active' : ''} onClick={() => openLearning(null)}><span aria-hidden="true"><UiIcon name="book" /></span>연습하기</button>
-        <button aria-current={!myPageOpen && tab === 'dashboard' ? 'page' : undefined} className={!myPageOpen && tab === 'dashboard' ? 'active' : ''} onClick={() => setTab('dashboard')}><span aria-hidden="true"><UiIcon name="chart" /></span>나의 이용 기록</button>
         </>}</nav>
       <AccountMenu key={user.id} user={user} buttonRef={accountButtonRef} disabled={busy} onLogout={handleLogout}
         onProfile={() => { stopSpeech(); setMyPageOpen(true); setProfileNotice(''); if (compactSidebar) toggleSidebar(true); }} />
@@ -2123,7 +2122,7 @@ function App() {
         </div>
       </article>)}</div>
       {!adminSubmissions.length && <EmptyState>아직 제출된 카드가 없습니다.</EmptyState>}
-    </section> : tab === 'dashboard' && (!isSupporter || canReadRecords) ? <section className="dashboard"
+    </section> : tab === 'dashboard' && isSupporter && canReadRecords ? <section className="dashboard"
       role={isSupporter ? 'tabpanel' : undefined} id={isSupporter ? 'support-record-panel-dashboard' : undefined}
       aria-labelledby={isSupporter ? 'support-record-tab-dashboard' : undefined} tabIndex={isSupporter ? 0 : undefined}>
       <div className="panel-heading"><span aria-hidden="true"><UiIcon name="chart" /></span><div><h2>{isCaregiver ? `${selectedUser?.name}님의 의사소통 기록` : isSupporter ? '연결 사용자 의사소통 기록' : '나의 의사소통 기록'}</h2>{isSupporter && <p className="muted">{(selectedUser || user).name} · {period === 'all' ? '전체 기간' : `최근 ${period}일`} · 문장 저장 기준 · 의사소통 기록 조회 권한</p>}</div></div>
