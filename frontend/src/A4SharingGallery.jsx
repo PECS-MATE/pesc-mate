@@ -102,16 +102,21 @@ export default function A4SharingGallery({ accountId, canReview = false, disable
     }}>보관함으로 돌아가기</button></header>
       <CardPrintEditor key={editing.id} printOnly initialProject={editing.project} initialTitle={`${editing.title}`}
         targetId={null} disabled={disabled} onSaved={async () => {}} />
-    </> : <><header><div><h2>{canReview ? '공유 카드판 검토' : '함께 만드는 그림 카드판'}</h2><p>{canReview ? '공유 요청과 신고를 확인하세요.' : '마음에 드는 카드판을 복사해 우리 아이에게 맞게 바꿔 보세요.'}</p></div>
-      <div className="a4-sharing-actions">{!canReview && <button type="button" className="primary" disabled={disabled} onClick={() => edit({ id: 'new', title: '새 그림 카드판', project: null })}>새 카드판 만들기</button>}
-      <button type="button" disabled={disabled || busy} aria-label="공유 카드판 새로고침" onClick={() => setRevision(value => value + 1)}><UiIcon name="refresh" /></button></div></header>
+    </> : <><header className="a4-sharing-heading"><h2>{canReview ? '공유 카드판 검토' : '의사소통판'}</h2><p>{canReview ? '공유 요청과 신고를 확인하세요.' : '다양한 상황에 맞는 그림 카드판을 만나 보세요.'}</p></header>
+      <div className="a4-sharing-toolbar"><div className="a4-sharing-actions">{!canReview && <button type="button" className="primary" disabled={disabled} onClick={() => edit({ id: 'new', title: '새 그림 카드판', project: null })}>새 카드판 만들기</button>}
+      <button type="button" disabled={disabled || busy} aria-label="공유 카드판 새로고침" onClick={() => setRevision(value => value + 1)}><UiIcon name="refresh" /></button></div>
       <div className="a4-sharing-tabs" role="group" aria-label="카드판 목록 선택">{[['discover', '둘러보기'], ...(!canReview ? [['mine', '내 보관함']] : [['review', '승인·신고 검토']])].map(([value, label]) => <button type="button" key={value} aria-pressed={scope === value} onClick={() => { setScope(value); setOffset(0); }}>{label}</button>)}</div>
+      </div>
       <form className="a4-sharing-search" onSubmit={event => { event.preventDefault(); setSearch(query.trim()); setOffset(0); }}>
         <label>카드판 검색<input maxLength="60" value={query} onChange={event => setQuery(event.target.value)} /></label>
         <label>주제<select value={topic} onChange={event => { setTopic(event.target.value); setOffset(0); }}><option value="">모든 주제</option>{A4_TOPICS.map(value => <option key={value}>{value}</option>)}</select></label><button disabled={disabled}>검색</button>
       </form>
       {disabled ? <p role="status">온라인 연결 후 공유 카드판을 이용할 수 있어요.</p> : busy ? <p role="status">카드판을 불러오는 중…</p> : !items.length ? <p>아직 카드판이 없어요.{!canReview && ' A4 편집기의 저장·공유 버튼으로 새 편집본을 남겨 보세요.'}</p> : <div className="a4-sharing-grid">{items.map(item => <button type="button" key={item.id} className="a4-sharing-tile" onClick={() => open(item)}>
-        <img src={item.preview} alt="" loading="lazy" /><span><strong>{item.title}</strong><small>{item.topic} · {item.pages}쪽 · {item.card_count}장{scope !== 'discover' && ` · ${A4_STATUS[item.status]}`}</small></span>
+        <span className="a4-sharing-tile-preview"><img src={item.preview} alt="" loading="lazy" /></span>
+        <span className="a4-sharing-tile-info"><strong>{item.title}</strong><span className="a4-sharing-tile-topic">#{item.topic}</span>
+          <span className="a4-sharing-tile-meta"><small>{item.pages}쪽 · {item.card_count}장</small>{/^\d{4}-\d{2}-\d{2}/.test(item.created_at || '') && <time dateTime={item.created_at.slice(0, 10)}>{item.created_at.slice(0, 10).replaceAll('-', '.')} 등록</time>}</span>
+          {scope !== 'discover' && <small className="a4-sharing-tile-status">{A4_STATUS[item.status]}</small>}
+        </span>
       </button>)}</div>}
       <div className="a4-sharing-actions"><button type="button" disabled={disabled || busy || offset === 0} onClick={() => setOffset(value => Math.max(0, value - 12))}>이전</button><span>{offset / 12 + 1}쪽</span><button type="button" disabled={disabled || busy || !more} onClick={() => setOffset(value => value + 12)}>다음</button></div>
     </>}

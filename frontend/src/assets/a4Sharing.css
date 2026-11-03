@@ -4,15 +4,26 @@
 .a4-sharing-gallery header > div, .a4-sharing-dialog header > div { min-width: 0; }
 .a4-sharing-gallery h2, .a4-sharing-dialog h2 { overflow-wrap: anywhere; }
 .a4-sharing-gallery header p { margin: .5rem 0 1rem; color: var(--color-text-secondary); font-size: 1rem; }
+.a4-sharing-gallery > .a4-sharing-heading { flex-direction: column; justify-content: center; text-align: center; gap: .875rem; margin-block: 2rem; }
+.a4-sharing-heading h2 { font-size: clamp(1.75rem, 3vw, 2.25rem); line-height: 1.4; }
+.a4-sharing-gallery .a4-sharing-heading p { margin: 0; line-height: 1.6; }
+.a4-sharing-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; }
+.a4-sharing-toolbar > .a4-sharing-actions { order: 1; }
 .a4-sharing-tabs, .a4-sharing-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .625rem; margin-block: .75rem; }
 .a4-sharing-tabs [aria-pressed="true"] { background: var(--color-primary-action); color: white; border-color: var(--color-primary-action); }
 .a4-sharing-search { display: grid; grid-template-columns: minmax(0, 1fr) minmax(8rem, .5fr) auto; align-items: end; gap: .75rem; margin-block: 1rem; }
 .a4-sharing-search label, .a4-sharing-dialog label { display: grid; gap: .375rem; min-width: 0; margin: 0; }
 .a4-sharing-search input, .a4-sharing-search select, .a4-sharing-search button { min-height: 48px; margin: 0; }
-.a4-sharing-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 1rem; }
-.a4-sharing-tile { display: flex; flex-direction: column; align-items: stretch; padding: .75rem; text-align: left; min-width: 0; background: var(--color-surface); border: 1px solid var(--color-border-control); border-radius: .75rem; }
-.a4-sharing-tile img { display: block; width: 100%; height: 220px; object-fit: contain; background: white; }
-.a4-sharing-tile span { display: grid; gap: .375rem; margin-top: .75rem; overflow-wrap: anywhere; }
+.a4-sharing-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem; margin-block: 1.5rem; }
+.a4-sharing-tile { display: flex; flex-direction: column; align-items: stretch; padding: 0; text-align: left; min-width: 0; overflow: hidden; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: .75rem; box-shadow: none; }
+.a4-sharing-tile:hover { background: var(--color-surface); border-color: var(--color-primary-action); }
+.a4-sharing-tile-preview { display: block; position: relative; flex-shrink: 0; aspect-ratio: 4 / 3; background: var(--color-selected); border-bottom: 1px solid var(--color-border); }
+.a4-sharing-tile img { display: block; position: absolute; inset: .75rem; width: calc(100% - 1.5rem); height: calc(100% - 1.5rem); object-fit: contain; background: white; }
+.a4-sharing-tile-info { display: flex; flex: 1; flex-direction: column; gap: .75rem; padding: 1.25rem; overflow-wrap: anywhere; }
+.a4-sharing-tile-info strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 3em; font-size: 1.125rem; line-height: 1.5; }
+.a4-sharing-tile-topic { color: var(--color-text-secondary); font-size: .875rem; font-weight: 400; }
+.a4-sharing-tile-meta { display: flex; flex-wrap: wrap; gap: .375rem .75rem; margin-top: auto; color: var(--color-text-secondary); font-size: .875rem; font-weight: 400; }
+.a4-sharing-tile-status { align-self: flex-start; padding: .25rem .625rem; border: 1px solid var(--color-border); border-radius: 1rem; }
 .a4-sharing-tile small, .a4-sharing-dialog small { color: var(--color-text-secondary); font-size: .875rem; }
 .a4-sharing-dialog { box-sizing: border-box; width: min(850px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); padding: 1.25rem; border: 1px solid var(--color-primary); border-radius: 1rem; overflow-y: auto; color: var(--color-text); background: white; }
 .a4-sharing-dialog::backdrop { background: var(--color-overlay); }
@@ -26,7 +37,13 @@
 .a4-sharing-preview { max-height: 55dvh; overflow: auto; padding: .75rem; margin-block: 1rem; background: var(--color-selected); border-radius: .5rem; }
 .a4-sharing-pages { width: max-content; margin-inline: auto; zoom: .45; }
 .a4-sharing-dialog footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .625rem; }
+@media (max-width: 1100px) {
+  .a4-sharing-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 @media (max-width: 600px) {
+  .a4-sharing-grid { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+  .a4-sharing-gallery > .a4-sharing-heading { margin-block: 1.5rem; }
+  .a4-sharing-toolbar > .a4-sharing-actions { order: 0; }
   .a4-sharing-search { grid-template-columns: minmax(0, 1fr); }
   .a4-sharing-pages { zoom: .3; }
   .a4-sharing-dialog { padding: .75rem; }
