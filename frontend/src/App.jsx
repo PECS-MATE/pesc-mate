@@ -31,7 +31,7 @@ import RfidChipRegistration from './RfidChipRegistration';
 import useReauthentication from './useReauthentication';
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { hasToken, request, requestBlob, setToken } from "./services/api";
+import { hasToken, request, requestBlob, requestSpeechAudio, setToken } from "./services/api";
 import { clearBoard, loadBoard, saveBoard } from "./services/boardStorage";
 import { LEARNING_ACTIVITIES, learningQuestions } from "./services/learningGame";
 import LearningQuestion from './LearningQuestion';
@@ -855,6 +855,8 @@ function App() {
     return event.completion;
   }
   function speechFailureMessage(errorCode) {
+    if (errorCode === 'server-busy') return '로컬 음성 서버가 사용 중입니다. 잠시 후 다시 눌러 주세요.';
+    if (errorCode === 'server-unavailable') return 'MeloTTS 음성 서버를 확인해 주세요. 첫 실행은 모델 다운로드와 준비에 시간이 필요합니다.';
     if (errorCode === 'volume-zero') return '기본 볼륨이 0입니다. 음성 설정에서 볼륨을 올려 주세요.';
     if (errorCode === 'not-allowed') return '이 기기의 브라우저가 음성 재생을 막았어요. 다시 재생을 직접 눌러 주세요. 기기 음량과 블루투스 출력도 확인해 주세요.';
     if (['language-unavailable', 'voice-unavailable'].includes(errorCode)) return '기기에 한국어 음성을 설치하거나 음성 설정에서 다른 음성을 선택해 주세요.';
@@ -901,13 +903,16 @@ function App() {
     const runId = ++speechRunRef.current;
     const currentVoices = koreanVoices(window.speechSynthesis?.getVoices() || []);
     const voice = selectTtsVoice(currentVoices.length ? currentVoices : ttsVoices, ttsSettings.voiceName, offline);
+    const coreAudioUrl = playback.speechOnly ? null : coreSpeechCache.urlFor(content, { online: !offline });
     setSpeechState({ status: 'starting', content });
     speechPlayback.speak({
       text: content, voice: playback.systemVoice ? null : voice,
       rate: ttsSettings.rate, pitch: ttsSettings.pitch, volume: ttsSettings.volume,
-      audioUrl: playback.speechOnly ? null : coreSpeechCache.urlFor(content, { online: !offline }),
-      preferAudio: !playback.speechOnly && (playback.preferAudio || offline || !voice),
-      allowSpeechFallback: !playback.audioOnly,
+      audioUrl: coreAudioUrl,
+      preferAudio: !playback.speechOnly && (Boolean(coreAudioUrl) || playback.preferAudio || offline || !voice),
+      resolveAudio: !offline && !coreAudioUrl && !playback.speechOnly && !playback.audioOnly
+        ? signal => requestSpeechAudio(content, ttsSettings.rate, signal) : null,
+      allowSpeechFallback: !playback.audioOnly && Boolean(offline || playback.speechOnly),
       onStart: () => {
         speechEvent.startupMs = Math.max(0, Date.now() - speechEvent.requestedAt);
         if (speechRunRef.current === runId) setSpeechState({ status: 'playing', content });
@@ -949,6 +954,8 @@ function App() {
     // Reuse the shared player so urgent/communication speech can always replace
     // a prompt. Prompts never become communication events or the last utterance.
     speechPlayback.speak({ text: card.label, voice, rate: ttsSettings.rate, pitch: ttsSettings.pitch, volume: ttsSettings.volume,
+      resolveAudio: !offline ? signal => requestSpeechAudio(card.label, ttsSettings.rate, signal) : null,
+      allowSpeechFallback: offline,
       onStart: () => { if (isCurrent()) { setSpeechState({ status: 'playing', content: '학습 문제 음성' }); callbacks.onStart(); } },
       onPause: () => { if (isCurrent()) setSpeechState({ status: 'paused', content: '학습 문제 음성' }); },
       onResume: () => { if (isCurrent()) setSpeechState({ status: 'playing', content: '학습 문제 음성' }); },
@@ -1792,6 +1799,7 @@ function App() {
       </div></section> },
       { id: 'voice', label: '음성 설정', content: <section className="tts-settings">
           <h3>음성 설정</h3>
+          <p className="form-notice">서버 연결 시 MeloTTS 한국어 음성을 사용합니다. 속도·볼륨을 조절할 수 있고, 기기 음성 선택·느낌·음높이는 오프라인 기기 합성에만 적용됩니다.</p>
           <div className="tts-settings-grid">
             <label>음성 느낌<select value={ttsSettings.preset} onChange={event => changeTtsPreset(event.target.value)}>{Object.entries(TTS_PRESETS).map(([value, preset]) => <option key={value} value={value}>{preset.label}</option>)}</select></label>
             <label>기기 한국어 음성<select value={ttsSettings.voiceName} onChange={event => updateTtsSettings({ voiceName: event.target.value })}><option value="">한국어 음성 자동 선택</option>{ttsSettings.voiceName && !ttsVoices.some(voice => voice.name === ttsSettings.voiceName) && <option value={ttsSettings.voiceName}>{ttsSettings.voiceName} (현재 기기에 없음)</option>}{ttsVoices.map(voice => <option key={voice.voiceURI} value={voice.name}>{voice.name}{voice.localService === true ? ' · 기기 저장' : voice.localService === false ? ' · 온라인 음성' : ' · 오프라인 확인 필요'}</option>)}</select></label>
@@ -1800,6 +1808,7 @@ function App() {
             <label>기본 볼륨 <output>{Math.round(ttsSettings.volume * 100)}%</output><input type="range" min="0" max="1" step="0.05" value={ttsSettings.volume} onChange={event => updateTtsSettings({ volume: Number(event.target.value) })} /></label>
           </div>
           <div className="tts-preview"><small role="status">{localKoreanVoices.length ? `이 기기에 저장된 한국어 음성 ${localKoreanVoices.length}개` : ttsVoices.length ? `이 기기의 한국어 음성 ${ttsVoices.length}개 · 오프라인 사용은 별도 확인` : '이 기기에서 한국어 음성을 아직 찾지 못했어요. 기기 음성 테스트를 눌러 확인해 주세요.'}</small><span>
+            <button type="button" disabled={busy || ttsSettingsBusy || offline} onClick={() => speakText('안녕하세요. 서버에서 만든 한국어 음성입니다.', 'preview')}>서버 음성 테스트</button>
             <button type="button" disabled={busy || ttsSettingsBusy} onClick={() => speakText('안녕하세요. 목소리를 확인해 보세요.', 'preview', [], '', { speechOnly: true })}>기기 음성 테스트</button>
             <button type="button" disabled={busy || ttsSettingsBusy} onClick={() => speakText('한국어 기본 음성을 확인합니다.', 'preview', [], '', { speechOnly: true, systemVoice: true })}>한국어 기본 음성 테스트</button>
             <button type="button" disabled={busy || ttsSettingsBusy} onClick={() => speakText('도와주세요', 'preview', [], '', { preferAudio: true, audioOnly: true })}>기본 녹음 테스트</button>

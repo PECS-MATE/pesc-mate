@@ -30,7 +30,8 @@
    저장할 문장은 `POST /api/sentences`에 `cards`(1~12개 카드 ID)와 새 UUID
    `request_id`를 보낸다. 법정대리인 동의가 없는 기본 말하기는 화면에서
    기록 없이 사용할 수 있지만 이 저장 API는 동의가 필요하다.
-4. 발화는 브라우저의 Web Speech API가 처리한다. `/api/tts/settings`와
+4. 서버 연결 시 `POST /api/tts/speech`에 `text`, `rate`를 보내 로컬 MeloTTS WAV를 재생한다.
+   오프라인에서는 기기 음성/준비된 녹음을 사용한다. `/api/tts/settings`와
    `/api/tts/events`는 설정·재생 결과용이며 음성 파일을 반환하지 않는다.
 5. 작업을 마치면 `POST /api/auth/logout`으로 해당 세션을 종료한다.
 

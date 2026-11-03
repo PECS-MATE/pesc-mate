@@ -122,13 +122,15 @@ PC USB 연결·장치 로그·태그 등록은 [USB 카드 리더기 안내](doc
 | 영역 | 기술 |
 |---|---|
 | 프런트엔드 | React, Vite, JavaScript, Web Speech API |
+| 로컬 음성 합성 | MeloTTS 한국어, CPU PyTorch, PCM WAV |
 | 백엔드 | Python 3.12, FastAPI, Uvicorn, PyMongo, Pillow |
 | 데이터·오프라인 | MongoDB 8.0, IndexedDB, Service Worker |
 | 선택형 AI | Ollama, 기본 설정 모델 `qwen2.5:0.5b` |
 | 로컬 실행 | Docker Compose, Node.js |
 
 Ollama와 모델은 별도로 설치합니다. 모델이 없거나 실패하면 규칙 기반 문장과 선택 카드
-발화로 대체하며, 기기 TTS는 AI와 독립적으로 동작합니다.
+발화로 대체하며, 한국어 음성은 별도 로컬 MeloTTS 서비스에서 합성합니다.
+오프라인 기기 음성과 핵심 표현 녹음은 유지합니다. [설치·운영 및 검증 범위](docs/development/MELO_TTS.md)
 
 ### 구조와 주요 설계
 
@@ -140,7 +142,9 @@ flowchart LR
     RFID -. "선택형 인증 Wi-Fi 스냅샷" .-> API
     API --> DB[("MongoDB")]
     API -. "선택형 문장 생성" .-> LLM["로컬 Ollama"]
-    Web --> Voice["기기 TTS / 핵심 표현 음성 캐시"]
+    API --> Melo["로컬 MeloTTS 한국어 WAV"]
+    Melo --> Web
+    Web --> Voice["오프라인 기기 TTS / 핵심 표현 음성 캐시"]
     Web <--> Cache["IndexedDB / Service Worker"]
 ```
 

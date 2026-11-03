@@ -1,6 +1,25 @@
 name: pesc-mate
 
 services:
+  melotts:
+    build:
+      context: ./services/melotts
+    environment:
+      MELO_THREADS: "2"
+    volumes:
+      - melotts_models:/models
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      start_period: 10m
+      retries: 10
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+
   mongodb:
     image: mongo:8.0
     attach: false
@@ -23,6 +42,7 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/app --no-access-log
     environment:
       MONGODB_URI: mongodb://mongodb:27017
+      MELO_TTS_URL: http://melotts:8090
       MONGODB_DATABASE: pesc_mate
       DEMO_ACCOUNTS_ENABLED: "true"
       ACCOUNT_PERMISSION_MANAGER_IDS: "${ACCOUNT_PERMISSION_MANAGER_IDS:-}"
@@ -54,6 +74,8 @@ services:
     volumes:
       - ./backend/app:/app/app
     depends_on:
+      melotts:
+        condition: service_started
       mongodb:
         condition: service_healthy
     healthcheck:
@@ -85,5 +107,6 @@ services:
         condition: service_healthy
 
 volumes:
+  melotts_models:
   mongodb_data:
   frontend_node_modules:

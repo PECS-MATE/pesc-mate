@@ -149,6 +149,7 @@ HTTP 500은 일반 안내만 반환하고 내부 예외 문구를 응답에 포�
 | 프로필 | POST | `/api/profile/image` | 필요 | 내 프로필 사진 업로드(`multipart/form-data`) |
 | 프로필 | GET | `/api/profile/{user_id}/image` | 본인 또는 연결 권한 | 권한이 있는 사용자 사진 조회 |
 | 음성 | GET | `/api/tts/settings` | 필요 | 현재 사용자의 TTS 설정 조회 |
+| 음성 | POST | `/api/tts/speech` | 필요 | 로컬 MeloTTS로 문장을 PCM WAV 합성 |
 | 음성 | PUT | `/api/tts/settings` | 필요 | 현재 사용자의 TTS 설정 저장 |
 | 음성 | POST | `/api/tts/events` | 필요 | TTS 재생 요청 이력 생성 |
 | 음성 | PATCH | `/api/tts/events/{request_id}` | 필요 | TTS 성공·실패·중지 결과 저장 |
@@ -644,7 +645,7 @@ Authorization: Bearer {access_token}
 Content-Type: application/json
 ```
 
-재생을 요청할 때 UUID, 콘텐츠 종류(`card`, `sentence`, `recovery`, `preview`)와 글자 수를 저장한다. 기기 TTS 재생을 먼저 요청한 뒤 이력을 비동기로 저장하며, 재생이 끝나면 같은 UUID에 `succeeded`, `failed`, `cancelled` 결과, 오류 코드와 발화 시작 지연 시간 `startup_ms`를 기록한다. 지연 시간은 버튼 입력부터 브라우저의 `onstart` 이벤트까지 측정하고 최대 60초만 허용한다. 발화 원문은 개인정보 노출을 줄이기 위해 저장하지 않는다.
+재생을 요청할 때 UUID, 콘텐츠 종류(`card`, `sentence`, `recovery`, `preview`)와 글자 수를 저장한다. 음성 재생 경로를 먼저 시작한 뒤 이력을 비동기로 저장하며, 재생이 끝나면 같은 UUID에 `succeeded`, `failed`, `cancelled` 결과, 오류 코드와 발화 시작 지연 시간 `startup_ms`를 기록한다. 지연 시간은 버튼 입력부터 파일 음성의 `playing` 또는 기기 합성의 `start` 이벤트까지 측정하고 최대 60초만 허용한다. 서버 합성 지연도 포함되며 발화 원문은 이력에 저장하지 않는다.
 
 ## 6.10 사용자 접근 설정 조회 및 저장
 
@@ -1384,14 +1385,26 @@ preflight는 요청 ID와 지표 집계를 유지하지만 콘솔 요청 로그�
 3. MongoDB 자체 인증은 현재 개발 구성에 적용되지 않았다.
 4. 카드 요청의 임시 저장·제출·수정·승인/반려는 구현됐다. 별도 카드 요청 삭제 API는 없다.
 5. Ollama가 실행되지 않거나 모델 응답이 60초를 초과하면 규칙 기반 문장을 사용한다.
-6. 음성 출력은 프런트엔드의 Web Speech API가 담당한다. 백엔드의 TTS 설정·이벤트 API는
-   합성 음성 파일을 반환하지 않는다.
+6. 서버 연결 시 `/api/tts/speech`의 MeloTTS WAV를 재생한다. 오프라인은 기존 기기 음성·
+   준비된 핵심 녹음을 사용한다. 설정·이벤트 API 자체는 합성 음성 파일을 반환하지 않는다.
 7. `/api/health`의 기기 TTS 상태는 실제 음성 설치·오프라인 재생 성공을 판정하지 않는다. 기기별 검수는 별도로 수행한다.
 
 
 ## 사용자 프로필 API
 
 프로필 조회·저장·사진 접근 권한과 응답 필드는 [사용자 프로필 정책](../policies/PROFILE_POLICY.md#api)을 참고한다. 인증 응답과 연결 사용자 응답의 `profile` 필드는 미설정 계정에서 `null`이다.
+
+## 로컬 음성 합성 API
+
+- `POST /api/tts/speech`, Bearer 로그인 필수. 요청은 `{ "text": "물 주세요", "rate": 0.9 }`.
+  공백 제외 1~300자, 속도 0.5~1.5의 유한값만 허용한다. 별도 사용자 ID는 받지 않는다.
+- 현재 PC 내부 MeloTTS 서비스의 한국어 음성으로 합성하고 `audio/wav` PCM16 모노를 반환한다.
+  요청 본문·완성 음성을 DB나 디스크에 저장하지 않는다. 개인정보 기록 동의가 없어도
+  기록 없는 기본 말하기 용도로 이용할 수 있다. 기존 이력 저장 동의 정책은 별도 유지한다.
+- 프로세스당 1개 합성 요청, 프록시 제한 45초, 응답 상한 12MiB. 사용 중 429,
+  준비 중·연결 실패·시간 초과·잘못된 WAV 503, 빈 입력 422. 모든 음성 응답은 no-store다.
+- worker는 호스트 포트를 열지 않는다. 브라우저는 인증된 API를 통해서만 요청한다.
+  모델 최초 다운로드와 준비 시간, 속도·기기 검수 범위는 [MeloTTS 운영 안내](MELO_TTS.md)를 따른다.
 
 ## 카드 사진 글자 인식 API
 

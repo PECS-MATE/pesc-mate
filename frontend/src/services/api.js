@@ -4,6 +4,8 @@ const API_BASE_URL =
   import.meta.env?.VITE_API_BASE_URL ?? "";
 
 const TOKEN_KEY = 'pesc-mate-token';
+const speechAudioCache = new Map();
+let speechCacheToken = null;
 
 function notifyAccessDenied(status, path, authorization) {
   if (status === 403) {
@@ -50,6 +52,7 @@ async function responseError(response, requestId, fallbackMessage, path, authori
 }
 
 export function setToken(token) {
+  speechAudioCache.clear(); speechCacheToken = null;
   if (token) localStorage.setItem(TOKEN_KEY, token);
   else localStorage.removeItem(TOKEN_KEY);
 }
@@ -96,5 +99,39 @@ export async function requestBlob(path, fallbackMessage = '이미지를 불러�
     error.status = response.status;
     error.requestId = responseRequestId(response, requestId);
     throw error;
+  }
+}
+
+export async function requestSpeechAudio(text, rate, signal) {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (speechCacheToken !== token) { speechAudioCache.clear(); speechCacheToken = token; }
+  const key = JSON.stringify([text, rate]);
+  const cached = speechAudioCache.get(key);
+  if (!signal?.aborted && cached && Date.now() - cached.at < 300000) return cached.blob;
+  const controller = new AbortController();
+  const cancel = () => controller.abort();
+  if (signal?.aborted) cancel();
+  signal?.addEventListener('abort', cancel, { once: true });
+  const timer = setTimeout(cancel, 50000);
+  try {
+    const { response, requestId } = await fetchWithRequestId(`${API_BASE_URL}/api/tts/speech`, {
+      method: 'POST', signal: controller.signal, cache: 'no-store',
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ text, rate }),
+    });
+    if (!response.ok) throw await responseError(response, requestId, '로컬 음성 서버를 확인해 주세요.', '/tts/speech', token ? `Bearer ${token}` : null);
+    const blob = await response.blob();
+    const header = new Uint8Array(await blob.slice(0, 12).arrayBuffer());
+    if (blob.size > 12 * 1024 * 1024 || String.fromCharCode(...header.slice(0, 4)) !== 'RIFF'
+      || String.fromCharCode(...header.slice(8, 12)) !== 'WAVE') throw new Error('음성 서버의 응답 형식이 올바르지 않습니다.');
+    if (signal?.aborted || localStorage.getItem(TOKEN_KEY) !== token) throw new DOMException('Cancelled', 'AbortError');
+    const wav = blob.slice(0, blob.size, 'audio/wav');
+    speechAudioCache.set(key, { blob: wav, at: Date.now() });
+    while (speechAudioCache.size > 8 || [...speechAudioCache.values()].reduce((sum, entry) => sum + entry.blob.size, 0) > 16 * 1024 * 1024) {
+      speechAudioCache.delete(speechAudioCache.keys().next().value);
+    }
+    return wav;
+  } finally {
+    clearTimeout(timer); signal?.removeEventListener('abort', cancel);
   }
 }

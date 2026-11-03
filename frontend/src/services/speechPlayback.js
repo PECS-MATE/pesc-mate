@@ -15,6 +15,8 @@ export function createSpeechPlayback({
   setTimer = globalThis.setTimeout,
   clearTimer = globalThis.clearTimeout,
   startupTimeoutMs = 6000,
+  createUrl = blob => URL.createObjectURL(blob),
+  revokeUrl = url => URL.revokeObjectURL(url),
 } = {}) {
   let current = null;
   let sharedAudio = null;
@@ -77,6 +79,7 @@ export function createSpeechPlayback({
   function release(media) {
     if (!media) return;
     clearStartup(media);
+    media.controller?.abort();
     if (media.kind === 'audio' && media.audio) releaseAudio(media.audio);
     if (media.kind === 'speech') {
       if (media.utterance) {
@@ -92,12 +95,14 @@ export function createSpeechPlayback({
     const previous = current;
     current = null;
     release(previous?.media);
+    if (previous?.objectUrl) revokeUrl(previous.objectUrl);
   }
 
   function finish(run, media, error) {
     if (!active(run, media)) return;
     current = null;
     release(media);
+    if (run.objectUrl) revokeUrl(run.objectUrl);
     if (error) run.options.onError?.(error);
     else run.options.onEnd?.();
   }
@@ -144,7 +149,7 @@ export function createSpeechPlayback({
       audio.src = run.options.audioUrl;
       audio.preload = 'auto';
       audio.volume = run.options.volume ?? 1;
-      audio.playbackRate = run.options.rate ?? 1;
+      audio.playbackRate = run.objectUrl ? 1 : run.options.rate ?? 1;
       audio.onplaying = () => playing(run, media);
       audio.onpause = () => paused(run, media);
       audio.onended = () => finish(run, media);
@@ -183,8 +188,13 @@ export function createSpeechPlayback({
 
   function speak(options) {
     stop();
+    if (options.resolveAudio) unlock();
     const run = { options, media: null, status: 'starting', started: false };
     current = run;
+    if (options.resolveAudio) {
+      startResolvedAudio(run);
+      return;
+    }
     if (options.preferAudio || !synthesis || !Utterance) {
       if (options.audioUrl) startAudio(run);
       else if (!synthesis || !Utterance || options.allowSpeechFallback === false) {
@@ -193,6 +203,24 @@ export function createSpeechPlayback({
         finish(run, media, 'unsupported');
       } else startSpeech(run);
     } else startSpeech(run);
+  }
+
+  async function startResolvedAudio(run) {
+    const media = { kind: 'loading', controller: new AbortController() };
+    run.media = media;
+    try {
+      const blob = await run.options.resolveAudio(media.controller.signal);
+      if (!active(run, media)) return;
+      run.objectUrl = createUrl(blob);
+      run.options = { ...run.options, audioUrl: run.objectUrl };
+      startAudio(run);
+    } catch (error) {
+      if (!active(run, media)) return;
+      // Never mistake a failed server request for successful silent device speech.
+      if (run.options.audioUrl && !error.status) startAudio(run);
+      else if (run.options.audioUrl && error.status >= 429) startAudio(run);
+      else finish(run, media, error.status === 429 ? 'server-busy' : 'server-unavailable');
+    }
   }
 
   function startSpeech(run) {

@@ -32,6 +32,7 @@ from app.services.offline_events import sync_events
 from app.services.caregiver_notes import delete_note, note_history, notes_for, save_note
 from app.services.communication_activity import activity_report, speech_for_sessions
 from app.services.tts_settings import save_settings, settings_for
+from app.services.server_speech import synthesize_speech
 from app.services.tts_events import finish_event, start_event
 from app.services.tts_metrics import tts_report
 from app.services.operational_alerts import operational_report
@@ -860,6 +861,20 @@ def sync_offline_events(request: OfflineSyncRequest, http_request: Request,
 def sign_out(_user=Depends(current_user), credentials=Depends(security)):
     logout(credentials)
     return None
+
+
+class ServerSpeechRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=300)
+    rate: float = Field(default=1.0, ge=0.5, le=1.5, allow_inf_nan=False)
+
+
+@api_router.post('/tts/speech', tags=['음성'])
+def server_speech(request: ServerSpeechRequest, _user=Depends(current_user)):
+    text = request.text.strip()
+    if not text:
+        raise HTTPException(422, '읽을 문장을 입력해 주세요.')
+    return Response(synthesize_speech(text, request.rate), media_type='audio/wav',
+                    headers={'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff'})
 
 
 @api_router.get('/tts/settings', response_model=TtsSettingsResponse, tags=['음성'])
