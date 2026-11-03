@@ -65,11 +65,13 @@
 .landing .login-card button.primary:hover:not(:disabled) { background: var(--color-primary-hover); }
 .landing .auth-switch { color: var(--landing-ink); font-size: .875rem; }
 .landing .demo-account { padding: 14px; border-radius: 10px; background: var(--color-selected); color: var(--landing-muted); font-size: .875rem; line-height: 1.8; }
-.landing-footer { padding-block: 40px; border-top: 1px solid var(--color-border); text-align: left; }
-.landing-footer-inner { display: flex; align-items: flex-start; justify-content: space-between; gap: 32px; }
-.landing-footer p { max-width: 32ch; color: var(--landing-muted); font-size: .875rem; line-height: 1.8; }
-.landing-footer nav { display: grid; grid-template-columns: repeat(2, auto); gap: 12px 32px; }
+.landing-footer { padding-block: 40px 96px; border-top: 1px solid var(--color-border); text-align: center; }
+.landing-footer-inner { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
+.landing-footer p { margin: 12px 0 0; color: var(--landing-muted); font-size: .875rem; line-height: 1.8; }
+.landing-footer nav { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 12px 24px; margin: 0; }
 .landing-footer nav a { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-size: .875rem; }
+.landing .landing-back-to-top { position: fixed; right: max(16px, calc(env(safe-area-inset-right) + 12px)); bottom: max(16px, calc(env(safe-area-inset-bottom) + 12px)); z-index: 20; display: grid; place-items: center; width: 48px; height: 48px; border: 1px solid var(--color-border-control); border-radius: 50%; color: var(--landing-accent); background: var(--color-surface); box-shadow: 0 4px 16px var(--color-shadow); }
+.landing .landing-back-to-top:hover { color: var(--color-on-action); background: var(--landing-accent); }
 .landing [id^="landing-"] { scroll-margin-top: 104px; }
 @media (max-width: 1000px) {
   .landing-header-inner { gap: 16px; }
@@ -100,8 +102,8 @@
   .landing-invitation-panel { padding: 36px 20px; border-radius: 20px; }
   .landing-faq { padding-bottom: 48px; }
   .landing .login-card { max-width: none; padding: 24px 18px; }
-  .landing-footer-inner { flex-direction: column; gap: 12px; }
-  .landing-footer nav { grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; gap: 8px 16px; }
+  .landing-footer-inner { gap: 12px; }
+  .landing-footer nav { gap: 8px 16px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .landing *, .landing *::before, .landing *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }

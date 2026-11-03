@@ -17,7 +17,7 @@ export default function LandingPage({ children, onLogin, onStart, busy = false, 
   function authenticate(event, action) { event.preventDefault(); if (!busy) action(); }
   const start = event => authenticate(event, onStart);
   const login = event => authenticate(event, onLogin);
-  return <main ref={pageRef} className="landing" id="landing-top">
+  return <main ref={pageRef} className="landing" id="landing-top" tabIndex="-1">
     <a className="skip-link" href="#landing-account">로그인·가입으로 바로가기</a>
     <header className="landing-header"><div className="landing-container landing-header-inner">
       <a className="landing-brand" href="#landing-top" aria-label="PECS MATE 소개 처음으로"><Mascot /><span>PECS <b>MATE</b></span></a>
@@ -61,6 +61,7 @@ export default function LandingPage({ children, onLogin, onStart, busy = false, 
     </div></section>
 
     <section className="landing-account" id="landing-account" aria-labelledby="landing-account-title"><div className="landing-container landing-account-inner"><div><h2 id="landing-account-title">지금 이야기를 시작해요.</h2></div>{children}</div></section>
-    <footer className="landing-footer"><div className="landing-container landing-footer-inner"><div><a className="landing-brand" href="#landing-top"><span>PECS <b>MATE</b></span></a><p>그림과 실물 카드로 마음을 전하는 AAC 프로젝트</p></div><nav aria-label="하단 안내"><a href="#landing-features">주요 기능</a><a href="#landing-how">이용 방법</a><a href="#landing-faq">자주 묻는 질문</a><a href="#landing-top">맨 위로 <UiIcon name="arrow-up" /></a></nav></div></footer>
+    <footer className="landing-footer"><div className="landing-container landing-footer-inner"><div><a className="landing-brand" href="#landing-top"><span>PECS <b>MATE</b></span></a><p>그림과 실물 카드로 마음을 전하는 AAC 프로젝트</p></div><nav aria-label="하단 안내"><a href="#landing-features">주요 기능</a><a href="#landing-how">이용 방법</a><a href="#landing-faq">자주 묻는 질문</a></nav></div></footer>
+    <a className="landing-back-to-top" href="#landing-top" aria-label="맨 위로" title="맨 위로"><UiIcon name="arrow-up" size={24} /></a>
   </main>;
 }
