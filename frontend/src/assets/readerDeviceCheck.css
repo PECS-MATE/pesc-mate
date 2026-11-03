@@ -1,0 +1,12 @@
+.app .reader-device-check { margin: 0; padding: 0; border: 0; box-shadow: none; background: transparent; }
+.reader-device-check > header, .reader-check-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.reader-device-check h2 { margin: 0; font-size: 1.25rem; }
+.reader-device-check header > span { color: var(--color-text-secondary); font-size: .875rem; }
+.reader-check-lights { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; list-style: none; padding: 0; margin: 24px 0; }
+.reader-check-lights > li { display: flex; align-items: center; flex-direction: column; gap: 12px; padding: 16px 4px; border: 0; }
+.reader-check-lights strong, .reader-check-lights li > span:last-child { font-size: .875rem; }
+.reader-check-light { width: 24px; height: 24px; flex-shrink: 0; border-radius: 50%; border: 1px solid var(--color-text-secondary); background: var(--color-border); }
+.reader-check-light.state-ok { background: var(--color-success); border-color: var(--color-success); }
+.reader-check-light.state-error { background: var(--color-error); border-color: var(--color-error); }
+.reader-check-light.state-stale { background: var(--color-border); }
+.reader-advanced-toggle { margin-block: 20px; }

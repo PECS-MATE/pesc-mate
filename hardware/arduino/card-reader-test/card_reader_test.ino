@@ -1,12 +1,48 @@
 #include <SPI.h>
 #include <MFRC522.h>
 
-#define READER_COUNT 2
+#define READER_COUNT 3
 
-byte ssPins[READER_COUNT] = {10, 8};
-byte rstPins[READER_COUNT] = {9, 6};
+byte ssPins[READER_COUNT] = {10, 8, 7};
+byte rstPins[READER_COUNT] = {9, 6, 5};
 MFRC522 readers[READER_COUNT];
 unsigned long lastCheck = 0;
+String commandBuffer;
+bool droppingCommand = false;
+
+void sendDiagnostics(const String &requestId) {
+  Serial.print("{\"protocol_version\":1,\"type\":\"diagnostics\",\"request_id\":\"");
+  Serial.print(requestId); Serial.print("\",\"reader_count\":"); Serial.print(READER_COUNT);
+  Serial.print(",\"readers\":[");
+  for (byte index = 0; index < READER_COUNT; index++) {
+    byte version = readers[index].PCD_ReadRegister(MFRC522::VersionReg);
+    if (index) Serial.print(',');
+    Serial.print("{\"reader_id\":"); Serial.print(index + 1); Serial.print(",\"status\":\"");
+    Serial.print(version == 0 || version == 255 ? "ERROR" : "OK"); Serial.print("\"}");
+  }
+  Serial.println("]}");
+}
+
+void readCommands() {
+  while (Serial.available()) {
+    char value = Serial.read();
+    if (value == '\n') {
+      if (!droppingCommand && commandBuffer.startsWith("STATUS ")) {
+        String requestId = commandBuffer.substring(7);
+        bool valid = requestId.length() > 0 && requestId.length() <= 40;
+        for (unsigned int i = 0; i < requestId.length(); i++) {
+          char c = requestId[i];
+          if (!((c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '-' || c == '_')) valid = false;
+        }
+        if (valid) sendDiagnostics(requestId);
+      }
+      commandBuffer = ""; droppingCommand = false;
+    } else if (value != '\r' && !droppingCommand) {
+      if (commandBuffer.length() < 48) commandBuffer += value;
+      else { commandBuffer = ""; droppingCommand = true; }
+    }
+  }
+}
 
 void setup() {
   Serial.begin(115200);
@@ -24,6 +60,7 @@ void setup() {
 }
 
 void loop() {
+  readCommands();
   if (millis() - lastCheck >= 3000) {
     lastCheck = millis();
     for (byte i = 0; i < READER_COUNT; i++) {

@@ -2,8 +2,8 @@
 #include <SPI.h>
 #include <MFRC522.h>
 
-// Current hardware: two readers, SS 10/8 and RST 9/6.
-#define RFID_READER_COUNT 2
+// Three readers: SS 10/8/7, RST 9/6/5.
+#define RFID_READER_COUNT 3
 #if RFID_READER_COUNT < 1 || RFID_READER_COUNT > 3
 #error "RFID_READER_COUNT must be 1, 2 or 3"
 #endif
@@ -20,6 +20,42 @@ unsigned long lastPoll = 0, lastSent = 0;
 uint32_t sequence = 0;
 String bootId;
 bool dirty = true, wasConnected = false;
+String commandBuffer;
+bool droppingCommand = false;
+
+void sendDiagnostics(const String &requestId) {
+  Serial.print("{\"protocol_version\":1,\"type\":\"diagnostics\",\"request_id\":\"");
+  Serial.print(requestId); Serial.print("\",\"reader_count\":"); Serial.print(RFID_READER_COUNT);
+  Serial.print(",\"readers\":[");
+  for (byte index = 0; index < RFID_READER_COUNT; index++) {
+    byte version = readers[index].PCD_ReadRegister(MFRC522::VersionReg);
+    if (index) Serial.print(',');
+    Serial.print("{\"reader_id\":"); Serial.print(index + 1); Serial.print(",\"status\":\"");
+    Serial.print(version == 0 || version == 255 ? "ERROR" : "OK"); Serial.print("\"}");
+  }
+  Serial.println("]}");
+}
+
+void readCommands() {
+  while (Serial.available()) {
+    char value = Serial.read();
+    if (value == '\n') {
+      if (!droppingCommand && commandBuffer.startsWith("STATUS ")) {
+        String requestId = commandBuffer.substring(7);
+        bool valid = requestId.length() > 0 && requestId.length() <= 40;
+        for (unsigned int i = 0; i < requestId.length(); i++) {
+          char c = requestId[i];
+          if (!((c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '-' || c == '_')) valid = false;
+        }
+        if (valid) sendDiagnostics(requestId);
+      }
+      commandBuffer = ""; droppingCommand = false;
+    } else if (value != '\r' && !droppingCommand) {
+      if (commandBuffer.length() < 48) commandBuffer += value;
+      else { commandBuffer = ""; droppingCommand = true; }
+    }
+  }
+}
 
 void setSlot(byte index, const char *status, const String &uid = "") {
   if (slots[index].uid == uid && strcmp(slots[index].status, status) == 0) return;
@@ -88,6 +124,7 @@ void setup() {
 }
 
 void loop() {
+  readCommands();
   if (millis() - lastPoll >= 100) { lastPoll = millis(); pollReaders(); }
   bool connected = bool(Serial);
   if (connected && !wasConnected) dirty = true;

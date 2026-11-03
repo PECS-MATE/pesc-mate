@@ -12,7 +12,7 @@ export default function CaregiverHome({ accountId, users, target, offline, onSel
   const secondary = [
     allowed('voice_access_manage') && { id: 'support_settings', icon: 'accessibility', title: '아이 음성·화면 설정' },
     (allowed('board_manage') || allowed('quick_speech_manage')) && { id: 'board_settings', icon: 'grid', title: '빠른 표현·카드판 관리' },
-    allowed('board_manage') && { id: 'rfid', icon: 'reader', title: 'RFID 리더기 관리' },
+    allowed('board_manage') && { id: 'rfid', icon: 'reader', title: '기기 연결' },
   ].filter(Boolean);
   return <section className="caregiver-home" aria-labelledby="caregiver-home-title">
     <header className="caregiver-home-heading"><div><h2 id="caregiver-home-title">{target ? `${target.name}님의 관리` : '아이와 연결해 주세요'}</h2>

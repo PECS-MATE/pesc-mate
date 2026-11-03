@@ -8,9 +8,9 @@ export function normalizeUsbUid(value) {
 export function parseUsbLine(line) {
   const text = line.trim();
   if (!text) return null;
-  const readerScan = /^Reader ([12]) UID:\s*(.+)$/.exec(text);
+  const readerScan = /^Reader ([123]) UID:\s*(.+)$/.exec(text);
   if (readerScan) return { type: 'scan', reader_id: Number(readerScan[1]), uid: normalizeUsbUid(readerScan[2]), protocol: 'legacy' };
-  const readerVersion = /^Reader ([12]) Version: 0x([\dA-F]{1,2})$/i.exec(text);
+  const readerVersion = /^Reader ([123]) Version: 0x([\dA-F]{1,2})$/i.exec(text);
   if (readerVersion) return { type: ['00', '0', 'FF'].includes(readerVersion[2].toUpperCase()) ? 'reader_error' : 'version', reader_id: Number(readerVersion[1]), version: readerVersion[2].toUpperCase().padStart(2, '0') };
   if (text.startsWith('UID:')) return { type: 'scan', uid: normalizeUsbUid(text.slice(4)), protocol: 'legacy' };
   if (/^RC522 Version: 0x[\dA-F]{1,2}$/i.test(text)) return { type: 'version', version: text.split('0x')[1].toUpperCase() };
@@ -19,6 +19,13 @@ export function parseUsbLine(line) {
   if (/^(Configure the ignored|WiFi connecting|RFID session ready|Session unavailable|Snapshot pending)/.test(text)) return { type: 'unsupported_firmware' };
   if (!text.startsWith('{')) return null; // Never echo arbitrary serial text into logs.
   const frame = JSON.parse(text);
+  if (frame.type === 'diagnostics') {
+    if (frame.protocol_version !== 1 || typeof frame.request_id !== 'string' || !/^[\w-]{1,40}$/.test(frame.request_id)
+      || ![1, 2, 3].includes(frame.reader_count) || !Array.isArray(frame.readers) || frame.readers.length !== frame.reader_count
+      || !frame.readers.every((row, index) => row.reader_id === index + 1 && ['OK', 'ERROR'].includes(row.status))) throw new Error('invalid_diagnostics');
+    return { type: 'diagnostics', request_id: frame.request_id, reader_count: frame.reader_count,
+      readers: frame.readers.map(({ reader_id, status }) => ({ reader_id, status })) };
+  }
   if (frame.protocol_version !== 1 || frame.type !== 'snapshot' || typeof frame.boot_id !== 'string'
       || !/^[\w-]{1,40}$/.test(frame.boot_id) || !Number.isSafeInteger(frame.event_id) || frame.event_id < 1
       || ![1, 2, 3].includes(frame.reader_count) || !Array.isArray(frame.readers) || frame.readers.length !== frame.reader_count) throw new Error('invalid_frame');
@@ -77,6 +84,12 @@ export class UsbSerialConnection {
     this.generation = 0; this.disposed = false;
     this.unplug = event => { if (event.target === this.port || event.port === this.port) this.disconnect(); };
     serial?.addEventListener('disconnect', this.unplug);
+  }
+  async requestDiagnostics(requestId) {
+    if (typeof requestId !== 'string' || !/^[\w-]{1,40}$/.test(requestId) || this.disposed || !this.port?.writable) throw new Error('diagnostics_unavailable');
+    const writer = this.port.writable.getWriter();
+    try { await writer.write(new TextEncoder().encode(`STATUS ${requestId}\n`)); }
+    finally { writer.releaseLock(); }
   }
   async connect() {
     if (this.disposed || this.connecting || this.port) return;

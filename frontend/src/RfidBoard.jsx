@@ -2,11 +2,21 @@ import { useEffect, useRef, useState } from 'react';
 import { request } from './services/api';
 import { rfidFingerprint, rfidSelection } from './services/rfidBoard';
 import UsbRfidReader from './UsbRfidReader';
+import ReaderDeviceCheck from './ReaderDeviceCheck';
 
 const statusText = { EMPTY: '카드 없음', ERROR: '리더기 오류', STALE: '새 상태를 기다려 주세요',
   UNMAPPED: '등록되지 않은 카드', UNAVAILABLE: '사용할 수 없는 카드', PRESENT: '카드 인식' };
 
-export default function RfidBoard({ targetId, targetName, variant = 'default', manager = false, canMap = false, cards = [], artStyle = () => ({}), onApply, onAppend, disabled = false, collapsible = false, expanded = false, onExpandedChange, active = true, connectionTarget, onUsbStatus }) {
+export default function RfidBoard(props) {
+  const [advanced, setAdvanced] = useState(false);
+  if (props.variant !== 'caregiver') return <LegacyRfidBoard {...props} />;
+  return <div>
+    {advanced ? <LegacyRfidBoard {...props} /> : <ReaderDeviceCheck disabled={props.disabled} />}
+    <button type="button" className="reader-advanced-toggle" onClick={() => setAdvanced(current => !current)}>{advanced ? '연결 확인으로 돌아가기' : '태그·장치 설정'}</button>
+  </div>;
+}
+
+function LegacyRfidBoard({ targetId, targetName, variant = 'default', manager = false, canMap = false, cards = [], artStyle = () => ({}), onApply, onAppend, disabled = false, collapsible = false, expanded = false, onExpandedChange, active = true, connectionTarget, onUsbStatus }) {
   const [open, setOpen] = useState(manager);
   const [devices, setDevices] = useState([]), [deviceId, setDeviceId] = useState('');
   const [snapshot, setSnapshot] = useState(null), [bindings, setBindings] = useState([]), [choices, setChoices] = useState([]);
