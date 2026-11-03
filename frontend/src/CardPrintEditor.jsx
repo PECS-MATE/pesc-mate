@@ -8,12 +8,15 @@ import './assets/cardPrintEditor.css';
 import A4Workspace, { A4Pages } from './A4Workspace';
 import A4PrintDialog from './A4PrintDialog';
 import UiIcon from './UiIcon';
+import A4ProjectSave from './A4ProjectSave';
+import { editorProject } from './services/a4Sharing';
 import { DEFAULT_A4, validateA4Project, MAX_A4_FILE_BYTES } from './services/a4Layout';
 
 const PRINT_DOCUMENT = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>PECS MATE 카드 인쇄</title><style>html, body { margin: 0; padding: 0; background: white; color: #344b46; font-family: Arial, sans-serif; } ${printCss}</style></head><body></body></html>`;
 const STATUS = { ready: '미등록', saving: '저장 중', saved: '아이 계정 사용 가능', failed: '저장 실패', uncertain: '저장 여부 확인 필요' };
 
-export default function CardPrintEditor({ targetId, targetName, categories, existingCards, disabled, onSaved }) {
+export default function CardPrintEditor({ targetId = null, targetName, categories = [], existingCards = [], disabled, onSaved,
+  initialProject, initialTitle, printOnly = false }) {
   const [rows, setRows] = useState([]);
   const [history, setHistory] = useState({ past: [], present: { settings: { ...DEFAULT_A4 }, slots: Array(24).fill(null) }, future: [] });
   const layout = history.present;
@@ -38,6 +41,20 @@ export default function CardPrintEditor({ targetId, targetName, categories, exis
     mounted.current = true;
     return () => { mounted.current = false; urls.current.forEach(url => URL.revokeObjectURL(url)); urls.current.clear(); };
   }, []);
+  useEffect(() => {
+    if (!initialProject) return;
+    try {
+      const project = editorProject(initialProject, targetId);
+      const imported = project.cards.map(card => {
+        const [header, encoded] = card.image.split(',');
+        const type = header.slice(5, header.indexOf(';'));
+        const file = new File([Uint8Array.from(atob(encoded), char => char.charCodeAt(0))], 'card.webp', { type });
+        return { ...card, file, preview: previewFor(file) };
+      });
+      setRows(imported); setHistory({ past: [], present: project.layout, future: [] });
+      setNotice('복사본을 편집해요. 변경사항은 새 편집본으로 저장해야 보관함에 남으며 원본은 바뀌지 않아요.');
+    } catch (error) { setNotice(error.message); }
+  }, [initialProject, targetId]);
   useEffect(() => {
     if (!printJob || printedJob.current === printJob) return;
     printedJob.current = printJob;
@@ -230,9 +247,9 @@ export default function CardPrintEditor({ targetId, targetName, categories, exis
   }
   const count = layout.slots.filter(slot => slot && rows.some(row => row.id === slot.rowId)).length;
   const locked = busy || printing;
-  return <details className="card-print-editor">
+  return <details className="card-print-editor" open={initialProject || printOnly ? true : undefined}>
     <summary>A4 그림카드 만들기·인쇄</summary>
-    <h3>{targetName}님의 인쇄 카드 편집기</h3>
+    <h3>{printOnly ? '나의 카드판 편집기' : `${targetName}님의 인쇄 카드 편집기`}</h3>
     <p>카드를 배치한 뒤 프린트에서 용지를 설정하세요.</p>
     <div className="a4-import-toolbar" role="group" aria-label="카드와 편집본 도구">
       <button type="button" disabled={locked || rows.length >= 60} aria-label="사진 추가" title="사진 추가" onClick={() => photoInput.current?.click()}><UiIcon name="image" /></button>
@@ -244,6 +261,7 @@ export default function CardPrintEditor({ targetId, targetName, categories, exis
       <span className="a4-tool-separator" aria-hidden="true" />
       <button type="button" disabled={locked} aria-label="편집본 불러오기" title="편집본 불러오기" onClick={() => projectInput.current?.click()}><UiIcon name="folder" /></button>
       <button type="button" disabled={locked} aria-label="편집본 다운로드" title="편집본 다운로드" onClick={exportProject}><UiIcon name="download" /></button>
+      <A4ProjectSave rows={rows} layout={layout} duplex={initialProject?.duplex || false} initialTitle={initialTitle} disabled={locked || disabled || !count} onNotice={setNotice} />
       <span className="a4-tool-separator" aria-hidden="true" />
       <button type="button" disabled={locked || !history.past.length} aria-label="배치 실행 취소" title="배치 실행 취소" onClick={undoLayout}><UiIcon name="undo" /></button>
       <button type="button" disabled={locked || !history.future.length} aria-label="배치 다시 실행" title="배치 다시 실행" onClick={redoLayout}><UiIcon name="undo" className="a4-redo-icon" /></button>
@@ -260,7 +278,7 @@ export default function CardPrintEditor({ targetId, targetName, categories, exis
     </div>
     <A4Workspace rows={rows} layout={layout} onChange={changeLayout} locked={locked} onNotice={setNotice}
       targetId={targetId} ocrDisabled={disabled} />
-    <details className="a4-source-details"><summary>보관함 카드 정보·아이 계정 등록</summary><ol className="card-print-rows">{rows.map((row, index) => <li key={row.id}>
+    <details className="a4-source-details"><summary>{printOnly ? '보관함 카드 정보' : '보관함 카드 정보·아이 계정 등록'}</summary><ol className="card-print-rows">{rows.map((row, index) => <li key={row.id}>
       <img src={row.preview} alt={row.label} />
       <fieldset disabled={locked}><legend>{index + 1}번째 카드 · {STATUS[row.status]}</legend>
         {publish && ['ready', 'failed'].includes(row.status) && <label><input type="checkbox" checked={row.publishSelected !== false} onChange={event => change(row.id, { publishSelected: event.target.checked })} />이 카드도 아이 계정에 등록</label>}
@@ -270,12 +288,12 @@ export default function CardPrintEditor({ targetId, targetName, categories, exis
         <button type="button" onClick={() => remove(row)}>인쇄 목록에서 빼기</button>
       </fieldset>{row.error && <p role="alert">{row.error}</p>}
     </li>)}</ol>
-    <label className="card-print-publish"><input type="checkbox" checked={publish} disabled={locked || disabled} onChange={event => setPublish(event.target.checked)} />저장할 때 {targetName}님의 아이 계정에서도 사용</label>
+    {!printOnly && <><label className="card-print-publish"><input type="checkbox" checked={publish} disabled={locked || disabled} onChange={event => setPublish(event.target.checked)} />저장할 때 {targetName}님의 아이 계정에서도 사용</label>
     <p>체크하지 않으면 새 사진은 서버에 저장하지 않아요. 체크 후 저장하면 해당 아이 전용 카드로 등록해요. 체크 해제·인쇄 목록 제거는 이미 저장된 카드를 삭제하지 않아요.</p>
     <p>등록된 카드의 인쇄 문구를 바꿔도 아이 계정의 카드 이름·뜻·사진은 바뀌지 않아요. 사용 중지·반려 카드는 이 편집기에서 재활성화하지 않아요.</p>
     {publish && issues.length > 0 && <p role="alert">{[...new Set(issues)].join(' ')}</p>}
     <div className="card-print-actions"><button type="button" disabled={!publish || disabled || locked || !candidates.length || issues.length > 0} onClick={save}>아이 계정에 카드 저장</button>
-      <button type="button" disabled={disabled || locked} onClick={refresh}>등록 목록 다시 불러오기</button></div>
+      <button type="button" disabled={disabled || locked} onClick={refresh}>등록 목록 다시 불러오기</button></div></>}
     </details>
     <div className="card-print-actions"><button type="button" className="primary" disabled={!count || locked || !frameDocument} onClick={() => setPrintDialog(true)}>프린트 ({count}장)</button></div>
     {notice && <p role="status">{notice}</p>}
@@ -283,7 +301,7 @@ export default function CardPrintEditor({ targetId, targetName, categories, exis
     <iframe ref={frame} title="카드 인쇄 전용 문서" className="card-print-frame" tabIndex="-1" aria-hidden="true" srcDoc={PRINT_DOCUMENT}
       onLoad={() => setFrameDocument(frame.current.contentDocument)} />
     {frameDocument && createPortal(<><style>{`@page { size: A4 ${(printJob?.layout || layout).settings.orientation}; margin: 0; }`}</style><A4Pages rows={rows} layout={printJob?.layout || layout} duplex={printJob?.duplex || false} /></>, frameDocument.body)}
-    {printDialog && <A4PrintDialog rows={rows} layout={layout} onClose={() => setPrintDialog(false)} onPrint={job => {
+    {printDialog && <A4PrintDialog rows={rows} layout={layout} initialDuplex={initialProject?.duplex || false} sharingDisabled={disabled} onClose={() => setPrintDialog(false)} onPrint={job => {
       if (busy || printing || !frameDocument) return;
       setPrinting(true); setPrintJob(job); setPrintDialog(false);
     }} />}

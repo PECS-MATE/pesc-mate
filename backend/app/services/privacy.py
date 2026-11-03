@@ -149,6 +149,9 @@ def export_for(user_id):
             'cards': [{key: row.get(key) for key in
                        ('_id', 'label', 'meaning', 'category', 'visibility', 'status', 'created_at')}
                       for row in cards],
+            'a4_projects': list(database.a4_projects.find({'owner_id': user_id},
+                {'project': 0, 'preview': 0, 'fingerprint': 0, 'reviewer_id': 0})),
+            'a4_reports': list(database.a4_reports.find({'reporter_id': user_id}, {'resolved_by': 0})),
         }
         return payload
     except PyMongoError as exc:
@@ -175,13 +178,14 @@ def _delete_personal_data(user_id):
     confirmation = {'id': str(uuid4()), 'status': 'in_progress', 'requested_at': now,
                     'finished_at': None, 'counts': {}, 'profile_removed': False,
                     'preserved': ['로그인 계정', '삭제 확인 기록'],
-                    'limitations': '이미 내려받은 파일과 별도 백업은 이 요청으로 자동 삭제되지 않습니다.'}
+                    'limitations': '이미 내려받은 파일·다른 보호자가 복사한 카드판·별도 백업은 이 요청으로 자동 삭제되지 않습니다.'}
     try:
         database = _database()
         database.privacy_settings.update_one({'_id': user_id}, {'$set': {
             'guardian_consent': False, 'deletion_status': 'in_progress', 'deletion_receipt': confirmation,
         }, '$setOnInsert': {'schema_version': SCHEMA_VERSION, 'user_id': user_id, 'created_at': now}}, upsert=True)
         card_ids = [row['_id'] for row in database.card_submissions.find({'owner_id': user_id}, {'_id': 1})]
+        a4_ids = [row['_id'] for row in database.a4_projects.find({'owner_id': user_id}, {'_id': 1})]
         for name, query in (
             ('communication_sessions', {'user_id': user_id}),
             ('recommendation_settings', {'_id': user_id}),
@@ -205,6 +209,8 @@ def _delete_personal_data(user_id):
             ('caregiver_notes', {'user_id': user_id}),
             ('caregiver_links', {'user_id': user_id}),
             ('card_submissions', {'owner_id': user_id}),
+            ('a4_projects', {'owner_id': user_id}),
+            ('a4_reports', {'$or': [{'reporter_id': user_id}, {'project_id': {'$in': a4_ids}}]}),
         ):
             collection = getattr(database, name)
             result = collection.delete_many(query)

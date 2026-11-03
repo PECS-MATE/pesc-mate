@@ -1,6 +1,6 @@
 import UiIcon from './UiIcon';
 
-export default function CaregiverHome({ accountId, users, target, offline, onSelect, onOpen, onPractice, children }) {
+export default function CaregiverHome({ accountId, users, target, offline, onSelect, onOpen, onPractice, gallery, children }) {
   const permissions = target?.permissions || [];
   const allowed = permission => permissions.includes(permission);
   const primary = [
@@ -20,6 +20,7 @@ export default function CaregiverHome({ accountId, users, target, offline, onSel
         {users.map(user => <option key={user.id} value={user.id}>{user.name} ({user.username || user.id})</option>)}
       </select></label>}
     </header>
+    {gallery}
     {!users.length ? <div className="caregiver-connection-guide"><h3>처음 연결하는 방법</h3><ol>
       <li>아이 계정으로 로그인한 뒤 프로필에서 보호자 설정을 열어 주세요.</li>
       <li>‘보호자·담당자 연결’에 보호자 아이디 <code>{accountId}</code>를 입력해 주세요.</li>

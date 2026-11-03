@@ -1,4 +1,5 @@
 const NAMES = { recommendation_settings: '추천 설정', recommendation_batches: '추천 근거·노출·선택 기록',
+  a4_projects: '저장·공유 카드판', a4_reports: '카드판 신고 기록',
   practice_suggestion_settings: '연습 개인화 설정', practice_suggestion_batches: '연습 제안 묶음',
   practice_suggestion_plans: '준비된 연습', practice_suggestion_feedback: '연습 제안 의견',
   communication_sessions: '저장 문장', tts_events: '음성 재생 기록', offline_events: '선택·발화 활동',

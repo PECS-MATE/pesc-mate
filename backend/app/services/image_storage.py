@@ -54,6 +54,12 @@ def usage(db, user_id):
         ], maxTimeMS=3000))
         if rows:
             total += rows[0]['total']; owned += rows[0]['owned']
+    projects = list(db.a4_projects.aggregate([
+        {'$group': {'_id': None, 'total': {'$sum': {'$ifNull': ['$storage_bytes', 0]}},
+                    'owned': {'$sum': {'$cond': [{'$eq': ['$owner_id', user_id]}, {'$ifNull': ['$storage_bytes', 0]}, 0]}}}},
+    ], maxTimeMS=3000))
+    if projects:
+        total += projects[0]['total']; owned += projects[0]['owned']
     return {'total_bytes': total, 'user_bytes': owned}
 
 

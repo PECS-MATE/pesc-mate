@@ -150,6 +150,12 @@ HTTP 500은 일반 안내만 반환하고 내부 예외 문구를 응답에 포�
 | 프로필 | GET | `/api/profile/{user_id}/image` | 본인 또는 연결 권한 | 권한이 있는 사용자 사진 조회 |
 | 음성 | GET | `/api/tts/settings` | 필요 | 현재 사용자의 TTS 설정 조회 |
 | 음성 | POST | `/api/tts/speech` | 필요 | 로컬 MeloTTS로 문장을 PCM WAV 합성 |
+| A4 공유 | GET/POST | `/api/a4/projects` | 보호자/운영 | 공개·보관함·검토 목록과 새 편집본 저장 |
+| A4 공유 | GET/DELETE | `/api/a4/projects/{id}` | 권한 확인 | 편집 가능한 사본 조회·본인 보관함 삭제 |
+| A4 공유 | POST | `/api/a4/projects/{id}/copy` | 보호자 | 공개 자료의 독립 비공개 사본 |
+| A4 공유 | POST | `/api/a4/projects/{id}/withdraw` | 작성자 | 공유 중단 |
+| A4 공유 | POST | `/api/a4/projects/{id}/review` | `content_manage` | 승인·반려·중단·신고 처리 |
+| A4 공유 | POST | `/api/a4/projects/{id}/report` | 보호자/운영 | 공개 자료 신고 |
 | 음성 | PUT | `/api/tts/settings` | 필요 | 현재 사용자의 TTS 설정 저장 |
 | 음성 | POST | `/api/tts/events` | 필요 | TTS 재생 요청 이력 생성 |
 | 음성 | PATCH | `/api/tts/events/{request_id}` | 필요 | TTS 성공·실패·중지 결과 저장 |
@@ -1393,6 +1399,11 @@ preflight는 요청 ID와 지표 집계를 유지하지만 콘솔 요청 로그�
 ## 사용자 프로필 API
 
 프로필 조회·저장·사진 접근 권한과 응답 필드는 [사용자 프로필 정책](../policies/PROFILE_POLICY.md#api)을 참고한다. 인증 응답과 연결 사용자 응답의 `profile` 필드는 미설정 계정에서 `null`이다.
+
+## 보호자 A4 공유 API
+
+요청 스키마·승인·독립 사본·저장 한도·삭제와 회수 한계는 [A4 카드판 공유](A4_CARD_SHARING.md)를 따른다.
+공개에는 보호자의 별도 권리/개인정보 확인과 운영 승인이 필요하며 아이 계정 사용 설정과는 별개다.
 
 ## 로컬 음성 합성 API
 

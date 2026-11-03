@@ -2,6 +2,7 @@ import Mascot, { EmptyState } from './Mascot';
 import { Avatar, ProfileEditor } from './Profile';
 import MyPage from './MyPage';
 import CaregiverHome from './CaregiverHome';
+import A4SharingGallery from './A4SharingGallery';
 import './assets/caregiverUx.css';
 import UiIcon from './UiIcon';
 import CardEditorDialog from './CardEditorDialog';
@@ -1930,6 +1931,7 @@ function App() {
         </select></label>
         <RfidBoard key={`rfid-${user.id}-${selectedUser.id}-${canManageCards}`} targetId={selectedUser.id} targetName={selectedUser.name} variant={isCaregiver ? 'caregiver' : 'default'} manager canMap={canManageCards} />
       </div> : tab === 'support_home' && isCaregiver ? <CaregiverHome accountId={user.username || user.id} users={linkedUsers}
+        gallery={<A4SharingGallery key={`sharing-${user.id}`} accountId={user.id} disabled={offline} />}
         target={selectedUser} offline={offline} onSelect={changeLinkedUser}
         onOpen={next => next === 'rfid' ? setTab('rfid') : openSupportSection(next)} onPractice={() => openLearning(selectedUser)}>
         {selectedUser && canManageLearning && canReadRecords && <PracticeSuggestionsPanel key={`${user.id}:${selectedUser.id}`} variant="caregiver" accountId={user.id} target={selectedUser} onDirectSelect={() => openLearning(selectedUser)} />}
@@ -2097,6 +2099,7 @@ function App() {
         </div><button className="primary" disabled={accessibilityBusy || accessibilitySaved} onClick={saveAccessibility}>{accessibilityBusy ? '저장 중…' : accessibilitySaved ? '저장됨' : '접근 설정 저장'}</button></article>
       </div></fieldset>
     </section> : tab === 'account_permissions' && canManageAccounts ? <AccountPermissions key={user.id} accountId={user.id} onSessionExpired={handleLogout} /> : tab === 'admin' && canManageContent ? <section className="admin-review">
+      <A4SharingGallery key={`a4-review-${user.id}`} accountId={user.id} canReview disabled={offline} />
       <div className="category-admin">
         <div className="panel-heading"><span aria-hidden="true"><UiIcon name="grid" /></span><div><h2>카테고리 관리</h2><p className="muted">카테고리를 추가하고 표시 순서와 활성 상태를 관리하세요.</p></div></div>
         {categoryError && <div role="alert" className="error">{categoryError}</div>}

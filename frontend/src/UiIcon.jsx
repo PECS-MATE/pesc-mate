@@ -1,4 +1,5 @@
 const PATHS = {
+  share: 'M12 16V3m-5 5 5-5 5 5M5 12H3v9h18v-9h-2',
   menu: 'M4 6h16M4 12h16M4 18h16',
   home: 'm3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9',
   message: 'M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-6 4V6a2 2 0 0 1 2-2ZM7 9h10M7 13h6',

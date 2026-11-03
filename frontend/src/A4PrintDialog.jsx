@@ -2,10 +2,12 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { A4Pages } from './A4Workspace';
 import { a4Geometry, a4Preset, a4Resize } from './services/a4Layout';
+import A4ProjectSave from './A4ProjectSave';
 
-export default function A4PrintDialog({ rows, layout: initialLayout, onClose, onPrint }) {
+export default function A4PrintDialog({ rows, layout: initialLayout, initialDuplex = false, sharingDisabled = false, onClose, onPrint }) {
   const [layout, setLayout] = useState(initialLayout);
-  const [duplex, setDuplex] = useState(false);
+  const [duplex, setDuplex] = useState(initialDuplex);
+  const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [zoom, setZoom] = useState(60);
   const panel = useRef(null), title = useId();
@@ -57,7 +59,9 @@ export default function A4PrintDialog({ rows, layout: initialLayout, onClose, on
       <p className="a4-print-note">카드 크기 {geometry.cellWidth.toFixed(1)} × {geometry.cellHeight.toFixed(1)}mm · 출력 {pages * (duplex ? 2 : 1)}면</p>
       <p className="a4-print-note">여기서 바꾼 설정은 이번 출력에만 적용됩니다.</p>
       {error && <p role="alert">{error}</p>}
-      <div className="a4-print-dialog-actions"><button type="button" onClick={onClose}>취소</button><button type="button" className="a4-print-confirm" disabled={!!error} onClick={() => onPrint({ layout, duplex })}>프린트</button></div>
+      {notice && <p role="status">{notice}</p>}
+      <div className="a4-print-dialog-actions"><A4ProjectSave rows={rows} layout={layout} duplex={duplex} disabled={sharingDisabled || !!error} onNotice={setNotice} />
+        <button type="button" onClick={onClose}>취소</button><button type="button" className="a4-print-confirm" disabled={!!error} onClick={() => onPrint({ layout, duplex })}>프린트</button></div>
     </div>
   </section></div>, document.body);
 }

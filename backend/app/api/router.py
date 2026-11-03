@@ -1,6 +1,7 @@
 from contextlib import nullcontext
 from app.api.rfid import router as rfid_router
 from app.api.practice_suggestions import router as practice_suggestions_router
+from app.api.a4_projects import router as a4_projects_router
 from datetime import datetime
 from hashlib import sha256
 from typing import Annotated, Literal
@@ -66,6 +67,7 @@ from app.services.reauthentication import reauthenticate_content_operator
 api_router = APIRouter()
 api_router.include_router(rfid_router)
 api_router.include_router(practice_suggestions_router)
+api_router.include_router(a4_projects_router)
 
 
 @api_router.get("/health", tags=["health"])

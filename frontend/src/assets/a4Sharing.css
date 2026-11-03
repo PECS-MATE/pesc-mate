@@ -1,0 +1,34 @@
+.a4-sharing-gallery { min-width: 0; margin-block: 1.5rem 2rem; }
+.a4-sharing-gallery > header, .a4-sharing-dialog > header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.a4-sharing-gallery h2, .a4-sharing-dialog h2 { margin: 0; font-size: 1.375rem; }
+.a4-sharing-gallery header > div, .a4-sharing-dialog header > div { min-width: 0; }
+.a4-sharing-gallery h2, .a4-sharing-dialog h2 { overflow-wrap: anywhere; }
+.a4-sharing-gallery header p { margin: .5rem 0 1rem; color: var(--color-text-secondary); font-size: 1rem; }
+.a4-sharing-tabs, .a4-sharing-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .625rem; margin-block: .75rem; }
+.a4-sharing-tabs [aria-pressed="true"] { background: var(--color-primary-action); color: white; border-color: var(--color-primary-action); }
+.a4-sharing-search { display: grid; grid-template-columns: minmax(0, 1fr) minmax(8rem, .5fr) auto; align-items: end; gap: .75rem; margin-block: 1rem; }
+.a4-sharing-search label, .a4-sharing-dialog label { display: grid; gap: .375rem; min-width: 0; margin: 0; }
+.a4-sharing-search input, .a4-sharing-search select, .a4-sharing-search button { min-height: 48px; margin: 0; }
+.a4-sharing-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 1rem; }
+.a4-sharing-tile { display: flex; flex-direction: column; align-items: stretch; padding: .75rem; text-align: left; min-width: 0; background: var(--color-surface); border: 1px solid var(--color-border-control); border-radius: .75rem; }
+.a4-sharing-tile img { display: block; width: 100%; height: 220px; object-fit: contain; background: white; }
+.a4-sharing-tile span { display: grid; gap: .375rem; margin-top: .75rem; overflow-wrap: anywhere; }
+.a4-sharing-tile small, .a4-sharing-dialog small { color: var(--color-text-secondary); font-size: .875rem; }
+.a4-sharing-dialog { box-sizing: border-box; width: min(850px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); padding: 1.25rem; border: 1px solid var(--color-primary); border-radius: 1rem; overflow-y: auto; color: var(--color-text); background: white; }
+.a4-sharing-dialog::backdrop { background: var(--color-overlay); }
+.a4-sharing-dialog > header { position: sticky; top: -1.25rem; padding-block: .625rem; background: white; z-index: 1; }
+.a4-sharing-dialog > header > button { flex-shrink: 0; min-width: 44px; min-height: 44px; }
+.a4-sharing-dialog fieldset { display: grid; gap: .875rem; min-width: 0; margin-block: 1rem; }
+.a4-sharing-dialog input, .a4-sharing-dialog textarea, .a4-sharing-dialog select { box-sizing: border-box; max-width: 100%; min-width: 0; }
+.a4-sharing-dialog .a4-sharing-check { display: flex; align-items: flex-start; gap: .625rem; line-height: 1.6; min-height: 44px; }
+.a4-sharing-check input { flex-shrink: 0; margin-top: .375rem; }
+.a4-sharing-description { white-space: pre-wrap; overflow-wrap: anywhere; }
+.a4-sharing-preview { max-height: 55dvh; overflow: auto; padding: .75rem; margin-block: 1rem; background: var(--color-selected); border-radius: .5rem; }
+.a4-sharing-pages { width: max-content; margin-inline: auto; zoom: .45; }
+.a4-sharing-dialog footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .625rem; }
+@media (max-width: 600px) {
+  .a4-sharing-search { grid-template-columns: minmax(0, 1fr); }
+  .a4-sharing-pages { zoom: .3; }
+  .a4-sharing-dialog { padding: .75rem; }
+  .a4-sharing-dialog > header { top: -.75rem; }
+}

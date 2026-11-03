@@ -200,6 +200,9 @@ npm run dev
 
 ## 정보
 
+보호자 홈에서 A4 카드판을 공유·복사·맞춤 편집·인쇄할 수 있습니다.
+전체 공개는 별도 확인과 운영 승인이 필요합니다. [사용 흐름과 검증 범위](docs/development/A4_CARD_SHARING.md)
+
 - 프로젝트 저장소: [PESC-MATE/pesc-mate](https://github.com/PESC-MATE/pesc-mate)
 - 하드웨어 확장: [Arduino 카드판 코드·안내](hardware/README.md) — Wi-Fi 연동 구현, 실제 세 리더기 검수 대기
 - 문서: [전체 목차](docs/README.md) · [API 연동 가이드](docs/development/API_GUIDE.md) · [API 명세](docs/development/API_SPECIFICATION.md) · [기능요구사양서](docs/planning/functional_requirements_specification.md)
