@@ -9,7 +9,7 @@ import UiIcon from './UiIcon';
 import IconButton from './IconButton';
 import CardEditorDialog from './CardEditorDialog';
 import CardPrintEditor from './CardPrintEditor';
-import HomeDashboard, { CardTopics } from './HomeDashboard';
+import HomeDashboard from './HomeDashboard';
 import LandingPage from './LandingPage';
 import OperationalAlerts from './OperationalAlerts';
 import AccountPermissions from './AccountPermissions';
@@ -1901,10 +1901,6 @@ function App() {
       {canManageContent && <OperationalAlerts key={user.id} refreshKey={adminSubmissions} onReview={() => setTab('admin')} />}
       {offline && <p className="offline-notice" role="status">인터넷 연결 없이 저장된 카드를 사용 중입니다. 즉시 발화와 선택 카드 그대로 발화는 계속 사용할 수 있습니다.{localKoreanVoices.length ? ` 기기에 저장된 한국어 음성 ${localKoreanVoices.length}개를 확인했습니다.` : ' 한국어 음성이 재생되지 않으면 기기 설정에서 음성 데이터를 설치해 주세요.'}{pendingSyncCount ? ` 재연결 후 동기화할 이력 ${pendingSyncCount}건이 있습니다.` : ''}</p>}
       {user.role === 'user' && privacy.guardian_consent && !offline && (pendingSyncCount > 0 || syncState === 'failed') && <div className="offline-notice" data-testid="sync-status"><span role="status">{syncState === 'syncing' ? `기기에 저장한 기록 ${pendingSyncCount}건을 동기화하고 있어요.` : syncState === 'failed' ? `저장한 기록을 모두 전송하지 못했어요. 남은 ${pendingSyncCount}건은 기기에 보관됩니다.` : `동기화할 기록 ${pendingSyncCount}건이 기기에 있습니다.`}</span> <button type="button" disabled={syncState === 'syncing'} onClick={() => syncPendingEvents(user)}>기록 동기화 다시 시도</button></div>}
-      {tab === 'home' && user.role === 'user' && <HomeDashboard name={user.name} selectedCount={board.length}
-        cards={cards} renderPicture={cardPicture}
-        onSpeak={() => setTab('cards')} onPractice={() => openLearning(null)}
-        onCatalog={() => openCatalog()} />}
       {loaded && user.role === 'user' && <UsbRfidReader key={`rfid-${user.id}`} targetId={user.id} cards={cards} autoAppend
         connectionTarget={usbTopbarTarget} onStatus={setUsbStatus} onReadError={setError}
         appendScope={`${requestId}:${tab}:${myPageOpen}:${compactSidebar && !sidebarCollapsed}:${offline}`}
@@ -1919,6 +1915,9 @@ function App() {
           return true;
         }} />}
       {user.role === 'user' && tab !== 'cards' && <section className="quick-speech" aria-labelledby="quick-speech-title" data-scan-group="quick-speech"><div><strong id="quick-speech-title">빠른 표현</strong></div>{quickExpressionCards.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 바로 말하기`} onClick={() => speakText(item.label, 'card', [item.id])}>{expressionVisual(item)}{item.label}</button>)}</section>}
+      {tab === 'home' && user.role === 'user' && <HomeDashboard selectedCount={board.length}
+        cards={cards} renderPicture={cardPicture}
+        onSpeak={() => setTab('cards')} onPractice={() => openLearning(null)} />}
       {!myPageOpen && error && <div role="alert" className="error">{error} <button disabled={busy || generating || offline} onClick={() => generationFailed ? generate() : load(user)}>{generationFailed ? '문장 다시 만들기' : '다시 불러오기'}</button></div>}
       {speechFailure && <div role="alert" className="speech-error"><span aria-hidden="true"><UiIcon name="volume-off" /></span><div><strong>음성을 재생하지 못했어요.</strong><p>전달할 표현: <strong>{speechFailure.content}</strong></p><p>{speechFailureMessage(speechFailure.errorCode)} 선택한 카드와 문장은 그대로 유지됩니다.</p></div><div className="speech-error-actions">{speechFailure.retryable && <button className="primary" onClick={() => speakText(speechFailure.content, speechFailure.contentType, speechFailure.cardIds || [], '', speechFailure.playback)}>다시 재생</button>}<button onClick={() => setSpeechFailure(null)}>닫기</button></div></div>}
       {!loaded && !error && <p role="status">카드를 불러오는 중입니다…</p>}
@@ -1950,8 +1949,7 @@ function App() {
         </> : <EmptyState>연결된 사용자가 없습니다.</EmptyState>}
         </div>
         {selectedUser && canManageLearning && canReadRecords && <PracticeSuggestionsPanel key={`${user.id}:${selectedUser.id}`} accountId={user.id} target={selectedUser} onDirectSelect={() => openLearning(selectedUser)} />}
-      </section> : tab === 'home' && user.role === 'user' ? <CardTopics categories={cardCategories} cards={cards}
-        renderPicture={cardPicture} onSelect={openCatalog} onAll={() => openCatalog()} /> : tab === 'cards' && user.role === 'user' ? <div className="communication-layout">
+      </section> : tab === 'home' && user.role === 'user' ? null : tab === 'cards' && user.role === 'user' ? <div className="communication-layout">
       {!privacy.guardian_consent && <p className="recordless-notice" role="status">기록 없이 말하기 · 지금 고른 카드와 발화는 저장하지 않아요.</p>}
       <div className="workspace">
       <SpeakingCardLibrary key={`${user.id}:${privacy.guardian_consent}`} accountId={user.id} persistFavorites={privacy.guardian_consent}
@@ -2163,7 +2161,7 @@ function App() {
           </div>}
         </li>)}</ul>}</div>}
       </section> : <EmptyState>이 화면을 볼 수 있는 연결 권한이 없습니다. 지원 홈에서 사용자를 다시 선택해 주세요.</EmptyState>}
-      <footer>실행용 프로토타입 · 실제 개인정보를 입력하지 마세요.</footer>
+      {user.role !== 'user' && <footer>실행용 프로토타입 · 실제 개인정보를 입력하지 마세요.</footer>}
       </div>
       {myPageOpen && <AccountSettingsDialog key={user.id} name={user.name} sections={settingsSections}
         variant={isCaregiver ? 'caregiver' : 'default'}
