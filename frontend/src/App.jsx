@@ -1,6 +1,7 @@
 import Mascot, { EmptyState } from './Mascot';
 import { Avatar, ProfileEditor } from './Profile';
-import MyPage from './MyPage';
+import AccountMenu from './AccountMenu';
+import AccountSettingsDialog from './AccountSettingsDialog';
 import CaregiverHome from './CaregiverHome';
 import A4SharingGallery from './A4SharingGallery';
 import './assets/caregiverUx.css';
@@ -157,6 +158,7 @@ function App() {
   const [authReady, setAuthReady] = useState(false);
   const sidebarOpenRef = useRef(null);
   const sidebarCloseRef = useRef(null);
+  const accountButtonRef = useRef(null);
   useEffect(() => {
     const query = window.matchMedia('(max-width: 1000px)');
     const update = () => setCompactSidebar(query.matches);
@@ -177,6 +179,7 @@ function App() {
   }
   function handleSidebarKeyDown(event) {
     if (!compactSidebar) return;
+    if (event.target.closest('[role="menu"]')) return;
     if (event.key === 'Escape') { event.preventDefault(); toggleSidebar(true); return; }
     if (event.key !== 'Tab') return;
     const controls = [...document.getElementById('app-sidebar').querySelectorAll('button:not(:disabled), a[href], input, select, textarea, [tabindex="0"]')]
@@ -1825,15 +1828,14 @@ function App() {
       {localDeletionStatus && <p role="status">{localDeletionStatus === 'completed' ? '이 기기의 임시 기록 삭제 완료' : '기기 임시 기록 삭제 미완료 · 삭제 요청을 다시 실행해 주세요.'}</p>}
     </section></div> },
     ] : []),
-    ...(isSupporter ? [{ id: 'support', label: isCaregiver ? '아이 관리로 이동' : '사용자·운영 설정', content: <section className="my-page-settings">
-      <h3>{isCaregiver ? '아이 관리 화면으로 이동' : '연결 사용자 설정'}</h3><p>{selectedUser ? `${selectedUser.name}님의 설정으로 이동합니다.` : '지원 홈에서 연결 사용자를 먼저 선택해 주세요.'}</p>
+    ...(isSupporter && !isCaregiver ? [{ id: 'support', label: '사용자·운영 설정', content: <section className="my-page-settings">
+      <h3>연결 사용자 설정</h3><p>{selectedUser ? `${selectedUser.name}님의 설정으로 이동합니다.` : '지원 홈에서 연결 사용자를 먼저 선택해 주세요.'}</p>
       {canManageCards && <button onClick={() => navigateFromMyPage(() => openSupportSection('card_settings'))}>개인 카드 관리</button>}
       {(canManageQuick || canManageBoard) && <button onClick={() => navigateFromMyPage(() => openSupportSection('board_settings'))}>빠른 표현·카드판</button>}
       {canManageVoice && <button onClick={() => navigateFromMyPage(() => openSupportSection('support_settings'))}>음성·접근 설정</button>}
-      {canManageLearning && <button onClick={() => navigateFromMyPage(() => openLearning(selectedUser))}>{isCaregiver ? '연습 관리' : '학습 설정'}</button>}
+      {canManageLearning && <button onClick={() => navigateFromMyPage(() => openLearning(selectedUser))}>학습 설정</button>}
       {canManageBoard && <button onClick={() => navigateFromMyPage(() => setTab('rfid'))}><span aria-hidden="true"><UiIcon name="reader" /></span>RFID 카드판</button>}
-      {isCaregiver ? <button onClick={() => navigateFromMyPage(() => setTab('caregiver_manage'))}>아이 관리</button>
-        : !selectedUser && <button onClick={() => navigateFromMyPage(() => setTab('support_home'))}>지원 홈</button>}
+      {!selectedUser && <button onClick={() => navigateFromMyPage(() => setTab('support_home'))}>지원 홈</button>}
       {(canManageContent || canManageAccounts) && <h3>운영 설정</h3>}
       {canManageContent && <><button onClick={() => navigateFromMyPage(() => setTab('admin'))}>공용 콘텐츠 운영</button>
         <button onClick={() => navigateFromMyPage(() => setTab('rfid_registration'))}><span aria-hidden="true"><UiIcon name="tag" /></span>RFID 칩 등록</button></>}
@@ -1873,18 +1875,15 @@ function App() {
         <button aria-current={!myPageOpen && tab === 'practice' ? 'page' : undefined} className={!myPageOpen && tab === 'practice' ? 'active' : ''} onClick={() => openLearning(null)}><span aria-hidden="true"><UiIcon name="book" /></span>연습하기</button>
         <button aria-current={!myPageOpen && tab === 'dashboard' ? 'page' : undefined} className={!myPageOpen && tab === 'dashboard' ? 'active' : ''} onClick={() => setTab('dashboard')}><span aria-hidden="true"><UiIcon name="chart" /></span>나의 이용 기록</button>
         </>}</nav>
-      <button type="button" className="profile profile-trigger" aria-label={`${user.name} 마이페이지 열기`}
-        aria-controls="my-page" aria-expanded={myPageOpen} aria-current={myPageOpen ? 'page' : undefined}
-        onClick={() => { if (!confirmCaregiverLeave()) return; stopSpeech(); setMyPageOpen(true); setProfileNotice(''); if (compactSidebar) toggleSidebar(true); }}>
-        <Avatar user={user} /><span><strong>{user.name}</strong></span><span className="profile-settings-icon" aria-hidden="true"><UiIcon name="settings" /></span></button>
-      <IconButton icon="logout" label="로그아웃" className="logout" onClick={handleLogout} disabled={busy} />
+      <AccountMenu key={user.id} user={user} buttonRef={accountButtonRef} disabled={busy} onLogout={handleLogout}
+        onProfile={() => { stopSpeech(); setMyPageOpen(true); setProfileNotice(''); if (compactSidebar) toggleSidebar(true); }} />
     </aside>
-    <div className={`app-content screen-${tab}`} id="main-content" tabIndex="-1" inert={compactSidebar && !sidebarCollapsed ? true : undefined}>
+    <div className={`app-content screen-${tab}`} id="main-content" tabIndex="-1" inert={compactSidebar && !sidebarCollapsed && !myPageOpen ? true : undefined}>
       {sidebarCollapsed && <div className="sidebar-toggle-bar"><button ref={sidebarOpenRef} type="button" className="sidebar-toggle"
         aria-label="주 메뉴 펼치기" title="주 메뉴 펼치기"
         aria-controls="app-sidebar" aria-expanded="false"
         onClick={() => toggleSidebar(false)}><UiIcon name="menu" /></button></div>}
-      <div hidden={myPageOpen}>
+      <div>
       {!myPageOpen && profileNotice && <p role="status">{profileNotice}</p>}
       <header className="topbar"><div><p className="eyebrow">오늘은 {todayLabel}</p><h1>{pageTitle}</h1></div><div className="topbar-statuses">{user.role === 'user' && loaded ? <details ref={connectionMenuRef} className="connection-menu" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}>
           <summary className="status" aria-label={`${usbConnectionLabel} · 연결 메뉴 열기`}><b className={usbConnected ? 'online' : ''} aria-hidden="true"></b><span className="connection-menu-label">{usbConnectionLabel}</span><UiIcon name="chevron-down" className="connection-menu-chevron" /></summary>
@@ -2167,8 +2166,9 @@ function App() {
       </section> : <EmptyState>이 화면을 볼 수 있는 연결 권한이 없습니다. 지원 홈에서 사용자를 다시 선택해 주세요.</EmptyState>}
       <footer>실행용 프로토타입 · 실제 개인정보를 입력하지 마세요.</footer>
       </div>
-      {myPageOpen && <MyPage key={user.id} name={user.name} sections={settingsSections}
+      {myPageOpen && <AccountSettingsDialog key={user.id} name={user.name} sections={settingsSections}
         variant={isCaregiver ? 'caregiver' : 'default'}
+        returnFocus={() => compactSidebar ? sidebarOpenRef.current : accountButtonRef.current}
         notice={profileNotice} error={error} onClose={() => setMyPageOpen(false)} />}
       {confirmation}
     </div>

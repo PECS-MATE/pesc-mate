@@ -1,0 +1,23 @@
+.app .sidebar .account-profile { position: relative; overflow: visible; cursor: default; }
+.app .account-profile > .profile-settings-icon { margin-left: auto; }
+.account-menu-popup { position: absolute; right: 0; bottom: calc(100% + 8px); z-index: 20; display: grid; gap: 4px; width: 180px; max-width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); box-shadow: 0 8px 24px var(--color-shadow); }
+.app .sidebar .account-menu-popup > button { display: flex; align-items: center; justify-content: flex-start; gap: 12px; min-height: 44px; width: 100%; padding: 10px 12px; border: 0; text-align: left; background: transparent; box-shadow: none; }
+.app .account-profile > span:nth-child(2) { min-width: 0; }
+.app .account-profile strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.app .account-menu-popup > button:hover:not(:disabled), .app .account-menu-popup > button:focus-visible { background: var(--color-selected); }
+.account-settings-dialog { box-sizing: border-box; width: min(920px, calc(100vw - 32px)); max-width: calc(100vw - 32px); max-height: calc(100dvh - 32px); padding: 20px; border: 1px solid var(--color-border); border-radius: 16px; color: var(--color-text); background: var(--color-surface); overflow: auto; }
+.account-settings-dialog::backdrop { background: var(--color-overlay); }
+.app .account-settings-dialog > .my-page { width: 100%; height: auto; min-height: 0; max-height: none; padding: 0; margin: 0; border: 0; border-radius: 0; box-shadow: none; }
+.app .account-settings-dialog .my-page-layout { min-height: 0; height: auto; }
+.app .account-settings-dialog .my-page-main, .app .account-settings-dialog .caregiver-settings-content { max-height: 65dvh; overflow: auto; }
+.app .account-settings-dialog .my-page-heading { margin-bottom: 16px; }
+.app .account-settings-dialog .my-page-heading h1 { font-size: 1.375rem; }
+.app .account-settings-dialog .profile-editor { padding: 0; margin: 0; max-width: 100%; border: 0; box-shadow: none; }
+.app .account-settings-dialog .single-profile-layout { display: block; }
+.app .account-settings-dialog .caregiver-settings-card { border: 0; padding: 0; box-shadow: none; }
+@media (max-width: 760px) {
+  .account-settings-dialog { width: calc(100vw - 16px); max-width: calc(100vw - 16px); max-height: calc(100dvh - 16px); padding: 12px; }
+  .app .account-settings-dialog .my-page-heading { flex-wrap: nowrap; gap: 12px; }
+  .app .account-settings-dialog .my-page-heading > button { flex: 0 0 44px; }
+  .app .account-settings-dialog .my-page-menu { max-height: none; }
+}

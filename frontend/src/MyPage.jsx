@@ -10,7 +10,7 @@ const SECTION_DETAILS = {
   support: { icon: 'users', description: '연결 사용자와 운영' },
 };
 
-export default function MyPage({ name, sections, notice, error, onClose, variant = 'default' }) {
+export default function MyPage({ name, sections, notice, error, onClose, variant = 'default', modal = false }) {
   const page = useRef(null);
   const heading = useRef(null);
   const contentPanel = useRef(null);
@@ -22,11 +22,10 @@ export default function MyPage({ name, sections, notice, error, onClose, variant
 
   useEffect(() => {
     const currentPage = page.current;
-    heading.current.focus();
-    currentPage.scrollIntoView({ block: 'start' });
+    if (!modal) { heading.current.focus(); currentPage.scrollIntoView({ block: 'start' }); }
     return () => {
       requestAnimationFrame(() => {
-        if (!currentPage.isConnected && document.activeElement === document.body && trigger.current?.isConnected) trigger.current.focus();
+        if (!modal && !currentPage.isConnected && document.activeElement === document.body && trigger.current?.isConnected) trigger.current.focus();
       });
     };
   }, []);
@@ -56,11 +55,11 @@ export default function MyPage({ name, sections, notice, error, onClose, variant
 
   if (variant === 'caregiver') return <section ref={page} id="my-page" className="my-page caregiver-my-page" aria-labelledby="my-page-title">
     <header className="my-page-heading">
-      <button type="button" className="caregiver-settings-back" aria-label="이전 화면으로" onClick={onClose}><UiIcon name="arrow-left" /></button>
-      <div><h1 ref={heading} tabIndex="-1" id="my-page-title">내 계정 설정</h1></div>
+      <button type="button" className="caregiver-settings-back" aria-label={modal ? '프로필 설정 닫기' : '이전 화면으로'} onClick={onClose}><UiIcon name={modal ? 'close' : 'arrow-left'} /></button>
+      <div><h1 ref={heading} tabIndex="-1" id="my-page-title">{modal ? '프로필' : '내 계정 설정'}</h1></div>
     </header>
-    <div className="my-page-layout">
-      <nav className="caregiver-settings-nav" aria-label="설정 영역">
+    <div className={`my-page-layout${sections.length === 1 ? ' single-profile-layout' : ''}`}>
+      {sections.length > 1 && <nav className="caregiver-settings-nav" aria-label="설정 영역">
         {sections.map(item => <button type="button" key={item.id} aria-controls={`${id}-section-${item.id}`}
           aria-current={current.id === item.id ? 'location' : undefined} onClick={() => {
             setSection(item.id);
@@ -68,7 +67,7 @@ export default function MyPage({ name, sections, notice, error, onClose, variant
             target?.scrollIntoView({ block: 'start' });
             target?.querySelector('h2')?.focus({ preventScroll: true });
           }}><UiIcon name={SECTION_DETAILS[item.id]?.icon || 'settings'} />{item.label}</button>)}
-      </nav>
+      </nav>}
       <div className="caregiver-settings-content">
         {notice && <p role="status">{notice}</p>}{error && <p className="error" role="alert">{error}</p>}
         {sections.map(item => <section key={item.id} id={`${id}-section-${item.id}`} className="caregiver-settings-card"
@@ -83,7 +82,7 @@ export default function MyPage({ name, sections, notice, error, onClose, variant
   return <section ref={page} id="my-page" className="my-page" aria-labelledby="my-page-title">
     <header className="my-page-heading"><span className="my-page-heading-icon" aria-hidden="true"><UiIcon name="settings" size={24} /></span>
       <div><h1 ref={heading} tabIndex="-1" id="my-page-title">마이페이지</h1></div>
-      <IconButton icon="arrow-left" label="이전 화면으로" onClick={onClose} /></header>
+      <IconButton icon={modal ? 'close' : 'arrow-left'} label={modal ? '프로필 설정 닫기' : '이전 화면으로'} onClick={onClose} /></header>
     <div className="my-page-layout">
       <div className="my-page-menu" role="tablist" aria-label="마이페이지 설정"
         aria-orientation={compact ? 'horizontal' : 'vertical'} onKeyDown={moveSection}>
