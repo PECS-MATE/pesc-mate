@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import UiIcon from './UiIcon';
+import IconButton from './IconButton';
 
 const TABS = [
   { id: 'home', name: '홈', icon: 'home' },
@@ -76,8 +77,8 @@ export default function SpeakingCardLibrary({ accountId, persistFavorites, cards
     <nav className="speaking-tabs" aria-label="말하기 카드 분류" data-scan-group="categories">
       {TABS.map(item => <button type="button" key={item.id} aria-pressed={tab === item.id} onClick={() => selectTab(item.id)}><UiIcon name={item.icon} /><span>{item.name}</span></button>)}
     </nav>
-    <div className="speaking-library-search"><input aria-label="말하기 카드 검색" placeholder="카드 검색" value={search} onChange={event => setSearch(event.target.value)} /><button type="button" aria-pressed={showTools} onClick={() => setShowTools(current => !current)}><UiIcon name="settings" />카드 도구</button></div>
-    {folder && <div className="symbol-folder-heading"><button type="button" onClick={closeFolder}><UiIcon name="arrow-left" />폴더 목록</button><h2 ref={contentRef} tabIndex="-1">{folder.name}</h2></div>}
+    <div className="speaking-library-search"><input aria-label="말하기 카드 검색" placeholder="카드 검색" value={search} onChange={event => setSearch(event.target.value)} /><IconButton icon="settings" label="카드 도구" aria-pressed={showTools} onClick={() => setShowTools(current => !current)} /></div>
+    {folder && <div className="symbol-folder-heading"><IconButton icon="arrow-left" label="폴더 목록" onClick={closeFolder} /><h2 ref={contentRef} tabIndex="-1">{folder.name}</h2></div>}
     {!folder && <h2 className="visually-hidden">{search.trim() ? '카드 검색 결과' : TABS.find(item => item.id === tab)?.name}</h2>}
     <div className={`cards speaking-library-cards${showTools ? ' showing-tools' : ''}`} data-scan-group="cards">{visible.map(card => <div className="speaking-library-tile" key={card.id}>
       {renderCard(card)}{showTools && <button type="button" className="card-favorite" aria-pressed={favorites.includes(card.id)} aria-label={`${card.label} 즐겨찾기 ${favorites.includes(card.id) ? '해제' : '추가'}`} title={`${card.label} 즐겨찾기`} onClick={() => toggleFavorite(card)}><UiIcon name="star" filled={favorites.includes(card.id)} />{favorites.includes(card.id) && <span className="visually-hidden">선택됨</span>}</button>}
@@ -90,7 +91,7 @@ export default function SpeakingCardLibrary({ accountId, persistFavorites, cards
       </button>;
     })}</div>
     {!selection.length && <p className="empty" role="status">{tab === 'favorites' && !search.trim() ? '카드의 별을 누르면 여기에 모여요.' : search.trim() ? '검색한 카드가 없어요.' : '아직 등록된 카드가 없어요.'}</p>}
-    {count > 1 && <nav className="card-pagination" aria-label="말하기 카드 페이지"><button disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>이전</button><span>{currentPage + 1} / {count}</span><button disabled={currentPage >= count - 1} onClick={() => setPage(currentPage + 1)}>다음</button></nav>}
+    {count > 1 && <nav className="card-pagination" aria-label="말하기 카드 페이지"><IconButton icon="chevron-left" label="이전 페이지" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)} /><span>{currentPage + 1} / {count}</span><IconButton icon="chevron-right" label="다음 페이지" disabled={currentPage >= count - 1} onClick={() => setPage(currentPage + 1)} /></nav>}
     {notice && <p role="status">{notice}</p>}
   </section>;
 }

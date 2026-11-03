@@ -1,6 +1,7 @@
 import { useId, useRef, useState } from 'react';
 import { a4Geometry, a4BackSlots, MAX_A4_PAGES } from './services/a4Layout';
 import UiIcon from './UiIcon';
+import IconButton from './IconButton';
 import CardOcrAssist from './CardOcrAssist';
 
 export function A4Pages({ rows, layout, selected, onSelect, onDrop, locked = false, duplex = false }) {
@@ -81,11 +82,11 @@ export default function A4Workspace({ rows, layout, onChange, locked, onNotice, 
       </section>
       <section className="a4-canvas" aria-label="A4 편집 영역"><div className="a4-canvas-tools">
         <label>미리보기 배율<select value={zoom} onChange={event => setZoom(Number(event.target.value))}>{[30, 40, 50, 60, 80, 100].map(value => <option key={value} value={value}>{value}%</option>)}</select></label>
-        <button type="button" disabled={locked || pages >= MAX_A4_PAGES} onClick={() => onChange({ ...layout, slots: [...slots, ...Array(geometry.capacity).fill(null)] })}>쪽 추가</button>
-        <button type="button" disabled={locked || pages <= 1} onClick={() => {
+        <IconButton icon="plus" label="쪽 추가" disabled={locked || pages >= MAX_A4_PAGES} onClick={() => onChange({ ...layout, slots: [...slots, ...Array(geometry.capacity).fill(null)] })} />
+        <IconButton icon="trash" label="마지막 쪽 삭제" disabled={locked || pages <= 1} onClick={() => {
           if (slots.slice(-geometry.capacity).some(Boolean) && !window.confirm('마지막 쪽에 배치한 카드를 지울까요? 보관함 원본은 유지됩니다.')) return;
           onChange({ ...layout, slots: slots.slice(0, -geometry.capacity) });
-        }}>마지막 쪽 삭제</button></div>
+        }} /></div>
         <div className="a4-sheet-scroll"><div style={{ zoom: zoom / 100 }}><A4Pages rows={rows} layout={layout} selected={selection} onSelect={setSelected} onDrop={drop} locked={locked} /></div></div>
       </section>
       <fieldset className="a4-properties" disabled={locked}><legend>선택한 칸 · {selection + 1}</legend>
@@ -95,7 +96,7 @@ export default function A4Workspace({ rows, layout, onChange, locked, onNotice, 
           <label>글자 크기<select value={slot.fontSize} onChange={event => updateSlot({ fontSize: Number(event.target.value) })}>{[8, 10, 12, 14, 16, 20, 24].map(size => <option key={size} value={size}>{size}pt</option>)}</select></label>
           <label>그림 맞춤<select value={slot.fit} onChange={event => updateSlot({ fit: event.target.value })}><option value="contain">전체 보이기</option><option value="cover">꽉 채우기 · 일부 잘림</option></select></label>
           <label>그림 확대<input type="range" min="1" max="2" step=".1" value={slot.zoom} onChange={event => updateSlot({ zoom: Number(event.target.value) })} /></label>
-          <button type="button" onClick={() => { const next = [...slots]; next[selection] = null; onChange({ ...layout, slots: next }); }}>칸 비우기</button>
+          <IconButton icon="erase" label="칸 비우기" onClick={() => { const next = [...slots]; next[selection] = null; onChange({ ...layout, slots: next }); }} />
           <small>인쇄 이름·그림 조정은 이 칸에만 적용됩니다.</small>
         </> : <p>위에서 카드를 선택해 넣으세요.</p>}
       </fieldset>

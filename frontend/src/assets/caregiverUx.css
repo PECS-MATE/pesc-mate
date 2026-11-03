@@ -202,14 +202,14 @@
 .app.caregiver-ui .caregiver-home-heading p { margin: 8px 0 0; }
 .app.caregiver-ui .caregiver-home-state { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding-block: 16px; border-block: 1px solid var(--color-border); }
 .app.caregiver-ui .caregiver-home-state span { flex-basis: 100%; font-size: .875rem; color: var(--color-text-secondary); }
-.app.caregiver-ui .caregiver-primary-tasks { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 16px; }
-.app.caregiver-ui .caregiver-primary-tasks button { display: flex; align-items: center; justify-content: flex-start; gap: 16px; padding: 20px; min-width: 0; border: 1px solid var(--color-border-control); background: var(--color-surface); text-align: left; }
+.app.caregiver-ui .caregiver-primary-tasks { display: flex; flex-wrap: wrap; gap: 12px; }
+.app.caregiver-ui .caregiver-primary-tasks button.icon-action { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; padding: 14px; border: 1px solid var(--color-border-control); background: var(--color-surface); }
 .app.caregiver-ui .caregiver-primary-tasks button > span { flex: 1; min-width: 0; }
 .app.caregiver-ui .caregiver-primary-tasks strong, .app.caregiver-ui .caregiver-primary-tasks small { display: block; }
 .app.caregiver-ui .caregiver-primary-tasks small { margin-top: 4px; color: var(--color-text-secondary); font-weight: 400; }
 .app.caregiver-ui .caregiver-secondary-tasks { margin-top: 32px; padding: 24px 0 0; border: 0; border-top: 1px solid var(--color-border); border-radius: 0; background: transparent; box-shadow: none; }
-.app.caregiver-ui .caregiver-secondary-tasks ul { display: grid; gap: 8px; padding: 0; list-style: none; }
-.app.caregiver-ui .caregiver-secondary-tasks button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 0; border: 0; text-align: left; background: transparent; }
+.app.caregiver-ui .caregiver-secondary-tasks ul { display: flex; flex-wrap: wrap; gap: 12px; padding: 0; list-style: none; }
+.app.caregiver-ui .caregiver-secondary-tasks button.icon-action { width: 56px; height: 56px; padding: 14px; border: 1px solid var(--color-border); background: var(--color-surface); }
 .app.caregiver-ui .caregiver-secondary-tasks button span { flex: 1; }
 .app.caregiver-ui .caregiver-connection-guide { padding: 24px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); }
 .app.caregiver-ui .caregiver-connection-guide li { margin-block: 12px; }

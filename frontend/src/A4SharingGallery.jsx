@@ -6,6 +6,7 @@ import { A4_TOPICS, A4_STATUS, projectRows } from './services/a4Sharing';
 import CardPrintEditor from './CardPrintEditor';
 import { A4Pages } from './A4Workspace';
 import UiIcon from './UiIcon';
+import IconButton from './IconButton';
 import './assets/cardPrintEditor.css';
 import printCss from './assets/cardPrintPage.css?inline';
 import './assets/a4Sharing.css';
@@ -50,11 +51,11 @@ function ProjectDialog({ initial, canReview, disabled, onClose, onChanged, onEdi
     {!!item.reports?.length && <section><h3>접수된 신고</h3><ul>{item.reports.map((report, index) => <li key={index}>{report.reason}</li>)}</ul></section>}
     {error && <p role="alert" className="error">{error}</p>}{notice && <p role="status">{notice}</p>}
     <div className="a4-sharing-actions">
-      {item.mine && <button type="button" className="primary" disabled={busy || disabled} onClick={() => onEdit(item)}>편집·인쇄</button>}
-      {!item.mine && !canReview && item.status === 'approved' && <button type="button" className="primary" disabled={busy || disabled} onClick={() => action('copy')}>내 보관함에 복사하고 편집</button>}
-      {item.mine && ['pending', 'approved'].includes(item.status) && <button type="button" disabled={busy || disabled} onClick={() => action('withdraw')}>공유 중단</button>}
-      {item.mine && ['private', 'withdrawn', 'rejected'].includes(item.status) && <button type="button" disabled={busy || disabled} onClick={() => action('delete')}>보관함에서 삭제</button>}
-      <button type="button" disabled={busy} onClick={onClose}>닫기</button>
+      {item.mine && <IconButton icon="edit" label="편집·인쇄" className="primary" disabled={busy || disabled} onClick={() => onEdit(item)} />}
+      {!item.mine && !canReview && item.status === 'approved' && <IconButton icon="copy" label="내 보관함에 복사하고 편집" className="primary" disabled={busy || disabled} onClick={() => action('copy')} />}
+      {item.mine && ['pending', 'approved'].includes(item.status) && <IconButton icon="stop" label="공유 중단" disabled={busy || disabled} onClick={() => action('withdraw')} />}
+      {item.mine && ['private', 'withdrawn', 'rejected'].includes(item.status) && <IconButton icon="trash" label="보관함에서 삭제" disabled={busy || disabled} onClick={() => action('delete')} />}
+      <IconButton icon="close" label="닫기" disabled={busy} onClick={onClose} />
     </div>
     {canReview && ['pending', 'approved'].includes(item.status) && <fieldset disabled={busy || disabled} className="a4-sharing-review"><legend>공유 검토</legend>
       <p>모든 쪽의 인물·문구·이미지 권한과 개인정보를 확인한 후 처리해 주세요.</p>
@@ -103,9 +104,9 @@ export default function A4SharingGallery({ accountId, canReview = false, disable
   function edit(item) { setDetail(null); setEditing(item); }
   return <section className="a4-sharing-gallery" aria-label={canReview ? '공유 카드판 검토' : '보호자 카드판 공유'}>
     <style>{printCss}</style>
-    {editing ? <><header><h2 ref={editorHeading} tabIndex="-1">{editing.title}</h2><button type="button" onClick={() => {
+    {editing ? <><header><h2 ref={editorHeading} tabIndex="-1">{editing.title}</h2><IconButton icon="arrow-left" label="보관함으로 돌아가기" onClick={() => {
       if (window.confirm('편집기를 닫을까요? 새 편집본으로 저장하지 않은 변경사항은 사라집니다.')) { setEditing(null); setRevision(value => value + 1); }
-    }}>보관함으로 돌아가기</button></header>
+    }} /></header>
       <CardPrintEditor key={editing.id} printOnly initialProject={editing.project} initialTitle={`${editing.title}`}
         targetId={null} disabled={disabled} onSaved={async () => {}} />
     </> : <>
@@ -114,9 +115,9 @@ export default function A4SharingGallery({ accountId, canReview = false, disable
         <select aria-label="주제 선택" value={topic} onChange={event => { setTopic(event.target.value); setOffset(0); }}><option value="">모든 주제</option>{A4_TOPICS.map(value => <option key={value}>{value}</option>)}</select>
         <button type="submit" disabled={disabled} aria-label="카드판 검색 실행"><UiIcon name="search" /></button>
       </form>
-      <div className="a4-sharing-toolbar"><div className="a4-sharing-actions">{!canReview && <button type="button" className="primary" disabled={disabled} onClick={() => edit({ id: 'new', title: '새 그림 카드판', project: null })}>새 카드판 만들기</button>}
+      <div className="a4-sharing-toolbar"><div className="a4-sharing-actions">{!canReview && <IconButton icon="plus" label="새 카드판 만들기" className="primary" disabled={disabled} onClick={() => edit({ id: 'new', title: '새 그림 카드판', project: null })} />}
       <button type="button" disabled={disabled || busy} aria-label="공유 카드판 새로고침" onClick={() => setRevision(value => value + 1)}><UiIcon name="refresh" /></button></div>
-      <div className="a4-sharing-tabs" role="group" aria-label="카드판 목록 선택">{[['discover', '둘러보기'], ...(!canReview ? [['mine', '내 보관함']] : [['review', '승인·신고 검토']])].map(([value, label]) => <button type="button" key={value} className={scope === value ? 'primary' : undefined} aria-pressed={scope === value} onClick={() => { setScope(value); setOffset(0); }}>{label}</button>)}</div>
+      <div className="a4-sharing-tabs" role="group" aria-label="카드판 목록 선택">{[['discover', '둘러보기', 'discover'], ...(!canReview ? [['mine', '내 보관함', 'archive']] : [['review', '승인·신고 검토', 'check-square']])].map(([value, label, icon]) => <IconButton key={value} icon={icon} label={label} className={scope === value ? 'primary' : undefined} aria-pressed={scope === value} onClick={() => { setScope(value); setOffset(0); }} />)}</div>
       </div>
       {disabled ? <p role="status">온라인 연결 후 공유 카드판을 이용할 수 있어요.</p> : busy ? <p role="status">카드판을 불러오는 중…</p> : !items.length ? <p>아직 카드판이 없어요.{!canReview && ' A4 편집기의 저장·공유 버튼으로 새 편집본을 남겨 보세요.'}</p> : <div className="a4-sharing-grid">{items.map(item => <button type="button" key={item.id} className="a4-sharing-tile" onClick={() => open(item)}>
         <span className="a4-sharing-tile-preview"><img src={item.preview} alt="" loading="lazy" /></span>

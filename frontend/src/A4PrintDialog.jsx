@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { A4Pages } from './A4Workspace';
 import { a4Geometry, a4Preset, a4Resize } from './services/a4Layout';
 import A4ProjectSave from './A4ProjectSave';
+import IconButton from './IconButton';
 
 export default function A4PrintDialog({ rows, layout: initialLayout, initialDuplex = false, sharingDisabled = false, onClose, onPrint }) {
   const [layout, setLayout] = useState(initialLayout);
@@ -61,7 +62,7 @@ export default function A4PrintDialog({ rows, layout: initialLayout, initialDupl
       {error && <p role="alert">{error}</p>}
       {notice && <p role="status">{notice}</p>}
       <div className="a4-print-dialog-actions"><A4ProjectSave rows={rows} layout={layout} duplex={duplex} disabled={sharingDisabled || !!error} onNotice={setNotice} />
-        <button type="button" onClick={onClose}>취소</button><button type="button" className="a4-print-confirm" disabled={!!error} onClick={() => onPrint({ layout, duplex })}>프린트</button></div>
+        <IconButton icon="close" label="취소" onClick={onClose} /><IconButton icon="print" label="프린트" className="a4-print-confirm" disabled={!!error} onClick={() => onPrint({ layout, duplex })} /></div>
     </div>
   </section></div>, document.body);
 }

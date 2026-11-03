@@ -5,6 +5,7 @@ import CaregiverHome from './CaregiverHome';
 import A4SharingGallery from './A4SharingGallery';
 import './assets/caregiverUx.css';
 import UiIcon from './UiIcon';
+import IconButton from './IconButton';
 import CardEditorDialog from './CardEditorDialog';
 import CardPrintEditor from './CardPrintEditor';
 import HomeDashboard, { CardTopics } from './HomeDashboard';
@@ -1884,7 +1885,7 @@ function App() {
         aria-controls="my-page" aria-expanded={myPageOpen} aria-current={myPageOpen ? 'page' : undefined}
         onClick={() => { if (!confirmCaregiverLeave()) return; stopSpeech(); setMyPageOpen(true); setProfileNotice(''); if (compactSidebar) toggleSidebar(true); }}>
         <Avatar user={user} /><span><strong>{user.name}</strong></span><span className="profile-settings-icon" aria-hidden="true"><UiIcon name="settings" /></span></button>
-      <button className="logout" onClick={handleLogout} disabled={busy}><UiIcon name="logout" />로그아웃</button>
+      <IconButton icon="logout" label="로그아웃" className="logout" onClick={handleLogout} disabled={busy} />
     </aside>
     <div className={`app-content screen-${tab}`} id="main-content" tabIndex="-1" inert={compactSidebar && !sidebarCollapsed ? true : undefined}>
       {sidebarCollapsed && <div className="sidebar-toggle-bar"><button ref={sidebarOpenRef} type="button" className="sidebar-toggle"
@@ -1991,7 +1992,7 @@ function App() {
         onActivity={id => { if (id !== practiceActivity) { setPracticeActivity(id); setPracticeCategory('all'); } }}
         onCategory={setPracticeCategory} onStart={() => startLearningGame()}
         onStartPlan={startPracticePlan} busy={learningBusy} offline={offline} />}
-      <button className="primary communication-return" onClick={() => setTab('cards')}><UiIcon name="message" />말하기로 이동</button>
+      <IconButton icon="message" label="말하기로 이동" className="primary communication-return" onClick={() => setTab('cards')} />
     </section> : tab === 'catalog' && user.role === 'user' ? <section className="card-catalog">
       <div className="catalog-toolbar">
         <div><h2>카드 보기</h2><p className="muted">카드를 눌러 그림과 뜻을 확인해 보세요.</p></div>

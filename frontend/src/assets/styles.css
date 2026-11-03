@@ -51,6 +51,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 :focus-visible { outline: 4px solid var(--ui-focus); outline-offset: 3px; }
 .visually-hidden { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 .ui-icon { display: inline-block; flex-shrink: 0; vertical-align: middle; }
+button.icon-action, .app button.icon-action, .landing button.icon-action { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 10px; gap: 0; }
 .app button:has(> .ui-icon) { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .sidebar nav button > span:first-child { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 20px; width: 20px; height: 20px; }
 .panel-heading > span:has(> .ui-icon) { transform: none; }

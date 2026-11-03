@@ -8,6 +8,7 @@ import './assets/cardPrintEditor.css';
 import A4Workspace, { A4Pages } from './A4Workspace';
 import A4PrintDialog from './A4PrintDialog';
 import UiIcon from './UiIcon';
+import IconButton from './IconButton';
 import A4ProjectSave from './A4ProjectSave';
 import { editorProject } from './services/a4Sharing';
 import { DEFAULT_A4, validateA4Project, MAX_A4_FILE_BYTES } from './services/a4Layout';
@@ -285,17 +286,17 @@ export default function CardPrintEditor({ targetId = null, targetName, categorie
         <label>보관함 이름<input value={row.label} maxLength="30" onChange={event => change(row.id, { label: event.target.value })} /></label>
         {publish && row.file && ['ready', 'failed'].includes(row.status) && <><label>아이 카드 뜻<input value={row.meaning} maxLength="120" onChange={event => change(row.id, { meaning: event.target.value })} /></label>
           <label>아이 카드 분류<select value={row.category} onChange={event => change(row.id, { category: event.target.value })}><option value="">분류 선택</option>{categories.map(item => <option key={item.id} value={item.name}>{item.name}</option>)}</select></label></>}
-        <button type="button" onClick={() => remove(row)}>인쇄 목록에서 빼기</button>
+        <IconButton icon="trash" label={`${row.label || `${index + 1}번째 카드`} 인쇄 목록에서 빼기`} onClick={() => remove(row)} />
       </fieldset>{row.error && <p role="alert">{row.error}</p>}
     </li>)}</ol>
     {!printOnly && <><label className="card-print-publish"><input type="checkbox" checked={publish} disabled={locked || disabled} onChange={event => setPublish(event.target.checked)} />저장할 때 {targetName}님의 아이 계정에서도 사용</label>
     <p>체크하지 않으면 새 사진은 서버에 저장하지 않아요. 체크 후 저장하면 해당 아이 전용 카드로 등록해요. 체크 해제·인쇄 목록 제거는 이미 저장된 카드를 삭제하지 않아요.</p>
     <p>등록된 카드의 인쇄 문구를 바꿔도 아이 계정의 카드 이름·뜻·사진은 바뀌지 않아요. 사용 중지·반려 카드는 이 편집기에서 재활성화하지 않아요.</p>
     {publish && issues.length > 0 && <p role="alert">{[...new Set(issues)].join(' ')}</p>}
-    <div className="card-print-actions"><button type="button" disabled={!publish || disabled || locked || !candidates.length || issues.length > 0} onClick={save}>아이 계정에 카드 저장</button>
-      <button type="button" disabled={disabled || locked} onClick={refresh}>등록 목록 다시 불러오기</button></div></>}
+    <div className="card-print-actions"><IconButton icon="save" label="아이 계정에 카드 저장" disabled={!publish || disabled || locked || !candidates.length || issues.length > 0} onClick={save} />
+      <IconButton icon="refresh" label="등록 목록 다시 불러오기" disabled={disabled || locked} onClick={refresh} /></div></>}
     </details>
-    <div className="card-print-actions"><button type="button" className="primary" disabled={!count || locked || !frameDocument} onClick={() => setPrintDialog(true)}>프린트 ({count}장)</button></div>
+    <div className="card-print-actions"><IconButton icon="print" label={`프린트 (${count}장)`} className="primary" disabled={!count || locked || !frameDocument} onClick={() => setPrintDialog(true)} /></div>
     {notice && <p role="status">{notice}</p>}
     <style>{printCss}</style>
     <iframe ref={frame} title="카드 인쇄 전용 문서" className="card-print-frame" tabIndex="-1" aria-hidden="true" srcDoc={PRINT_DOCUMENT}

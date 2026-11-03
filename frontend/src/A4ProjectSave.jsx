@@ -5,6 +5,7 @@ import { createRequestId } from './services/requestId';
 import { A4_TOPICS, makeShareProject, projectRows } from './services/a4Sharing';
 import { A4Pages } from './A4Workspace';
 import UiIcon from './UiIcon';
+import IconButton from './IconButton';
 import './assets/a4Sharing.css';
 
 function SaveDialog({ project, initialTitle, onClose, onSaved }) {
@@ -38,7 +39,7 @@ function SaveDialog({ project, initialTitle, onClose, onSaved }) {
     onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}>
     <header><h2 id={titleId}>카드판 저장·공유</h2><button type="button" disabled={busy} aria-label="저장창 닫기" onClick={onClose}><UiIcon name="close" /></button></header>
     <div className="a4-sharing-preview"><div className="a4-sharing-pages"><A4Pages rows={projectRows(project)} layout={project.layout} duplex={project.duplex} /></div></div>
-    {saved ? <><p role="status">{saved.status === 'pending' ? '승인을 요청했어요. 승인 전에는 다른 보호자에게 보이지 않아요.' : '내 보관함에 비공개로 저장했어요.'}</p><button type="button" onClick={onClose}>닫기</button></> : <form onSubmit={save} onChange={() => { requestId.current = createRequestId(); }}>
+    {saved ? <><p role="status">{saved.status === 'pending' ? '승인을 요청했어요. 승인 전에는 다른 보호자에게 보이지 않아요.' : '내 보관함에 비공개로 저장했어요.'}</p><IconButton icon="close" label="닫기" onClick={onClose} /></> : <form onSubmit={save} onChange={() => { requestId.current = createRequestId(); }}>
       <fieldset disabled={busy}><legend className="visually-hidden">카드판 정보</legend>
         <label>제목<input name="title" maxLength="60" required defaultValue={initialTitle || '나의 그림 카드판'} /></label>
         <label>주제<select name="topic" defaultValue="기타">{A4_TOPICS.map(topic => <option key={topic}>{topic}</option>)}</select></label>
@@ -50,7 +51,7 @@ function SaveDialog({ project, initialTitle, onClose, onSaved }) {
         <p>아이 계정 사용 설정과는 별개이며, 배치하지 않은 사진과 아이 계정 정보는 포함하지 않습니다.</p>
       </fieldset>
       {error && <p role="alert" className="error">{error}</p>}
-      <footer><button type="button" disabled={busy} onClick={onClose}>취소</button><button className="primary" disabled={busy}>{busy ? '저장 중…' : publish ? '공유 승인 요청' : '내 보관함에 새 편집본 저장'}</button></footer>
+      <footer><IconButton icon="close" label="취소" disabled={busy} onClick={onClose} /><IconButton type="submit" icon={publish ? 'share' : 'save'} label={busy ? '저장 중…' : publish ? '공유 승인 요청' : '내 보관함에 새 편집본 저장'} className="primary" aria-busy={busy} disabled={busy} /></footer>
     </form>}
   </dialog>, document.body);
 }

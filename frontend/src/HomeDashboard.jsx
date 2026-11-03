@@ -1,5 +1,6 @@
 import Mascot from './Mascot';
 import UiIcon from './UiIcon';
+import IconButton from './IconButton';
 
 export default function HomeDashboard({ name, selectedCount, cards = [], renderPicture, onSpeak, onPractice, onCatalog }) {
   const visual = index => <span className="home-activity-pictures" aria-hidden="true">{cards[index] && renderPicture?.(cards[index], 'home-activity-picture')}</span>;
@@ -13,7 +14,7 @@ export default function HomeDashboard({ name, selectedCount, cards = [], renderP
         {visual(1)}<strong>연습하기</strong><b aria-hidden="true"><UiIcon name="arrow-right" /></b>
       </button>
     </div>
-    <button type="button" className="home-catalog-link" onClick={onCatalog}>내 카드 보기</button>
+    <IconButton icon="cards" label="내 카드 보기" className="home-catalog-link" onClick={onCatalog} />
   </section>;
 }
 
@@ -22,7 +23,7 @@ export function CardTopics({ categories, cards, renderPicture, onSelect, onAll }
     .filter(category => category.cards.length);
   return <details className="home-topics home-topics-disclosure">
     <summary>주제별 카드 보기</summary>
-    <div className="section-title"><button type="button" onClick={onAll}>전체 카드 보기</button></div>
+    <div className="section-title"><IconButton icon="grid" label="전체 카드 보기" onClick={onAll} /></div>
     {topics.length ? <div className="topic-grid">{topics.map(category => <button type="button" key={category.id}
       aria-label={`${category.name} 카드 살펴보기`} onClick={() => onSelect(category.name)}>
       <span className="topic-pictures" aria-hidden="true">{category.cards.slice(0, 3).map(card => renderPicture(card))}</span>

@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import UiIcon from './UiIcon';
+import IconButton from './IconButton';
 
 const SECTION_DETAILS = {
   profile: { icon: 'user', description: '프로필 사진 선택' },
@@ -56,7 +57,7 @@ export default function MyPage({ name, sections, notice, error, onClose, variant
   if (variant === 'caregiver') return <section ref={page} id="my-page" className="my-page caregiver-my-page" aria-labelledby="my-page-title">
     <header className="my-page-heading">
       <button type="button" className="caregiver-settings-back" aria-label="이전 화면으로" onClick={onClose}><UiIcon name="arrow-left" /></button>
-      <div><h1 ref={heading} tabIndex="-1" id="my-page-title">내 계정 설정</h1><p>{name}님의 보호자 프로필이에요. 아이의 설정은 ‘아이 관리로 이동’에서 확인해 주세요.</p></div>
+      <div><h1 ref={heading} tabIndex="-1" id="my-page-title">내 계정 설정</h1></div>
     </header>
     <div className="my-page-layout">
       <nav className="caregiver-settings-nav" aria-label="설정 영역">
@@ -81,8 +82,8 @@ export default function MyPage({ name, sections, notice, error, onClose, variant
   </section>;
   return <section ref={page} id="my-page" className="my-page" aria-labelledby="my-page-title">
     <header className="my-page-heading"><span className="my-page-heading-icon" aria-hidden="true"><UiIcon name="settings" size={24} /></span>
-      <div><h1 ref={heading} tabIndex="-1" id="my-page-title">마이페이지</h1><p>{name}님의 프로필과 설정</p></div>
-      <button type="button" onClick={onClose}><UiIcon name="arrow-left" />이전 화면으로</button></header>
+      <div><h1 ref={heading} tabIndex="-1" id="my-page-title">마이페이지</h1></div>
+      <IconButton icon="arrow-left" label="이전 화면으로" onClick={onClose} /></header>
     <div className="my-page-layout">
       <div className="my-page-menu" role="tablist" aria-label="마이페이지 설정"
         aria-orientation={compact ? 'horizontal' : 'vertical'} onKeyDown={moveSection}>
@@ -91,7 +92,7 @@ export default function MyPage({ name, sections, notice, error, onClose, variant
           aria-selected={current.id === item.id} tabIndex={current.id === item.id ? 0 : -1}
           aria-controls="my-page-content" onClick={() => selectSection(item.id)}>
           <span className="my-page-menu-icon" aria-hidden="true"><UiIcon name={SECTION_DETAILS[item.id]?.icon || 'settings'} /></span>
-          <span className="my-page-menu-copy"><strong>{item.label}</strong><small>{SECTION_DETAILS[item.id]?.description || '설정 관리'}</small></span>
+          <span className="my-page-menu-copy"><strong>{item.label}</strong></span>
           <UiIcon name="chevron-right" className="my-page-menu-arrow" />
         </button>)}
       </div>
