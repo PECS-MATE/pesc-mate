@@ -4,13 +4,13 @@ import tagScene from './assets/main/태그이미지.png';
 import aacScene from './assets/main/aac사용.png';
 
 const features = [
-  { icon: 'tag', title: '실물 카드 태그' },
-  { icon: 'book', title: '나에게 맞는 연습' },
-  { icon: 'message', title: '그림으로 말하기' },
+  { icon: 'tag', title: '실물 카드 태그', text: '실물 카드를 태그해 화면으로 가져오세요. 읽은 카드를 확인하고, 전하고 싶은 문장에 담을 수 있어요.' },
+  { icon: 'book', title: '나에게 맞는 연습', text: '그림과 단어를 연결하고, 소리를 듣고 찾고, 카드의 순서를 맞추며 익숙한 표현을 연습해요.' },
+  { icon: 'message', title: '그림으로 말하기', text: '실물 카드가 없어도 괜찮아요. 화면의 그림카드를 눌러 문장을 담고, 말하기 버튼으로 마음을 전해요.' },
 ];
 
-function SceneImage({ src, alt, caption, lazy = false }) {
-  return <figure className="landing-scene"><img src={src} alt={alt} width="1448" height="1086" loading={lazy ? 'lazy' : 'eager'} decoding="async" /><figcaption>{caption}</figcaption></figure>;
+function SceneImage({ src, alt, lazy = false }) {
+  return <figure className="landing-scene"><img src={src} alt={alt} width="1448" height="1086" loading={lazy ? 'lazy' : 'eager'} decoding="async" /></figure>;
 }
 
 export default function LandingPage({ children, onLogin, onStart, busy = false, pageRef }) {
@@ -31,16 +31,16 @@ export default function LandingPage({ children, onLogin, onStart, busy = false, 
         <p className="landing-description">그림카드와 음성으로 마음을 전하는 AAC 도구</p>
         <div className="landing-hero-actions"><a className="landing-cta" href="#landing-account" onClick={start} aria-disabled={busy}>나의 소통 시작하기 <UiIcon name="arrow-right" /></a><a className="landing-text-link" href="#landing-how">이용 방법 보기 <UiIcon name="arrow-down" /></a></div>
       </div>
-      <SceneImage src={tagScene} alt="아이가 보호자와 함께 사과 그림카드를 기기에 태그하는 장면" caption="실물 카드 태그 사용 장면 예시" />
+      <SceneImage src={tagScene} alt="아이가 보호자와 함께 사과 그림카드를 기기에 태그하는 장면" />
     </section>
 
     <section className="landing-features" id="landing-features" aria-labelledby="landing-features-title"><div className="landing-container">
       <div className="landing-section-heading"><h2 id="landing-features-title">세 가지 방법으로 더 가까이</h2></div>
-      <div className="landing-feature-grid">{features.map(feature => <article className="landing-feature" key={feature.title}><span className="landing-feature-icon" aria-hidden="true"><UiIcon name={feature.icon} size={26} /></span><h3>{feature.title}</h3></article>)}</div>
+      <div className="landing-feature-grid">{features.map(feature => <article className="landing-feature" key={feature.title}><span className="landing-feature-icon" aria-hidden="true"><UiIcon name={feature.icon} size={26} /></span><h3>{feature.title}</h3><p>{feature.text}</p></article>)}</div>
     </div></section>
 
     <section className="landing-showcase" aria-labelledby="landing-showcase-title"><div className="landing-container landing-showcase-inner">
-      <SceneImage src={aacScene} alt="아이가 보호자와 함께 태블릿의 그림카드를 선택해 소통하는 장면" caption="AAC 사용 장면 예시 · 실제 서비스 화면과 다를 수 있습니다." lazy />
+      <SceneImage src={aacScene} alt="아이가 보호자와 함께 태블릿의 그림카드를 선택해 소통하는 장면" lazy />
       <div><h2 id="landing-showcase-title">큰 화면에서도,<br />작은 화면에서도 편안하게.</h2>
         <ul className="landing-benefits"><li><UiIcon name="check" />누르기 쉬운 카드와 버튼</li><li><UiIcon name="check" />화면 폭에 맞춰 조정되는 배치</li><li><UiIcon name="check" />별도 앱 설치 없이 브라우저에서 사용</li></ul>
       </div>
