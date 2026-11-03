@@ -1991,11 +1991,11 @@ function App() {
         onActivity={id => { if (id !== practiceActivity) { setPracticeActivity(id); setPracticeCategory('all'); } }}
         onCategory={setPracticeCategory} onStart={() => startLearningGame()}
         onStartPlan={startPracticePlan} busy={learningBusy} offline={offline} />}
-      <button className="primary communication-return" onClick={() => setTab('cards')}>💬 말하기로 이동</button>
+      <button className="primary communication-return" onClick={() => setTab('cards')}><UiIcon name="message" />말하기로 이동</button>
     </section> : tab === 'catalog' && user.role === 'user' ? <section className="card-catalog">
       <div className="catalog-toolbar">
         <div><h2>카드 보기</h2><p className="muted">카드를 눌러 그림과 뜻을 확인해 보세요.</p></div>
-        <div className="catalog-actions"><input aria-label="카드 검색" placeholder="카드 이름 검색" value={search} onChange={event => setSearch(event.target.value)} /><button className="primary" onClick={() => { setEditingSubmission(null); setCardFormError(''); setShowCardForm(true); }}>+ 카드 등록</button></div>
+        <div className="catalog-actions"><input aria-label="카드 검색" placeholder="카드 이름 검색" value={search} onChange={event => setSearch(event.target.value)} /><button className="primary" onClick={() => { setEditingSubmission(null); setCardFormError(''); setShowCardForm(true); }}><UiIcon name="plus" />카드 등록</button></div>
       </div>
       <div className="categories" aria-label="카테고리">{['전체', ...cardCategories.map(item => item.name)].map(item => <button key={item} aria-pressed={category === item} className={category === item ? 'active' : ''} onClick={() => setCategory(item)}>{item}</button>)}</div>
       <div className="catalog-layout">

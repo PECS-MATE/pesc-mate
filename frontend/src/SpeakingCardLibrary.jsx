@@ -80,7 +80,7 @@ export default function SpeakingCardLibrary({ accountId, persistFavorites, cards
     {folder && <div className="symbol-folder-heading"><button type="button" onClick={closeFolder}><UiIcon name="arrow-left" />폴더 목록</button><h2 ref={contentRef} tabIndex="-1">{folder.name}</h2></div>}
     {!folder && <h2 className="visually-hidden">{search.trim() ? '카드 검색 결과' : TABS.find(item => item.id === tab)?.name}</h2>}
     <div className={`cards speaking-library-cards${showTools ? ' showing-tools' : ''}`} data-scan-group="cards">{visible.map(card => <div className="speaking-library-tile" key={card.id}>
-      {renderCard(card)}{showTools && <button type="button" className="card-favorite" aria-pressed={favorites.includes(card.id)} aria-label={`${card.label} 즐겨찾기 ${favorites.includes(card.id) ? '해제' : '추가'}`} title={`${card.label} 즐겨찾기`} onClick={() => toggleFavorite(card)}><UiIcon name="star" />{favorites.includes(card.id) && <span className="visually-hidden">선택됨</span>}</button>}
+      {renderCard(card)}{showTools && <button type="button" className="card-favorite" aria-pressed={favorites.includes(card.id)} aria-label={`${card.label} 즐겨찾기 ${favorites.includes(card.id) ? '해제' : '추가'}`} title={`${card.label} 즐겨찾기`} onClick={() => toggleFavorite(card)}><UiIcon name="star" filled={favorites.includes(card.id)} />{favorites.includes(card.id) && <span className="visually-hidden">선택됨</span>}</button>}
     </div>)}
     {showingFolders && folders.map(item => {
       const cover = item.cards.find(hasPicture);
