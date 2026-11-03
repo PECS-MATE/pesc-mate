@@ -1746,7 +1746,8 @@ function App() {
     : tab === 'admin' && canManageContent
     ? '카드 등록 요청을 검토해요.'
     : isSupporter
-    ? tab === 'support_home' ? isCaregiver ? '아이의 소통을 함께 도와요.' : '연결된 사용자를 지원해요.'
+    ? tab === 'support_home' ? isCaregiver ? '함께 나누는 그림 카드판' : '연결된 사용자를 지원해요.'
+      : tab === 'caregiver_manage' && isCaregiver ? '아이 관리'
       : tab === 'dashboard' ? `${selectedUser?.name || '연결 사용자'}의 의사소통 기록을 살펴봐요.`
       : tab === 'learning_progress' ? isCaregiver ? `${selectedUser?.name || '아이'}의 연습을 관리해요.` : `${selectedUser?.name || '연결 사용자'}의 학습 기록을 살펴봐요.`
       : `${selectedUser?.name || '연결 사용자'}의 설정과 기록을 살펴봐요.`
@@ -1837,7 +1838,8 @@ function App() {
       {canManageVoice && <button onClick={() => navigateFromMyPage(() => openSupportSection('support_settings'))}>음성·접근 설정</button>}
       {canManageLearning && <button onClick={() => navigateFromMyPage(() => openLearning(selectedUser))}>{isCaregiver ? '연습 관리' : '학습 설정'}</button>}
       {canManageBoard && <button onClick={() => navigateFromMyPage(() => setTab('rfid'))}><span aria-hidden="true"><UiIcon name="reader" /></span>RFID 카드판</button>}
-      {!selectedUser && <button onClick={() => navigateFromMyPage(() => setTab('support_home'))}>지원 홈</button>}
+      {isCaregiver ? <button onClick={() => navigateFromMyPage(() => setTab('caregiver_manage'))}>아이 관리</button>
+        : !selectedUser && <button onClick={() => navigateFromMyPage(() => setTab('support_home'))}>지원 홈</button>}
       {(canManageContent || canManageAccounts) && <h3>운영 설정</h3>}
       {canManageContent && <><button onClick={() => navigateFromMyPage(() => setTab('admin'))}>공용 콘텐츠 운영</button>
         <button onClick={() => navigateFromMyPage(() => setTab('rfid_registration'))}><span aria-hidden="true"><UiIcon name="tag" /></span>RFID 칩 등록</button></>}
@@ -1855,12 +1857,16 @@ function App() {
       <div className="sidebar-heading"><div className="sidebar-brand"><Mascot className="mascot-brand" /><strong>{isCaregiver ? 'PECS MATE' : <>PECS <br />MATE</>}</strong></div><button ref={sidebarCloseRef} type="button" className="sidebar-toggle" aria-label="주 메뉴 접기" title="주 메뉴 접기" aria-controls="app-sidebar" aria-expanded="true" onClick={() => toggleSidebar(true)}><UiIcon name="menu" /></button></div>
       <nav aria-label="주 메뉴" onClickCapture={event => { const button = event.target.closest('button'); if (button && button.getAttribute('aria-current') !== 'page' && !confirmCaregiverLeave()) { event.preventDefault(); event.stopPropagation(); } }} onClick={event => { if (event.target.closest('button:not(:disabled)')) { setMyPageOpen(false); if (compactSidebar) toggleSidebar(true); } }}>{isSupporter ? <>
         <button aria-current={!myPageOpen && tab === 'support_home' ? 'page' : undefined} className={!myPageOpen && tab === 'support_home' ? 'active' : ''} onClick={() => setTab('support_home')}><span aria-hidden="true"><UiIcon name="home" /></span>{isCaregiver ? '보호자 홈' : '지원 홈'}</button>
+        {isCaregiver ? <button aria-current={!myPageOpen && tab === 'caregiver_manage' ? 'page' : undefined}
+          className={!myPageOpen && ['caregiver_manage', 'dashboard', 'card_settings', 'board_settings', 'support_settings', 'learning_progress', 'rfid'].includes(tab) ? 'active' : ''}
+          onClick={() => setTab('caregiver_manage')}><span aria-hidden="true"><UiIcon name="users" /></span>아이 관리</button> : <>
         {canReadRecords && <button aria-current={!myPageOpen && tab === 'dashboard' ? 'page' : undefined} className={!myPageOpen && tab === 'dashboard' ? 'active' : ''} onClick={() => openSupportSection('dashboard')}><span aria-hidden="true"><UiIcon name="chart" /></span>의사소통 기록</button>}
         {canManageCards && <button aria-current={!myPageOpen && tab === 'card_settings' ? 'page' : undefined} className={!myPageOpen && tab === 'card_settings' ? 'active' : ''} onClick={() => openSupportSection('card_settings')}><span aria-hidden="true"><UiIcon name="cards" /></span>개인 카드 관리</button>}
         {(canManageQuick || canManageBoard) && <button aria-current={!myPageOpen && tab === 'board_settings' ? 'page' : undefined} className={!myPageOpen && tab === 'board_settings' ? 'active' : ''} onClick={() => openSupportSection('board_settings')}><span aria-hidden="true"><UiIcon name="grid" /></span>빠른 표현·카드판</button>}
         {canManageVoice && <button aria-current={!myPageOpen && tab === 'support_settings' ? 'page' : undefined} className={!myPageOpen && tab === 'support_settings' ? 'active' : ''} onClick={() => openSupportSection('support_settings')}><span aria-hidden="true"><UiIcon name="accessibility" /></span>음성·접근 설정</button>}
         {canManageLearning && <button aria-current={!myPageOpen && tab === 'learning_progress' ? 'page' : undefined} className={!myPageOpen && tab === 'learning_progress' ? 'active' : ''} onClick={() => openLearning(selectedUser)}><span aria-hidden="true"><UiIcon name="book" /></span>{isCaregiver ? '연습 관리' : '학습 기록'}</button>}
         {canManageBoard && <button aria-current={!myPageOpen && tab === 'rfid' ? 'page' : undefined} className={!myPageOpen && tab === 'rfid' ? 'active' : ''} onClick={() => setTab('rfid')}><span aria-hidden="true"><UiIcon name="reader" /></span>RFID 카드판</button>}
+        </>}
         {canManageContent && <button aria-current={!myPageOpen && tab === 'admin' ? 'page' : undefined} className={!myPageOpen && tab === 'admin' ? 'active' : ''} onClick={() => setTab('admin')}><span aria-hidden="true"><UiIcon name="check-square" /></span>공용 콘텐츠 운영<i aria-label={`승인 대기 ${adminSubmissions.filter(item => item.status === 'pending').length}개`}>{adminSubmissions.filter(item => item.status === 'pending').length}</i></button>}
         {canManageContent && <button aria-current={!myPageOpen && tab === 'rfid_registration' ? 'page' : undefined} className={!myPageOpen && tab === 'rfid_registration' ? 'active' : ''} onClick={() => setTab('rfid_registration')}><span aria-hidden="true"><UiIcon name="tag" /></span>RFID 칩 등록</button>}
         {canManageAccounts && <button aria-current={!myPageOpen && tab === 'account_permissions' ? 'page' : undefined} className={!myPageOpen && tab === 'account_permissions' ? 'active' : ''} onClick={() => setTab('account_permissions')}><span aria-hidden="true"><UiIcon name="key" /></span>운영 권한 관리</button>}
@@ -1930,8 +1936,8 @@ function App() {
           {linkedUsers.filter(person => person.permissions.includes('board_manage')).map(person => <option key={person.id} value={person.id}>{person.name}</option>)}
         </select></label>
         <RfidBoard key={`rfid-${user.id}-${selectedUser.id}-${canManageCards}`} targetId={selectedUser.id} targetName={selectedUser.name} variant={isCaregiver ? 'caregiver' : 'default'} manager canMap={canManageCards} />
-      </div> : tab === 'support_home' && isCaregiver ? <CaregiverHome accountId={user.username || user.id} users={linkedUsers}
-        gallery={<A4SharingGallery key={`sharing-${user.id}`} accountId={user.id} disabled={offline} />}
+      </div> : tab === 'support_home' && isCaregiver ? <A4SharingGallery key={`sharing-${user.id}`} accountId={user.id} disabled={offline} />
+      : tab === 'caregiver_manage' && isCaregiver ? <CaregiverHome accountId={user.username || user.id} users={linkedUsers}
         target={selectedUser} offline={offline} onSelect={changeLinkedUser}
         onOpen={next => next === 'rfid' ? setTab('rfid') : openSupportSection(next)} onPractice={() => openLearning(selectedUser)}>
         {selectedUser && canManageLearning && canReadRecords && <PracticeSuggestionsPanel key={`${user.id}:${selectedUser.id}`} variant="caregiver" accountId={user.id} target={selectedUser} onDirectSelect={() => openLearning(selectedUser)} />}
