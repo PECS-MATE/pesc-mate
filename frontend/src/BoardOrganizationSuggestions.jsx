@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { request } from './services/api';
 import BoardSlotsEditor from './BoardSlotsEditor';
 
-export default function BoardOrganizationSuggestions({ layout, targetId, disabled, onSaved, onRefresh }) {
+export default function BoardOrganizationSuggestions({ layout, targetId, disabled, onSaved, onRefresh, renderPicture }) {
   const [feed, setFeed] = useState(null);
   const [draft, setDraft] = useState(null);
   const [name, setName] = useState('');
@@ -122,7 +122,7 @@ export default function BoardOrganizationSuggestions({ layout, targetId, disable
         {duplicateName && <p role="alert">같은 이름의 카드판이 있습니다. 다른 이름으로 바꿔 주세요.</p>}
         <label><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />
           이름·카드·순서를 확인했고 새 상황별 카드판으로 저장하겠습니다</label>
-        <BoardSlotsEditor layout={layout} value={ids} onChange={value => { setIds(value); setConfirmed(false); }}
+        <BoardSlotsEditor layout={layout} value={ids} renderPicture={renderPicture} onChange={value => { setIds(value); setConfirmed(false); }}
           onSave={save} busy={busy} title="추천 카드 선택·순서 수정" label="추천 초안 카드 편집"
           saveLabel="검토한 초안을 새 카드판으로 저장" saveDisabled={!confirmed || !name.trim() || duplicateName || full} />
         <button type="button" onClick={() => { setDraft(null); setConfirmed(false); }}>초안 버리기</button>

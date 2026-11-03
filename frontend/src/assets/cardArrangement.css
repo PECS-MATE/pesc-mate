@@ -1,0 +1,30 @@
+.app .board-settings-panel, .app.caregiver-ui .board-settings-panel { padding: 0; border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+.board-config-workspace { min-width: 0; margin: 16px 0; padding: 0; border: 0; }
+.arrangement-modes { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.app .card-arrangement { min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.arrangement-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.arrangement-toolbar h3 { margin: 0; font-size: 1.125rem; }
+.arrangement-toolbar h3 small, .arrangement-hint { color: var(--color-text-secondary); font-size: .875rem; font-weight: 400; }
+.arrangement-toolbar > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.arrangement-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 140px), 1fr)); gap: 12px; padding: 0; margin: 16px 0; list-style: none; }
+.arrangement-cards > li { min-width: 0; }
+.app .arrangement-cards .arrangement-card { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; width: 100%; min-width: 0; min-height: 170px; padding: 12px; border: 1px solid var(--color-border); border-radius: 12px; color: var(--color-text); background: var(--color-surface); box-shadow: none; cursor: grab; }
+.app .arrangement-cards .arrangement-card[aria-pressed="true"] { outline: 2px solid var(--color-primary-action); outline-offset: 2px; border-color: var(--color-primary-action); background: var(--color-selected); }
+.arrangement-card strong { font-size: 1rem; overflow-wrap: anywhere; }
+.arrangement-card > small { position: absolute; top: 6px; left: 8px; font-size: .75rem; color: var(--color-text-secondary); }
+.arrangement-lock { position: absolute; top: 6px; right: 8px; color: var(--color-primary-action); }
+.arrangement-picture { display: grid; place-items: center; width: 100px; height: 100px; max-width: 100%; background-position: center; background-size: contain !important; background-repeat: no-repeat; }
+.arrangement-list { grid-template-columns: minmax(0, 1fr); }
+.app .arrangement-list .arrangement-card { flex-direction: row; justify-content: flex-start; min-height: 64px; padding: 10px 16px 10px 30px; }
+.arrangement-list .arrangement-picture { width: 48px; height: 48px; flex-shrink: 0; }
+.arrangement-add, .board-extra-settings { margin-top: 20px; border: 0; border-top: 1px solid var(--color-border); border-radius: 0; padding: 14px 0; }
+.arrangement-add > input { max-width: 360px; margin-block: 12px; }
+.arrangement-picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 100px), 1fr)); gap: 10px; max-height: 360px; overflow: auto; padding: 4px; }
+.arrangement-picker > button { display: flex; align-items: center; flex-direction: column; justify-content: center; gap: 8px; min-width: 0; padding: 10px; background: var(--color-surface); }
+.arrangement-picker .arrangement-picture { width: 72px; height: 72px; }
+.app .board-extra-settings > article, .app .board-extra-settings.board-audit { border: 0; border-radius: 0; padding: 16px 0; box-shadow: none; background: transparent; }
+@media (max-width: 480px) {
+  .arrangement-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .arrangement-list { grid-template-columns: minmax(0, 1fr); }
+  .arrangement-toolbar > div { gap: 4px; }
+}

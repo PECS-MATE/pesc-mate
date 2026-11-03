@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { request } from './services/api';
 import BoardSlotsEditor from './BoardSlotsEditor';
 
-export default function SituationBoards({ layout, targetId, disabled, onSaved, onRefresh }) {
+export default function SituationBoards({ layout, targetId, disabled, onSaved, onRefresh, renderPicture }) {
   const situations = layout.situations || [];
   const [sourceId, setSourceId] = useState('default');
   const [newName, setNewName] = useState('');
@@ -78,7 +78,7 @@ export default function SituationBoards({ layout, targetId, disabled, onSaved, o
       {selected && <>
         <label>편집 상황 이름<input value={editName} maxLength={30} onChange={event => { setEditName(event.target.value); setConfirmEdit(false); }} /></label>
         <label><input type="checkbox" checked={confirmEdit} onChange={event => setConfirmEdit(event.target.checked)} />이 상황의 이름과 변경할 슬롯 순서를 확인했습니다</label>
-        <BoardSlotsEditor label="상황 슬롯 편집" title="상황 카드 슬롯" layout={layout} value={slots}
+        <BoardSlotsEditor label="상황 슬롯 편집" title="상황 카드판" layout={layout} value={slots} renderPicture={renderPicture}
           onChange={value => { setSlots(value); setConfirmEdit(false); }} onSave={() => save('update')} busy={busy}
           saveLabel="확인한 상황 저장" saveDisabled={!confirmEdit || !editName.trim()} />
         <p>상황을 삭제해도 원래 카드·사진·사용 기록은 보존합니다. 기본 카드판은 삭제하지 않습니다.</p>
