@@ -901,12 +901,12 @@ function App() {
     const runId = ++speechRunRef.current;
     const currentVoices = koreanVoices(window.speechSynthesis?.getVoices() || []);
     const voice = selectTtsVoice(currentVoices.length ? currentVoices : ttsVoices, ttsSettings.voiceName, offline);
-    speechPlayback.unlock();
     setSpeechState({ status: 'starting', content });
     speechPlayback.speak({
-      text: content, voice, rate: ttsSettings.rate, pitch: ttsSettings.pitch, volume: ttsSettings.volume,
-      audioUrl: coreSpeechCache.urlFor(content, { online: !offline }),
-      preferAudio: playback.preferAudio || offline || !voice,
+      text: content, voice: playback.systemVoice ? null : voice,
+      rate: ttsSettings.rate, pitch: ttsSettings.pitch, volume: ttsSettings.volume,
+      audioUrl: playback.speechOnly ? null : coreSpeechCache.urlFor(content, { online: !offline }),
+      preferAudio: !playback.speechOnly && (playback.preferAudio || offline || !voice),
       allowSpeechFallback: !playback.audioOnly,
       onStart: () => {
         speechEvent.startupMs = Math.max(0, Date.now() - speechEvent.requestedAt);
@@ -1799,7 +1799,11 @@ function App() {
             <label>음높이 <output>{ttsSettings.pitch.toFixed(2)}</output><input type="range" min="0.5" max="1.5" step="0.05" value={ttsSettings.pitch} onChange={event => updateTtsSettings({ pitch: Number(event.target.value) })} /></label>
             <label>기본 볼륨 <output>{Math.round(ttsSettings.volume * 100)}%</output><input type="range" min="0" max="1" step="0.05" value={ttsSettings.volume} onChange={event => updateTtsSettings({ volume: Number(event.target.value) })} /></label>
           </div>
-          <div className="tts-preview"><small role="status">{localKoreanVoices.length ? `이 기기에 저장된 한국어 음성 ${localKoreanVoices.length}개` : ttsVoices.length ? `이 기기의 한국어 음성 ${ttsVoices.length}개 · 오프라인 사용은 별도 확인` : '이 기기에서 한국어 음성을 아직 찾지 못했어요. 기기 음성 테스트를 눌러 확인해 주세요.'}</small><span><button type="button" disabled={busy || ttsSettingsBusy} onClick={() => speakText('안녕하세요. 목소리를 확인해 보세요.', 'preview')}>기기 음성 테스트</button><button type="button" disabled={busy || ttsSettingsBusy} onClick={() => speakText('도와주세요', 'preview', [], '', { preferAudio: true, audioOnly: true })}>기본 녹음 테스트</button><button type="button" className="primary" disabled={ttsSettingsBusy || ttsSettingsSaved} onClick={saveTtsSettings}>{ttsSettingsBusy ? '저장 중…' : ttsSettingsSaved ? '저장됨' : '설정 저장'}</button></span></div>
+          <div className="tts-preview"><small role="status">{localKoreanVoices.length ? `이 기기에 저장된 한국어 음성 ${localKoreanVoices.length}개` : ttsVoices.length ? `이 기기의 한국어 음성 ${ttsVoices.length}개 · 오프라인 사용은 별도 확인` : '이 기기에서 한국어 음성을 아직 찾지 못했어요. 기기 음성 테스트를 눌러 확인해 주세요.'}</small><span>
+            <button type="button" disabled={busy || ttsSettingsBusy} onClick={() => speakText('안녕하세요. 목소리를 확인해 보세요.', 'preview', [], '', { speechOnly: true })}>기기 음성 테스트</button>
+            <button type="button" disabled={busy || ttsSettingsBusy} onClick={() => speakText('한국어 기본 음성을 확인합니다.', 'preview', [], '', { speechOnly: true, systemVoice: true })}>한국어 기본 음성 테스트</button>
+            <button type="button" disabled={busy || ttsSettingsBusy} onClick={() => speakText('도와주세요', 'preview', [], '', { preferAudio: true, audioOnly: true })}>기본 녹음 테스트</button>
+            <button type="button" className="primary" disabled={ttsSettingsBusy || ttsSettingsSaved} onClick={saveTtsSettings}>{ttsSettingsBusy ? '저장 중…' : ttsSettingsSaved ? '저장됨' : '설정 저장'}</button></span></div>
         </section> },
       { id: 'guardian', label: '보호자 설정', content: <div className="guardian-settings">
         <h3>보호자 설정</h3><p>계정 소유자·법정대리인이 동의와 데이터 관리를 확인하는 영역입니다.</p>

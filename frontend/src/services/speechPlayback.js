@@ -200,6 +200,10 @@ export function createSpeechPlayback({
     const media = { kind: 'speech', utterance: null, timer: null };
     run.media = media;
     try {
+      // A silent unlock clip may still own the audio session after async work.
+      // Never run HTMLAudio and native speech together (notably on WebKit).
+      if (sharedAudio) releaseAudio(sharedAudio);
+      synthesis.cancel();
       const utterance = new Utterance(run.options.text);
       media.utterance = utterance;
       utterance.lang = 'ko-KR';
