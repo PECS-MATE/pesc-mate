@@ -292,7 +292,8 @@ def list_projects(user, scope='discover', topic='', query='', offset=0):
     if query:
         selector['title'] = {'$regex': re.escape(query), '$options': 'i'}
     rows = list(collection.find(selector, {'project': 0, 'fingerprint': 0}).sort([('created_at', -1), ('_id', -1)]).skip(offset).limit(13))
-    return {'items': [_summary(row, user) for row in rows[:12]], 'has_more': len(rows) > 12}
+    return {'items': [_summary(row, user) for row in rows[:12]], 'has_more': len(rows) > 12,
+            'total': collection.count_documents(selector)}
 
 
 @storage_errors

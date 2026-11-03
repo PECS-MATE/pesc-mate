@@ -72,6 +72,9 @@ export default function A4SharingGallery({ accountId, canReview = false, disable
   const [scope, setScope] = useState(canReview ? 'review' : 'discover'), [topic, setTopic] = useState(''), [query, setQuery] = useState('');
   const [search, setSearch] = useState(''), [offset, setOffset] = useState(0), [revision, setRevision] = useState(0);
   const [items, setItems] = useState([]), [more, setMore] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState('');
+  const [total, setTotal] = useState(0);
+  const page = offset / 12 + 1, pageCount = Math.max(1, Math.ceil(total / 12));
+  const firstPage = Math.max(1, Math.min(page - 2, pageCount - 4));
   const [detail, setDetail] = useState(null), [editing, setEditing] = useState(null);
   const generation = useRef(0), detailGeneration = useRef(0), live = useRef(true), editorHeading = useRef(null);
   useEffect(() => { live.current = true; return () => { live.current = false; detailGeneration.current += 1; }; }, []);
@@ -81,7 +84,10 @@ export default function A4SharingGallery({ accountId, canReview = false, disable
     if (disabled) { setBusy(false); return; }
     setBusy(true);
     request(`/a4/projects?${new URLSearchParams({ scope, topic, q: search, offset })}`).then(result => {
-      if (run === generation.current && live.current && token === localStorage.getItem('pesc-mate-token')) { setItems(result.items); setMore(result.has_more); }
+      if (run === generation.current && live.current && token === localStorage.getItem('pesc-mate-token')) {
+        setItems(result.items); setMore(result.has_more);
+        setTotal(result.total ?? offset + result.items.length + (result.has_more ? 1 : 0));
+      }
     }).catch(failure => { if (run === generation.current && live.current) setError(failure.message); })
       .finally(() => { if (run === generation.current && live.current) setBusy(false); });
     return () => { generation.current += 1; detailGeneration.current += 1; };
@@ -102,15 +108,16 @@ export default function A4SharingGallery({ accountId, canReview = false, disable
     }}>보관함으로 돌아가기</button></header>
       <CardPrintEditor key={editing.id} printOnly initialProject={editing.project} initialTitle={`${editing.title}`}
         targetId={null} disabled={disabled} onSaved={async () => {}} />
-    </> : <><header className="a4-sharing-heading"><h2>{canReview ? '공유 카드판 검토' : '의사소통판'}</h2><p>{canReview ? '공유 요청과 신고를 확인하세요.' : '다양한 상황에 맞는 그림 카드판을 만나 보세요.'}</p></header>
+    </> : <>
+      <form className="a4-sharing-search" role="search" aria-label="카드판 검색" onSubmit={event => { event.preventDefault(); setSearch(query.trim()); setOffset(0); }}>
+        <input aria-label="카드판 검색" placeholder="카드판 검색" maxLength="60" value={query} onChange={event => setQuery(event.target.value)} />
+        <select aria-label="주제 선택" value={topic} onChange={event => { setTopic(event.target.value); setOffset(0); }}><option value="">모든 주제</option>{A4_TOPICS.map(value => <option key={value}>{value}</option>)}</select>
+        <button type="submit" disabled={disabled} aria-label="카드판 검색 실행"><UiIcon name="search" /></button>
+      </form>
       <div className="a4-sharing-toolbar"><div className="a4-sharing-actions">{!canReview && <button type="button" className="primary" disabled={disabled} onClick={() => edit({ id: 'new', title: '새 그림 카드판', project: null })}>새 카드판 만들기</button>}
       <button type="button" disabled={disabled || busy} aria-label="공유 카드판 새로고침" onClick={() => setRevision(value => value + 1)}><UiIcon name="refresh" /></button></div>
-      <div className="a4-sharing-tabs" role="group" aria-label="카드판 목록 선택">{[['discover', '둘러보기'], ...(!canReview ? [['mine', '내 보관함']] : [['review', '승인·신고 검토']])].map(([value, label]) => <button type="button" key={value} aria-pressed={scope === value} onClick={() => { setScope(value); setOffset(0); }}>{label}</button>)}</div>
+      <div className="a4-sharing-tabs" role="group" aria-label="카드판 목록 선택">{[['discover', '둘러보기'], ...(!canReview ? [['mine', '내 보관함']] : [['review', '승인·신고 검토']])].map(([value, label]) => <button type="button" key={value} className={scope === value ? 'primary' : undefined} aria-pressed={scope === value} onClick={() => { setScope(value); setOffset(0); }}>{label}</button>)}</div>
       </div>
-      <form className="a4-sharing-search" onSubmit={event => { event.preventDefault(); setSearch(query.trim()); setOffset(0); }}>
-        <label>카드판 검색<input maxLength="60" value={query} onChange={event => setQuery(event.target.value)} /></label>
-        <label>주제<select value={topic} onChange={event => { setTopic(event.target.value); setOffset(0); }}><option value="">모든 주제</option>{A4_TOPICS.map(value => <option key={value}>{value}</option>)}</select></label><button disabled={disabled}>검색</button>
-      </form>
       {disabled ? <p role="status">온라인 연결 후 공유 카드판을 이용할 수 있어요.</p> : busy ? <p role="status">카드판을 불러오는 중…</p> : !items.length ? <p>아직 카드판이 없어요.{!canReview && ' A4 편집기의 저장·공유 버튼으로 새 편집본을 남겨 보세요.'}</p> : <div className="a4-sharing-grid">{items.map(item => <button type="button" key={item.id} className="a4-sharing-tile" onClick={() => open(item)}>
         <span className="a4-sharing-tile-preview"><img src={item.preview} alt="" loading="lazy" /></span>
         <span className="a4-sharing-tile-info"><strong>{item.title}</strong><span className="a4-sharing-tile-topic">#{item.topic}</span>
@@ -118,7 +125,11 @@ export default function A4SharingGallery({ accountId, canReview = false, disable
           {scope !== 'discover' && <small className="a4-sharing-tile-status">{A4_STATUS[item.status]}</small>}
         </span>
       </button>)}</div>}
-      <div className="a4-sharing-actions"><button type="button" disabled={disabled || busy || offset === 0} onClick={() => setOffset(value => Math.max(0, value - 12))}>이전</button><span>{offset / 12 + 1}쪽</span><button type="button" disabled={disabled || busy || !more} onClick={() => setOffset(value => value + 12)}>다음</button></div>
+      <nav className="a4-sharing-pagination" aria-label="카드판 페이지 선택">
+        <button type="button" aria-label="이전 페이지" disabled={disabled || busy || offset === 0} onClick={() => setOffset(value => Math.max(0, value - 12))}><UiIcon name="chevron-left" /></button>
+        {Array.from({ length: Math.min(5, pageCount) }, (_, index) => firstPage + index).map(number => <button type="button" key={number} aria-label={`${number}페이지`} aria-current={number === page ? 'page' : undefined} disabled={disabled || busy} onClick={() => setOffset((number - 1) * 12)}>{number}</button>)}
+        <button type="button" aria-label="다음 페이지" disabled={disabled || busy || !more} onClick={() => setOffset(value => value + 12)}><UiIcon name="chevron-right" /></button>
+      </nav>
     </>}
     {error && <p role="alert" className="error">{error}</p>}
     {detail && <ProjectDialog key={detail.id} initial={detail} canReview={canReview} disabled={disabled} onClose={() => setDetail(null)} onChanged={() => setRevision(value => value + 1)} onEdit={edit} />}

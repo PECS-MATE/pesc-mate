@@ -25,6 +25,8 @@ const PATHS = {
   'arrow-down': 'M12 4v16m-6-6 6 6 6-6',
   'chevron-down': 'm6 9 6 6 6-6',
   'chevron-right': 'm9 6 6 6-6 6',
+  'chevron-left': 'm15 6-6 6 6 6',
+  search: 'M21 21l-5-5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z',
   close: 'm6 6 12 12M18 6 6 18',
   undo: 'M3 10h11a6 6 0 0 1 0 12M3 10l5-5M3 10l5 5',
   refresh: 'M20 7v5h-5M4 17v-5h5M5 7a8 8 0 0 1 13-3l2 3M4 17l2 3a8 8 0 0 0 13-3',
