@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import UiIcon from './UiIcon';
+import CardPhotoPicker from './CardPhotoPicker';
+import CardOcrAssist from './CardOcrAssist';
 import { request, requestBlob } from './services/api';
 import './assets/adminCardRegistration.css';
 
@@ -41,6 +43,7 @@ export default function AdminCardRegistration({ categories, disabled, onCreated 
   const [preview, setPreview] = useState('');
   const [rights, setRights] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -60,7 +63,7 @@ export default function AdminCardRegistration({ categories, disabled, onCreated 
   async function save(event) {
     event.preventDefault();
     const form = event.currentTarget;
-    if (busy || disabled) return;
+    if (busy || disabled || photoBusy) return;
     setBusy(true); setError(''); setNotice('');
     try {
       if (mode === 'photo' && (!file || !rights)) throw new Error('사진과 공용 사용 권한을 확인해 주세요.');
@@ -104,17 +107,17 @@ export default function AdminCardRegistration({ categories, disabled, onCreated 
               {categories.filter(item => item.active !== false).map(item => <option key={item.id} value={item.name}>{item.name}</option>)}
             </select></label>
             {mode === 'photo' && <>
-              <label>사진<input type="file" required accept="image/jpeg,image/png,image/webp" onChange={e => {
-                const selected = e.target.files?.[0] || null;
-                if (selected && selected.size > 5 * 1024 * 1024) { setError('사진은 5MB 이하로 선택해 주세요.'); e.target.value = ''; setFile(null); return; }
-                setError(''); setFile(selected);
-              }} /></label>
+              <CardPhotoPicker file={file} disabled={busy || disabled} onBusyChange={setPhotoBusy}
+                onChange={image => { setFile(image); setRights(false); setError(''); }} />
+              <CardOcrAssist file={file} admin disabled={busy || disabled || photoBusy} onApply={value => {
+                setLabel(value); if (!meaning.trim()) setMeaning(value);
+              }} />
               <small>JPG·PNG·WebP · 5MB 이하 · 가로·세로 128~4096px</small>
               <label className="admin-card-rights"><input type="checkbox" required checked={rights} onChange={e => setRights(e.target.checked)} />모두에게 공개할 수 있는 사진입니다.</label>
             </>}
           </div>
         </div>
-        <footer><button className="primary" type="submit" disabled={!categories.some(item => item.active !== false)}><UiIcon name="plus" />{busy ? '등록 중…' : '저장하고 바로 사용'}</button></footer>
+        <footer><button className="primary" type="submit" disabled={photoBusy || (mode === 'photo' && !file) || !categories.some(item => item.active !== false)}><UiIcon name="plus" />{busy ? '등록 중…' : '저장하고 바로 사용'}</button></footer>
       </fieldset>
       {error && <p role="alert" className="error">{error}</p>}
       <p role="status">{notice}</p>

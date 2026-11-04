@@ -1543,10 +1543,11 @@ function App() {
     }
     finally { setPrivacyBusy(''); }
   }
-  async function submitCard(event) {
+  async function submitCard(event, image) {
     event.preventDefault();
     const form = event.currentTarget;
     const formData = new FormData(form);
+    if (image) formData.set('image', image, image.name);
     formData.set('submission_mode', event.nativeEvent.submitter?.value || 'submit');
     const targetQuery = isSupporter && selectedUser ? `?user_id=${encodeURIComponent(selectedUser.id)}` : '';
     const actorId = user.id, targetId = selectedUser?.id;

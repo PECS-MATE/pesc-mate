@@ -1182,6 +1182,13 @@ async def publish_admin_card(label: str = Form(min_length=1, max_length=30),
                              image.filename, image.content_type, data, content_operator=user)
 
 
+@api_router.post('/admin/cards/ocr', tags=['운영'])
+def recognize_admin_card_image(image: UploadFile = File(), user=Depends(current_user)):
+    require_account_permission(user, 'content_manage')
+    result = recognize_card(image.file.read(MAX_IMAGE_BYTES + 1), image.content_type)
+    return JSONResponse(result, headers={'Cache-Control': 'no-store'})
+
+
 @api_router.patch('/admin/card-submissions/{submission_id}', response_model=CardSubmissionResponse, tags=['운영'])
 def review_card_submission(submission_id: str, request: CardReviewRequest, http_request: Request, response: Response,
                            user=Depends(current_user)):

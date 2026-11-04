@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import UiIcon from './UiIcon';
 import CardOcrAssist from './CardOcrAssist';
+import CardPhotoPicker from './CardPhotoPicker';
 
 export default function CardEditorDialog({ editing, categories, targetName, targetId, ocrDisabled, privateOnly = false,
   busy, error, onSubmit, onClose }) {
@@ -12,6 +13,8 @@ export default function CardEditorDialog({ editing, categories, targetName, targ
   const imageHelpId = useId();
   const [visibility, setVisibility] = useState(privateOnly ? 'private' : editing?.visibility || 'private');
   const [image, setImage] = useState(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState('');
 
   useEffect(() => {
     const modal = dialog.current;
@@ -47,9 +50,14 @@ export default function CardEditorDialog({ editing, categories, targetName, targ
     onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}>
     <header className="card-editor-heading"><h2 id={titleId}>{editing ? '카드 수정' : privateOnly ? '개인 카드 등록' : '새 카드 등록'}</h2>
       <p id={descriptionId}>{privateOnly ? `${targetName}님만 사용하는 카드를 등록합니다.` : '카드 정보를 입력하고 사용할 범위를 골라 주세요.'}</p></header>
-    <form className="card-editor-form" onSubmit={event => { if (busy) event.preventDefault(); else onSubmit(event); }}>
+    <form className="card-editor-form" onSubmit={event => {
+      if (busy || photoBusy) { event.preventDefault(); return; }
+      if (!editing && !image) { event.preventDefault(); setPhotoError('카드를 촬영하거나 사진을 선택해 주세요.'); return; }
+      onSubmit(event, image);
+    }}>
       <div className="card-editor-body">
         {error && <p ref={errorMessage} tabIndex="-1" role="alert" className="error">{error}</p>}
+        {photoError && <p role="alert" className="error">{photoError}</p>}
         <p className="card-editor-required">모든 입력 항목은 필수입니다.{editing && ' 기존 이미지는 유지됩니다.'}</p>
         <fieldset disabled={busy}>
           <legend className="visually-hidden">카드 정보</legend>
@@ -62,12 +70,14 @@ export default function CardEditorDialog({ editing, categories, targetName, targ
             <label>공개 범위<select name="visibility" value={visibility} onChange={event => setVisibility(event.target.value)}>
               <option value="private">나만 사용</option><option value="shared">승인 후 모두에게 공개</option>
             </select></label>}
-          {!editing && <label>카드 이미지<input name="image" required type="file" accept="image/jpeg,image/png,image/webp"
-            aria-describedby={imageHelpId} onChange={event => setImage(event.target.files?.[0] || null)} /></label>}
+          {!editing && <CardPhotoPicker file={image} disabled={busy} onBusyChange={setPhotoBusy}
+            onChange={file => { setImage(file); setPhotoError(''); }} />}
         </fieldset>
-        {!editing && <CardOcrAssist file={image} targetId={targetId} disabled={busy || ocrDisabled} onApply={value => {
+        {!editing && <CardOcrAssist file={image} targetId={targetId} disabled={busy || photoBusy || ocrDisabled} onApply={value => {
           const input = dialog.current?.querySelector('input[name="label"]');
           if (input) { input.value = value; input.focus(); }
+          const meaning = dialog.current?.querySelector('textarea[name="meaning"]');
+          if (meaning && !meaning.value.trim()) meaning.value = value;
         }} />}
         {!editing && <p id={imageHelpId} className="form-notice">JPG·PNG·WebP, 5MB 이하, 가로·세로 128~4096px 이미지를 선택해 주세요.</p>}
         <p className="form-notice">{privateOnly ? '연결 사용자만 사용할 수 있으며 공개 승인 목록에는 표시되지 않습니다.'
@@ -75,8 +85,8 @@ export default function CardEditorDialog({ editing, categories, targetName, targ
       </div>
       <footer className="card-editor-actions">
         <button type="button" disabled={busy} onClick={onClose}>취소</button>
-        {!editing && <button type="submit" value="draft" disabled={busy}>임시 저장</button>}
-        <button type="submit" value="submit" className="primary" disabled={busy}>{busy ? '저장 중…' : editing ? '수정 저장' : visibility === 'shared' ? '공개 승인 요청' : '카드 저장'}</button>
+        {!editing && <button type="submit" value="draft" disabled={busy || photoBusy}>임시 저장</button>}
+        <button type="submit" value="submit" className="primary" disabled={busy || photoBusy}>{busy ? '저장 중…' : editing ? '수정 저장' : visibility === 'shared' ? '공개 승인 요청' : '카드 저장'}</button>
       </footer>
     </form>
     <button type="button" className="card-editor-close" disabled={busy} aria-label="카드 등록창 닫기" onClick={onClose}><UiIcon name="close" /></button>

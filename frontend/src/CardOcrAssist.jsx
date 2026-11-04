@@ -3,19 +3,19 @@ import { request } from './services/api';
 import { fileIssue } from './services/cardImport';
 import './assets/cardOcr.css';
 
-export default function CardOcrAssist({ file, targetId, disabled = false, onApply }) {
+export default function CardOcrAssist({ file, targetId, admin = false, disabled = false, onApply }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [result, setResult] = useState(null);
   const [candidate, setCandidate] = useState('');
   const suggestionsId = useId();
   const sequence = useRef(0);
-  const latest = useRef({ file, targetId, disabled });
-  latest.current = { file, targetId, disabled };
+  const latest = useRef({ file, targetId, admin, disabled });
+  latest.current = { file, targetId, admin, disabled };
   useEffect(() => {
     sequence.current += 1; setBusy(false); setResult(null); setCandidate(''); setMessage('');
     return () => { sequence.current += 1; };
-  }, [file, targetId, disabled]);
+  }, [file, targetId, admin, disabled]);
 
   async function recognize() {
     const issue = fileIssue(file);
@@ -23,11 +23,12 @@ export default function CardOcrAssist({ file, targetId, disabled = false, onAppl
     const run = ++sequence.current;
     setBusy(true); setMessage(''); setResult(null);
     const body = new FormData();
-    body.append('image', file, 'card-image'); body.append('user_id', targetId);
+    body.append('image', file, 'card-image');
+    if (!admin) body.append('user_id', targetId);
     const current = () => run === sequence.current && latest.current.file === file
-      && latest.current.targetId === targetId && !latest.current.disabled;
+      && latest.current.targetId === targetId && latest.current.admin === admin && !latest.current.disabled;
     try {
-      const data = await request('/cards/ocr', { method: 'POST', body, timeoutMs: 30000 });
+      const data = await request(admin ? '/admin/cards/ocr' : '/cards/ocr', { method: 'POST', body, timeoutMs: 30000 });
       if (!current()) return;
       setResult(data); setCandidate(data.suggested_label || '');
       setMessage(data.suggested_label ? '이름을 확인한 뒤 적용해 주세요.' : '글자를 찾지 못했어요. 이름을 직접 입력해 주세요.');
@@ -36,7 +37,7 @@ export default function CardOcrAssist({ file, targetId, disabled = false, onAppl
     } finally { if (current()) setBusy(false); }
   }
 
-  if (!targetId || !file) return null;
+  if ((!targetId && !admin) || !file) return null;
   return <section className="card-ocr-assist" aria-label="사진 글자 인식">
     <button type="button" disabled={disabled || busy} onClick={recognize}>{busy ? '글자 읽는 중…' : '사진 글자 읽기'}</button>
     <small>사진을 현재 서버로 전송해 읽습니다. 카드 등록이나 외부 서비스 전송은 하지 않습니다.</small>

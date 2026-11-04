@@ -1,0 +1,7 @@
+.card-photo-picker { display: grid; gap: 10px; min-width: 0; }
+.card-photo-picker-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.card-photo-picker-actions button { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; }
+.card-photo-picker-preview { width: min(100%, 220px); max-height: 240px; object-fit: contain; background: #fff; border-radius: 8px; }
+.card-photo-picker small { font-size: .875rem; color: var(--color-text-secondary); }
+.card-photo-picker p:empty { display: none; }
+.admin-card-registration .card-photo-picker-preview { display: none; }

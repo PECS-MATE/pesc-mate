@@ -195,6 +195,7 @@ HTTP 500은 일반 안내만 반환하고 내부 예외 문구를 응답에 포�
 | 학습 | GET | `/api/learning/audit` | 본인 또는 `learning_manage` | 학습 설정 변경 이력 조회 |
 | 운영 | GET | `/api/admin/card-submissions` | `content_manage` 권한 담당자 | 전체 카드 요청 조회 |
 | 운영 | POST | `/api/admin/cards` | `content_manage` 권한 담당자 | 글자·사진 공용 카드 직접 등록 및 즉시 공개 |
+| 운영 | POST | `/api/admin/cards/ocr` | `content_manage` 권한 담당자 | 촬영한 공용 카드의 이름 인식 후보 조회 |
 | 운영 | PATCH | `/api/admin/card-submissions/{id}` | `content_manage` 권한 담당자 | 카드 승인 또는 반려 |
 | 운영 | GET | `/api/admin/categories` | `content_manage` 권한 담당자 | 전체 카테고리 조회 |
 | 운영 | POST | `/api/admin/categories` | `content_manage` 권한 담당자 | 카테고리 추가 |
@@ -1420,6 +1421,10 @@ preflight는 요청 ID와 지표 집계를 유지하지만 콘솔 요청 로그�
 
 ## 카드 사진 글자 인식 API
 
+- `POST /api/admin/cards/ocr`: `content_manage` 권한 전용 multipart 요청.
+  `image` 한 장을 받으며 아동 ID·아동 동의를 사용하지 않는다.
+  임시 OCR만 수행하고 공용 등록은 별도 `POST /api/admin/cards`로 확인 후 저장한다.
+  촬영 UI와 변환·검증 범위는 [실물 카드 촬영 등록](CARD_CAMERA_OCR.md)을 따른다.
 - `POST /api/cards/ocr`: 인증된 보호자·지원자 전용 multipart 요청.
   `user_id`는 연결 사용자 ID, `image`는 JPG·PNG·WebP 한 장이다.
 - 해당 사용자에 대한 `cards_manage` 권한과 기존 보호자 동의 정책을 확인한다.
