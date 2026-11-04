@@ -54,7 +54,7 @@ def _public(document):
         'owner_id': document['owner_id'],
         'image_revision': document.get('image_revision', 0),
         'status': effective_status,
-        'requires_review': not private,
+        'requires_review': not private and not document.get('published_directly', False),
         'sharing_notice': ('나만 볼 수 있으며 운영 담당자 승인 없이 사용할 수 있습니다.' if private
                            else '승인되면 모든 사용자에게 공개됩니다.'),
         'image_filename': document['image']['filename'],
@@ -201,7 +201,13 @@ def _image_payload(image_data, image_content_type, image_edits=None):
 
 def create_submission(owner_id, label, meaning, category, visibility,
                       image_filename, image_content_type, image_data,
-                      submission_mode='submit', actor_id=None, image_edits=None):
+                      submission_mode='submit', actor_id=None, image_edits=None, *, content_operator=None):
+    if content_operator is not None:
+        from app.services.authentication import require_account_permission
+        require_account_permission(content_operator, 'content_manage')
+        if owner_id != content_operator['id'] or visibility != 'shared' or submission_mode != 'submit':
+            raise HTTPException(403, '운영자 공용 카드 등록 범위를 확인해 주세요.')
+        actor_id = content_operator['id']
     started = datetime.now(timezone.utc)
     actor_id = actor_id or owner_id
     label = label.strip()
@@ -233,14 +239,17 @@ def create_submission(owner_id, label, meaning, category, visibility,
         'visibility': visibility,
         'owner_id': owner_id,
         'status': ('draft' if submission_mode == 'draft'
-                   else 'approved' if visibility == 'private' else 'pending'),
+                   else 'approved' if visibility == 'private' or content_operator is not None else 'pending'),
         'created_at': datetime.now(timezone.utc),
     }
+    if content_operator is not None:
+        document.update(published_directly=True, reviewer_id=actor_id, reviewed_at=document['created_at'])
     try:
         collection = _collection()
         _ensure_indexes(collection)
         with storage.image_write_lock(collection.database):
-            storage.check_deletion_race(collection.database, owner_id, started, require_consent=True)
+            storage.check_deletion_race(collection.database, owner_id, started,
+                                        require_consent=content_operator is None)
             _ensure_unique_label(collection, normalized_label, owner_id, visibility)
             storage.check_capacity(collection.database, owner_id, storage.byte_count(document))
             collection.insert_one(document)
@@ -248,7 +257,8 @@ def create_submission(owner_id, label, meaning, category, visibility,
                 'schema_version': SCHEMA_VERSION,
                 '_id': str(uuid4()), 'card_submission_id': document['_id'],
                 'actor_id': actor_id,
-                'action': 'private_activated' if document['status'] == 'approved' else document['status'],
+                'action': ('shared_published' if content_operator is not None else
+                           'private_activated' if document['status'] == 'approved' else document['status']),
                 'reason': None, 'created_at': document['created_at'],
             })
         return _public(document)

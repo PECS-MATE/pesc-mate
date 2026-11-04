@@ -8,6 +8,7 @@ import './assets/caregiverUx.css';
 import UiIcon from './UiIcon';
 import IconButton from './IconButton';
 import CardEditorDialog from './CardEditorDialog';
+import AdminCardRegistration from './AdminCardRegistration';
 import CardPrintEditor from './CardPrintEditor';
 import HomeDashboard from './HomeDashboard';
 import LandingPage from './LandingPage';
@@ -1741,7 +1742,7 @@ function App() {
   const pageTitle = tab === 'account_permissions' && canManageAccounts ? '담당자의 운영 권한을 관리해요.'
     : tab === 'rfid_registration' && canManageContent ? '칩을 읽고 그림카드에 연결해요.'
     : tab === 'admin' && canManageContent
-    ? '카드 등록 요청을 검토해요.'
+    ? '공용 카드를 관리해요.'
     : isSupporter
     ? tab === 'support_home' ? isCaregiver ? '함께 나누는 그림 카드판' : '연결된 사용자를 지원해요.'
       : tab === 'caregiver_manage' && isCaregiver ? '아이 관리'
@@ -2097,6 +2098,8 @@ function App() {
         </div><button className="primary" disabled={accessibilityBusy || accessibilitySaved} onClick={saveAccessibility}>{accessibilityBusy ? '저장 중…' : accessibilitySaved ? '저장됨' : '접근 설정 저장'}</button></article>
       </div></fieldset>
     </section> : tab === 'account_permissions' && canManageAccounts ? <AccountPermissions key={user.id} accountId={user.id} onSessionExpired={handleLogout} /> : tab === 'admin' && canManageContent ? <section className="admin-review">
+      <AdminCardRegistration key={`admin-cards-${user.id}`} categories={adminCategories} disabled={offline}
+        onCreated={saved => setAdminSubmissions(current => [saved, ...current])} />
       <A4SharingGallery key={`a4-review-${user.id}`} accountId={user.id} canReview disabled={offline} />
       <div className="category-admin">
         <div className="panel-heading"><span aria-hidden="true"><UiIcon name="grid" /></span><div><h2>카테고리 관리</h2><p className="muted">카테고리를 추가하고 표시 순서와 활성 상태를 관리하세요.</p></div></div>

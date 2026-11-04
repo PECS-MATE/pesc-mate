@@ -194,6 +194,7 @@ HTTP 500은 일반 안내만 반환하고 내부 예외 문구를 응답에 포�
 | 학습 | GET | `/api/learning/progress` | 본인 또는 `learning_manage` | 기간별 참여 횟수와 익숙한 단어·반복할 단어 조회 |
 | 학습 | GET | `/api/learning/audit` | 본인 또는 `learning_manage` | 학습 설정 변경 이력 조회 |
 | 운영 | GET | `/api/admin/card-submissions` | `content_manage` 권한 담당자 | 전체 카드 요청 조회 |
+| 운영 | POST | `/api/admin/cards` | `content_manage` 권한 담당자 | 글자·사진 공용 카드 직접 등록 및 즉시 공개 |
 | 운영 | PATCH | `/api/admin/card-submissions/{id}` | `content_manage` 권한 담당자 | 카드 승인 또는 반려 |
 | 운영 | GET | `/api/admin/categories` | `content_manage` 권한 담당자 | 전체 카테고리 조회 |
 | 운영 | POST | `/api/admin/categories` | `content_manage` 권한 담당자 | 카테고리 추가 |

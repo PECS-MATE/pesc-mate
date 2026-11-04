@@ -1171,6 +1171,17 @@ def admin_card_submissions(user=Depends(current_user)):
     return submissions_for_review()
 
 
+@api_router.post('/admin/cards', response_model=CardSubmissionResponse, status_code=201, tags=['운영'])
+async def publish_admin_card(label: str = Form(min_length=1, max_length=30),
+                             meaning: str = Form(min_length=1, max_length=120),
+                             category: str = Form(min_length=1, max_length=30),
+                             image: UploadFile = File(), user=Depends(current_user)):
+    require_account_permission(user, 'content_manage')
+    data = await image.read(MAX_IMAGE_BYTES + 1)
+    return create_submission(user['id'], label, meaning, category, 'shared',
+                             image.filename, image.content_type, data, content_operator=user)
+
+
 @api_router.patch('/admin/card-submissions/{submission_id}', response_model=CardSubmissionResponse, tags=['운영'])
 def review_card_submission(submission_id: str, request: CardReviewRequest, http_request: Request, response: Response,
                            user=Depends(current_user)):
