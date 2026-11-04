@@ -87,6 +87,27 @@ CARDS = [with_inferred_metadata(dict(id=key, label=label, symbol=symbol, categor
     ('cold', '추워요', '🧣', '몸 상태', '춥게 느끼는 상태', 'adjective', 'predicate'),
     ('itchy', '가려워요', '🖐️', '몸 상태', '몸이 가려운 상태', 'adjective', 'predicate'),
     ('dizzy', '어지러워요', '😵', '몸 상태', '어지러움을 느끼는 상태', 'adjective', 'predicate'),
+    ('water_bottle', '물병', '🧴', '생활용품', '물을 담아 마시는 병', 'noun', 'object'),
+    ('soap', '비누', '🧼', '생활용품', '손이나 몸을 씻는 데 사용하는 비누', 'noun', 'object'),
+    ('towel', '수건', '🧻', '생활용품', '물기를 닦는 수건', 'noun', 'object'),
+    ('spoon', '숟가락', '🥄', '생활용품', '음식을 떠먹는 숟가락', 'noun', 'object'),
+    ('plate', '접시', '🍽️', '생활용품', '음식을 담는 접시', 'noun', 'object'),
+    ('toothpaste', '치약', '🪥', '생활용품', '이를 닦을 때 사용하는 치약', 'noun', 'object'),
+    ('toothbrush', '칫솔', '🪥', '생활용품', '이를 닦는 칫솔', 'noun', 'object'),
+    ('fork', '포크', '🍴', '생활용품', '음식을 집어 먹는 포크', 'noun', 'object'),
+    ('tissue', '휴지', '🧻', '생활용품', '닦는 데 사용하는 휴지', 'noun', 'object'),
+    ('blocks', '블럭', '🧱', '놀이', '블록 놀이에 사용하는 조립 장난감', 'noun', 'object'),
+    ('doll', '인형', '🧸', '놀이', '놀이에 사용하는 인형', 'noun', 'object'),
+    ('puzzle', '퍼즐', '🧩', '놀이', '조각을 맞추는 퍼즐', 'noun', 'object'),
+    ('picture', '그림', '🖼️', '학습', '그리거나 감상하는 그림', 'noun', 'object'),
+    ('paper', '종이', '📄', '학습', '쓰거나 그리는 종이', 'noun', 'object'),
+    ('walk', '걷다', '🚶', '행동', '발로 걸어서 이동하는 행동', 'verb', 'predicate'),
+    ('draw', '그리다', '🖍️', '행동', '그림을 그리는 행동', 'verb', 'predicate'),
+    ('run', '뛰다', '🏃', '행동', '뛰어서 이동하는 행동', 'verb', 'predicate'),
+    ('wash_hands', '손 씻다', '🧼', '행동', '손을 씻는 행동', 'verb', 'predicate'),
+    ('read_book', '책을 읽다', '📖', '행동', '책을 읽는 행동', 'verb', 'predicate'),
+    ('ride', '타다', '🚌', '행동', '탈것이나 놀이 기구에 타는 행동', 'verb', 'predicate'),
+    ('where', '어디', '❓', '질문', '장소가 어디인지 묻는 표현', 'pronoun', 'response'),
 ])]
 
 SEMANTIC_GROUPS = {
@@ -97,7 +118,7 @@ SEMANTIC_GROUPS = {
     'stop': 'core', 'more': 'core', 'again': 'core', 'wait': 'core',
     'unknown': 'uncertainty', 'other': 'core',
     'please_give': 'core', 'want': 'core', 'finished': 'core', 'this': 'core', 'alone': 'core',
-    'refuse': 'rejection', 'who': 'question', 'what': 'question',
+    'refuse': 'rejection', 'who': 'question', 'what': 'question', 'where': 'question',
     'hungry': 'physical_state', 'thirsty': 'physical_state', 'sleepy': 'physical_state',
     'tired': 'physical_state', 'itchy': 'physical_state', 'dizzy': 'physical_state',
     'hot': 'sensory_state', 'cold': 'sensory_state',
@@ -140,7 +161,7 @@ PREDICATE_PHRASES = {
     'scared': '무서워요.',
     'noisy': '시끄러워요.',
     'please_give': '주세요.', 'want': '원해요.', 'refuse': '안 할래요.',
-    'finished': '끝났어요.', 'who': '누구예요?', 'what': '무엇이에요?',
+    'finished': '끝났어요.', 'who': '누구예요?', 'what': '무엇이에요?', 'where': '어디예요?',
 }
 
 NEGATIVE_ACTIONS = {

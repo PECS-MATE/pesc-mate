@@ -21,6 +21,7 @@ DEFAULT_CATEGORIES = [
     {'id': 'requests', 'name': '요청과 선택', 'display_order': 10, 'active': True},
     {'id': 'questions', 'name': '질문', 'display_order': 11, 'active': True},
     {'id': 'physical-states', 'name': '몸 상태', 'display_order': 12, 'active': True},
+    {'id': 'play', 'name': '놀이', 'display_order': 13, 'active': True},
 ]
 CATEGORY_NAME_PATTERN = re.compile(r'^[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9 ]+$')
 

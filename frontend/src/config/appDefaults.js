@@ -12,6 +12,11 @@ export const CARD_META = Object.fromEntries([
   ['finished', '끝났어요'], ['this', '이것'], ['alone', '혼자'], ['who', '누구'], ['what', '무엇'],
   ['hungry', '배고파요'], ['thirsty', '목말라요'], ['sleepy', '졸려요'], ['tired', '피곤해요'],
   ['hot', '더워요'], ['cold', '추워요'], ['itchy', '가려워요'], ['dizzy', '어지러워요'],
+  ['water_bottle', '물병'], ['soap', '비누'], ['towel', '수건'], ['spoon', '숟가락'],
+  ['plate', '접시'], ['toothpaste', '치약'], ['toothbrush', '칫솔'], ['fork', '포크'], ['tissue', '휴지'],
+  ['blocks', '블럭'], ['doll', '인형'], ['puzzle', '퍼즐'], ['picture', '그림'], ['paper', '종이'],
+  ['walk', '걷다'], ['draw', '그리다'], ['run', '뛰다'], ['wash_hands', '손 씻다'],
+  ['read_book', '책을 읽다'], ['ride', '타다'], ['where', '어디'],
 ].map(([id, label]) => [id, { id, label }]));
 
 export const TTS_PRESETS = {
