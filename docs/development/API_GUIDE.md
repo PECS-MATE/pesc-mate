@@ -61,7 +61,7 @@ USB 데이터는 먼저 브라우저로 들어온다. 공용 칩 등록은 `GET 
 말하기 화면에서는 `POST /api/rfid/usb/resolve`로 읽은 UID를 카드에 연결한 뒤
 사용자가 명시적으로 문장에 추가·적용한다. 스캔 자체가 문장 저장이나 발화를 호출하지 않는다.
 세부 메시지·권한·상태 이벤트는 [USB 연동](RFID_USB_INTEGRATION.md)과
-[관리자 공용 칩 등록](RFID_CHIP_REGISTRATION.md)을 참고한다.
+[관리자 공용 칩 등록](RFID_USB_INTEGRATION.md#rfid-chip-registration)을 참고한다.
 
 **선택형 Wi-Fi 카드판:** 보호자·담당자가 `/api/rfid/devices`로 장치를 관리하고,
 장치는 별도 키로 `/api/rfid/devices/{device_id}/session`과 `snapshot`을 호출한다.

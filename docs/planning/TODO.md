@@ -11,21 +11,21 @@
 
 2026-10-28 설정 진입점은 **이름·프로필 사진 → 마이페이지**로 통합했다. 아동의 프로필·접근·
 음성·보호자 설정을 창에서 관리하고 보호자·담당자는 허용된 연결 사용자·운영 메뉴로 이동한다.
-검증 상태와 범위는 [마이페이지 구현 기록](../development/MY_PAGE_SETTINGS.md)을 따른다.
+검증 상태와 범위는 [마이페이지 구현 기록](../development/USER_INTERFACE.md#my-page-settings)을 따른다.
 
 후속 UX 개편은 **활동 선택 → 카드 탐색·실물 입력 → 명시 말하기** 순서로 정리한다.
 홈의 세 활동·주제별 카드·USB 연결 유지와 말하기 우선 배치의 구현·검증 범위는
-[활동 중심 UX 기록](../development/ACTIVITY_UX.md)에 남긴다. 실물 칩·3개 리더기·실제 음성 품질
+[활동 중심 UX 기록](../development/USER_INTERFACE.md#activity-ux)에 남긴다. 실물 칩·3개 리더기·실제 음성 품질
 완료 게이트는 UI 개편과 별도로 유지한다.
 
 후속 요청으로 비로그인 첫 화면에 서비스 소개·기능·이용 순서·FAQ와 기존 로그인·가입 연결을
 추가한다. 로그인된 사용자는 앱으로 바로 진입한다. 구현·검증 범위는
-[랜딩페이지 기록](../development/LANDING_PAGE.md)을 따르며 실물·배포 게이트를 변경하지 않는다.
+[랜딩페이지 기록](../development/USER_INTERFACE.md#landing-page)을 따르며 실물·배포 게이트를 변경하지 않는다.
 
 새 `uxpilot-export-10-28-26 (1).pdf`의 활동 화면 UX를 반영했다. 말하기·연습 집중 보기,
 선택 문장 상단 고정, 관리자 칩 등록 단계·미리보기와 리포트 배치를 정리한다.
 **사용자 요청으로 이 후속 UX 변경의 검사·빌드는 미실행**이며 완료 게이트로 표시하지 않는다.
-범위와 사용자 확인 항목은 [새 참고 화면 UX 기록](../development/REFERENCE_UX.md)을 따른다.
+범위와 사용자 확인 항목은 [새 참고 화면 UX 기록](../development/USER_INTERFACE.md#reference-ux)을 따른다.
 
 현재 최우선은 [실물 카드 입력 MVP TODO](HARDWARE_MVP.md)다. 기존 A/B 트랙과 완료 이력은
 후속 안정화·현장/운영 준비·확장 백로그로 보존하며 미완료 게이트를 임의로 닫지 않는다.
@@ -46,7 +46,7 @@ USB 연동 전체 자동 검증은 881개·빌드·임시 환경 정리를 통�
 관리자 사전 등록 요청으로 **RFID 칩 등록** 전용 페이지를 추가했다. 한 칩을 읽어 UID를 고정하고
 공용 그림카드 선택·미리보기·저장·다음 칩으로 진행한다. 공용 매핑은 전체 아동에게 적용하고 개인
 매핑을 우선한다. 공용 관리 API의 운영 권한·재인증·비공개 카드 차단·버전 충돌 검증을 포함하며,
-전체 자동 검증과 실물 등록 상태는 [관리자 칩 등록 기록](../development/RFID_CHIP_REGISTRATION.md)을 따른다.
+전체 자동 검증과 실물 등록 상태는 [관리자 칩 등록 기록](../development/RFID_USB_INTEGRATION.md#rfid-chip-registration)을 따른다.
 관리자 공용 칩 등록 단계의 전체 검증은 890개·빌드·임시 환경 정리 통과다. 실제 칩을 대고 관리자
 페이지에서 저장하는 실물 검수는 미실행이며 자동 검사·커밋으로 현장 완료를 표시하지 않는다.
 
@@ -117,7 +117,7 @@ PECS MATE는 실물 PECS 카드가 늘어날수록 발생하는 휴대·분류·
 
 이 절은 새 기능 목록이 아니라 이미 확보된 기반을 기록한다.
 
-카드 사진·단어 제작 범위와 우선순위는 [카드 사진·단어 목록](../development/CARD_PHOTO_WORD_LIST.md)에서 관리한다.
+카드 사진·단어 제작 범위와 우선순위는 [카드 사진·단어 목록](../development/CARD_ASSETS.md#card-photo-word-list)에서 관리한다.
 
 ### 3.1 계정·권한
 
@@ -317,14 +317,14 @@ API 지표 증빙: `backend/app/services/api_metrics.py`가 개별 요청 없이
 계정에만 제공하고 재시작 시 초기화한다. `backend/tests/test_api_metrics.py`와
 `frontend/e2e/api-metrics.spec.js`에서 권한·개인정보 비노출·만료·동시 요청을 검증한다.
 장기 보관·다중 프로세스 집계·외부 통보는 이번 구현 범위에 포함하지 않는다.
-자세한 정의는 [API 지표](../development/API_METRICS.md)를 따른다.
+자세한 정의는 [API 지표](../development/OPERATIONS_METRICS.md#api-metrics)를 따른다.
 
 TTS 지표 증빙: `backend/app/services/tts_metrics.py`와 `/api/admin/tts-metrics`가
 기존 클라이언트 보고만 집계하며 성공·실패·취소·결과 미수신과 유효 지연 표본을 구분한다.
 `tts_events.py`는 동일 요청 ID의 최초 완료 결과를 보존한다. 단위 검증은
 `backend/tests/test_tts_metrics.py`·`test_tts_events.py`, 실제 DB 검증은
 `frontend/e2e/tts-metrics.spec.js`에서 수행한다. 분모와 오프라인·기기 실측 한계는
-[TTS 지표](../development/TTS_METRICS.md)에 기록한다.
+[TTS 지표](../development/OPERATIONS_METRICS.md#tts-metrics)에 기록한다.
 
 오프라인 동기화 지표 증빙: `backend/app/services/offline_sync_metrics.py`와
 `/api/admin/offline-sync-metrics`가 서버에서 확인한 발화·학습의 신규·중복·실패·미처리
@@ -332,14 +332,14 @@ TTS 지표 증빙: `backend/app/services/tts_metrics.py`와 `/api/admin/tts-metr
 유지되며 재시도 건수만 헤더로 보낸다. 단위 검증은 `test_offline_sync_metrics.py`와
 `offline-sync.test.mjs`, 실제 DB·브라우저 검증은 `offline-sync-metrics.spec.js`에서
 수행한다. 서버 미도착·기기 저장 오류의 집계 한계는
-[오프라인 동기화 지표](../development/OFFLINE_SYNC_METRICS.md)에 명시한다.
+[오프라인 동기화 지표](../development/OPERATIONS_METRICS.md#offline-sync-metrics)에 명시한다.
 
 운영 알림 증빙: `backend/app/services/operational_alerts.py`와 `/api/admin/alerts`가
 공용 카드 대기와 API·음성·동기화 반복 실패를 집계해 안내한다. `OperationalAlerts.jsx`는
 운영 계정에만 표시하고 조회 실패·이전 결과를 구분하며 검수 후 알림을 갱신한다.
 단위·컴포넌트 검증과 `frontend/e2e/operational-alerts.spec.js`에서 권한·임계값·조회
 실패·실제 카드 승인·좁은 화면의 숫자 비겹침을 확인한다. 초기 기준과 외부 통보가
-아닌 화면 안내라는 한계는 [운영 알림](../development/OPERATIONAL_ALERTS.md)에 기록한다.
+아닌 화면 안내라는 한계는 [운영 알림](../development/OPERATIONS_METRICS.md#operational-alerts)에 기록한다.
 
 장애 대응 문서 증빙: [장애 대응 절차와 연락 체계](../operations/INCIDENT_RESPONSE.md)에
 영향 기준 등급, 읽기 전용 점검, 대기 기록·요청 ID 보존, 역할별 호출·상향·복구 승인
@@ -418,7 +418,7 @@ HMAC 체크포인트/검증을 구현한다. 사전 서명·백업 참조·쓰�
 교차 확인하고 EXIF·XMP·ICC·텍스트·불필요한 원본 파일명을 화면용·검사용 이미지에서 제거한다.
 방향·팔레트/RGB 색상 키/부분 투명도를 보존한다. 실제 메타데이터를 넣은 합성 이미지의
 출력 청크·안전성 전송·DB 저장·이미지 API·실패 무변경을 단위/임시 DB 통합 시험으로
-검증한다. [업로드 이미지 정규화](../development/IMAGE_UPLOAD_NORMALIZATION.md)의 범위와
+검증한다. [업로드 이미지 정규화](../development/IMAGE_STORAGE.md#image-upload-normalization)의 범위와
 한계를 따르며 기존 DB/백업 이미지는 일괄 변경하지 않았다. 나머지 보관·썸네일·용량 정책은 별도다.
 
 2026-10-22 사용자 결정: 클라우드 저장소를 추가하지 않고 현재 로컬 MongoDB에 원본을 보관한다.
@@ -432,7 +432,7 @@ HMAC 체크포인트/검증을 구현한다. 사전 서명·백업 참조·쓰�
 2026-10-22 구현 체크포인트: 위 미체크 5개 항목의 코드는 구현했으나 최종 전체 검증은
 완료하지 않아 체크 상태를 유지한다. 화면·썸네일 규격, 캐시 무효화, 고아 문서 정리,
 저장량 한도, 삭제 시각과 30일 백업 보존 연계는
-[로컬 이미지 저장 정책](../development/LOCAL_IMAGE_STORAGE.md)을 따른다.
+[로컬 이미지 저장 정책](../development/IMAGE_STORAGE.md#local-image-storage)을 따른다.
 최근 격리 Docker 검증에서 백엔드 365개·프런트엔드 컴포넌트 116개·MongoDB 72개는
 통과했지만 브라우저 39개 중 프로필 응답 기대값 2개가 실패했다. 새 `thumbnail_url` 필드를
 기대값에 반영했으며 수정 후 전체 재검증은 하지 않았다. 사용자 요청으로 추가 검증을
@@ -611,12 +611,12 @@ TRACK B는 현재 완성 게이트를 대신하지 않는다. 각 기능은 기�
 
 2026-11-04 후속: 사진 한 장의 여러 실물 카드를 검출·원근 보정해 분리하고,
 이름 OCR·검토·선택 일괄 등록하는 화면을 보호자/담당자와 운영자에 추가했다.
-[현재 범위와 검증 기록](../development/MULTI_CARD_SCAN.md)을 따른다.
+[현재 범위와 검증 기록](../development/CARD_MANAGEMENT.md#multi-card-scan)을 따른다.
 이 기능은 과거 삭제한 여러 파일 일괄 업로드 화면의 복원이 아니다.
 합성 검출·모의 등록과 로컬 빌드는 확인했으며 실물 사진·한글 OCR·기기·DB 통합은 미검수다.
 아래 과거 체크 상태와 실행 수치는 역사적 이력이며 이번 실물 검수 완료를 뜻하지 않는다.
 
-기준 목록: [카드 사진·단어 목록](../development/CARD_PHOTO_WORD_LIST.md)
+기준 목록: [카드 사진·단어 목록](../development/CARD_ASSETS.md#card-photo-word-list)
 
 - [x] 여러 카드 사진 일괄 업로드 — 연결 아동 개인 카드, 한 번에 최대 20장
 - [x] 업로드 이미지 자동 자르기·회전·밝기 보정 — 선택형 중앙 자르기·90도 회전·밝기, 원본 보관 유지
@@ -628,7 +628,7 @@ TRACK B는 현재 완성 게이트를 대신하지 않는다. 각 기능은 기�
 - [x] 이미지 변경 시 카드 위치·문구·음성 유지 — 개인 카드 사진만 버전 조건부 교체
 - [x] 가져오기 실패 항목만 다시 처리 — 확인된 성공 제외, 통신·서버 오류의 불명확한 저장은 재전송 차단
 
-2026-10-23 첫 개발 단위: [개인 카드 사진 일괄 등록](../development/BULK_CARD_IMPORT.md).
+2026-10-23 첫 개발 단위: [개인 카드 사진 일괄 등록](../development/CARD_MANAGEMENT.md#bulk-card-import-history).
 기존 서버의 권한·동의·형식·한도 검사를 유지하며 개인 카드만 한 장씩 저장한다.
 고정 슬롯·기존 이미지·문구·음성은 변경하지 않는다. 프런트엔드 228개·빌드와 격리
 Chromium 일괄 등록/실패 항목 재시도 1개가 통과했다. 전체 자동 검증과 실제 기기 검수,
@@ -656,7 +656,7 @@ Chromium 일괄 등록/실패 항목 재시도 1개가 통과했다. 전체 자�
 
 완료 기준: 보호자가 기존 카드북 한 세트를 개별 등록보다 적은 단계로 옮기고 원래 위치를 유지한다.
 
-2026-10-23 [개인 카드 사진 교체](../development/PRIVATE_CARD_PHOTO_REPLACEMENT.md):
+2026-10-23 [개인 카드 사진 교체](../development/CARD_MANAGEMENT.md#private-card-photo-replacement):
 연결 아동 관리 권한으로 원본·화면용·썸네일만 교체하고 카드 ID·문구·분류·보드·음성은
 유지한다. 공유/잠긴 카드와 오래된 사진 버전은 거절하며 응답 유실 뒤 자동 재전송하지 않는다.
 Node 96·React 153개와 빌드, Linux 백엔드 379개, 격리 MongoDB 이미지 API 21개,
@@ -681,7 +681,7 @@ revision 조건부 저장으로 경쟁을 막는다. Node 96·React 162개와 �
 
 완료 기준: 하나의 아동 계정에서 여러 상황 보드를 사용할 수 있고 각 보드의 위치가 독립적으로 유지된다.
 
-2026-10-24 [상황별 카드판](../development/SITUATION_BOARDS.md) 구현: 기본 보드와 최대
+2026-10-24 [상황별 카드판](../development/CARD_MANAGEMENT.md#situation-boards) 구현: 기본 보드와 최대
 6개 상황을 같은 아동 계정에서 관리한다. 다른 아동의 사진/기록은 복사하지 않는다.
 모든 상황에서 핵심 잠금 위치를 지키며 생성·독립 편집·삭제는 같은 revision과 권한·감사를
 사용한다. 아동은 전환할 위치를 확인한 뒤에만 바꾸며 담은 문장·빠른/복구 표현은 유지한다.
@@ -697,7 +697,7 @@ revision 조건부 저장으로 경쟁을 막는다. Node 96·React 162개와 �
 - [x] 문장 생성·재생성 이력
 - [x] 학습 참여와 단어별 결과 기본 화면
 - [x] 의사소통과 학습 화면을 탭·권한·지표로 더 명확히 분리
-  - [기록 화면 분리](../development/SUPPORT_RECORD_DASHBOARD.md): 기록 탭·권한별 비활성화·집계 기준 안내,
+  - [기록 화면 분리](../development/LEARNING_AND_RECORDS.md#support-record-dashboard): 기록 탭·권한별 비활성화·집계 기준 안내,
     대상·영역 전환 후 늦은 조회 결과 차단. 기존 연결 권한과 별도 저장소를 유지하며 실제 현장 검수는 별도다.
 - [x] 카드 선택 시각, 순서, 발화 여부
   - 카드별 선택 시각·중복·순서와 문장 ID에 연결된 재생 완료/오류/중지를 표시한다.
@@ -713,7 +713,7 @@ revision 조건부 저장으로 경쟁을 막는다. Node 96·React 162개와 �
 - [x] 기간별 CSV/JSON 내보내기
   - 영역별 기존 조회 권한을 확인하며 의사소통은 화면의 7일·30일·전체, 학습은 최근 30일을 내보낸다.
     API는 두 영역 모두 1~365일·전체를 지원한다. 최근 미리보기로 자르지 않고 10,000개 초과 시 오류로 안내한다.
-    [범위·안전 정책과 검증 상태](../development/SUPPORT_RECORD_DASHBOARD.md)를 따른다.
+    [범위·안전 정책과 검증 상태](../development/LEARNING_AND_RECORDS.md#support-record-dashboard)를 따른다.
 - [x] 삭제 처리 결과 확인
   - 메모 삭제 상태와 개인정보 삭제 요청 번호·시각·항목별 건수·부분 실패·유지 항목·백업 한계를 표시한다.
     서버 삭제와 기기 임시 기록 삭제를 구분하며 지원 연결 해제 뒤의 열람 권한은 복원하지 않는다.
@@ -723,7 +723,7 @@ revision 조건부 저장으로 경쟁을 막는다. Node 96·React 162개와 �
 완료 기준: 보호자가 의사소통과 학습의 차이를 혼동하지 않고 필요한 지원 변화만 파악할 수 있다.
 
 2026-10-21 코드 구현 범위 완료. 전체 자동 검증 결과와 세부 한계는
-[지원 기록 대시보드](../development/SUPPORT_RECORD_DASHBOARD.md)에 기록한다.
+[지원 기록 대시보드](../development/LEARNING_AND_RECORDS.md#support-record-dashboard)에 기록한다.
 실제 보호자·AAC 사용자·기기 검수 및 A0 현장/배포 게이트 완료로 대체하지 않는다.
 
 ### B1-04. 추천 통제와 탐색 보조
@@ -749,7 +749,7 @@ revision 조건부 저장으로 경쟁을 막는다. Node 96·React 162개와 �
 ## 9. B2 — 교육·접근 방식 확장
 
 2026-10-24 사용자 요청으로 학습 콘텐츠 확장을 시작한다. A0 실기기·현장 및 운영 승인
-게이트는 계속 미완료로 유지한다. 먼저 [보호자 동의 관리 흐름](../development/GUARDIAN_CONSENT_FLOW.md)을
+게이트는 계속 미완료로 유지한다. 먼저 [보호자 동의 관리 흐름](../development/USER_INTERFACE.md#guardian-consent-flow)을
 분리했다. 아동의 강제 동의 화면을 없애고 서버 확정 동의와 편집 초안을 구분한다.
 동의가 없을 때 새 선택·발화·학습 결과를 저장하지 않으며 기본 말하기는 유지한다.
 프런트엔드 270개·빌드와 격리 Chromium 7개 통과. 실제 사용자 검수는 별도다.
@@ -758,7 +758,7 @@ revision 조건부 저장으로 경쟁을 막는다. Node 96·React 162개와 �
 
 - [x] 소리 듣고 카드 찾기 — 명시 재생·그림 보기·학습 전용 기록·재개·오프라인, 실제 기기 검수 별도
 - [x] 카드 순서로 문장 만들기 — 2~3장 예문 따라하기·재도전·선택 재개·오프라인, 실제 기기 검수 별도
-  - 2026-10-24 [예문 따라 만들기](../development/SENTENCE_ORDER_LEARNING.md): 고정 예문 10개와
+  - 2026-10-24 [예문 따라 만들기](../development/LEARNING_AND_RECORDS.md#sentence-order-learning): 고정 예문 10개와
     학습 전용 콘텐츠 ID·카드 순서 결과를 추가하고 단어별 경험 집계에서는 제외했다.
     전체 `verify:full` 845개와 빌드·정리가 통과했다. 자유 문장 채점과 실제 아동 과업은 별도다.
 - [ ] 상황별 의사소통 연습
@@ -772,7 +772,7 @@ revision 조건부 저장으로 경쟁을 막는다. Node 96·React 162개와 �
 
 완료 기준: 새 학습 콘텐츠가 기존 학습 기록 체계를 사용하고 의사소통 기능과 분리된다.
 
-2026-10-24 [소리 카드 학습](../development/SOUND_CARD_LEARNING.md)의 첫 콘텐츠를 추가했다.
+2026-10-24 [소리 카드 학습](../development/LEARNING_AND_RECORDS.md#sound-card-learning)의 첫 콘텐츠를 추가했다.
 기존 단어·그림 맞추기와 카테고리·보기/반복/재도전 설정을 유지한다. 문제 소리는
 의사소통 발화 이력이나 마지막 말에 넣지 않고 긴급 표현이 대체할 수 있다.
 학습 종류·v1 콘텐츠 버전을 재개/오프라인 결과에 보존하며 JSON/CSV에도 제공한다.

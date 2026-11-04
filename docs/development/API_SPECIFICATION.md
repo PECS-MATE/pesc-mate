@@ -25,7 +25,7 @@ lang: ko-KR
 
 RFID 하드웨어 API는 [Wi-Fi 카드판 연동 명세](RFID_WIFI_INTEGRATION.md)에 별도로 정리한다.
 현재 USB 방식의 인증 세션 기반 태그 조회·장치 상태 로그 API는 [USB 연동 명세](RFID_USB_INTEGRATION.md)를 따른다.
-관리자의 공용 칩 사전 등록·변경·해제 API는 [공용 칩 등록 명세](RFID_CHIP_REGISTRATION.md)에 권한·버전과 함께 정리한다.
+관리자의 공용 칩 사전 등록·변경·해제 API는 [공용 칩 등록 명세](RFID_USB_INTEGRATION.md#rfid-chip-registration)에 권한·버전과 함께 정리한다.
 `/api/rfid`의 보호자 장치·태그 관리/상태 조회는 기존 Bearer 세션과 아동별 지원 권한을 사용한다.
 장치의 세션 시작·스냅샷 수신은 `X-Device-Key`로만 인증하며 아동 계정 권한을 부여하지 않는다.
 기본 HTTPS이며 개발 사설망 HTTP는 명시적 설정이 필요하다. 이벤트 버전·세션·순서·중복 검사와
@@ -181,13 +181,13 @@ HTTP 500은 일반 안내만 반환하고 내부 예외 문구를 응답에 포�
 | 카드 | POST | `/api/cards/submissions/{id}/submit` | 본인 또는 `cards_manage` | 임시 저장 카드를 승인 대기로 제출 |
 | 카드 | PATCH | `/api/cards/submissions/{id}` | 본인 또는 `cards_manage` | 작성 중·반려 카드 정보 수정 |
 | 카드 | GET | `/api/cards/submissions/{id}/image` | 필요 | 권한이 있는 카드 이미지 조회 |
-| 카드 | PUT | `/api/cards/submissions/{id}/image` | 연결 cards_manage | [개인 카드 사진만 교체](PRIVATE_CARD_PHOTO_REPLACEMENT.md), 사진 버전 조건부 갱신 |
+| 카드 | PUT | `/api/cards/submissions/{id}/image` | 연결 cards_manage | [개인 카드 사진만 교체](CARD_MANAGEMENT.md#private-card-photo-replacement), 사진 버전 조건부 갱신 |
 | 카드판 | GET | `/api/board/layout` | 본인 또는 연결 권한 | 고정 카드·빠른 표현·복구 표현 구성 조회 |
 | 카드판 | PUT | `/api/board/layout/recovery-expressions` | `quick_speech_manage` | 사용자별 복구 표현 2~4개와 고정 순서 저장 |
 | 카드판 | PUT | `/api/board/layout/quick-expressions` | `quick_speech_manage` | 빠른 표현 카드와 고정 순서 저장 |
 | 카드판 | PUT | `/api/board/layout/slots` | `board_manage` | 카드판 슬롯과 고정 순서 저장 |
 | 카드판 | PUT | `/api/board/layout/locks` | `board_manage` | [핵심 카드 잠금](../policies/CORE_CARD_LOCK_POLICY.md), 위치·제외·사진 교체 보호 |
-| 카드판 | PUT | `/api/board/layout/situations` | `board_manage` | [상황별 보드 생성·복사·편집·삭제](SITUATION_BOARDS.md), 같은 아동·revision·잠금 검사 |
+| 카드판 | PUT | `/api/board/layout/situations` | `board_manage` | [상황별 보드 생성·복사·편집·삭제](CARD_MANAGEMENT.md#situation-boards), 같은 아동·revision·잠금 검사 |
 | 카드판 | GET | `/api/board/layout/audit` | 본인 또는 연결 권한 | 카드판 구성 변경 이력 조회 |
 | 학습 | GET | `/api/learning/settings` | 본인 또는 `learning_manage` | 단어·그림 맞추기 범위·문제 수·보기 수·반복 빈도·권장 시간·재도전 설정 조회 |
 | 학습 | PUT | `/api/learning/settings` | `learning_manage` | 연결 사용자의 학습 범위와 난이도 설정 저장 |
@@ -238,7 +238,7 @@ HTTP 500은 일반 안내만 반환하고 내부 예외 문구를 응답에 포�
 `RFID 장치 수신` 두 경로는 브라우저 Bearer 토큰을 받는 사용자 API가 아니다. USB 입력은 브라우저가
 Web Serial로 읽고, 카드 조회·상태 이벤트만 세션 인증 API로 보낸다. 역할별 세부 조건과 페이로드는
 [USB 연동](RFID_USB_INTEGRATION.md), [Wi-Fi 연동](RFID_WIFI_INTEGRATION.md),
-[공용 칩 등록](RFID_CHIP_REGISTRATION.md)을 따른다.
+[공용 칩 등록](RFID_USB_INTEGRATION.md#rfid-chip-registration)을 따른다.
 
 카드판 조회·저장 응답은 `revision`을 포함한다. 카드판 구성 변경 요청은 `expected_revision`을 필수로
 받으며 현재 버전과 다르거나 동시 저장에 뒤진 요청에는 `409`를 반환한다. 버전 누락·음수는
@@ -252,14 +252,14 @@ UI 동작과 배포 호환 조건은 [카드판 동시 수정 정책](../policie
 전송 오류 수와 오류율, `duration_ms`의 평균·최댓값·백분위 버킷 상한·누적 분포가 있다.
 전체 요청 URL이나 본문·토큰은 포함하지 않는다. 응답은 `Cache-Control: no-store`이며
 401·403은 기존 인증·운영 권한 규칙을 따른다. 재시작 시 초기화되고 여러 worker 간에는
-공유하지 않는다. 수치 정의와 표본·집계 한계는 [API 지표](API_METRICS.md)를 따른다.
+공유하지 않는다. 수치 정의와 표본·집계 한계는 [API 지표](OPERATIONS_METRICS.md#api-metrics)를 따른다.
 
 `GET /api/admin/tts-metrics?hours=24`는 `hours=1~168` 범위의 기존 TTS 이력을 요청 시각
 기준으로 집계한다. `totals`, `by_content_type`, `failure_codes`를 반환하며 사용자·요청 ID와
 원문은 포함하지 않는다. 실패율의 분모는 성공+실패 완료 수이며 취소·결과 미수신은 제외한다.
 지연 표본이 없는 경우 평균은 null이고, 성공·실패 완료가 없으면 비율도 null이다.
 `scope=stored_events`, `source=client_reported`이며 캐시를 금지한다. 입력 오류 422,
-인증·권한 오류 401·403, 집계 실패 503을 반환한다. 자세한 정의는 [TTS 지표](TTS_METRICS.md)를 따른다.
+인증·권한 오류 401·403, 집계 실패 503을 반환한다. 자세한 정의는 [TTS 지표](OPERATIONS_METRICS.md#tts-metrics)를 따른다.
 
 TTS 시작 POST를 같은 요청 ID로 다시 보내면 실제 저장된 상태를 반환한다. 완료 PATCH를
 재전송하거나 동시에 보내면 최초 완료 결과를 반환하고 상태·지연을 덮어쓰지 않는다.
@@ -269,7 +269,7 @@ TTS 시작 POST를 같은 요청 ID로 다시 보내면 실제 저장된 상태�
 `totals`, `by_kind`로 반환한다. 사용자·요청·카드 ID는 포함하지 않고 캐시를 금지한다.
 재시도는 기기 표시 헤더, 신규·중복은 실제 DB 처리 결과로 집계한다. 서버에 도착하지
 않은 통신·기기 저장 실패는 포함하지 않는다. 재시작 시 초기화되는 프로세스별 지표이며
-정확한 분모와 한계는 [오프라인 동기화 지표](OFFLINE_SYNC_METRICS.md)를 따른다.
+정확한 분모와 한계는 [오프라인 동기화 지표](OPERATIONS_METRICS.md#offline-sync-metrics)를 따른다.
 
 `GET /api/admin/alerts`는 `generated_at`, `status`, `thresholds`, `sources`, `alerts`를
 반환한다. 공개 승인 대기 1건 이상, 대기 24시간 이상, API·TTS·동기화 최종 실패
@@ -277,7 +277,7 @@ TTS 시작 POST를 같은 요청 ID로 다시 보내면 실제 저장된 상태�
 TTS는 최근 1시간 요청 기준이다. 개별 출처 조회 불가 시 200·`status=partial`과
 확인 불가 알림을 반환하고 다른 출처의 알림을 유지한다. 사용자·요청·카드 ID와
 원문은 포함하지 않으며 캐시를 금지한다. 401·403은 기존 권한 규칙을 따른다.
-화면 갱신·해소·외부 통보와의 구분은 [운영 알림](OPERATIONAL_ALERTS.md)에 기록한다.
+화면 갱신·해소·외부 통보와의 구분은 [운영 알림](OPERATIONS_METRICS.md#operational-alerts)에 기록한다.
 
 # 4. 데이터 모델
 
@@ -736,13 +736,13 @@ Content-Type: application/json
 `word-picture-v1`, `sound-picture-v1`, `sentence-order-v1`과 일치해야 한다.
 신규 요청의 누락 버전은 해당 활동의 v1으로 저장하고 과거 저장 문서의 누락은 null로
 조회한다. 버전은 학습 응답과 기록 CSV/JSON에 포함하며, 문제 음성 자체는 의사소통
-발화 이력으로 저장하지 않는다. [소리 카드 학습](SOUND_CARD_LEARNING.md)을 참고한다.
+발화 이력으로 저장하지 않는다. [소리 카드 학습](LEARNING_AND_RECORDS.md#sound-card-learning)을 참고한다.
 
 문장 순서의 문제별 결과는 `content_id`와 유일한 카드 ID 2~3개의 `card_ids`를 추가한다.
 `card_id`는 마지막 카드와 일치해야 하며 `label`도 해당 행동 카드의 표시명이다.
 문장 전용 필드를 다른 활동에 넣거나 버전·문제 합계·구성이 맞지 않으면 422다.
 학습 응답·개인정보 JSON·기록 JSON/CSV에도 추가 필드를 보존한다. 문장 시도는 참여 합계에는
-포함하지만 단어별 경험 집계에서는 제외한다. [문장 순서 학습](SENTENCE_ORDER_LEARNING.md)을 참고한다.
+포함하지만 단어별 경험 집계에서는 제외한다. [문장 순서 학습](LEARNING_AND_RECORDS.md#sentence-order-learning)을 참고한다.
 
 클라이언트는 오프라인 완료 결과를 별도 로컬 대기열에 보관한 뒤 같은
 `request_id`로 이 API를 재호출한다. 서버는 요청 ID를 학습 기록의 고유 키로
@@ -850,7 +850,7 @@ AAC 사용자 본인 또는 `cards_manage` 권한이 있는 연결 보호자·�
 메타데이터와 부가 데이터를 제거한 WebP로 재인코딩해 저장한다.
 시그니처·디코더 포맷도 교차 확인하며 EXIF 방향과 투명도는 픽셀에 반영한다.
 신규 카드에서 원본 파일명은 보관하지 않는다. 프로필 이미지 업로드에도 같은
-[정규화·메타데이터 제거 규칙](IMAGE_UPLOAD_NORMALIZATION.md)을 적용한다.
+[정규화·메타데이터 제거 규칙](IMAGE_STORAGE.md#image-upload-normalization)을 적용한다.
 
 2026-10-22부터 검증·안전성 처리를 통과한 신규 업로드의 원본 바이트를 로컬 MongoDB에
 화면용 이미지와 함께 보관한다. 카드의 `original_image`, 사용자 프로필의 `original_image`는
@@ -860,7 +860,7 @@ AAC 사용자 본인 또는 `cards_manage` 권한이 있는 연결 보호자·�
 프로필 교체·기본 캐릭터 전환·개인정보 삭제 시 관련 원본도 함께 제거한다. 별도 백업 사본의
 보존·파기 정책은 별도이며 기존 DB에서 버린 원본은 복원하지 않는다.
 
-A1-04 후속 구현은 [로컬 이미지 저장 안정화](LOCAL_IMAGE_STORAGE.md)를 따른다.
+A1-04 후속 구현은 [로컬 이미지 저장 안정화](IMAGE_STORAGE.md#local-image-storage)를 따른다.
 카드 화면용은 1280px 이내, 썸네일은 256px 이내로 비율을 보존한다. 카드 응답의
 `thumbnail_url`은 `?variant=thumbnail&v={콘텐츠해시}`이며 기본 image URL은 화면용이다.
 프로필 화면용/썸네일은 512/128px 이내다. 새 필드는 선택적이고 기존 데이터는 화면용으로 대체한다.
@@ -1276,7 +1276,7 @@ JSON 셀, 수식 시작 문자는 작은따옴표 접두사로 보호한다.
 응답은 `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, 첨부 파일명을 포함한다.
 10,000개 초과 시 잘린 파일 대신 413으로 기간 축소를 안내하고 조회 실패는 503이다.
 대시보드 `recent[].card_details`에는 순서를 보존한 카드 메타데이터(개인 카드 저장 스냅샷 우선)를
-추가한다. 자세한 해석·보관 안내는 [지원 기록 화면](SUPPORT_RECORD_DASHBOARD.md)을 따른다.
+추가한다. 자세한 해석·보관 안내는 [지원 기록 화면](LEARNING_AND_RECORDS.md#support-record-dashboard)을 따른다.
 
 ## 10.3 선택·발화·상황 기록
 
@@ -1406,7 +1406,7 @@ preflight는 요청 ID와 지표 집계를 유지하지만 콘솔 요청 로그�
 
 ## 보호자 A4 공유 API
 
-요청 스키마·승인·독립 사본·저장 한도·삭제와 회수 한계는 [A4 카드판 공유](A4_CARD_SHARING.md)를 따른다.
+요청 스키마·승인·독립 사본·저장 한도·삭제와 회수 한계는 [A4 카드판 공유](CARD_MANAGEMENT.md#a4-card-sharing)를 따른다.
 공개에는 보호자의 별도 권리/개인정보 확인과 운영 승인이 필요하며 아이 계정 사용 설정과는 별개다.
 
 ## 로컬 음성 합성 API
@@ -1419,16 +1419,16 @@ preflight는 요청 ID와 지표 집계를 유지하지만 콘솔 요청 로그�
 - 프로세스당 1개 합성 요청, 프록시 제한 45초, 응답 상한 12MiB. 사용 중 429,
   준비 중·연결 실패·시간 초과·잘못된 WAV 503, 빈 입력 422. 모든 음성 응답은 no-store다.
 - worker는 호스트 포트를 열지 않는다. 브라우저는 인증된 API를 통해서만 요청한다.
-  모델 최초 다운로드와 준비 시간, 속도·기기 검수 범위는 [MeloTTS 운영 안내](MELO_TTS.md)를 따른다.
+  모델 최초 다운로드와 준비 시간, 속도·기기 검수 범위는 [MeloTTS 운영 안내](SPEECH_AND_AI.md#melo-tts)를 따른다.
 
 ## 카드 사진 글자 인식 API
 
 - 여러 카드 사진의 검출·확인·원근 보정 자르기는 `POST /api/cards/scan`을 사용한다.
-  `scope`, `user_id`, `regions`와 응답 형식은 [다중 카드 가져오기](MULTI_CARD_SCAN.md)를 따른다.
+  `scope`, `user_id`, `regions`와 응답 형식은 [다중 카드 가져오기](CARD_MANAGEMENT.md#multi-card-scan)를 따른다.
 - `POST /api/admin/cards/ocr`: `content_manage` 권한 전용 multipart 요청.
   `image` 한 장을 받으며 아동 ID·아동 동의를 사용하지 않는다.
   임시 OCR만 수행하고 공용 등록은 별도 `POST /api/admin/cards`로 확인 후 저장한다.
-  촬영 UI와 변환·검증 범위는 [실물 카드 촬영 등록](CARD_CAMERA_OCR.md)을 따른다.
+  촬영 UI와 변환·검증 범위는 [실물 카드 촬영 등록](CARD_MANAGEMENT.md#card-camera-ocr)을 따른다.
 - `POST /api/cards/ocr`: 인증된 보호자·지원자 전용 multipart 요청.
   `user_id`는 연결 사용자 ID, `image`는 JPG·PNG·WebP 한 장이다.
 - 해당 사용자에 대한 `cards_manage` 권한과 기존 보호자 동의 정책을 확인한다.

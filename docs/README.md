@@ -1,92 +1,89 @@
 # PECS MATE 문서 안내
 
-현재 개발 범위와 진행 상태는 [통합 TODO](planning/TODO.md)에서 확인한다.
-구현할 기능은 [기능요구사양서](planning/functional_requirements_specification.md),
-API 연동은 [빠른 가이드](development/API_GUIDE.md)와 [API 명세서](development/API_SPECIFICATION.md),
-현장 연결은 [로컬 개발과 시연](development/LOCAL_DEVELOPMENT.md),
-[USB 카드 리더기 안내](development/RFID_USB_INTEGRATION.md)를 참고한다.
-프로젝트 실행 방법은 [루트 README](../README.md)에 있다.
+> 정리일: 2026-11-04 · 저장소 Markdown 88개를 43개로 통합했습니다.
 
-## 기획 — `planning/`
+실행 방법은 [프로젝트 README](../README.md), 현재 작업은 [통합 TODO](planning/TODO.md)에서 확인합니다.
+작은 변경마다 별도 문서를 만들지 않고 아래 주제별 안내서에 사용법·구현 경계·검증 상태를 함께 관리합니다.
+현재 사용 안내를 먼저 읽고, 각 문서의 접힌 상세 기록에서 과거 날짜의 구현·실패·미실행 내용을 확인하세요.
 
-제품 목표, 요구사항, 개발 우선순위를 관리한다. 계획과 요구사항에 적힌 목표의 현재 구현 여부는 TODO에서 확인한다.
+## 개발과 사용 안내
 
 | 문서 | 내용 |
-|---|---|
-| [과제 계획서](planning/project_plan.md) | 과제 배경, 목표, 수행 방법과 기대효과 |
-| [기능요구사양서](planning/functional_requirements_specification.md) | 기능 요구사항과 동작 조건 |
-| [통합 TODO](planning/TODO.md) | 현재 구현 상태, 파일럿 준비와 이후 발전 계획 |
-| [MVP 이후 개발 요청서](planning/POST_MVP_DEVELOPMENT.md) | 아동 UX 개선, Ollama 연습 제안, 단계별 완료 기준과 복사용 개발 프롬프트 |
-| [보호자 UI 개선 계획](planning/CAREGIVER_UI_IMPROVEMENT_PLAN.md) | 가독성·정보 위계·화면별 작업 흐름과 단계별 검증 기준 |
-| [실물 카드 입력 MVP TODO](planning/HARDWARE_MVP.md) | 최초 USB 계획 이력과 최신 Wi-Fi 3개 위치 구현 문서 안내 |
+| --- | --- |
+| [로컬 실행과 태블릿 접속](development/LOCAL_DEVELOPMENT.md) | 로컬 실행과 태블릿 접속 |
+| [화면 UX와 계정 설정](development/USER_INTERFACE.md) | 아동은 홈의 빠른 표현과 말하기·연습하기를 사용합니다 |
+| [카드 등록과 카드판 관리](development/CARD_MANAGEMENT.md) | 보호자의 아이 관리 → 개인 카드 관리에서 사진·실물 카드를 등록합니다 |
+| [카드 이미지 제작과 어휘 목록](development/CARD_ASSETS.md) | 현재 내장 이미지와 기본 카드는 66종입니다 |
+| [학습 활동과 의사소통 기록](development/LEARNING_AND_RECORDS.md) | 현재 학습은 단어·그림 맞추기, 소리 듣고 카드 찾기, 카드 순서로 문장 만들기 3종입니다 |
+| [음성 합성과 문장 생성](development/SPEECH_AND_AI.md) | 온라인 음성은 로컬 MeloTTS 서버를 사용하고, 기기 음성·핵심 표현 녹음·오프라인 캐시는 별도 대체 경로입니다 |
+| [이미지 업로드와 로컬 저장](development/IMAGE_STORAGE.md) | 사용자가 업로드한 원본과 화면용 WebP·썸네일을 구분해 로컬 MongoDB에 저장합니다 |
+| [API 음성 동기화 지표와 운영 알림](development/OPERATIONS_METRICS.md) | API 처리·클라이언트 음성 재생·오프라인 동기화·운영 알림은 서로 다른 지표입니다 |
+| [USB 리더기 연결과 칩 등록](development/RFID_USB_INTEGRATION.md) | USB 리더기 연결과 칩 등록 |
+| [선택형 Wi-Fi 하드웨어 연동](development/RFID_WIFI_INTEGRATION.md) | 선택형 Wi-Fi 하드웨어 연동 |
+| [API 연동 빠른 안내](development/API_GUIDE.md) | API 연동 빠른 안내 |
+| [API 상세 명세](development/API_SPECIFICATION.md) | API 상세 명세 |
+| [데이터 스키마와 마이그레이션](development/DATA_SCHEMA_MIGRATIONS.md) | 데이터 스키마와 마이그레이션 |
+| [추천 정책과 탐색 보조](development/RECOMMENDATION_POLICY.md) | 추천 정책과 탐색 보조 |
+| [아이콘 규격과 라이선스](development/UI_ICONS.md) | 아이콘 규격과 라이선스 |
+| [커밋 규칙](development/COMMIT_CONVENTION.md) | 커밋 규칙 |
 
-## 개발 — `development/`
+## 기획과 진행 상태
 
-API, 데이터 구조, 카드·마스코트 자산과 협업 규칙을 관리한다.
-
-| 문서 | 내용 |
-|---|---|
-| [API 연동 가이드](development/API_GUIDE.md) | 로컬 문서, 인증·권한, 말하기와 RFID 호출 흐름 |
-| [API 명세서](development/API_SPECIFICATION.md) | 엔드포인트, 권한, 요청과 응답 |
-| [RFID Wi-Fi 연동](development/RFID_WIFI_INTEGRATION.md) | RC522 3개·UNO R4 WiFi, 장치 인증·태그 매핑·웹 적용·배선표·실물 검수 |
-| [RFID USB 연동·장치 로그](development/RFID_USB_INTEGRATION.md) | 현재 PC 연결 방식, Web Serial·기존 진단 출력·USB 펌웨어·문장 추가·브라우저/backend 로그 |
-| [관리자 공용 칩 등록](development/RFID_CHIP_REGISTRATION.md) | USB로 칩 하나씩 인식·공용 카드 선택·등록/변경/해제·전체 아동 적용과 개인 매핑 우선 |
-| [로컬 개발과 시연](development/LOCAL_DEVELOPMENT.md) | Docker·개별 실행, 선택형 AI, 태블릿 연결과 상태 확인 |
-| [하드웨어 확장](../hardware/README.md) | Arduino 진단 스케치 현황·시연 환경·실물 입력 MVP와 기기 검증 기록 안내 |
-| [API 지표](development/API_METRICS.md) | 오류율·처리 시간 집계, 조회 권한과 해석 범위 |
-| [TTS 지표](development/TTS_METRICS.md) | 클라이언트 재생 결과·시작 지연, 중복 방지와 집계 분모 |
-| [오프라인 동기화 지표](development/OFFLINE_SYNC_METRICS.md) | 신규·중복·실패·미처리 집계, 기기 재시도 표시와 해석 한계 |
-| [운영 알림](development/OPERATIONAL_ALERTS.md) | 공용 카드 검수 대기·반복 실패 기준, 조회 실패와 갱신 정책 |
-| [데이터 버전·마이그레이션](development/DATA_SCHEMA_MIGRATIONS.md) | 저장 형식 기준선, 조회 전용 계획·명시적 적용·잠금·재개 규칙 |
-| [학습 기록 데이터 모델](development/LEARNING_DATA_MODEL.md) | 학습 컬렉션과 의사소통 기록의 구분 |
-| [소리 듣고 카드 찾기](development/SOUND_CARD_LEARNING.md) | 명시 재생·그림 보기·기존 학습 설정·콘텐츠 버전·재개와 오프라인 결과 |
-| [카드 순서로 문장 만들기](development/SENTENCE_ORDER_LEARNING.md) | 예문 따라 놓기·재도전·선택 재개·학습 전용 결과와 단어 집계 분리 |
-| [의사소통·학습 기록 화면 분리](development/SUPPORT_RECORD_DASHBOARD.md) | 기록 탭·연결 권한·집계 기준과 늦은 응답 차단 |
-| [추천 통제·탐색 보조](development/RECOMMENDATION_POLICY.md) | 추천 근거·승인·숨김·노출 기록과 장애 격리 |
-| [업로드 이미지 정규화·원본 보관](development/IMAGE_UPLOAD_NORMALIZATION.md) | 로컬 원본 보관과 화면용 WebP 분리, 형식 검증·메타데이터 제거·삭제 연동 |
-| [로컬 이미지 저장 안정화](development/LOCAL_IMAGE_STORAGE.md) | 화면·썸네일 규격, ETag, 저장 한도, 고아 정리·보강·백업 삭제 연동 |
-| [사진 일괄 등록 이전 기록](development/BULK_CARD_IMPORT.md) | 별도 화면은 제거됨. 과거 구현·검증 기록이며 현재는 개별 등록과 A4 편집기 사용 |
-| [개인 카드 사진 교체](development/PRIVATE_CARD_PHOTO_REPLACEMENT.md) | 카드 ID·문구·배치 유지, 사진 버전 충돌·원본 교체와 권한 경계 |
-| [상황별 카드판과 보드 복사](development/SITUATION_BOARDS.md) | 같은 아동의 독립 보드 생성·복사·삭제, 명시 전환과 오프라인 캐시 |
-| [보호자 동의 관리 흐름](development/GUARDIAN_CONSENT_FLOW.md) | 아동의 강제 동의 화면 제거, 확정 동의·초안 분리와 기록 없는 기본 사용 |
-| [마이페이지와 통합 설정](development/MY_PAGE_SETTINGS.md) | 프로필 클릭, 프로필·접근·음성·보호자 설정 창과 계정별 진입 권한 |
-| [활동 중심 홈과 말하기 UX](development/ACTIVITY_UX.md) | 주요 활동·주제 탐색·리더기 연결 유지·카드 선택 우선 배치와 검증 범위 |
-| [서비스 소개 랜딩](development/LANDING_PAGE.md) | 비로그인 소개·기능·이용 순서·FAQ, 로그인·가입 초점 이동과 세션 복원 |
-| [새 참고 화면 UX 반영](development/REFERENCE_UX.md) | 문장 상단 고정·집중 화면·연습·칩 등록·리포트 정리, 사용자 직접 검사 대기 |
-| [카드 사진·단어 목록](development/CARD_PHOTO_WORD_LIST.md) | 카드 제작 기준, 이미지 표현과 제작 우선순위 |
-| [마스코트 자산](development/MASCOT_ASSET.md) | 자산 경로, 적용 위치와 생성 프롬프트 |
-| [커밋 메시지 규칙](development/COMMIT_CONVENTION.md) | 커밋 유형, 제목과 본문 작성 방법 |
-
-## 정책 — `policies/`
-
-기능 구현과 검수에서 지켜야 할 동작 기준을 관리한다.
+계획의 목표와 실제 구현·검수 완료 여부는 다릅니다. 실물·사용자·운영 배포 게이트는 TODO를 따릅니다.
 
 | 문서 | 내용 |
-|---|---|
-| [문장 생성 정책](policies/SENTENCE_POLICY.md) | 선택 카드의 의미 보존과 생성 제약 |
-| [TTS 정책](policies/TTS_POLICY.md) | 음성 선택, 출력과 설정 기준 |
-| [의사소통 복구 표현 정책](policies/RECOVERY_SPEECH_POLICY.md) | 복구 표현과 즉시 발화 기준 |
-| [카드판 동시 수정 정책](policies/BOARD_CONFLICT_POLICY.md) | 버전 충돌 감지, 초안 보존과 최신 구성 재조회 |
-| [핵심 카드 잠금 정책](policies/CORE_CARD_LOCK_POLICY.md) | 명시 잠금·해제, 슬롯 이동·제외·사진 교체 보호와 권한 경계 |
-| [오프라인 정책](policies/OFFLINE_POLICY.md) | 로컬 저장, 음성 지원과 재연결 처리 |
-| [사용자 프로필 정책](policies/PROFILE_POLICY.md) | 프로필 설정, 자산과 접근 권한 |
-| [개인정보 정책](policies/PRIVACY_POLICY.md) | 수집, 접근, 보관, 내보내기와 삭제 |
+| --- | --- |
+| [보호자 UI 가독성과 작업 흐름 개선 개발 계획](planning/CAREGIVER_UI_IMPROVEMENT_PLAN.md) | 보호자 UI 가독성과 작업 흐름 개선 개발 계획 |
+| [PECS MATE 기능요구사양서](planning/functional_requirements_specification.md) | PECS MATE 기능요구사양서 |
+| [실물 카드 입력 기반 의사소통 MVP](planning/HARDWARE_MVP.md) | 실물 카드 입력 기반 의사소통 MVP |
+| [MVP 이후 UX 개선과 AI 연습 제안 개발 요청서](planning/POST_MVP_DEVELOPMENT.md) | MVP 이후 UX 개선과 AI 연습 제안 개발 요청서 |
+| [project_plan.md](planning/project_plan.md) | project_plan.md |
+| [PECS MATE 통합 TODO](planning/TODO.md) | PECS MATE 통합 TODO |
 
-## 운영 — `operations/`
+## 동작 정책
 
-장애 판단, 현장 중단·재개와 승인된 연락 절차를 관리한다. 실제 담당자 연락처는 비공개 연락망에 보관한다.
+개인정보·동의·오프라인·음성·카드 잠금과 충돌 기준은 독립 문서로 유지합니다.
 
 | 문서 | 내용 |
-|---|---|
-| [장애 대응 절차와 연락 체계](operations/INCIDENT_RESPONSE.md) | 등급, 읽기 전용 점검, 상태 보존, 호출·상향·복구 확인 |
-| [마이그레이션 백업·격리 복구](operations/MIGRATION_BACKUP_RECOVERY.md) | 로컬 압축 BSON 백업, 새 DB 검증 복원, 실패 격리와 수동 되돌리기 절차 |
-| [감사 보관·무결성](operations/AUDIT_RETENTION_INTEGRITY.md) | 명시적 기간 정리, 외부 HMAC 체크포인트, 개인정보 삭제와 변조 탐지 한계 |
-| [운영 권한 관리](operations/ACCOUNT_PERMISSION_MANAGEMENT.md) | 책임자 지정·담당자 운영 권한·재인증·감사·세션 차단 |
-| [인증 MongoDB 운영 준비](operations/AUTHENTICATED_MONGODB.md) | 독립 인증 DB·DB별 앱 계정·파일 자격 증명·격리 검증과 이전 주의사항 |
+| --- | --- |
+| [카드판 동시 수정 정책](policies/BOARD_CONFLICT_POLICY.md) | 카드판 동시 수정 정책 |
+| [핵심 카드 잠금과 개인 사진 교체](policies/CORE_CARD_LOCK_POLICY.md) | 핵심 카드 잠금과 개인 사진 교체 |
+| [오프라인 사용 및 한국어 음성 정책](policies/OFFLINE_POLICY.md) | 오프라인 사용 및 한국어 음성 정책 |
+| [아동 기록과 개인 카드 통제 정책](policies/PRIVACY_POLICY.md) | 아동 기록과 개인 카드 통제 정책 |
+| [사용자 프로필 정책](policies/PROFILE_POLICY.md) | 사용자 프로필 정책 |
+| [복구 표현 정책](policies/RECOVERY_SPEECH_POLICY.md) | 복구 표현 정책 |
+| [문장 생성 정책](policies/SENTENCE_POLICY.md) | 문장 생성 정책 |
+| [TTS MVP 정책](policies/TTS_POLICY.md) | TTS MVP 정책 |
 
-## 문서 관리
+## 운영 절차
 
-### 플랫폼 이름
+권한·재인증·장애·감사·백업·인증 DB 절차는 구현 이력과 구분합니다. 비밀키나 실제 연락처를 문서에 넣지 않습니다.
+
+| 문서 | 내용 |
+| --- | --- |
+| [운영 권한 관리](operations/ACCOUNT_PERMISSION_MANAGEMENT.md) | 운영 권한 관리 |
+| [감사 로그 보관과 무결성 검증](operations/AUDIT_RETENTION_INTEGRITY.md) | 감사 로그 보관과 무결성 검증 |
+| [인증 MongoDB와 DB별 앱 계정](operations/AUTHENTICATED_MONGODB.md) | 인증 MongoDB와 DB별 앱 계정 |
+| [장애 대응 절차와 연락 체계](operations/INCIDENT_RESPONSE.md) | 장애 대응 절차와 연락 체계 |
+| [마이그레이션 전 로컬 백업과 격리 복구](operations/MIGRATION_BACKUP_RECOVERY.md) | 마이그레이션 전 로컬 백업과 격리 복구 |
+| [중요 운영 작업 재인증](operations/OPERATION_REAUTHENTICATION.md) | 중요 운영 작업 재인증 |
+
+## 하드웨어
+
+- [하드웨어 전체 안내](../hardware/README.md)
+- [USB 카드판 펌웨어](../hardware/arduino/rfid-usb-board/README.md)
+- [Wi-Fi 카드판 펌웨어](../hardware/arduino/rfid-wifi-board/README.md)
+- [진단 스케치](../hardware/arduino/card-reader-test/README.md)
+
+## 문서 관리 규칙
+
+- 기능 변경은 해당 주제 안내서와 필요한 정책·API·TODO를 갱신합니다.
+- 스타일 수정·버튼 이동마다 새 Markdown 파일을 만들지 않습니다.
+- 명령·소스 경로는 저장소 루트 기준, Markdown 링크는 해당 문서 기준 상대 경로를 사용합니다.
+- 검사를 하지 않았다면 미실행으로 남깁니다. 문서 통합·커밋을 테스트 통과나 운영 승인으로 해석하지 않습니다.
+- 개발·커밋 지시는 [AGENTS.md](../AGENTS.md)와 [커밋 규칙](development/COMMIT_CONVENTION.md)을 따릅니다.
+
+### 플랫폼 이름과 기존 데이터 호환
 
 - 사용자에게 보이는 공식 표기는 대문자와 공백을 포함한 **PECS MATE**로 통일한다.
   파일명·패키지명·편집본 형식처럼 공백을 쓰지 않는 새 식별자는 `pecsmate`를 사용한다.
@@ -99,18 +96,18 @@ API, 데이터 구조, 카드·마스코트 자산과 협업 규칙을 관리한
 - 서비스 워커의 앱 셸 캐시는 새 버전으로 갱신한다. 이전 앱 셸 캐시만 만료시키며
   로그인 저장 키·오프라인 DB·서버 데이터는 삭제하지 않는다. 이미지 파일은 내용 변경 없이 이름만 바꿨다.
 
-#### 2026-11-03 검증
+## 이번 문서 정리 기록
 
-- 표시용 이전 철자와 이전 이미지 경로 검색 및 변경분 공백 검사 통과.
-- 프런트엔드 최종 빌드와 백엔드 Python 구문 검사 통과. 기존 500kB 청크 경고 유지.
-- 격리 Chrome에서 제목·랜딩 상하단 브랜드·manifest 이름이 PECS MATE이고
-  마스코트의 새 경로가 정상 로드되며 본문에 이전 오기가 없음을 확인했다. 로그인·DB 쓰기는 하지 않았다.
-- 일회성 Node 검사로 새/이전 A4 형식 읽기, 패키지/잠금 파일 이름 일치와 이미지 경로를 확인했다.
-  가상 캐시에서 이전 앱 셸만 정리하고 새 앱 셸·무관한 캐시는 유지함을 확인했다.
-- 실제 PWA 업데이트·기존 오프라인 사용자·실제 로그인·DB 이전·하드웨어 업로드 검수는 미실행이다.
-- 사용자 PPT는 이번 변경에 포함하지 않는다. 과거 Git 커밋 메시지와 이미지 안의 글자는 수정하지 않는다.
-
-- 새 문서는 목적에 맞는 폴더에 추가하고 이 목차에 링크를 등록한다.
-- 문서를 이동하거나 이름을 바꿀 때 해당 문서를 참조하는 링크도 갱신한다.
-- Markdown 링크는 해당 문서 기준의 상대 경로를 사용한다. 본문에 적힌 `frontend/`, `backend/` 등의 소스 경로와 실행 명령은 저장소 루트를 기준으로 한다.
-- 기능별 상세 기준은 해당 정책·개발 문서에, 개발 진행 상태와 다음 작업은 TODO에 기록한다.
+- 개발 문서 51개를 주제별 안내서 7개와 기존 USB 안내서로 통합했습니다.
+  원래 상세 내용·실패·미실행 기록은 각 안내서의 접힌 절에 보존했습니다.
+- 이미 제거된 전용 사진 일괄 업로드 화면 문서 1개는 삭제하고 카드 관리 안내서에 상태만 남겼습니다.
+  원문은 Git 이력에서 복구할 수 있습니다. 예: `git show 90f8f32:docs/development/BULK_CARD_IMPORT.md`.
+- 목차의 이전 일회성 브랜드 검증 기록은 통합 이전 Git 이력에 남깁니다.
+  실제 사용자·기기·PWA·운영 검수 미완료 상태는 TODO와 통합 안내서에서 계속 관리합니다.
+- 루트 README·기획·정책·운영·하드웨어 문서의 이전 링크도 새 절 주소로 연결합니다.
+- 코드·이미지·사용자 데이터·실행 중인 서버는 변경하거나 삭제하지 않습니다.
+- 검증: Markdown 43개와 내부 링크·절 주소 292개를 검사했고 끊어진 참조는 없었습니다.
+  통합 대상 51개 원문의 본문과 실패·미실행·권한·동의·삭제 관련 문구가 보존됐음을 대조했습니다.
+- 초기 통합 목차 생성의 누락 필드와 링크 검사 도구의 문자열 구성 오류가 있었습니다.
+  도구를 수정한 뒤 통합·링크 검사를 재실행해 통과했습니다. 공백 검사도 통과했습니다.
+- 앱 빌드·브라우저·기기 검사는 문서만 정리한 이번 작업에서 미실행입니다.

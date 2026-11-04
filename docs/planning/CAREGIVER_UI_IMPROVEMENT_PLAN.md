@@ -14,7 +14,7 @@ RFID 관리다. `.app.caregiver-ui` 범위와 명시적인 보호자 variant를 
 아동·담당자·랜딩 화면, 서버 권한·동의, 카드 위치, 발화·학습 엔진은 유지한다.
 새 AI 모델·통계·인증 수단·아이 연결 API 개발은 이번 범위에 포함하지 않는다.
 
-참고: [기존 보호자 UI 구현 기록](../development/CAREGIVER_UI_REFERENCE.md),
+참고: [기존 보호자 UI 구현 기록](../development/USER_INTERFACE.md#caregiver-ui-reference),
 [MVP 이후 요청서](POST_MVP_DEVELOPMENT.md).
 기존 PDF 기반 스타일 중 이번 계획과 충돌하는 큰 패널·균등 카드 배치는 재조정한다.
 과거 구현·검증 이력을 덮어쓰지 않고 후속 결과를 별도로 기록한다.
@@ -157,7 +157,7 @@ AGENTS.md와 현재 git 상태를 확인하고 관련 없는 기존 카드 이�
 ## 후속 구현 결과 (2026-11-01)
 
 1~4단계를 순서대로 구현하고 단계별 커밋을 분리했다. 실제 수행 범위와 미실행
-항목은 [개선 진행 기록](../development/CAREGIVER_UI_IMPROVEMENT_PROGRESS.md)에 기록했다.
+항목은 [개선 진행 기록](../development/USER_INTERFACE.md#caregiver-ui-improvement-progress)에 기록했다.
 앞선 ‘이번 문서 작업 검증’은 계획 작성 시점의 이력으로 유지한다.
 
 - [x] 공통 글자·버튼·표면과 모바일 목록 개선

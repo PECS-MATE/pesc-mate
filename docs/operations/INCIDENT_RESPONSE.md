@@ -128,7 +128,7 @@ docker compose logs --since 15m --tail 300 backend | Select-String -SimpleMatch 
 - `/api/admin/tts-metrics?hours=1`: 최근 1시간 요청의 저장된 최종 재생 보고
 - `/api/admin/offline-sync-metrics`: 프로세스별 최근 최대 15분 신규·중복·실패·미처리
 
-지표의 분모와 예외는 [운영 알림](../development/OPERATIONAL_ALERTS.md)과 연결된
+지표의 분모와 예외는 [운영 알림](../development/OPERATIONS_METRICS.md#operational-alerts)과 연결된
 개별 지표 문서를 따른다. 화면을 닫으면 알림 감시도 멈추며 외부 당직 호출을 대신하지 않는다.
 
 ## 5. 증상별 조치와 보호할 상태
