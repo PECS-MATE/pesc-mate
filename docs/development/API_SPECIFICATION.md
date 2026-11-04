@@ -176,6 +176,7 @@ HTTP 500은 일반 안내만 반환하고 내부 예외 문구를 응답에 포�
 | 카드 | GET | `/api/cards` | 필요 | 전체 카드 조회 |
 | 카드 | GET | `/api/categories` | 필요 | 활성 카드 카테고리 조회 |
 | 카드 | GET | `/api/cards/submissions` | 본인 또는 `cards_manage` | 본인·연결 사용자의 카드 등록 요청 조회 |
+| 카드 | POST | `/api/cards/scan` | 개인 `cards_manage` 또는 공용 `content_manage` | 한 사진의 여러 카드 영역 검출·원근 보정 자르기, 저장 없음 |
 | 카드 | POST | `/api/cards/submissions` | 본인 또는 `cards_manage` | 본인·연결 사용자의 카드 요청 저장 |
 | 카드 | POST | `/api/cards/submissions/{id}/submit` | 본인 또는 `cards_manage` | 임시 저장 카드를 승인 대기로 제출 |
 | 카드 | PATCH | `/api/cards/submissions/{id}` | 본인 또는 `cards_manage` | 작성 중·반려 카드 정보 수정 |
@@ -1421,6 +1422,8 @@ preflight는 요청 ID와 지표 집계를 유지하지만 콘솔 요청 로그�
 
 ## 카드 사진 글자 인식 API
 
+- 여러 카드 사진의 검출·확인·원근 보정 자르기는 `POST /api/cards/scan`을 사용한다.
+  `scope`, `user_id`, `regions`와 응답 형식은 [다중 카드 가져오기](MULTI_CARD_SCAN.md)를 따른다.
 - `POST /api/admin/cards/ocr`: `content_manage` 권한 전용 multipart 요청.
   `image` 한 장을 받으며 아동 ID·아동 동의를 사용하지 않는다.
   임시 OCR만 수행하고 공용 등록은 별도 `POST /api/admin/cards`로 확인 후 저장한다.

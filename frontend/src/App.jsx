@@ -9,6 +9,7 @@ import UiIcon from './UiIcon';
 import IconButton from './IconButton';
 import CardEditorDialog from './CardEditorDialog';
 import AdminCardRegistration from './AdminCardRegistration';
+import PhysicalCardImporter from './PhysicalCardImporter';
 import CardPrintEditor from './CardPrintEditor';
 import HomeDashboard from './HomeDashboard';
 import LandingPage from './LandingPage';
@@ -2007,6 +2008,9 @@ function App() {
     </section> : tab === 'card_settings' && isSupporter && canManageCards ? <section className="card-catalog">
       <div className="caregiver-card-toolbar"><div className="catalog-toolbar"><div><h2>{selectedUser?.name}님의 개인 카드</h2></div><button className="primary" onClick={() => { setEditingSubmission(null); setCardFormError(''); setShowCardForm(true); }}><UiIcon name="plus" />개인 카드 등록</button></div>
       <label className="user-picker">{isCaregiver ? '아이 선택' : '관리 사용자'}<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)} disabled={cardFormBusy}>{linkedUsers.filter(person => person.permissions.includes('cards_manage')).map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label></div>
+      {selectedUser && <PhysicalCardImporter key={`physical-${user.id}:${selectedUser.id}`} targetId={selectedUser.id}
+        categories={cardCategories} existingCards={[...cards, ...cardSubmissions]} disabled={offline || statsBusy || cardFormBusy}
+        onSaved={() => loadSupportCards(selectedUser)} />}
       {user.role === 'caregiver' && selectedUser && <CardPrintEditor key={`print-${user.id}:${selectedUser.id}`}
         targetId={selectedUser.id} targetName={selectedUser.name} categories={cardCategories} existingCards={cardSubmissions}
         disabled={offline || statsBusy || cardFormBusy} onSaved={() => loadSupportCards(selectedUser)} />}
@@ -2099,6 +2103,15 @@ function App() {
         </div><button className="primary" disabled={accessibilityBusy || accessibilitySaved} onClick={saveAccessibility}>{accessibilityBusy ? '저장 중…' : accessibilitySaved ? '저장됨' : '접근 설정 저장'}</button></article>
       </div></fieldset>
     </section> : tab === 'account_permissions' && canManageAccounts ? <AccountPermissions key={user.id} accountId={user.id} onSessionExpired={handleLogout} /> : tab === 'admin' && canManageContent ? <section className="admin-review">
+      <PhysicalCardImporter key={`physical-admin-${user.id}`} admin categories={adminCategories}
+        existingCards={[...Object.values(CARD_META), ...adminSubmissions]} disabled={offline} onSaved={async () => {
+          const actorId = user.id, token = localStorage.getItem('pesc-mate-token');
+          const images = await hydrateImages(await request('/admin/card-submissions'));
+          if (activeUserRef.current?.id !== actorId || token !== localStorage.getItem('pesc-mate-token')) {
+            images.forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); }); return;
+          }
+          setAdminSubmissions(current => { current.forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); }); return images; });
+        }} />
       <AdminCardRegistration key={`admin-cards-${user.id}`} categories={adminCategories} disabled={offline}
         onCreated={saved => setAdminSubmissions(current => [saved, ...current])} />
       <A4SharingGallery key={`a4-review-${user.id}`} accountId={user.id} canReview disabled={offline} />

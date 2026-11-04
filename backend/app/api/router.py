@@ -58,6 +58,7 @@ from app.services.card_submissions import (
     update_submission, replace_submission_image,
 )
 from app.services.card_ocr import recognize_card
+from app.services.card_scan import detect_card_regions, crop_card_regions
 from app.services.categories import (
     active_categories, categories_for_admin, create_category, update_category,
 )
@@ -1092,6 +1093,25 @@ def recognize_card_image(user_id: str = Form(min_length=1, max_length=64),
     owner_id = _card_owner(user, user_id)
     require_guardian_consent({'id': owner_id})
     result = recognize_card(image.file.read(MAX_IMAGE_BYTES + 1), image.content_type)
+    return JSONResponse(result, headers={'Cache-Control': 'no-store'})
+
+
+@api_router.post('/cards/scan', tags=['카드'])
+def scan_physical_cards(image: UploadFile = File(),
+                         scope: Literal['private', 'shared'] = Form(default='private'),
+                         user_id: str | None = Form(default=None, max_length=64),
+                         regions: str | None = Form(default=None, max_length=8192),
+                         user=Depends(current_user)):
+    if scope == 'shared':
+        require_account_permission(user, 'content_manage')
+    else:
+        if user['role'] not in SUPPORT_ROLES:
+            raise HTTPException(403, '보호자 또는 담당자만 실물 카드를 가져올 수 있습니다.')
+        owner_id = _card_owner(user, user_id)
+        require_guardian_consent({'id': owner_id})
+    data = image.file.read(MAX_IMAGE_BYTES + 1)
+    result = (detect_card_regions(data, image.content_type) if regions is None else
+              crop_card_regions(data, image.content_type, regions))
     return JSONResponse(result, headers={'Cache-Control': 'no-store'})
 
 

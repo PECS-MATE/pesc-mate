@@ -1,0 +1,28 @@
+.physical-card-importer { margin-block: 16px; border-block: 1px solid var(--color-border); }
+.physical-card-importer > summary { cursor: pointer; padding: 16px 4px; font-size: 1rem; font-weight: 700; }
+.physical-card-importer > summary .ui-icon { vertical-align: middle; margin-right: 8px; }
+.physical-card-body { display: grid; gap: 16px; padding-block: 12px 24px; }
+.physical-card-body > .card-photo-picker .card-photo-picker-preview { display: none; }
+.physical-card-tools, .physical-card-region-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.physical-card-sheet { position: relative; width: min(100%, 760px); }
+.physical-card-sheet > img { display: block; width: 100%; height: auto; }
+.physical-card-sheet svg { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+.physical-card-sheet polygon { fill: #31776620; stroke: #317766; stroke-width: .004; cursor: pointer; }
+.physical-card-sheet .selected polygon { stroke: #005fcc; fill: #005fcc15; }
+.physical-card-sheet circle { fill: #fff; stroke: #005fcc; stroke-width: .005; cursor: grab; }
+.physical-card-sheet .physical-corner-hit { fill: transparent; stroke: none; }
+.physical-card-sheet text { font-size: .035px; font-weight: 700; fill: #005fcc; stroke: white; stroke-width: .002; paint-order: stroke; pointer-events: none; }
+.physical-card-region-list button { min-width: 44px; min-height: 44px; }
+.physical-card-region-list button[aria-pressed="true"] { border-color: var(--color-focus); background: var(--color-selected); }
+.physical-card-corners > div { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-block: 10px; }
+.physical-card-corners input { max-width: 100px; }
+.physical-card-body label { display: grid; gap: 6px; }
+.physical-card-body .physical-card-check { display: flex; align-items: center; gap: 8px; }
+.physical-card-check input { width: 20px; height: 20px; flex: 0 0 20px; }
+.physical-card-review { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr)); gap: 20px; padding: 0; list-style: none; }
+.physical-card-review li { border-bottom: 1px solid var(--color-border); padding-bottom: 16px; min-width: 0; }
+.physical-card-review li > img { width: 100%; height: 190px; object-fit: contain; background: #fff; }
+.physical-card-review fieldset { display: grid; gap: 10px; border: 0; padding: 12px 0; min-width: 0; }
+.physical-card-review input:not([type="checkbox"]), .physical-card-body select { width: 100%; min-width: 0; box-sizing: border-box; }
+.physical-card-review legend { font-size: .875rem; }
+.physical-card-review p { font-size: .875rem; }

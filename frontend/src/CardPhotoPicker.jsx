@@ -4,7 +4,7 @@ import { prepareCameraPhoto } from './services/cameraPhoto';
 import { fileIssue } from './services/cardImport';
 import './assets/cardPhotoPicker.css';
 
-export default function CardPhotoPicker({ file, disabled, onChange, onBusyChange }) {
+export default function CardPhotoPicker({ file, disabled, onChange, onBusyChange, sheet = false }) {
   const camera = useRef(null), gallery = useRef(null);
   const sequence = useRef(0);
   const latest = useRef({ disabled, onChange, onBusyChange });
@@ -42,7 +42,7 @@ export default function CardPhotoPicker({ file, disabled, onChange, onBusyChange
     <input ref={camera} hidden type="file" accept="image/*" capture="environment" aria-label="카메라로 실물 카드 촬영" disabled={disabled || busy} onChange={event => choose(event, true)} />
     <input ref={gallery} hidden type="file" accept="image/jpeg,image/png,image/webp" aria-label="기존 카드 사진 선택" disabled={disabled || busy} onChange={event => choose(event, false)} />
     {preview && <img className="card-photo-picker-preview" src={preview} alt="등록할 실물 카드 사진" />}
-    <small>한 장의 카드와 이름이 크게 보이도록 촬영하세요. 촬영본은 등록용 크기로 줄입니다.</small>
+    <small>{sheet ? '카드를 겹치지 않게 간격을 두고 펼쳐 촬영하세요. 최대 20장까지 분리합니다.' : '한 장의 카드와 이름이 크게 보이도록 촬영하세요. 촬영본은 등록용 크기로 줄입니다.'}</small>
     <p role="status">{busy ? '사진 준비 중…' : ''}</p>
     {error && <p role="alert" className="error">{error}</p>}
   </section>;
