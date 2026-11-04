@@ -17,6 +17,7 @@ def inferred_grammar(category):
         '행동': ('verb', 'predicate'),
         '장소': ('noun', 'destination'),
         '감정': ('adjective', 'predicate'),
+        '몸 상태': ('adjective', 'predicate'),
     }.get(category, ('noun', 'object'))
 
 

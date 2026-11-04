@@ -45,6 +45,7 @@ import SentenceStrip from './SentenceStrip';
 import { availableSentenceExamples, sentenceLearningQuestions, sentenceOrderMatches, validSentenceDraft, validSentenceQuestion } from './services/sentenceLearning';
 import { koreanVoices, localKoreanVoices as installedKoreanVoices, selectTtsVoice } from "./services/ttsVoice";
 import { createRequestId } from "./services/requestId";
+import { createCardImageLookup } from './services/cardImages';
 import { createCoreSpeechCache } from './services/coreSpeech';
 import { createSpeechPlayback } from './services/speechPlayback';
 import { createOfflineSync } from './services/offlineSync';
@@ -60,10 +61,7 @@ const CARD_IMAGE_MODULES = import.meta.glob('./assets/cards/*.png', {
   import: 'default',
 });
 
-function bundledCardImage(label) {
-  const filename = label?.trim().replaceAll(' ', '_');
-  return filename ? CARD_IMAGE_MODULES[`./assets/cards/${filename}.png`] : undefined;
-}
+const bundledCardImage = createCardImageLookup(CARD_IMAGE_MODULES);
 
 function cardImage(card) {
   return card.image_src || bundledCardImage(card.label);
@@ -76,6 +74,13 @@ const CARD_META = Object.fromEntries([
   ['stop', '그만'], ['more', '더'], ['again', '다시'], ['wait', '기다려 주세요'], ['unknown', '모르겠어요'], ['other', '다른 것'],
   ['head', '머리'], ['stomach', '배'], ['hand', '손'], ['leg', '다리'], ['here_hurts', '여기가 아파요'],
   ['uncomfortable', '불편해요'], ['scared', '무서워요'], ['noisy', '시끄러워요'], ['snack', '간식'],
+  ['dad', '아빠'], ['teacher', '선생님'], ['school', '학교'], ['wash', '씻다'], ['wear', '입다'],
+  ['take_off', '벗다'], ['sleep', '자다'], ['watch', '보다'], ['listen', '듣다'], ['take_out', '꺼내다'],
+  ['put_in', '넣다'], ['close', '닫다'], ['open', '열다'], ['sit', '앉다'], ['stand', '일어나다'],
+  ['come', '오다'], ['give', '주다'], ['please_give', '주세요'], ['want', '원해요'], ['refuse', '안 할래요'],
+  ['finished', '끝났어요'], ['this', '이것'], ['alone', '혼자'], ['who', '누구'], ['what', '무엇'],
+  ['hungry', '배고파요'], ['thirsty', '목말라요'], ['sleepy', '졸려요'], ['tired', '피곤해요'],
+  ['hot', '더워요'], ['cold', '추워요'], ['itchy', '가려워요'], ['dizzy', '어지러워요'],
 ].map(([id, label]) => [id, { id, label }]));
 
 const TTS_PRESETS = {

@@ -54,6 +54,39 @@ CARDS = [with_inferred_metadata(dict(id=key, label=label, symbol=symbol, categor
     ('scared', '무서워요', '😨', '감정', '두렵거나 무서운 감정', 'adjective', 'predicate'),
     ('noisy', '시끄러워요', '🔊', '감정', '소리가 크거나 시끄러워 힘든 감각 상태', 'adjective', 'predicate'),
     ('snack', '간식', '🍪', '음식', '간단히 먹는 음식', 'noun', 'object'),
+    ('dad', '아빠', '👨', '사람', '사용자의 아버지', 'noun', 'subject'),
+    ('teacher', '선생님', '🧑‍🏫', '사람', '사용자의 선생님', 'noun', 'subject'),
+    ('school', '학교', '🏫', '장소', '학교 장소', 'noun', 'destination'),
+    ('wash', '씻다', '🧼', '행동', '몸을 씻는 행동', 'verb', 'predicate'),
+    ('wear', '입다', '👕', '행동', '옷을 입는 행동', 'verb', 'predicate'),
+    ('take_off', '벗다', '👕', '행동', '옷을 벗는 행동', 'verb', 'predicate'),
+    ('sleep', '자다', '🛏️', '행동', '잠을 자는 행동', 'verb', 'predicate'),
+    ('watch', '보다', '👀', '행동', '눈으로 보는 행동', 'verb', 'predicate'),
+    ('listen', '듣다', '👂', '행동', '소리를 듣는 행동', 'verb', 'predicate'),
+    ('take_out', '꺼내다', '📤', '행동', '안에 있는 물건을 밖으로 꺼내는 행동', 'verb', 'predicate'),
+    ('put_in', '넣다', '📥', '행동', '물건을 안으로 넣는 행동', 'verb', 'predicate'),
+    ('close', '닫다', '🚪', '행동', '열린 것을 닫는 행동', 'verb', 'predicate'),
+    ('open', '열다', '🚪', '행동', '닫힌 것을 여는 행동', 'verb', 'predicate'),
+    ('sit', '앉다', '🪑', '행동', '자리에 앉는 행동', 'verb', 'predicate'),
+    ('stand', '일어나다', '🧍', '행동', '앉거나 누운 자리에서 일어나는 행동', 'verb', 'predicate'),
+    ('come', '오다', '🚶', '행동', '말하는 쪽으로 오는 행동', 'verb', 'predicate'),
+    ('give', '주다', '🤲', '행동', '다른 사람에게 물건을 주는 행동', 'verb', 'predicate'),
+    ('please_give', '주세요', '🤲', '요청과 선택', '원하는 대상을 달라고 요청함', 'verb', 'predicate'),
+    ('want', '원해요', '🙋', '요청과 선택', '원하는 대상을 표현함', 'verb', 'predicate'),
+    ('refuse', '안 할래요', '🙅', '요청과 선택', '활동을 하지 않겠다는 의사를 표현함', 'verb', 'predicate'),
+    ('finished', '끝났어요', '✅', '요청과 선택', '활동이 끝났음을 알리는 표현', 'interjection', 'response'),
+    ('this', '이것', '👉', '요청과 선택', '가까이 있는 대상을 가리키는 표현', 'pronoun', 'object'),
+    ('alone', '혼자', '🧍', '요청과 선택', '다른 사람과 함께하지 않고 혼자 하는 방식', 'adverb', 'modifier'),
+    ('who', '누구', '❓', '질문', '사람이 누구인지 묻는 표현', 'pronoun', 'response'),
+    ('what', '무엇', '❓', '질문', '대상이 무엇인지 묻는 표현', 'pronoun', 'response'),
+    ('hungry', '배고파요', '🍽️', '몸 상태', '배가 고픈 상태', 'adjective', 'predicate'),
+    ('thirsty', '목말라요', '🥤', '몸 상태', '목이 마른 상태', 'adjective', 'predicate'),
+    ('sleepy', '졸려요', '🥱', '몸 상태', '잠이 오는 상태', 'adjective', 'predicate'),
+    ('tired', '피곤해요', '😮‍💨', '몸 상태', '몸이 피곤한 상태', 'adjective', 'predicate'),
+    ('hot', '더워요', '🌡️', '몸 상태', '덥게 느끼는 상태', 'adjective', 'predicate'),
+    ('cold', '추워요', '🧣', '몸 상태', '춥게 느끼는 상태', 'adjective', 'predicate'),
+    ('itchy', '가려워요', '🖐️', '몸 상태', '몸이 가려운 상태', 'adjective', 'predicate'),
+    ('dizzy', '어지러워요', '😵', '몸 상태', '어지러움을 느끼는 상태', 'adjective', 'predicate'),
 ])]
 
 SEMANTIC_GROUPS = {
@@ -63,9 +96,15 @@ SEMANTIC_GROUPS = {
     'head': 'body_part', 'stomach': 'body_part', 'hand': 'body_part', 'leg': 'body_part',
     'stop': 'core', 'more': 'core', 'again': 'core', 'wait': 'core',
     'unknown': 'uncertainty', 'other': 'core',
+    'please_give': 'core', 'want': 'core', 'finished': 'core', 'this': 'core', 'alone': 'core',
+    'refuse': 'rejection', 'who': 'question', 'what': 'question',
+    'hungry': 'physical_state', 'thirsty': 'physical_state', 'sleepy': 'physical_state',
+    'tired': 'physical_state', 'itchy': 'physical_state', 'dizzy': 'physical_state',
+    'hot': 'sensory_state', 'cold': 'sensory_state',
 }
 SAFETY_RELEVANT_IDS = {
     'hurt', 'here_hurts', 'uncomfortable', 'scared', 'noisy', 'help', 'toilet', 'no', 'stop',
+    'refuse', 'dizzy',
 }
 for card in CARDS:
     card['semantic_group'] = SEMANTIC_GROUPS.get(card['id'])
@@ -100,6 +139,8 @@ PREDICATE_PHRASES = {
     'uncomfortable': '불편해요.',
     'scared': '무서워요.',
     'noisy': '시끄러워요.',
+    'please_give': '주세요.', 'want': '원해요.', 'refuse': '안 할래요.',
+    'finished': '끝났어요.', 'who': '누구예요?', 'what': '무엇이에요?',
 }
 
 NEGATIVE_ACTIONS = {
@@ -197,6 +238,7 @@ def sentence(ids, card_index=None):
         subjects = [card for card in arguments if card['sentence_role'] == 'subject']
         objects = [card for card in arguments if card['sentence_role'] == 'object']
         destinations = [card for card in arguments if card['sentence_role'] == 'destination']
+        modifiers = [card for card in arguments if card['sentence_role'] == 'modifier']
         parts = []
         if subjects:
             if len(subjects) == 1 and subjects[0]['id'] == 'me':
@@ -208,7 +250,9 @@ def sentence(ids, card_index=None):
             parts.append(_format_group(objects, object_particle))
         if destinations:
             parts.append(_format_group(destinations, 'location'))
-        if len(subjects) + len(objects) + len(destinations) == len(arguments):
+        if modifiers:
+            parts.append(' '.join(card['label'] for card in modifiers))
+        if len(subjects) + len(objects) + len(destinations) + len(modifiers) == len(arguments):
             parts.append(_predicate_phrase(predicate))
             return ' '.join(parts)
     return ' · '.join(cards[key]['label'] for key in ids)

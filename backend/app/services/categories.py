@@ -18,6 +18,9 @@ DEFAULT_CATEGORIES = [
     {'id': 'household-items', 'name': '생활용품', 'display_order': 7, 'active': True},
     {'id': 'learning', 'name': '학습', 'display_order': 8, 'active': True},
     {'id': 'user-cards', 'name': '사용자 카드', 'display_order': 9, 'active': True},
+    {'id': 'requests', 'name': '요청과 선택', 'display_order': 10, 'active': True},
+    {'id': 'questions', 'name': '질문', 'display_order': 11, 'active': True},
+    {'id': 'physical-states', 'name': '몸 상태', 'display_order': 12, 'active': True},
 ]
 CATEGORY_NAME_PATTERN = re.compile(r'^[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9 ]+$')
 
@@ -36,13 +39,22 @@ def _public(document):
 def ensure_default_categories(collection=None):
     if collection is None:
         collection = _collection()
-    if collection.count_documents({}, limit=1):
-        return
+    existing = list(collection.find({}, {'_id': 1, 'name': 1}))
+    existing_ids = {item['_id'] for item in existing}
+    existing_names = {item['name'] for item in existing}
     collection.create_index('name', unique=True)
     for category in DEFAULT_CATEGORIES:
+        # Add new defaults to existing installs without renaming/reactivating
+        # existing categories or duplicating an operator-created category name.
+        if category['id'] in existing_ids or category['name'] in existing_names:
+            continue
         document = {'schema_version': SCHEMA_VERSION, **category}
         category_id = document.pop('id')
-        collection.update_one({'_id': category_id}, {'$setOnInsert': document}, upsert=True)
+        try:
+            collection.update_one({'_id': category_id}, {'$setOnInsert': document}, upsert=True)
+        except DuplicateKeyError:
+            # A concurrent request may have inserted the same default/name.
+            continue
 
 
 def _validate_name(name):
