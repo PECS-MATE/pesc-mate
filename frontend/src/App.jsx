@@ -8,7 +8,9 @@ import './assets/caregiverUx.css';
 import UiIcon from './UiIcon';
 import IconButton from './IconButton';
 import CardEditorDialog from './CardEditorDialog';
-import AdminCardRegistration from './AdminCardRegistration';
+import AdminContentPage from './pages/AdminContentPage';
+import useSidebar from './hooks/useSidebar';
+import { CardArt, CardPicture, ExpressionVisual } from './components/CardVisuals';
 import PhysicalCardImporter from './PhysicalCardImporter';
 import CardPrintEditor from './CardPrintEditor';
 import HomeDashboard from './HomeDashboard';
@@ -36,7 +38,7 @@ import RfidChipRegistration from './RfidChipRegistration';
 import useReauthentication from './useReauthentication';
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { hasToken, request, requestBlob, requestSpeechAudio, setToken } from "./services/api";
+import { hasToken, request, requestSpeechAudio, setToken } from "./services/api";
 import { clearBoard, loadBoard, saveBoard } from "./services/boardStorage";
 import { LEARNING_ACTIVITIES, learningQuestions } from "./services/learningGame";
 import LearningQuestion from './LearningQuestion';
@@ -45,7 +47,15 @@ import SentenceStrip from './SentenceStrip';
 import { availableSentenceExamples, sentenceLearningQuestions, sentenceOrderMatches, validSentenceDraft, validSentenceQuestion } from './services/sentenceLearning';
 import { koreanVoices, localKoreanVoices as installedKoreanVoices, selectTtsVoice } from "./services/ttsVoice";
 import { createRequestId } from "./services/requestId";
-import { createCardImageLookup } from './services/cardImages';
+import {
+  CARD_META, TTS_PRESETS, DEFAULT_TTS_SETTINGS, normalizeTtsSettings,
+  DEFAULT_QUICK_EXPRESSIONS, RECOVERY_EXPRESSIONS, DEFAULT_ACCESSIBILITY,
+  normalizeAccessibility, DEFAULT_PRIVACY, SUPPORT_PERMISSION_LABELS,
+} from './config/appDefaults';
+import {
+  CARD_IMAGE_URLS, artStyle, cardImage, hydrateImages, cacheableCards, restoreCachedCards,
+  cacheableLearningGame, restoreLearningCards,
+} from './services/cardMedia';
 import { createCoreSpeechCache } from './services/coreSpeech';
 import { createSpeechPlayback } from './services/speechPlayback';
 import { createOfflineSync } from './services/offlineSync';
@@ -55,96 +65,17 @@ import {
   clearOfflineUserData, pendingLearningAttempts, pendingOfflineEvents, queueLearningAttempt,
   queueOfflineEvent,
 } from "./services/offlineStore";
-const CARD_IMAGE_MODULES = import.meta.glob('./assets/cards/*.png', {
-  eager: true,
-  query: '?url',
-  import: 'default',
-});
 
-const bundledCardImage = createCardImageLookup(CARD_IMAGE_MODULES);
-
-function cardImage(card) {
-  return card.image_src || bundledCardImage(card.label);
+// 렌더 콜백을 사용하는 기존 화면에서도 같은 카드 표시 컴포넌트를 사용한다.
+function cardArt(card, className) {
+  return <CardArt card={card} className={className} />;
 }
-
-const CARD_META = Object.fromEntries([
-  ['me', '나'], ['mom', '엄마'], ['water', '물'], ['rice', '밥'], ['apple', '사과'], ['milk', '우유'],
-  ['drink', '마시다'], ['eat', '먹다'], ['go', '가다'], ['rest', '쉬다'], ['play', '놀다'], ['help', '도와주세요'],
-  ['toilet', '화장실'], ['home', '집'], ['happy', '좋아요'], ['hurt', '아파요'], ['no', '싫어요'], ['yes', '네'],
-  ['stop', '그만'], ['more', '더'], ['again', '다시'], ['wait', '기다려 주세요'], ['unknown', '모르겠어요'], ['other', '다른 것'],
-  ['head', '머리'], ['stomach', '배'], ['hand', '손'], ['leg', '다리'], ['here_hurts', '여기가 아파요'],
-  ['uncomfortable', '불편해요'], ['scared', '무서워요'], ['noisy', '시끄러워요'], ['snack', '간식'],
-  ['dad', '아빠'], ['teacher', '선생님'], ['school', '학교'], ['wash', '씻다'], ['wear', '입다'],
-  ['take_off', '벗다'], ['sleep', '자다'], ['watch', '보다'], ['listen', '듣다'], ['take_out', '꺼내다'],
-  ['put_in', '넣다'], ['close', '닫다'], ['open', '열다'], ['sit', '앉다'], ['stand', '일어나다'],
-  ['come', '오다'], ['give', '주다'], ['please_give', '주세요'], ['want', '원해요'], ['refuse', '안 할래요'],
-  ['finished', '끝났어요'], ['this', '이것'], ['alone', '혼자'], ['who', '누구'], ['what', '무엇'],
-  ['hungry', '배고파요'], ['thirsty', '목말라요'], ['sleepy', '졸려요'], ['tired', '피곤해요'],
-  ['hot', '더워요'], ['cold', '추워요'], ['itchy', '가려워요'], ['dizzy', '어지러워요'],
-].map(([id, label]) => [id, { id, label }]));
-
-const TTS_PRESETS = {
-  child: { label: '어린이 느낌', rate: 0.9, pitch: 1.25 },
-  woman: { label: '여성 느낌', rate: 0.95, pitch: 1.05 },
-  man: { label: '남성 느낌', rate: 0.85, pitch: 0.8 },
-};
-
-const DEFAULT_TTS_SETTINGS = {
-  preset: 'child', voiceName: '', rate: 0.9, pitch: 1.25, volume: 1,
-};
-
-function normalizeTtsSettings(settings = {}) {
-  return {
-    preset: settings.preset || DEFAULT_TTS_SETTINGS.preset,
-    voiceName: settings.voiceName ?? settings.voice_name ?? '',
-    rate: settings.rate ?? DEFAULT_TTS_SETTINGS.rate,
-    pitch: settings.pitch ?? DEFAULT_TTS_SETTINGS.pitch,
-    volume: settings.volume ?? DEFAULT_TTS_SETTINGS.volume,
-  };
+function cardPicture(card, className, renderKey = card.id) {
+  return <CardPicture key={renderKey} card={card} className={className} />;
 }
-
-const DEFAULT_QUICK_EXPRESSIONS = [
-  { id: 'hurt', label: '아파요', symbol: '🤕' },
-  { id: 'no', label: '싫어요', symbol: '🙅' },
-  { id: 'help', label: '도와주세요', symbol: '🤝' },
-  { id: 'toilet', label: '화장실', symbol: '🚻' },
-  { id: 'stop', label: '그만', symbol: '✋' },
-];
-
-const RECOVERY_EXPRESSIONS = [
-  { id: 'wrong_tap', label: '잘못 눌렀어요', symbol: '↩', fixed: true },
-  { id: 'not_that', label: '그 뜻이 아니에요', symbol: '✕', fixed: true },
-  { id: 'hold_on', label: '잠깐만요', symbol: '✋' },
-  { id: 'say_again', label: '다시 말할게요', symbol: '↻' },
-  { id: 'please_wait', label: '제 말을 기다려 주세요', symbol: '✋' },
-  { id: 'dont_understand', label: '질문을 잘 모르겠어요', symbol: '?' },
-  { id: 'yes', label: '맞아요', symbol: '✓' },
-  { id: 'no', label: '아니에요', symbol: '✕' },
-];
-
-const DEFAULT_ACCESSIBILITY = {
-  display_mode: 'image_text', cards_per_page: 12, card_size: 'medium', text_size: 'medium',
-  reduced_motion: false, high_contrast: false, start_screen: 'home', output_mode: 'natural',
-};
-const normalizeAccessibility = (settings, account) => ({
-  ...DEFAULT_ACCESSIBILITY,
-  output_mode: account?.default_output_mode || 'natural',
-  ...settings,
-});
-
-const DEFAULT_PRIVACY = {
-  guardian_consent: false, retention_days: 365, deletion_status: 'none', deleted_at: null,
-};
-
-const SUPPORT_PERMISSION_LABELS = {
-  records_read: '의사소통 기록 조회',
-  notes_write: '지원 메모 작성',
-  cards_manage: '개인 카드 관리',
-  quick_speech_manage: '빠른 표현 관리',
-  board_manage: '보드 구성 관리',
-  voice_access_manage: '음성·접근 설정 관리',
-  learning_manage: '학습 기록 조회·설정 관리',
-};
+function expressionVisual(item) {
+  return <ExpressionVisual item={item} />;
+}
 
 async function cacheAccountForOffline(account, expiresAt) {
   if (account?.role === 'user') return cacheAccount(account, expiresAt);
@@ -160,42 +91,12 @@ function App() {
   const [usbStatus, setUsbStatus] = useState({ state: 'disconnected', fresh: false, count: 0 });
   useEffect(() => { setUsbStatus({ state: 'disconnected', fresh: false, count: 0 }); }, [user?.id]);
   const connectionMenuRef = useRef(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.matchMedia('(max-width: 1000px)').matches);
-  const [compactSidebar, setCompactSidebar] = useState(() => window.matchMedia('(max-width: 1000px)').matches);
   const [authReady, setAuthReady] = useState(false);
-  const sidebarOpenRef = useRef(null);
-  const sidebarCloseRef = useRef(null);
   const accountButtonRef = useRef(null);
-  useEffect(() => {
-    const query = window.matchMedia('(max-width: 1000px)');
-    const update = () => setCompactSidebar(query.matches);
-    query.addEventListener('change', update);
-    return () => query.removeEventListener('change', update);
-  }, []);
-  useEffect(() => {
-    if (!authReady || !user?.profile || !compactSidebar || sidebarCollapsed) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    sidebarCloseRef.current?.focus({ preventScroll: true });
-    document.addEventListener('keydown', handleSidebarKeyDown, true);
-    return () => { document.body.style.overflow = previous; document.removeEventListener('keydown', handleSidebarKeyDown, true); };
-  }, [authReady, user?.id, Boolean(user?.profile), compactSidebar, sidebarCollapsed]);
-  function toggleSidebar(collapsed) {
-    setSidebarCollapsed(collapsed);
-    window.requestAnimationFrame(() => (collapsed ? sidebarOpenRef : sidebarCloseRef).current?.focus({ preventScroll: true }));
-  }
-  function handleSidebarKeyDown(event) {
-    if (!compactSidebar) return;
-    if (event.target.closest('[role="menu"]')) return;
-    if (event.key === 'Escape') { event.preventDefault(); toggleSidebar(true); return; }
-    if (event.key !== 'Tab') return;
-    const controls = [...document.getElementById('app-sidebar').querySelectorAll('button:not(:disabled), a[href], input, select, textarea, [tabindex="0"]')]
-      .filter(control => control.getClientRects().length);
-    const first = controls[0], last = controls.at(-1);
-    if (!controls.includes(document.activeElement)) { event.preventDefault(); first?.focus(); }
-    else if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
-    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
-  }
+  const {
+    sidebarCollapsed, setSidebarCollapsed, compactSidebar,
+    sidebarOpenRef, sidebarCloseRef, toggleSidebar,
+  } = useSidebar({ authReady, accountId: user?.id, profileReady: Boolean(user?.profile) });
   const [profileNotice, setProfileNotice] = useState('');
   const [username, setUsername] = useState('demo');
   const [password, setPassword] = useState('demo1234');
@@ -417,47 +318,6 @@ function App() {
     return `/dashboard${query ? `?${query}` : ''}`;
   };
 
-  function cacheableCards(items) {
-    return items.map(({ image_src: _temporaryUrl, ...item }) => item);
-  }
-
-  function restoreCachedCards(items = []) {
-    return items.map(item => item.image_blob
-      ? { ...item, image_src: URL.createObjectURL(item.image_blob) }
-      : item);
-  }
-
-  function cacheableLearningGame(game) {
-    const withoutTemporaryUrl = card => {
-      const { image_src: _temporaryUrl, ...stored } = card;
-      return stored;
-    };
-    return {
-      ...game,
-      questions: game.questions.map(question => ({
-        ...question,
-        target: withoutTemporaryUrl(question.target),
-        options: question.options.map(withoutTemporaryUrl),
-        ...(question.sequence ? { sequence: question.sequence.map(withoutTemporaryUrl) } : {}),
-      })),
-    };
-  }
-
-  function restoreLearningCards(game, availableCards) {
-    const byId = new Map(availableCards.map(card => [card.id, card]));
-    const restore = card => byId.get(card.id) || (card.image_blob
-      ? { ...card, image_src: URL.createObjectURL(card.image_blob) }
-      : card);
-    return {
-      ...game, phase: 'playing', resumed: true,
-      questions: game.questions.map(question => ({
-        ...question,
-        target: restore(question.target), options: question.options.map(restore),
-        ...(question.sequence ? { sequence: question.sequence.map(restore) } : {}),
-      })),
-    };
-  }
-
   async function restoreLearningSession(account, availableCards) {
     const saved = await cachedLearningGame(account.id).catch(() => null);
     if (!Array.isArray(saved?.game?.questions) || !saved.game.questions.length
@@ -541,7 +401,7 @@ function App() {
   function primeOfflineAssets() {
     if (!('serviceWorker' in navigator)) return;
     navigator.serviceWorker.ready.then(registration => registration.active?.postMessage({
-      type: 'CACHE_ASSETS', urls: Object.values(CARD_IMAGE_MODULES),
+      type: 'CACHE_ASSETS', urls: CARD_IMAGE_URLS,
     })).catch(() => {});
   }
 
@@ -1599,12 +1459,13 @@ function App() {
     } catch (e) { setError(e.message); }
     finally { setReviewBusy(''); }
   }
-  async function hydrateImages(items) {
-    return Promise.all(items.map(async item => {
-      if (!item.image_url) return item;
-      try { const imageBlob = await requestBlob(item.thumbnail_url || item.image_url); return { ...item, image_blob: imageBlob, image_src: URL.createObjectURL(imageBlob) }; }
-      catch { return { ...item, image_failed: true }; }
-    }));
+  async function refreshAdminCards() {
+    const actorId = user.id, token = localStorage.getItem('pesc-mate-token');
+    const images = await hydrateImages(await request('/admin/card-submissions'));
+    if (activeUserRef.current?.id !== actorId || token !== localStorage.getItem('pesc-mate-token')) {
+      images.forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); }); return;
+    }
+    setAdminSubmissions(current => { current.forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); }); return images; });
   }
   async function performContentOperation(title, description, path, method, fields) {
     const actorId = user?.id;
@@ -1665,26 +1526,8 @@ function App() {
     } catch (e) { setCategoryError(e.message); }
     finally { setCategoryBusy(''); }
   }
-  function artStyle(card) {
-    const image = cardImage(card);
-    return image ? { backgroundImage: `url(${image})`, backgroundPosition: 'center', backgroundSize: 'cover' } : undefined;
-  }
-  function cardArt(card, className = 'card-art') {
-    const hasImage = Boolean(cardImage(card));
-    return <span className={`${className}${hasImage ? '' : ' image-fallback'}`} role="img" aria-label={hasImage ? `${card.label} 그림` : `${card.label} 대체 이미지`} style={hasImage ? artStyle(card) : undefined}>
-      {!hasImage && <><b aria-hidden="true">🖼️</b><small>{card.label}</small></>}
-    </span>;
-  }
   function cardSpeaker(card) {
     return <button type="button" className="card-speaker" disabled={busy} aria-label={`${card.label} 단어 듣기`} onClick={() => speakText(card.label, 'card', [card.id])}><UiIcon name="volume" />듣기</button>;
-  }
-  function cardPicture(card, className = 'mini-card', renderKey = card.id) {
-    const hasImage = Boolean(cardImage(card));
-    return <span key={renderKey} className={`${className}${hasImage ? '' : ' image-fallback'}`} title={card.label} aria-label={card.label} role="img" style={hasImage ? artStyle(card) : undefined}>{!hasImage && <small>{card.label}</small>}</span>;
-  }
-  function expressionVisual(item) {
-    const hasImage = Boolean(cardImage(item));
-    return <span className={`expression-visual${hasImage ? ' has-image' : ''}`} aria-hidden="true" style={hasImage ? artStyle(item) : undefined}>{!hasImage && item.symbol}</span>;
   }
   function tile(card) {
     const speakOnTap = outputMode === 'word';
@@ -2107,42 +1950,13 @@ function App() {
           </div>
         </div><button className="primary" disabled={accessibilityBusy || accessibilitySaved} onClick={saveAccessibility}>{accessibilityBusy ? '저장 중…' : accessibilitySaved ? '저장됨' : '접근 설정 저장'}</button></article>
       </div></fieldset>
-    </section> : tab === 'account_permissions' && canManageAccounts ? <AccountPermissions key={user.id} accountId={user.id} onSessionExpired={handleLogout} /> : tab === 'admin' && canManageContent ? <section className="admin-review">
-      <PhysicalCardImporter key={`physical-admin-${user.id}`} admin categories={adminCategories}
-        existingCards={[...Object.values(CARD_META), ...adminSubmissions]} disabled={offline} onSaved={async () => {
-          const actorId = user.id, token = localStorage.getItem('pesc-mate-token');
-          const images = await hydrateImages(await request('/admin/card-submissions'));
-          if (activeUserRef.current?.id !== actorId || token !== localStorage.getItem('pesc-mate-token')) {
-            images.forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); }); return;
-          }
-          setAdminSubmissions(current => { current.forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); }); return images; });
-        }} />
-      <AdminCardRegistration key={`admin-cards-${user.id}`} categories={adminCategories} disabled={offline}
-        onCreated={saved => setAdminSubmissions(current => [saved, ...current])} />
-      <A4SharingGallery key={`a4-review-${user.id}`} accountId={user.id} canReview disabled={offline} />
-      <div className="category-admin">
-        <div className="panel-heading"><span aria-hidden="true"><UiIcon name="grid" /></span><div><h2>카테고리 관리</h2><p className="muted">카테고리를 추가하고 표시 순서와 활성 상태를 관리하세요.</p></div></div>
-        {categoryError && <div role="alert" className="error">{categoryError}</div>}
-        <form className="category-create" onSubmit={addCategory}><label>이름<input name="name" required maxLength="30" placeholder="예: 운동" /></label><label>표시 순서<input name="display_order" required type="number" min="1" max="999" defaultValue={adminCategories.length + 1} /></label><button className="primary" disabled={categoryBusy === 'new'}>{categoryBusy === 'new' ? '추가 중…' : '카테고리 추가'}</button></form>
-        <div className="category-admin-list">{adminCategories.map(item => <article className={!item.active ? 'inactive' : ''} key={item.id}>
-          <label>이름<input value={categoryEdits[item.id]?.name ?? item.name} maxLength="30" onChange={event => setCategoryEdits(current => ({ ...current, [item.id]: { ...(current[item.id] || item), name: event.target.value } }))} /></label>
-          <label>순서<input type="number" min="1" max="999" value={categoryEdits[item.id]?.display_order ?? item.display_order} onChange={event => setCategoryEdits(current => ({ ...current, [item.id]: { ...(current[item.id] || item), display_order: event.target.value } }))} /></label>
-          <b className={`submission-status ${item.active ? 'approved' : 'inactive'}`}>{item.active ? '활성' : '비활성'}</b>
-          <div><button disabled={categoryBusy === item.id} onClick={() => saveCategory(item)}>수정 저장</button><button className={item.active ? 'danger' : 'primary'} disabled={categoryBusy === item.id} onClick={() => saveCategory(item, !item.active)}>{item.active ? '비활성' : '활성화'}</button></div>
-        </article>)}</div>
-      </div>
-      <div className="panel-heading"><span aria-hidden="true"><UiIcon name="shield" /></span><div><h2>카드 승인 관리</h2><p className="muted">사용자가 제출한 카드를 확인하고 승인하거나 반려해 주세요.</p></div></div>
-      <div className="review-summary"><strong>{adminSubmissions.filter(item => item.status === 'pending').length}</strong><span>승인 대기</span><strong>{adminSubmissions.filter(item => item.status === 'approved').length}</strong><span>승인 완료</span><strong>{adminSubmissions.filter(item => item.status === 'rejected').length}</strong><span>반려</span></div>
-      <div className="review-grid">{adminSubmissions.map(item => <article className="review-card" key={item.id}>
-        {cardArt(item, 'review-image')}
-        <div className="review-content"><div className="review-title"><span><small>{item.category} · {item.visibility === 'private' ? '개인 카드' : '공개 카드'}</small><h3>{item.label}</h3></span><b className={`submission-status ${item.status}`}>{({ pending: '승인 대기', approved: '승인', rejected: '반려', inactive: '비활성' })[item.status] || item.status}</b></div><p>{item.meaning}</p><small>제출자 {item.owner_id} · {new Date(item.created_at).toLocaleString('ko-KR')}</small>
-          {item.language_flags?.length > 0 && <div className="language-review"><strong>표현 검토 참고</strong>{item.language_flags.map(flag => <div key={`${flag.term}-${flag.kind}`}><b>{flag.term}</b><span>{flag.kind} · {flag.meaning}</span><small>{flag.source}</small></div>)}</div>}
-          {item.image_safety && <div className={`image-safety ${item.image_safety.status}`}><strong>{item.image_safety.status === 'passed' ? '자동 안전성 검사 통과' : '이미지 수동 검토 필요'}</strong><span>{item.image_safety.provider}</span>{item.image_safety.reasons?.map(reason => <small key={reason}>{reason}</small>)}</div>}
-          {item.status === 'pending' ? <><textarea aria-label={`${item.label} 검토 사유`} maxLength="500" placeholder="반려 시 사유를 입력해 주세요." value={reviewDrafts[item.id] || ''} onChange={event => setReviewDrafts(current => ({ ...current, [item.id]: event.target.value }))} /><div className="review-actions"><button className="primary" disabled={reviewBusy === item.id} onClick={() => reviewCard(item, 'approved')}>승인</button><button className="danger" disabled={reviewBusy === item.id} onClick={() => reviewCard(item, 'rejected')}>반려</button></div></> : <>{item.review_reason && <p className="review-reason">처리 사유: {item.review_reason}</p>}{item.status === 'approved' && <div className="review-actions"><button className="danger" disabled={reviewBusy === item.id} onClick={() => reviewCard(item, 'inactive')}>비활성</button></div>}{item.status === 'inactive' && <div className="review-actions"><button className="primary" disabled={reviewBusy === item.id} onClick={() => reviewCard(item, 'approved')}>재활성</button></div>}</>}
-        </div>
-      </article>)}</div>
-      {!adminSubmissions.length && <EmptyState>아직 제출된 카드가 없습니다.</EmptyState>}
-    </section> : tab === 'dashboard' && isSupporter && canReadRecords ? <section className="dashboard"
+    </section> : tab === 'account_permissions' && canManageAccounts ? <AccountPermissions key={user.id} accountId={user.id} onSessionExpired={handleLogout} /> : tab === 'admin' && canManageContent ? <AdminContentPage
+      user={user} offline={offline} adminCategories={adminCategories} adminSubmissions={adminSubmissions}
+      categoryError={categoryError} categoryBusy={categoryBusy} categoryEdits={categoryEdits}
+      setCategoryEdits={setCategoryEdits} addCategory={addCategory} saveCategory={saveCategory}
+      reviewDrafts={reviewDrafts} setReviewDrafts={setReviewDrafts} reviewBusy={reviewBusy}
+      reviewCard={reviewCard} setAdminSubmissions={setAdminSubmissions} refreshAdminCards={refreshAdminCards}
+    /> : tab === 'dashboard' && isSupporter && canReadRecords ? <section className="dashboard"
       role={isSupporter ? 'tabpanel' : undefined} id={isSupporter ? 'support-record-panel-dashboard' : undefined}
       aria-labelledby={isSupporter ? 'support-record-tab-dashboard' : undefined} tabIndex={isSupporter ? 0 : undefined}>
       <div className="panel-heading"><span aria-hidden="true"><UiIcon name="chart" /></span><div><h2>{isCaregiver ? `${selectedUser?.name}님의 의사소통 기록` : isSupporter ? '연결 사용자 의사소통 기록' : '나의 의사소통 기록'}</h2>{isSupporter && <p className="muted">{(selectedUser || user).name} · {period === 'all' ? '전체 기간' : `최근 ${period}일`} · 문장 저장 기준 · 의사소통 기록 조회 권한</p>}</div></div>
