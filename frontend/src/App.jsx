@@ -10,6 +10,7 @@ import IconButton from './IconButton';
 import CardEditorDialog from './CardEditorDialog';
 import AdminContentPage from './pages/AdminContentPage';
 import useSidebar from './hooks/useSidebar';
+import useCardScroll from './hooks/useCardScroll';
 import { CardArt, CardPicture, ExpressionVisual } from './components/CardVisuals';
 import PhysicalCardImporter from './PhysicalCardImporter';
 import CardPrintEditor from './CardPrintEditor';
@@ -124,7 +125,6 @@ function App() {
       || boardRef.current.querySelector('h2');
     control?.focus();
   }, [board]);
-  const [cardPage, setCardPage] = useState(0);
   const [outputMode, setOutputMode] = useState('natural');
   const [category, setCategory] = useState('전체');
   const [search, setSearch] = useState('');
@@ -538,10 +538,6 @@ function App() {
       window.removeEventListener('focus', updateVoices);
     };
   }, []);
-
-  useEffect(() => {
-    setCardPage(0);
-  }, [category, search, accessibility.cards_per_page, tab, cards.length, boardLayout?.updated_at]);
 
   useEffect(() => {
     // This event owns its sync run; the parallel data refresh must not retry it again.
@@ -1555,15 +1551,9 @@ function App() {
     (category === '전체' || card.category === category)
     && card.label.includes(search.trim())
   );
-  const cardPageCount = Math.max(1, Math.ceil(filteredCards.length / accessibility.cards_per_page));
-  const visibleCards = filteredCards.slice(
-    cardPage * accessibility.cards_per_page,
-    (cardPage + 1) * accessibility.cards_per_page,
+  const { listRef: catalogListRef, onScroll: scrollCatalog, visibleCards } = useCardScroll(
+    filteredCards, accessibility.cards_per_page, [category, search, tab, boardLayout?.updated_at],
   );
-  function cardPagination() {
-    if (cardPageCount <= 1) return null;
-    return <nav className="card-pagination" aria-label="카드 페이지"><button disabled={cardPage === 0} onClick={() => setCardPage(page => page - 1)}>이전</button><span>{cardPage + 1} / {cardPageCount}</span><button disabled={cardPage >= cardPageCount - 1} onClick={() => setCardPage(page => page + 1)}>다음</button></nav>;
-  }
   const todayLabel = new Intl.DateTimeFormat('ko-KR', {
     month: '2-digit', day: '2-digit', weekday: 'long',
   }).format(new Date());
@@ -1640,7 +1630,7 @@ function App() {
       { id: 'accessibility', label: '접근 설정', content: <section className="accessibility-settings"><h3>접근 설정</h3><div>
         <p>시작 화면·발화 방식·카드 배치는 연결된 보호자 또는 담당자 계정에서 바꿀 수 있어요.</p>
         <label>카드 표시<select disabled value={accessibility.display_mode}><option value="image">그림 중심</option><option value="image_text">그림 + 글자</option><option value="text">글자 중심</option></select></label>
-        <label>한 페이지 카드 수<select disabled value={accessibility.cards_per_page}><option value={accessibility.cards_per_page}>{accessibility.cards_per_page}개</option></select></label>
+        <label>한 번에 불러올 카드 수<select disabled value={accessibility.cards_per_page}><option value={accessibility.cards_per_page}>{accessibility.cards_per_page}개</option></select></label>
         <label>카드 크기<select disabled value={accessibility.card_size}><option value={accessibility.card_size}>{accessibility.card_size === 'small' ? '작게' : accessibility.card_size === 'large' ? '크게' : '보통'}</option></select></label>
         <label>글자 크기<select value={accessibility.text_size} onChange={event => updateAccessibility({ text_size: event.target.value })}><option value="small">작게</option><option value="medium">보통</option><option value="large">크게</option></select></label>
         <label className="check-setting"><input type="checkbox" checked={accessibility.reduced_motion} onChange={event => updateAccessibility({ reduced_motion: event.target.checked })} />애니메이션·장식 줄이기</label>
@@ -1694,7 +1684,7 @@ function App() {
     </section> }] : []),
   ] : [];
   function openCatalog(value = '전체') {
-    setCategory(value); setSearch(''); setCardPage(0); setTab('catalog');
+    setCategory(value); setSearch(''); setTab('catalog');
   }
   function navigateFromMyPage(action) { setMyPageOpen(false); action(); }
   return <main ref={entryPageRef} className={`app${isCaregiver ? ' caregiver-ui' : ''}${sidebarCollapsed ? ' sidebar-collapsed' : ''} display-${accessibility.display_mode} card-size-${accessibility.card_size} text-size-${accessibility.text_size}${accessibility.reduced_motion ? ' reduced-motion' : ''}${accessibility.high_contrast ? ' high-contrast' : ''}`}>
@@ -1839,16 +1829,15 @@ function App() {
       </div>
       <div className="categories" aria-label="카테고리">{['전체', ...cardCategories.map(item => item.name)].map(item => <button key={item} aria-pressed={category === item} className={category === item ? 'active' : ''} onClick={() => setCategory(item)}>{item}</button>)}</div>
       <div className="catalog-layout">
-        <div className="catalog-grid" aria-label="카드 목록">{visibleCards.map(card => <div className="catalog-tile" key={card.id}><button type="button" className="catalog-card" aria-pressed={selectedCard?.id === card.id} onClick={() => setSelectedCard(card)}>
+        <div ref={catalogListRef} className="catalog-grid card-scroll-region" role="region" tabIndex="0" aria-label="카드 목록" onScroll={scrollCatalog}>{visibleCards.map(card => <div className="catalog-tile" key={card.id}><button type="button" className="catalog-card" aria-pressed={selectedCard?.id === card.id} onClick={() => setSelectedCard(card)}>
           {cardArt(card)}
           <span><strong>{card.label}</strong><small>{card.category}</small></span>
         </button>{cardSpeaker(card)}</div>)}</div>
-        {cardPagination()}
         <aside className="card-detail" aria-live="polite">
-          {selectedCard ? <>{cardArt(selectedCard, 'detail-art')}<span className="detail-category">{selectedCard.category}</span><h3>{selectedCard.label}</h3><p>{selectedCard.label}을(를) 표현하는 PECS 카드예요.</p><div className="detail-actions"><button aria-label={`${selectedCard.label} 단어 듣기`} onClick={() => speakText(selectedCard.label, 'card', [selectedCard.id])}><UiIcon name="volume" />단어 듣기</button><button className="primary" onClick={() => { add(selectedCard); setTab('cards'); }}>문장에 사용하기</button></div></> : <div className="detail-empty"><Mascot /><strong>카드를 선택해 주세요</strong><p>선택한 카드의 그림과 뜻이 여기에 보여요.</p></div>}
+          {selectedCard ? <>{cardArt(selectedCard, 'detail-art')}<span className="detail-category">{selectedCard.category}</span><h3>{selectedCard.label}</h3><div className="detail-actions"><button aria-label={`${selectedCard.label} 단어 듣기`} onClick={() => speakText(selectedCard.label, 'card', [selectedCard.id])}><UiIcon name="volume" />단어 듣기</button><button className="primary" onClick={() => { add(selectedCard); setTab('cards'); }}>문장에 사용하기</button></div></> : <div className="detail-empty"><Mascot /><strong>카드를 선택해 주세요</strong><p>선택한 카드의 그림과 뜻이 여기에 보여요.</p></div>}
         </aside>
       </div>
-      <div className="submission-list"><h3>나의 카드</h3>{cardSubmissions.length ? <ul>{cardSubmissions.map(item => <li key={item.id}><span><strong>{item.label}</strong><small>{item.category} · {item.sharing_notice || (item.visibility === 'private' ? '나만 사용' : '공개 요청')}</small></span><div className="submission-actions"><b className={`submission-status ${item.status}`}>{item.visibility === 'private' && item.status === 'approved' ? '나만 사용 중' : ({ draft: '작성 중', pending: '승인 대기', approved: '공개 승인', rejected: '반려', inactive: '비활성' })[item.status] || item.status}</b>{['draft', 'rejected'].includes(item.status) && <button disabled={reviewBusy === item.id} onClick={() => { setEditingSubmission(item); setCardFormError(''); setShowCardForm(true); }}>수정</button>}{item.status === 'draft' && <button className="primary" disabled={reviewBusy === item.id} onClick={() => submitDraft(item)}>{item.visibility === 'private' ? '나만 사용 시작' : '공개 승인 요청'}</button>}</div></li>)}</ul> : <p className="muted">아직 등록한 카드가 없어요.</p>}</div>
+      {cardSubmissions.length > 0 && <div className="submission-list"><ul>{cardSubmissions.map(item => <li key={item.id}><span><strong>{item.label}</strong><small>{item.category} · {item.sharing_notice || (item.visibility === 'private' ? '나만 사용' : '공개 요청')}</small></span><div className="submission-actions"><b className={`submission-status ${item.status}`}>{item.visibility === 'private' && item.status === 'approved' ? '나만 사용 중' : ({ draft: '작성 중', pending: '승인 대기', approved: '공개 승인', rejected: '반려', inactive: '비활성' })[item.status] || item.status}</b>{['draft', 'rejected'].includes(item.status) && <button disabled={reviewBusy === item.id} onClick={() => { setEditingSubmission(item); setCardFormError(''); setShowCardForm(true); }}>수정</button>}{item.status === 'draft' && <button className="primary" disabled={reviewBusy === item.id} onClick={() => submitDraft(item)}>{item.visibility === 'private' ? '나만 사용 시작' : '공개 승인 요청'}</button>}</div></li>)}</ul></div>}
       {loaded && !filteredCards.length && <EmptyState>조건에 맞는 카드가 없어요. 다른 검색어나 카테고리를 선택해 보세요.</EmptyState>}
       {showCardForm && <CardEditorDialog key={editingSubmission?.id || 'new-card'} editing={editingSubmission}
         categories={cardCategories} busy={cardFormBusy} error={cardFormError} onSubmit={submitCard}
@@ -1939,7 +1928,7 @@ function App() {
           <label>시작 화면<select value={accessibility.start_screen} onChange={event => updateAccessibility({ start_screen: event.target.value })}><option value="home">홈</option><option value="cards">그림으로 말하기</option></select></label>
           <label>기본 발화 방식<select value={accessibility.output_mode} onChange={event => updateAccessibility({ output_mode: event.target.value })}><option value="selection">고른 카드 말하기</option><option value="word">단어 즉시 발화</option><option value="natural">자연스러운 문장 생성 사용</option></select></label>
           <label>카드 표시<select value={accessibility.display_mode} onChange={event => updateAccessibility({ display_mode: event.target.value })}><option value="image">그림 중심</option><option value="image_text">그림 + 글자</option><option value="text">글자 중심</option></select></label>
-          <label>한 페이지 카드 수<select value={accessibility.cards_per_page} onChange={event => updateAccessibility({ cards_per_page: Number(event.target.value) })}>{[6, 12, 18, 24, 30].map(value => <option key={value} value={value}>{value}개</option>)}</select></label>
+          <label>한 번에 불러올 카드 수<select value={accessibility.cards_per_page} onChange={event => updateAccessibility({ cards_per_page: Number(event.target.value) })}>{[6, 12, 18, 24, 30].map(value => <option key={value} value={value}>{value}개</option>)}</select></label>
           <label>카드 크기<select value={accessibility.card_size} onChange={event => updateAccessibility({ card_size: event.target.value })}><option value="small">작게</option><option value="medium">보통</option><option value="large">크게</option></select></label>
           <label>글자 크기<select value={accessibility.text_size} onChange={event => updateAccessibility({ text_size: event.target.value })}><option value="small">작게</option><option value="medium">보통</option><option value="large">크게</option></select></label>
           <label className="privacy-check"><input type="checkbox" checked={accessibility.reduced_motion} onChange={event => updateAccessibility({ reduced_motion: event.target.checked })} />애니메이션·장식 줄이기</label>

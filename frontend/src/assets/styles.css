@@ -868,8 +868,14 @@ footer { color: var(--color-text-secondary); }
 .accessibility-settings select { width: 100%; min-height: 44px; padding: 7px; border: 1px solid var(--color-border-control); border-radius: 8px; background: var(--color-surface); }
 .accessibility-settings .check-setting { display: flex; align-items: center; gap: 8px; min-height: 44px; }
 .accessibility-settings .check-setting input { width: 22px; height: 22px; margin: 0; }
-.card-pagination { align-items: center; justify-content: center; gap: 12px; margin: 16px 0 0; }
-.card-pagination span { min-width: 58px; text-align: center; font-weight: 800; }
+.card-scroll-region {
+  max-height: 65vh;
+  max-height: min(65dvh, 720px);
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  padding: 4px;
+  scroll-padding-block: 4px;
+}
 
 .card-size-small .workspace .cards, .card-size-small .catalog-grid { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); }
 .card-size-medium .workspace .cards, .card-size-medium .catalog-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }

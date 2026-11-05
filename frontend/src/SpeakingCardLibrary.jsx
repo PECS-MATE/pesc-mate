@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
+import useCardScroll from './hooks/useCardScroll';
 import UiIcon from './UiIcon';
 import IconButton from './IconButton';
 
@@ -25,7 +26,6 @@ export default function SpeakingCardLibrary({ accountId, persistFavorites, cards
   const [tab, setTab] = useState('home');
   const [folderId, setFolderId] = useState(null);
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(0);
   const [favorites, setFavorites] = useState(() => readFavorites(accountId, persistFavorites));
   const [notice, setNotice] = useState('');
   const [showTools, setShowTools] = useState(false);
@@ -48,14 +48,12 @@ export default function SpeakingCardLibrary({ accountId, persistFavorites, cards
     : tab === 'emotion' ? cards.filter(card => card.category === '감정' || ['emotion', 'physical_state', 'sensory_state', 'rejection', 'affirmation', 'uncertainty'].includes(card.semantic_group))
     : cards.filter(card => ['time', 'schedule', 'date'].includes(card.semantic_group) || /시간|일정|날짜/.test(card.category || ''));
   if (search.trim()) selection = (folder || tab !== 'home' ? selection : pool).filter(card => card.label.includes(search.trim()));
-  const limit = Math.max(1, Number(pageSize) || 12);
-  const count = Math.max(1, Math.ceil(selection.length / limit));
-  const currentPage = Math.min(page, count - 1);
-  const visible = selection.slice(currentPage * limit, (currentPage + 1) * limit);
+  const { listRef, onScroll, visibleCards: visible } = useCardScroll(
+    selection, pageSize, [accountId, tab, folderId, search],
+  );
   const showingFolders = tab === 'home' && !folder && !search.trim();
 
-  useEffect(() => { setPage(0); }, [tab, folderId, search, limit]);
-  function selectTab(id) { setTab(id); setFolderId(null); setSearch(''); setPage(0); }
+  function selectTab(id) { setTab(id); setFolderId(null); setSearch(''); }
   function toggleFavorite(card) {
     const next = favorites.includes(card.id) ? favorites.filter(id => id !== card.id) : [...favorites, card.id];
     setFavorites(next);
@@ -65,11 +63,11 @@ export default function SpeakingCardLibrary({ accountId, persistFavorites, cards
     }
   }
   function openFolder(id) {
-    folderRef.current = id; setFolderId(id); setPage(0);
+    folderRef.current = id; setFolderId(id);
     requestAnimationFrame(() => contentRef.current?.focus({ preventScroll: true }));
   }
   function closeFolder() {
-    const id = folderRef.current; setFolderId(null); setSearch(''); setPage(0);
+    const id = folderRef.current; setFolderId(null); setSearch('');
     requestAnimationFrame(() => [...document.querySelectorAll('.symbol-folder')].find(button => button.dataset.folderId === id)?.focus({ preventScroll: true }));
   }
 
@@ -80,7 +78,7 @@ export default function SpeakingCardLibrary({ accountId, persistFavorites, cards
     <div className="speaking-library-search"><input aria-label="말하기 카드 검색" placeholder="카드 검색" value={search} onChange={event => setSearch(event.target.value)} /><IconButton icon="settings" label="카드 도구" aria-pressed={showTools} onClick={() => setShowTools(current => !current)} /></div>
     {folder && <div className="symbol-folder-heading"><IconButton icon="arrow-left" label="폴더 목록" onClick={closeFolder} /><h2 ref={contentRef} tabIndex="-1">{folder.name}</h2></div>}
     {!folder && <h2 className="visually-hidden">{search.trim() ? '카드 검색 결과' : TABS.find(item => item.id === tab)?.name}</h2>}
-    <div className={`cards speaking-library-cards${showTools ? ' showing-tools' : ''}`} data-scan-group="cards">{visible.map(card => <div className="speaking-library-tile" key={card.id}>
+    <div ref={listRef} className={`cards speaking-library-cards card-scroll-region${showTools ? ' showing-tools' : ''}`} role="region" tabIndex="0" aria-label="말하기 카드 목록" onScroll={onScroll} data-scan-group="cards">{visible.map(card => <div className="speaking-library-tile" key={card.id}>
       {renderCard(card)}{showTools && <button type="button" className="card-favorite" aria-pressed={favorites.includes(card.id)} aria-label={`${card.label} 즐겨찾기 ${favorites.includes(card.id) ? '해제' : '추가'}`} title={`${card.label} 즐겨찾기`} onClick={() => toggleFavorite(card)}><UiIcon name="star" filled={favorites.includes(card.id)} />{favorites.includes(card.id) && <span className="visually-hidden">선택됨</span>}</button>}
     </div>)}
     {showingFolders && folders.map(item => {
@@ -91,7 +89,6 @@ export default function SpeakingCardLibrary({ accountId, persistFavorites, cards
       </button>;
     })}</div>
     {!selection.length && <p className="empty" role="status">{tab === 'favorites' && !search.trim() ? '카드의 별을 누르면 여기에 모여요.' : search.trim() ? '검색한 카드가 없어요.' : '아직 등록된 카드가 없어요.'}</p>}
-    {count > 1 && <nav className="card-pagination" aria-label="말하기 카드 페이지"><IconButton icon="chevron-left" label="이전 페이지" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)} /><span>{currentPage + 1} / {count}</span><IconButton icon="chevron-right" label="다음 페이지" disabled={currentPage >= count - 1} onClick={() => setPage(currentPage + 1)} /></nav>}
     {notice && <p role="status">{notice}</p>}
   </section>;
 }
