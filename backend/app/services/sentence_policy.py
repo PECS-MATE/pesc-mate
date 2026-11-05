@@ -2,7 +2,7 @@
 
 PERSONA_VERSION = 'aac-ko-v1'
 OUTPUT_RULES_VERSION = 'sentence-output-v2'
-RULE_ENGINE_VERSION = 'ko-particle-v5'
+RULE_ENGINE_VERSION = 'ko-particle-v6'
 SAFETY_POLICY_VERSION = 'sentence-safety-v1'
 PROMPT_TEMPLATE_VERSION = 'sentence-prompt-v3'
 

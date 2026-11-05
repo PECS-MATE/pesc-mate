@@ -12,6 +12,19 @@ export const TEXT_CARDS = [
   { id: 'slow_down', label: '천천히 해 주세요', category: '요청과 선택', meaning: '진행 속도를 늦춰 달라는 요청' },
   { id: 'do_it_myself', label: '내가 할래요', category: '요청과 선택', meaning: '자신이 직접 하겠다는 의사 표현' },
   { id: 'want_rest', label: '쉬고 싶어요', category: '요청과 선택', meaning: '휴식이 필요함을 표현' },
+  { id: 'now', label: '지금', category: '시간과 일정', meaning: '현재 이 순간을 나타내는 표현' },
+  { id: 'later', label: '나중에', category: '시간과 일정', meaning: '현재보다 뒤의 때를 나타내는 표현' },
+  { id: 'today', label: '오늘', category: '시간과 일정', meaning: '현재 날짜를 나타내는 표현' },
+  { id: 'tomorrow', label: '내일', category: '시간과 일정', meaning: '오늘의 다음 날을 나타내는 표현' },
+  { id: 'yesterday', label: '어제', category: '시간과 일정', meaning: '오늘의 전날을 나타내는 표현' },
+  { id: 'morning', label: '아침', category: '시간과 일정', meaning: '하루 중 아침 시간대를 나타내는 표현' },
+  { id: 'noon', label: '점심', category: '시간과 일정', meaning: '하루 중 점심 무렵의 시간대를 나타내는 표현' },
+  { id: 'evening', label: '저녁', category: '시간과 일정', meaning: '하루 중 저녁 시간대를 나타내는 표현' },
+  { id: 'hello', label: '안녕하세요', category: '사회적 표현', meaning: '상대방을 만났을 때 하는 인사' },
+  { id: 'goodbye', label: '안녕히 가세요', category: '사회적 표현', meaning: '떠나는 상대방에게 하는 인사' },
+  { id: 'thanks', label: '고마워요', category: '사회적 표현', meaning: '상대방에게 고마움을 전하는 표현' },
+  { id: 'sorry', label: '미안해요', category: '사회적 표현', meaning: '상대방에게 사과하는 표현' },
+  { id: 'okay', label: '괜찮아요', category: '사회적 표현', meaning: '괜찮다는 의사를 전하는 표현' },
 ];
 
 export const CARD_META = Object.fromEntries([
