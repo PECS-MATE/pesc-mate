@@ -8,6 +8,7 @@
 
 ## 찾기
 
+- [추가 원본 이미지 보관](#additional-source-images)
 - [시간 일정과 사회적 표현 글자 카드](#time-social-text-cards)
 - [공용 기본 글자 카드 13종](#built-in-text-cards)
 - [추가 카드 21종 전체 연결](#additional-card-mapping)
@@ -15,6 +16,15 @@
 - [추가 카드 이미지와 기본 어휘 연결](#card-vocabulary-expansion)
 - [PECS MATE 카드 이미지 제작 규격과 생성 프롬프트](#card-image-production-guide)
 - [PECS MATE 카드 사진·단어 목록](#card-photo-word-list)
+
+<a id="additional-source-images"></a>
+## 추가 원본 이미지 보관
+
+2026-11-05: 사용자 요청에 따라 `고양이.png`, `곰.png`, `왜.png`, `의사선생님.png`,
+`친구.png`, `할머니.png`, `할아버지.png` 원본 7장을 커밋했다. 원본은 수정하지 않았다.
+7장의 PNG 형식·무결성 검사와 `git diff --cached --check`를 통과했다.
+이번 작업은 이미지 보관만 포함하며 새 기본 카드 등록·분류·매핑은 미구현이다.
+기본 카드 수는 여전히 113종이다. 빌드·브라우저·실기기 검사는 미실행이다.
 
 <a id="time-social-text-cards"></a>
 ## 시간 일정과 사회적 표현 글자 카드
