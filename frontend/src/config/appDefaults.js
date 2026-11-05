@@ -1,3 +1,19 @@
+export const TEXT_CARDS = [
+  { id: 'confirm', label: '맞아요', category: '요청과 선택', meaning: '내용이 맞다는 긍정 확인' },
+  { id: 'deny', label: '아니에요', category: '요청과 선택', meaning: '내용이 아니라는 부정 확인' },
+  { id: 'wrong_tap', label: '잘못 눌렀어요', category: '요청과 선택', meaning: '실수로 카드를 선택했음을 알림' },
+  { id: 'not_that', label: '그 뜻이 아니에요', category: '요청과 선택', meaning: '전달된 의미가 의도와 다름을 알림' },
+  { id: 'hold_on', label: '잠깐만요', category: '요청과 선택', meaning: '잠시 기다려 달라는 요청' },
+  { id: 'say_again', label: '다시 말할게요', category: '요청과 선택', meaning: '자신이 다시 표현하겠다고 알림' },
+  { id: 'please_wait', label: '제 말을 기다려 주세요', category: '요청과 선택', meaning: '자신이 표현할 때까지 기다려 달라는 요청' },
+  { id: 'dont_understand', label: '질문을 잘 모르겠어요', category: '요청과 선택', meaning: '상대의 질문을 이해하지 못했음을 알림' },
+  { id: 'change_it', label: '바꿔 주세요', category: '요청과 선택', meaning: '선택한 대상을 바꿔 달라는 요청' },
+  { id: 'show_me', label: '보여 주세요', category: '요청과 선택', meaning: '대상을 보여 달라는 요청' },
+  { id: 'slow_down', label: '천천히 해 주세요', category: '요청과 선택', meaning: '진행 속도를 늦춰 달라는 요청' },
+  { id: 'do_it_myself', label: '내가 할래요', category: '요청과 선택', meaning: '자신이 직접 하겠다는 의사 표현' },
+  { id: 'want_rest', label: '쉬고 싶어요', category: '요청과 선택', meaning: '휴식이 필요함을 표현' },
+];
+
 export const CARD_META = Object.fromEntries([
   ['me', '나'], ['mom', '엄마'], ['water', '물'], ['rice', '밥'], ['apple', '사과'], ['milk', '우유'],
   ['drink', '마시다'], ['eat', '먹다'], ['go', '가다'], ['rest', '쉬다'], ['play', '놀다'], ['help', '도와주세요'],
@@ -17,6 +33,7 @@ export const CARD_META = Object.fromEntries([
   ['blocks', '블럭'], ['doll', '인형'], ['puzzle', '퍼즐'], ['picture', '그림'], ['paper', '종이'],
   ['walk', '걷다'], ['draw', '그리다'], ['run', '뛰다'], ['wash_hands', '손 씻다'],
   ['read_book', '책을 읽다'], ['ride', '타다'], ['where', '어디'],
+  ...TEXT_CARDS.map(({ id, label }) => [id, label]),
 ].map(([id, label]) => [id, { id, label }]));
 
 export const TTS_PRESETS = {

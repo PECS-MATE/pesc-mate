@@ -5,7 +5,7 @@ const compactKey = label => exactKey(label)?.replaceAll('_', '');
 export function createCardImageLookup(modules) {
   const exact = new Map(), compact = new Map();
   for (const [path, url] of Object.entries(modules)) {
-    const label = path.split('/').at(-1).replace(/\.png$/i, '');
+    const label = path.split('/').at(-1).replace(/\.(?:png|svg)$/i, '');
     exact.set(exactKey(label), url);
     const key = compactKey(label);
     compact.set(key, [...(compact.get(key) || []), url]);

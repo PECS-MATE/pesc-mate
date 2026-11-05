@@ -2,6 +2,8 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { request, requestBlob } from './services/api';
 import { createRequestId } from './services/requestId';
+import { TEXT_CARDS } from './config/appDefaults';
+import { textCardImage } from './services/textCardImage';
 import { fileIssue, importIssues, MAX_IMPORT_FILES } from './services/cardImport';
 import printCss from './assets/cardPrintPage.css?inline';
 import './assets/cardPrintEditor.css';
@@ -19,6 +21,10 @@ const STATUS = { ready: '미등록', saving: '저장 중', saved: '아이 계정
 export default function CardPrintEditor({ targetId = null, targetName, categories = [], existingCards = [], disabled, onSaved,
   initialProject, initialTitle, printOnly = false }) {
   const [rows, setRows] = useState([]);
+  const availableCards = [
+    ...TEXT_CARDS.map(card => ({ ...card, builtInText: true, status: 'approved' })),
+    ...existingCards,
+  ];
   const [history, setHistory] = useState({ past: [], present: { settings: { ...DEFAULT_A4 }, slots: Array(24).fill(null) }, future: [] });
   const layout = history.present;
   const [publish, setPublish] = useState(false);
@@ -125,7 +131,8 @@ export default function CardPrintEditor({ targetId = null, targetName, categorie
         const issue = fileIssue(image); if (issue) throw new Error(issue);
         const url = previewFor(image); importedUrls.push(url);
         const knownId = card.savedId || card.existingId;
-        const known = knownId && existingCards.find(item => item.id === knownId && item.visibility === 'private');
+        const known = knownId && availableCards.find(item => item.id === knownId
+          && (item.builtInText || item.visibility === 'private'));
         imported.push({ id: card.id, label: card.label, meaning: card.meaning, category: card.category, preview: url,
           ...(known ? { existingId: known.id, existingStatus: known.status, status: known.status === 'approved' ? 'saved' : 'uncertain' }
             : { file: image, status: knownId || ['saved', 'uncertain'].includes(card.status) ? 'uncertain' : 'ready' }) });
@@ -156,12 +163,12 @@ export default function CardPrintEditor({ targetId = null, targetName, categorie
   async function addExisting(event) {
     const id = event.target.value; event.target.value = '';
     setShowCardPicker(false); cardPickerButton.current?.focus();
-    const card = existingCards.find(item => item.id === id);
+    const card = availableCards.find(item => item.id === id);
     if (!card || running.current || disabled || rows.length >= 60) return;
     running.current = true; setBusy(true); setNotice('인쇄용 이미지를 불러오고 있어요.');
     try {
       const token = localStorage.getItem('pesc-mate-token');
-      const blob = await requestBlob(card.image_url);
+      const blob = card.builtInText ? await textCardImage(card.label) : await requestBlob(card.image_url);
       if (!mounted.current || disabledRef.current || token !== localStorage.getItem('pesc-mate-token')) return;
       const preview = previewFor(blob);
       setRows(current => [...current, { id: createRequestId(), existingId: card.id, originalLabel: card.label,
@@ -272,8 +279,9 @@ export default function CardPrintEditor({ targetId = null, targetName, categorie
     </div>
     <div id={cardPickerId} hidden={!showCardPicker} className="a4-existing-picker" onKeyDown={event => {
       if (event.key === 'Escape') { event.preventDefault(); setShowCardPicker(false); cardPickerButton.current?.focus(); }
-    }}><label>등록 카드<select ref={cardPicker} defaultValue="" disabled={locked || disabled || rows.length >= 60} onChange={addExisting}><option value="">개인 카드 선택</option>
-        {existingCards.filter(card => card.visibility === 'private' && !rows.some(row => row.existingId === card.id || row.savedId === card.id))
+    }}><label>등록 카드<select ref={cardPicker} defaultValue="" disabled={locked || disabled || rows.length >= 60} onChange={addExisting}><option value="">카드 선택</option>
+        {availableCards.filter(card => (card.builtInText || card.visibility === 'private')
+          && !rows.some(row => row.existingId === card.id || row.savedId === card.id))
           .map(card => <option key={card.id} value={card.id}>{card.label}</option>)}
       </select></label>
     </div>

@@ -1,7 +1,7 @@
 import { requestBlob } from './api';
 import { createCardImageLookup } from './cardImages';
 
-const CARD_IMAGE_MODULES = import.meta.glob('../assets/cards/*.png', {
+const CARD_IMAGE_MODULES = import.meta.glob(['../assets/cards/*.png', '../assets/cards/*.svg'], {
   eager: true,
   query: '?url',
   import: 'default',

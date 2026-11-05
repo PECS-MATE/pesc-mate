@@ -108,6 +108,19 @@ CARDS = [with_inferred_metadata(dict(id=key, label=label, symbol=symbol, categor
     ('read_book', '책을 읽다', '📖', '행동', '책을 읽는 행동', 'verb', 'predicate'),
     ('ride', '타다', '🚌', '행동', '탈것이나 놀이 기구에 타는 행동', 'verb', 'predicate'),
     ('where', '어디', '❓', '질문', '장소가 어디인지 묻는 표현', 'pronoun', 'response'),
+    ('confirm', '맞아요', '✓', '요청과 선택', '내용이 맞다는 긍정 확인', 'interjection', 'response'),
+    ('deny', '아니에요', '✕', '요청과 선택', '내용이 아니라는 부정 확인', 'interjection', 'response'),
+    ('wrong_tap', '잘못 눌렀어요', '💬', '요청과 선택', '실수로 카드를 선택했음을 알림', 'interjection', 'response'),
+    ('not_that', '그 뜻이 아니에요', '💬', '요청과 선택', '전달된 의미가 의도와 다름을 알림', 'interjection', 'response'),
+    ('hold_on', '잠깐만요', '💬', '요청과 선택', '잠시 기다려 달라는 요청', 'interjection', 'response'),
+    ('say_again', '다시 말할게요', '💬', '요청과 선택', '자신이 다시 표현하겠다고 알림', 'interjection', 'response'),
+    ('please_wait', '제 말을 기다려 주세요', '💬', '요청과 선택', '자신이 표현할 때까지 기다려 달라는 요청', 'interjection', 'response'),
+    ('dont_understand', '질문을 잘 모르겠어요', '💬', '요청과 선택', '상대의 질문을 이해하지 못했음을 알림', 'interjection', 'response'),
+    ('change_it', '바꿔 주세요', '💬', '요청과 선택', '선택한 대상을 바꿔 달라는 요청', 'verb', 'predicate'),
+    ('show_me', '보여 주세요', '💬', '요청과 선택', '대상을 보여 달라는 요청', 'verb', 'predicate'),
+    ('slow_down', '천천히 해 주세요', '💬', '요청과 선택', '진행 속도를 늦춰 달라는 요청', 'verb', 'predicate'),
+    ('do_it_myself', '내가 할래요', '💬', '요청과 선택', '자신이 직접 하겠다는 의사 표현', 'interjection', 'response'),
+    ('want_rest', '쉬고 싶어요', '💬', '요청과 선택', '휴식이 필요함을 표현', 'verb', 'predicate'),
 ])]
 
 SEMANTIC_GROUPS = {
@@ -119,13 +132,17 @@ SEMANTIC_GROUPS = {
     'unknown': 'uncertainty', 'other': 'core',
     'please_give': 'core', 'want': 'core', 'finished': 'core', 'this': 'core', 'alone': 'core',
     'refuse': 'rejection', 'who': 'question', 'what': 'question', 'where': 'question',
+    'confirm': 'affirmation', 'deny': 'rejection',
+    'wrong_tap': 'core', 'not_that': 'core', 'hold_on': 'core', 'say_again': 'core',
+    'please_wait': 'core', 'dont_understand': 'uncertainty', 'change_it': 'core',
+    'show_me': 'core', 'slow_down': 'core', 'do_it_myself': 'core', 'want_rest': 'core',
     'hungry': 'physical_state', 'thirsty': 'physical_state', 'sleepy': 'physical_state',
     'tired': 'physical_state', 'itchy': 'physical_state', 'dizzy': 'physical_state',
     'hot': 'sensory_state', 'cold': 'sensory_state',
 }
 SAFETY_RELEVANT_IDS = {
     'hurt', 'here_hurts', 'uncomfortable', 'scared', 'noisy', 'help', 'toilet', 'no', 'stop',
-    'refuse', 'dizzy',
+    'refuse', 'dizzy', 'deny', 'not_that', 'slow_down',
 }
 for card in CARDS:
     card['semantic_group'] = SEMANTIC_GROUPS.get(card['id'])
