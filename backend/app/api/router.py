@@ -1,6 +1,7 @@
 from contextlib import nullcontext
 from app.api.rfid import router as rfid_router
 from app.api.practice_suggestions import router as practice_suggestions_router
+from app.api.learning_program import router as learning_program_router
 from app.api.a4_projects import router as a4_projects_router
 from datetime import datetime
 from hashlib import sha256
@@ -68,6 +69,7 @@ from app.services.reauthentication import reauthenticate_content_operator
 api_router = APIRouter()
 api_router.include_router(rfid_router)
 api_router.include_router(practice_suggestions_router)
+api_router.include_router(learning_program_router)
 api_router.include_router(a4_projects_router)
 
 
@@ -545,8 +547,9 @@ class LearningSequenceItemResult(LearningItemResult):
 
 class LearningAttemptRequest(BaseModel):
     request_id: UUID
-    activity_type: Literal['word_picture_match', 'sound_picture_match', 'sentence_card_order']
-    content_version: Literal['word-picture-v1', 'sound-picture-v1', 'sentence-order-v1'] | None = None
+    activity_type: Literal['word_picture_match', 'sound_picture_match', 'sentence_card_order', 'situation_card_match']
+    content_version: Literal['word-picture-v1', 'sound-picture-v1', 'sentence-order-v1', 'situation-card-v1'] | None = None
+    program_set_id: UUID | None = None
     category_id: str = Field(min_length=1, max_length=64)
     total_questions: int = Field(ge=1, le=30)
     correct_answers: int = Field(ge=0, le=30)
@@ -568,6 +571,7 @@ class LearningAttemptRequest(BaseModel):
 
 
 class LearningAttemptResponse(BaseModel):
+    program_set_id: UUID | None = None
     id: UUID
     user_id: str
     activity_type: str
@@ -1050,6 +1054,7 @@ def post_learning_attempt(request: LearningAttemptRequest, http_request: Request
             request.total_questions, request.correct_answers, request.duration_seconds,
             [item.model_dump() for item in request.items], observation=observation,
             content_version=request.content_version,
+            program_set_id=str(request.program_set_id) if request.program_set_id else None,
         )
 
 

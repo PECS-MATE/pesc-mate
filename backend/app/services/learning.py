@@ -11,7 +11,7 @@ from app.services.schema_versions import SCHEMA_VERSION
 
 
 CONTENT_VERSIONS = {'word_picture_match': 'word-picture-v1', 'sound_picture_match': 'sound-picture-v1',
-                    'sentence_card_order': 'sentence-order-v1'}
+                    'sentence_card_order': 'sentence-order-v1', 'situation_card_match': 'situation-card-v1'}
 ACTIVITY_TYPES = set(CONTENT_VERSIONS)
 DEFAULT_SETTINGS = {
     'category_ids': [],
@@ -71,7 +71,7 @@ def save_settings(user_id, actor_id, category_ids, question_count, option_count,
 
 def record_attempt(user_id, request_id, activity_type, category_id,
                    total_questions, correct_answers, duration_seconds, items=None, observation=None,
-                   content_version=None):
+                   content_version=None, program_set_id=None):
     if activity_type not in ACTIVITY_TYPES:
         raise HTTPException(422, '지원하지 않는 학습 활동입니다.')
     if content_version is not None and content_version != CONTENT_VERSIONS[activity_type]:
@@ -101,6 +101,7 @@ def record_attempt(user_id, request_id, activity_type, category_id,
         'user_id': user_id,
         'record_type': 'learning_attempt',
         'activity_type': activity_type,
+        'program_set_id': program_set_id,
         'content_version': content_version or CONTENT_VERSIONS[activity_type],
         'category_id': category_id,
         'total_questions': total_questions,
@@ -153,6 +154,7 @@ def _attempt_public(document):
         )},
         'items': document.get('items', []),
         'content_version': document.get('content_version'),
+        'program_set_id': document.get('program_set_id'),
         'completed_at': completed,
     }
 
@@ -178,7 +180,7 @@ def progress_for(user_id, days=None, now=None):
     word_totals = {}
     for row in rows:
         # A whole-sentence ordering outcome is not evidence of any single word's mastery.
-        if row['activity_type'] == 'sentence_card_order':
+        if row['activity_type'] in {'sentence_card_order', 'situation_card_match'}:
             continue
         for result in row['items']:
             item = word_totals.setdefault(result['card_id'], {

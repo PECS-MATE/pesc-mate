@@ -26,6 +26,8 @@ import NoteHistory from './NoteHistory';
 import DeletionReceipt from './DeletionReceipt';
 import PracticeSuggestionsPanel from './PracticeSuggestionsPanel';
 import PracticeOverview from './PracticeOverview';
+import LearningProgram from './LearningProgram';
+import { situationQuestions } from './services/situationLearning';
 import RecommendationSettings from './RecommendationSettings';
 import CardPhotoReplacement from './CardPhotoReplacement';
 import BoardConfiguration, { SettingsDisclosure } from './BoardConfiguration';
@@ -218,6 +220,7 @@ function App() {
   const [learningBusy, setLearningBusy] = useState(false);
   const [practiceCategory, setPracticeCategory] = useState('all');
   const [practiceActivity, setPracticeActivity] = useState('word_picture_match');
+  const [practiceSituation, setPracticeSituation] = useState('meal');
   const [learningGame, setLearningGame] = useState(null);
   const [activePracticePlan, setActivePracticePlan] = useState(null);
   const [offline, setOffline] = useState(!navigator.onLine);
@@ -1114,7 +1117,7 @@ function App() {
     const suggestion = plan?.candidate;
     const activityType = suggestion?.activity_type || practiceActivity;
     const config = suggestion?.settings || learningSettings;
-    const source = suggestion?.activity_type === 'sentence_card_order'
+    const source = suggestion?.card_ids?.length
       ? cards.filter(card => suggestion.card_ids.includes(card.id) && cardImage(card))
       : availablePracticeCards(suggestion?.category_id || practiceCategory);
     const sentence = activityType === 'sentence_card_order';
@@ -1123,7 +1126,9 @@ function App() {
       setError(`선택한 범위에 그림이 있는 카드가 ${optionCount}개 이상 필요합니다.`);
       return;
     }
-    const questions = sentence ? sentenceLearningQuestions(source, config?.question_count || 10,
+    const questions = activityType === 'situation_card_match'
+      ? situationQuestions(source, config?.question_count || 5, optionCount, suggestion?.situation_id || practiceSituation)
+      : sentence ? sentenceLearningQuestions(source, config?.question_count || 10,
       config?.repeat_frequency || 1, Math.random, suggestion?.content_id || null) : learningQuestions(
       source, config?.question_count || 10,
       optionCount, config?.repeat_frequency || 1,
@@ -1162,7 +1167,8 @@ function App() {
         : !question.options.some(option => option.id === cardId)) return current;
       const selectedId = sentence ? cardId.join('|') : cardId;
       if (current.feedback === 'retry' && current.selectedId === selectedId) return current;
-      const correct = sentence ? sentenceOrderMatches(question, cardId) : cardId === question.target.id;
+      const correct = sentence ? sentenceOrderMatches(question, cardId)
+        : question.answer_ids ? question.answer_ids.includes(cardId) : cardId === question.target.id;
       const item = { card_id: question.target.id, label: question.target.label,
         first_try_correct: !current.hadWrong && correct,
         ...(sentence ? { content_id: question.content_id, card_ids: question.sequence.map(card => card.id) } : {}),
@@ -1199,6 +1205,7 @@ function App() {
     const payload = {
       request_id: snapshot.requestId, activity_type: snapshot.activity_type || 'word_picture_match',
       content_version: snapshot.content_version || LEARNING_ACTIVITIES.word_picture_match.version,
+      program_set_id: snapshot.plan?.program_set_id || null,
       category_id: snapshot.plan?.candidate?.category_id === 'all' ? 'mixed'
         : snapshot.plan?.candidate?.category_id || (practiceCategory === 'all' ? 'mixed' : practiceCategory),
       total_questions: snapshot.questions.length,
@@ -1814,6 +1821,7 @@ function App() {
         {['correct', 'incorrect'].includes(learningGame.feedback) && <button className="primary learning-next" disabled={learningGame.phase === 'saving'} onClick={nextLearningQuestion}>{learningGame.phase === 'saving' ? '결과 저장 중…' : learningGame.questionIndex === learningGame.questions.length - 1 ? '연습 마치기' : '다음 문제'}</button>}
       </article> : learningGame?.phase === 'complete' ? <article className="learning-result"><span aria-hidden="true"><UiIcon name="star" size={40} /></span><h3>연습을 마쳤어요!</h3><p>{learningGame.activity_type === 'sentence_card_order' ? '처음 놓은 순서로 ' : '처음 선택으로 '}<strong>{learningGame.attempt?.correct_answers ?? learningGame.correctAnswers}</strong>{learningGame.activity_type === 'sentence_card_order' ? '개 문장을 완성했어요. ' : '개를 찾았어요. '}틀린 문제도 다시 살펴본 것이 중요한 연습이에요.</p>{learningGame.recordingDisabled ? <small>결과를 저장하지 않았습니다.</small> : learningGame.attempt?.pending_sync ? <small>결과를 기기에 저장했습니다. 온라인 연결 후 자동으로 동기화합니다.</small> : learningGame.attempt ? <small>학습 기록에만 안전하게 저장했습니다.</small> : <small>결과가 저장되지 않았습니다. 다시 연결한 뒤 한 번 더 연습해 주세요.</small>}<div><button onClick={() => setLearningGame(null)}>연습 목록</button><button className="primary" onClick={() => startLearningGame(learningGame.plan)}>같은 범위 다시 연습</button></div></article> : <PracticeOverview
         activity={practiceActivity} category={practiceCategory} categories={practiceCategories}
+        situation={practiceSituation} onSituation={setPracticeSituation}
         settings={learningSettings} progress={learningProgress} plan={activePracticePlan}
         availableCount={availablePracticeCards().length}
         sentenceExampleCount={practiceActivity === 'sentence_card_order'
@@ -1822,6 +1830,8 @@ function App() {
         onCategory={setPracticeCategory} onStart={() => startLearningGame()}
         onStartPlan={startPracticePlan} busy={learningBusy} offline={offline} />}
       <IconButton icon="message" label="말하기로 이동" className="primary communication-return" onClick={() => setTab('cards')} />
+      {!learningGame && <LearningProgram key={`course-${user.id}`} accountId={user.id} targetId={user.id}
+        disabled={offline || !privacy.guardian_consent} onStart={startLearningGame} />}
     </section> : tab === 'catalog' && user.role === 'user' ? <section className="card-catalog">
       <div className="catalog-toolbar">
         <div><h2>카드 보기</h2><p className="muted">카드를 눌러 그림과 뜻을 확인해 보세요.</p></div>
@@ -1881,6 +1891,8 @@ function App() {
       {learningProgress && selectedUser && <RecordExport key={`learning-${user.id}-${selectedUser.id}`}
         domain="learning" variant={isCaregiver ? 'caregiver' : 'default'} targetId={selectedUser.id} days={30} disabled={offline || learningBusy} />}
       <label className="user-picker">{isCaregiver ? '아이 선택' : '조회 사용자'}<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)} disabled={learningBusy}>{linkedUsers.filter(person => person.permissions.includes('learning_manage')).map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>
+      {selectedUser && canManageCards && <LearningProgram key={`course-${user.id}:${selectedUser.id}`} manager
+        accountId={user.id} targetId={selectedUser.id} disabled={offline || learningBusy} />}
       {learningBusy ? <p role="status">학습 기록을 불러오는 중입니다…</p> : learningProgress && <div className="learning-overview-grid">
         <article><h3>{selectedUser?.name}님의 {isCaregiver ? '연습 설정' : '학습 설정'}</h3>{isCaregiver && supportSettingsNotice?.targetId === selectedUser?.id && <p role="status">{supportSettingsNotice.message}</p>}{learningSettings ? <form className="learning-settings-form" onSubmit={saveLearningConfiguration}><fieldset><legend>학습 카테고리</legend><div className="learning-category-options">{cardCategories.map(item => <label key={item.id}><input type="checkbox" checked={learningSettings.category_ids.includes(item.id)} onChange={event => updateLearningSetting({ category_ids: event.target.checked ? [...learningSettings.category_ids, item.id] : learningSettings.category_ids.filter(id => id !== item.id) })} />{item.name}</label>)}</div></fieldset><div className="learning-setting-fields"><label>문제 수<select value={learningSettings.question_count} onChange={event => updateLearningSetting({ question_count: Number(event.target.value) })}>{[5, 10, 15, 20, 30].map(value => <option key={value} value={value}>{value}개</option>)}</select></label><label>단어 보기 수<select value={learningSettings.option_count} onChange={event => updateLearningSetting({ option_count: Number(event.target.value) })}>{[2, 3, 4].map(value => <option key={value} value={value}>{value}개</option>)}</select></label><label>카드 반복<select value={learningSettings.repeat_frequency} onChange={event => updateLearningSetting({ repeat_frequency: Number(event.target.value) })}>{[1, 2, 3].map(value => <option key={value} value={value}>{value}회</option>)}</select></label><label>권장 시간<select value={learningSettings.time_limit_seconds} onChange={event => updateLearningSetting({ time_limit_seconds: Number(event.target.value) })}>{[30, 60, 120, 300, 600].map(value => <option key={value} value={value}>{value}초</option>)}</select></label></div><label className="privacy-check"><input type="checkbox" checked={learningSettings.retry_enabled} onChange={event => updateLearningSetting({ retry_enabled: event.target.checked })} />다른 보기를 다시 선택할 수 있게 해요</label><button className="primary" disabled={!learningSettings.category_ids.length}>{isCaregiver ? `${selectedUser?.name}님의 연습 설정 저장` : '학습 설정 저장'}</button></form> : <p className="muted">기본 학습 설정을 사용합니다.</p>}</article>
         <article className="learning-word-progress"><h3>{isCaregiver ? '최근 30일 연습 기록' : '최근 30일 학습 흐름'}</h3><div className="learning-metrics"><div><strong>{learningProgress?.attempts || 0}</strong><span>참여 횟수</span></div><div><strong>{learningProgress?.familiar_words?.length || 0}</strong><span>반복해서 만나본 단어</span></div><div><strong>{learningProgress?.repeat_words?.length || 0}</strong><span>다시 연습할 단어</span></div></div>{learningProgress?.last_completed_at ? <p className="muted">최근 참여 {new Date(learningProgress.last_completed_at).toLocaleString('ko-KR')}</p> : <p className="muted">아직 완료한 연습이 없습니다.</p>}<div className="learning-word-groups"><section><h4>반복해서 만나본 단어</h4>{learningProgress?.familiar_words?.length ? <ul>{learningProgress.familiar_words.map(item => <li key={item.card_id}><strong>{item.label}</strong><span>{item.practice_count}번 연습</span></li>)}</ul> : <p className="muted">두 번 이상 연습에서 첫 선택으로 찾은 기록입니다. 실제 상황에서의 이해나 의사소통 능력을 판단하지 않습니다.</p>}</section><section><h4>다시 만나볼 단어</h4>{learningProgress?.repeat_words?.length ? <ul>{learningProgress.repeat_words.map(item => <li key={item.card_id}><strong>{item.label}</strong><span>{item.needs_repeat_count}번 다시 살펴봐요</span></li>)}</ul> : <p className="muted">조금 더 연습할 단어가 없습니다.</p>}</section></div></article>

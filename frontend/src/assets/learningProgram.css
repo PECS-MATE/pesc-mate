@@ -1,0 +1,10 @@
+.learning-program { padding: 20px 0; border-top: 1px solid var(--color-border); }
+.learning-program header, .program-set-list > div { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.learning-program header h3 { margin-right: auto; }
+.learning-program label { display: grid; gap: 6px; margin-block: 8px; }
+.learning-program fieldset { min-width: 0; padding: 16px; margin-block: 16px; }
+.learning-program button { margin: 4px; min-height: 44px; }
+.program-card-choices { display: flex; flex-wrap: wrap; gap: 12px; max-height: 240px; overflow-y: auto; }
+.program-card-choices label { display: inline-flex; align-items: center; }
+.program-card-choices input { width: 20px; height: 20px; }
+.program-set-list > div { padding-block: 12px; border-bottom: 1px solid var(--color-border); }

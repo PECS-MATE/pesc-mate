@@ -1,8 +1,10 @@
 import { LEARNING_ACTIVITIES } from './services/learningGame';
 import { useEffect, useState } from 'react';
 import UiIcon from './UiIcon';
+import { SITUATIONS } from './services/situationLearning';
 
 const ACTIVITY_ICONS = {
+  situation_card_match: 'message',
   word_picture_match: 'text',
   sound_picture_match: 'volume',
   sentence_card_order: 'sequence',
@@ -10,7 +12,7 @@ const ACTIVITY_ICONS = {
 
 export default function PracticeOverview({ activity, category, categories, settings, progress,
   availableCount, sentenceExampleCount, plan, onActivity, onCategory, onStart, onStartPlan,
-  busy, offline }) {
+  busy, offline, situation = 'meal', onSituation }) {
   const sentence = activity === 'sentence_card_order';
   const canStart = sentence ? sentenceExampleCount > 0 : availableCount >= (settings?.option_count || 3);
   const [customizing, setCustomizing] = useState(() => !canStart);
@@ -44,6 +46,7 @@ export default function PracticeOverview({ activity, category, categories, setti
     </fieldset>
 
     <div className="practice-step-heading"><div><h3 id="practice-category-title">카드 범위</h3></div></div>
+    {activity === 'situation_card_match' && <label>연습 상황<select value={situation} disabled={busy} onChange={e => onSituation(e.target.value)}>{Object.entries(SITUATIONS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>}
     <fieldset className="practice-category-options d-flex flex-wrap gap-2" disabled={busy} aria-labelledby="practice-category-title">
       {[{ id: 'all', name: '설정된 카드 전체' }, ...categories].map(item =>
         <label className={`practice-category-option${category === item.id ? ' selected' : ''}`} key={item.id}>
