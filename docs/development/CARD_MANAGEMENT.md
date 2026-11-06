@@ -27,8 +27,13 @@
 명시적으로 실행합니다. 결과는 미리보기에서 확인하고 적용해야 하며 자동 등록하지 않습니다.
 적용 전에는 기존 사진이 유지되고 공용 공개·그림/뜻 확인은 다시 해야 합니다.
 
-권장 구성은 [Gemini 이미지 생성](https://ai.google.dev/gemini-api/docs/image-generation)과
-[rembg 로컬 배경 제거](https://github.com/danielgatis/rembg)입니다.
+사용자 선택에 따라 기본 생성 경로를 [Hugging Face Inference Providers](https://huggingface.co/docs/inference-providers/tasks/text-to-image)로 변경했습니다.
+모델 가중치를 PC나 Docker로 내려받지 않고 원격 GPU에서 생성합니다.
+기본 모델은 `black-forest-labs/FLUX.1-schnell`, 추론 제공업체는 `fal-ai`입니다.
+2026-11-06 공개 모델 메타데이터에서 해당 조합의 text-to-image 지원 상태가 live임을 확인했습니다.
+이는 사용자 토큰의 이용 권한·결제 상태나 실제 생성 품질 확인을 대신하지 않습니다.
+[Gemini](https://ai.google.dev/gemini-api/docs/image-generation)는 명시적으로 선택하는 대체 경로로 유지하고,
+[rembg 로컬 배경 제거](https://github.com/danielgatis/rembg)는 별개 선택 기능입니다.
 마스코트 없는 흰 배경·한 가지 의미·글자 없는 이미지 지시문을 사용합니다.
 생성 품질·상징 이해도는 보장되지 않으므로 보호자가 반드시 확인합니다.
 외부 이미지 생성과 배경 제거는 별개 선택 기능이며 OCR·일반 등록은 설정 없이 유지됩니다.
@@ -37,16 +42,35 @@
 
 | 서버 설정 | 용도 |
 | --- | --- |
+| `IMAGE_GENERATION_PROVIDER` | 기본 huggingface. 선택적으로 gemini. 자동 대체 없음 |
+| `HF_TOKEN` | Inference Providers 호출 권한이 있는 서버 전용 허깅페이스 토큰 |
+| `HF_IMAGE_MODEL` | 기본 black-forest-labs/FLUX.1-schnell. 사용 가능한 모델 ID 지정 |
+| `HF_IMAGE_PROVIDER` | 기본 fal-ai. fal-ai/hf-inference/together 중 모델을 지원하는 제공업체 지정 |
 | `GEMINI_API_KEY` | 서버 전용 Gemini 키. 프론트 환경변수·Git에 저장하지 않음 |
 | `GEMINI_IMAGE_MODEL` | 운영자가 현재 사용 가능한 이미지 모델 지정. 기본값 없음 |
 | `INSTALL_IMAGE_TOOLS=true` | Docker 빌드 시 선택형 `requirements-image-tools.txt` 설치 |
 | `REMBG_MODEL_PATH` | 서버 내부에 사전 배치한 `u2netp.onnx` 절대 경로 |
 
-Gemini 호출은 카드 이름만 Google에 보내며 사진·사용자 ID를 보내지 않습니다.
+허깅페이스 호출은 카드 이름과 공통 그림 지시문을 Hugging Face 및 선택한 추론 제공업체에 보냅니다.
+사진·사용자 ID·아동 기록은 보내지 않습니다. Gemini를 선택한 경우에만 Google로 전송합니다.
+화면에서 표시된 서비스와 모델을 확인하며, 확인 이후 설정이 바뀌면 409로 다시 확인하도록 합니다.
 이름에 개인정보를 넣지 마세요. 사용자가 매번 외부 전송·비용을 확인해야 합니다.
 자동 생성·자동 재시도·유료 호출 일괄 실행은 없습니다. 시간당 계정당 20회 및 프로세스당 1건의
 보호 장치는 재시작/다중 프로세스에 걸친 과금 한도가 아닙니다. 공급자 결제·사용 한도도 별도 설정하세요.
 네트워크 시간 초과 후에도 공급자가 이미 과금했을 수 있습니다.
+
+### 허깅페이스 설정 순서
+
+1. [토큰 설정](https://huggingface.co/settings/tokens)에서 Inference Providers 호출 권한의 토큰을 발급합니다. 토큰은 채팅에 붙여넣지 않습니다.
+2. [결제·크레딧과 사용량](https://huggingface.co/docs/inference-providers/pricing)을 확인합니다. Hub의 모델 다운로드가 무료여도 원격 API까지 무료인 것은 아닙니다.
+3. 루트 `.env.example`을 참고해 `.env`에 `HF_TOKEN`을 저장합니다. 기존 `.env`가 있으면 덮어쓰지 말고 필요한 항목만 추가합니다.
+4. `docker compose up -d --build backend` 실행. API 클라이언트만 설치하며 PyTorch·생성 모델 가중치는 설치하지 않습니다.
+5. 카드 등록에서 이름 입력 → 그림 생성 · 배경 제거 → 사용 가능 여부 확인 → 외부 전송/비용 확인 → 이름으로 그림 생성 → 결과 확인 후 적용합니다.
+
+설정됨 표시는 토큰·모델 문자열·클라이언트 설치 상태일 뿐 공급자 실연결 검사가 아닙니다.
+토큰 권한/인증, 크레딧, 요청 한도, 지원하지 않는 모델·제공업체를 구분해 안내합니다.
+원격 처리는 별도 프로세스로 전체 80초에 제한하고, 앱의 자동 재시도·다른 제공업체 자동 전환은 하지 않습니다.
+생성 의미·한국어 이름 이해·일관된 그림체는 실제 검수해야 하며 AAC용 전문 모델이라고 보장하지 않습니다.
 
 배경 제거는 서버 CPU에서 처리합니다. 선택 패키지와 모델이 없으면 503으로 안내하고
 모델을 자동 다운로드하지 않습니다. 라이브러리 라이선스와 모델 가중치 이용 조건은 별도 확인하세요.
@@ -62,8 +86,11 @@ Docker에서 모델 폴더를 읽기 전용으로 마운트하고 `REMBG_MODEL_P
 - 공용은 `content_manage`, 개인은 보호자/담당자의 연결 카드 권한과 동의를 확인합니다. 처리 후에도 재확인합니다.
 - 결과는 임시 data URL이며 저장소에 자동 보관하지 않습니다. 기존 등록 API의 이미지 검사·공개 승인을 유지합니다.
 - 공급자 오류 본문·키는 응답에 전달하지 않습니다. 응답 크기·업로드 크기·추론 시간을 제한합니다.
-- 실제 Gemini 유료 호출·모델 설치/다운로드·rembg 실추론·iPad 촬영 통합 검수는 미실행입니다.
+- 생성 요청 JSON에는 `expected_backend`와 `expected_model`도 필요합니다. status에서 받은 값을 확인 정보로 넘깁니다.
+- 실제 Hugging Face/Gemini 유료 호출·모델 설치/다운로드·rembg 실추론·iPad 촬영 통합 검수는 미실행입니다.
 - 검증: 프론트 빌드(큰 번들 경고 유지)·백엔드 라우터 import 통과. 설정 미비 차단·외부 전송 확인·모의 공급자 응답·이미지 유효성·보호자 권한·동시 실행 제한 점검 통과. 실제 API와 브라우저 통합은 미검증입니다.
+- 허깅페이스 전환 검증(2026-11-06): API 클라이언트 huggingface-hub 1.33.0 설치·import 확인. 설정/잘못된 모델 URL/자동 공급자 차단, 외부 전송 확인, 설정 변경 409, 모의 워커 이미지 변환, 인증·크레딧·한도·모델 오류, 전체 시간 초과 안내 점검 통과. 추론 함수는 모의 처리하여 유료 호출은 0회입니다.
+- 프론트 빌드·Compose config·diff 공백 검사 통과. 최초 Compose 검사는 sandbox의 Docker 설정 접근 경고가 있었고 읽기 권한으로 재검사 통과했습니다. 실제 Docker 이미지 재빌드·브라우저 전체 동선·실제 공급자 생성은 미실행입니다.
 
 <a id="admin-card-registration"></a>
 ## 관리자 공용 카드 등록

@@ -25,6 +25,8 @@ def authorize(user, scope, target):
 class Generate(BaseModel):
     label: str = Field(min_length=1, max_length=30)
     external_accepted: bool = False
+    expected_backend: Literal['huggingface', 'gemini']
+    expected_model: str = Field(min_length=1, max_length=160)
     scope: Literal['private', 'shared'] = 'private'
     user_id: str | None = Field(default=None, max_length=64)
 
@@ -41,6 +43,9 @@ def generate(body: Generate, user=Depends(current_user)):
     authorize(user, body.scope, body.user_id)
     if not body.label.strip():
         raise HTTPException(422, '그림을 만들 카드 이름을 입력하세요.')
+    configuration = tools.status()
+    if (body.expected_backend, body.expected_model) != (configuration['generation_backend'], configuration['model']):
+        raise HTTPException(409, '이미지 서비스 설정이 바뀌었습니다. 사용 가능 여부를 다시 확인해 주세요.')
     with tools.capacity(user['id']):
         result = tools.generate(body.label.strip(), body.external_accepted)
     authorize(user, body.scope, body.user_id)

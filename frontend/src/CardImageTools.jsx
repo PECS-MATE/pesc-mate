@@ -28,8 +28,9 @@ export default function CardImageTools({ label = '', file, targetId, admin = fal
         if (current(seq)) setConfig(response);
       } else if (operation === 'generate') {
         setAccepted(false);
-        response = await request('/card-image-tools/generate', { method: 'POST', timeoutMs: 75000,
-          body: JSON.stringify({ label: label.trim(), external_accepted: accepted, scope, user_id: admin ? null : targetId }) });
+        response = await request('/card-image-tools/generate', { method: 'POST', timeoutMs: 95000,
+          body: JSON.stringify({ label: label.trim(), external_accepted: accepted, scope,
+            expected_backend: config.generation_backend, expected_model: config.model, user_id: admin ? null : targetId }) });
       } else {
         const body = new FormData(); body.set('image', file, 'card-image'); body.set('scope', scope);
         if (!admin) body.set('user_id', targetId);
@@ -45,10 +46,11 @@ export default function CardImageTools({ label = '', file, targetId, admin = fal
     {opened && <>
       <button type="button" disabled={busy || disabled} onClick={() => run('status')}>사용 가능 여부 확인</button>
       {config && <>
-        <p>{config.generation_ready ? `Gemini · ${config.model}` : '그림 생성: 서버 API 키·모델 설정 필요'}</p>
+        <p>{config.generation_provider} · {config.generation_ready ? `${config.model} · 설정됨` : '서버 토큰·모델·패키지 설정 필요'}</p>
+        {config.generation_backend === 'huggingface' && <p>원격 추론: {config.inference_provider}. 이 기기에 생성 모델을 설치하지 않습니다.</p>}
         <p>{config.background_ready ? '배경 제거: 서버 내부 처리 가능' : '배경 제거: 서버 도구·모델 준비 필요'}</p>
       </>}
-      <label><input type="checkbox" checked={accepted} disabled={busy || disabled} onChange={e => setAccepted(e.target.checked)} />카드 이름을 Google로 전송하며 API 비용이 발생할 수 있음을 확인합니다. 개인정보를 입력하지 마세요.</label>
+      <label><input type="checkbox" checked={accepted} disabled={busy || disabled || !config?.generation_ready} onChange={e => setAccepted(e.target.checked)} />카드 이름을 {config?.generation_recipient || '외부 이미지 서비스'}로 전송하며 API 비용이 발생할 수 있음을 확인합니다. 개인정보를 입력하지 마세요.</label>
       <div>
         <button type="button" disabled={busy || disabled || !accepted || !label.trim() || !config?.generation_ready} onClick={() => run('generate')}>이름으로 그림 생성</button>
         <button type="button" disabled={busy || disabled || !file || !config?.background_ready} onClick={() => run('cutout')}>현재 사진 배경 제거</button>

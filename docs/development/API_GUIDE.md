@@ -7,7 +7,7 @@
 | `GET /api/learning/program?user_id=...` | 맞춤 세트·일일 코스·세트별 마지막 완료 조회 |
 | `PUT /api/learning/program?user_id=...` | 보호자/담당자 코스 저장. expected_revision 충돌 시 409 |
 | `GET /api/card-image-tools/status` | 개인/공용 이미지 도구 설정 상태 조회 |
-| `POST /api/card-image-tools/generate` | JSON label·external_accepted·scope·user_id로 명시적 Gemini 생성 |
+| `POST /api/card-image-tools/generate` | JSON label·external_accepted·expected_backend·expected_model·scope·user_id로 명시적 외부 생성 |
 | `POST /api/card-image-tools/remove-background` | multipart image·scope·user_id로 로컬 배경 제거 |
 
 scope는 private/shared입니다. 공용은 콘텐츠 운영 권한, 개인은 연결 카드 권한·동의를 확인합니다.
