@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import UiIcon from './UiIcon';
 import CardOcrAssist from './CardOcrAssist';
 import CardPhotoPicker from './CardPhotoPicker';
+import CardImageTools from './CardImageTools';
 
 export default function CardEditorDialog({ editing, categories, targetName, targetId, ocrDisabled, privateOnly = false,
   busy, error, onSubmit, onClose }) {
@@ -13,6 +14,7 @@ export default function CardEditorDialog({ editing, categories, targetName, targ
   const imageHelpId = useId();
   const [visibility, setVisibility] = useState(privateOnly ? 'private' : editing?.visibility || 'private');
   const [image, setImage] = useState(null);
+  const [toolLabel, setToolLabel] = useState(editing?.label || '');
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState('');
 
@@ -61,7 +63,7 @@ export default function CardEditorDialog({ editing, categories, targetName, targ
         <p className="card-editor-required">모든 입력 항목은 필수입니다.{editing && ' 기존 이미지는 유지됩니다.'}</p>
         <fieldset disabled={busy}>
           <legend className="visually-hidden">카드 정보</legend>
-          <label>카드명<input name="label" required maxLength="30" placeholder="예: 연필" defaultValue={editing?.label || ''} /></label>
+          <label>카드명<input name="label" required maxLength="30" placeholder="예: 연필" defaultValue={editing?.label || ''} onChange={e => setToolLabel(e.target.value)} /></label>
           <label>카드 뜻<textarea name="meaning" required maxLength="120" rows="3" placeholder="카드가 나타내는 뜻을 적어 주세요." defaultValue={editing?.meaning || ''} /></label>
           <label>카테고리<select name="category" required defaultValue={editing?.category || ''}>
             <option value="" disabled>카테고리 선택</option>{categories.map(item => <option key={item.id} value={item.name}>{item.name}</option>)}
@@ -76,9 +78,12 @@ export default function CardEditorDialog({ editing, categories, targetName, targ
         {!editing && <CardOcrAssist file={image} targetId={targetId} disabled={busy || photoBusy || ocrDisabled} onApply={value => {
           const input = dialog.current?.querySelector('input[name="label"]');
           if (input) { input.value = value; input.focus(); }
+          setToolLabel(value);
           const meaning = dialog.current?.querySelector('textarea[name="meaning"]');
           if (meaning && !meaning.value.trim()) meaning.value = value;
         }} />}
+        {!editing && <CardImageTools label={toolLabel} file={image} targetId={targetId}
+          disabled={busy || photoBusy || ocrDisabled} onApply={file => { setImage(file); setPhotoError(''); }} />}
         {!editing && <p id={imageHelpId} className="form-notice">JPG·PNG·WebP, 5MB 이하, 가로·세로 128~4096px 이미지를 선택해 주세요.</p>}
         <p className="form-notice">{privateOnly ? '연결 사용자만 사용할 수 있으며 공개 승인 목록에는 표시되지 않습니다.'
           : visibility === 'shared' ? '공개 요청은 운영 담당자 승인 후 모든 사용자에게 표시됩니다.' : '저장하면 나만 사용할 수 있으며 운영 담당자에게 공유되지 않습니다.'}</p>

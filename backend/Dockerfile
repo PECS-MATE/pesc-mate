@@ -12,6 +12,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+ARG INSTALL_IMAGE_TOOLS=false
+COPY requirements-image-tools.txt ./
+RUN if [ "$INSTALL_IMAGE_TOOLS" = "true" ]; then pip install --no-cache-dir -r requirements-image-tools.txt; fi
+
 COPY app ./app
 
 EXPOSE 8000

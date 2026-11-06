@@ -8,6 +8,7 @@
 
 ## 찾기
 
+- [선택형 그림 생성과 배경 제거](#card-image-tools)
 - [관리자 공용 카드 등록](#admin-card-registration)
 - [실물 카드 촬영과 OCR 등록](#card-camera-ocr)
 - [한 번 촬영한 여러 실물 카드 가져오기](#multi-card-scan)
@@ -17,6 +18,52 @@
 - [보호자용 활동별 카드판 정리 추천](#board-organization-suggestions)
 - [보호자 A4 카드 편집기](#caregiver-card-print-editor)
 - [보호자 A4 카드판 공유](#a4-card-sharing)
+
+<a id="card-image-tools"></a>
+## 선택형 그림 생성과 배경 제거 (2026-11-06)
+
+관리자 사진 카드 등록·보호자 새 카드 등록·실물 카드 OCR 결과별 편집에서
+‘그림 생성 · 배경 제거’를 펼칩니다. OCR 인식 이름을 확인하고 사용 가능 여부를 조회한 뒤
+명시적으로 실행합니다. 결과는 미리보기에서 확인하고 적용해야 하며 자동 등록하지 않습니다.
+적용 전에는 기존 사진이 유지되고 공용 공개·그림/뜻 확인은 다시 해야 합니다.
+
+권장 구성은 [Gemini 이미지 생성](https://ai.google.dev/gemini-api/docs/image-generation)과
+[rembg 로컬 배경 제거](https://github.com/danielgatis/rembg)입니다.
+마스코트 없는 흰 배경·한 가지 의미·글자 없는 이미지 지시문을 사용합니다.
+생성 품질·상징 이해도는 보장되지 않으므로 보호자가 반드시 확인합니다.
+외부 이미지 생성과 배경 제거는 별개 선택 기능이며 OCR·일반 등록은 설정 없이 유지됩니다.
+
+### 설정과 비용 경계
+
+| 서버 설정 | 용도 |
+| --- | --- |
+| `GEMINI_API_KEY` | 서버 전용 Gemini 키. 프론트 환경변수·Git에 저장하지 않음 |
+| `GEMINI_IMAGE_MODEL` | 운영자가 현재 사용 가능한 이미지 모델 지정. 기본값 없음 |
+| `INSTALL_IMAGE_TOOLS=true` | Docker 빌드 시 선택형 `requirements-image-tools.txt` 설치 |
+| `REMBG_MODEL_PATH` | 서버 내부에 사전 배치한 `u2netp.onnx` 절대 경로 |
+
+Gemini 호출은 카드 이름만 Google에 보내며 사진·사용자 ID를 보내지 않습니다.
+이름에 개인정보를 넣지 마세요. 사용자가 매번 외부 전송·비용을 확인해야 합니다.
+자동 생성·자동 재시도·유료 호출 일괄 실행은 없습니다. 시간당 계정당 20회 및 프로세스당 1건의
+보호 장치는 재시작/다중 프로세스에 걸친 과금 한도가 아닙니다. 공급자 결제·사용 한도도 별도 설정하세요.
+네트워크 시간 초과 후에도 공급자가 이미 과금했을 수 있습니다.
+
+배경 제거는 서버 CPU에서 처리합니다. 선택 패키지와 모델이 없으면 503으로 안내하고
+모델을 자동 다운로드하지 않습니다. 라이브러리 라이선스와 모델 가중치 이용 조건은 별도 확인하세요.
+Docker에서 모델 폴더를 읽기 전용으로 마운트하고 `REMBG_MODEL_PATH`를 컨테이너 경로로 지정해야 합니다.
+예: Compose override의 backend `volumes`에 `./models/card-background:/models/card-background:ro`를
+추가하고 모델을 직접 배치한 뒤 경로를 `/models/card-background/u2netp.onnx`로 설정합니다.
+환경 설정 후 `docker compose up -d --build backend`로 다시 만듭니다.
+모델 파일·API 키는 커밋하지 않습니다.
+
+### API와 검증 경계
+
+- `GET /card-image-tools/status`, `POST /card-image-tools/generate`, `POST /card-image-tools/remove-background`
+- 공용은 `content_manage`, 개인은 보호자/담당자의 연결 카드 권한과 동의를 확인합니다. 처리 후에도 재확인합니다.
+- 결과는 임시 data URL이며 저장소에 자동 보관하지 않습니다. 기존 등록 API의 이미지 검사·공개 승인을 유지합니다.
+- 공급자 오류 본문·키는 응답에 전달하지 않습니다. 응답 크기·업로드 크기·추론 시간을 제한합니다.
+- 실제 Gemini 유료 호출·모델 설치/다운로드·rembg 실추론·iPad 촬영 통합 검수는 미실행입니다.
+- 검증: 프론트 빌드(큰 번들 경고 유지)·백엔드 라우터 import 통과. 설정 미비 차단·외부 전송 확인·모의 공급자 응답·이미지 유효성·보호자 권한·동시 실행 제한 점검 통과. 실제 API와 브라우저 통합은 미검증입니다.
 
 <a id="admin-card-registration"></a>
 ## 관리자 공용 카드 등록

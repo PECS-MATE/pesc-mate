@@ -1,0 +1,2 @@
+# Optional CPU background removal only; no weights are bundled/downloaded.
+rembg[cpu]>=2.0.67,<3

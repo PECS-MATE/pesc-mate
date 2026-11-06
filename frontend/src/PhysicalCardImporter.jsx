@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import CardPhotoPicker from './CardPhotoPicker';
+import CardImageTools from './CardImageTools';
 import UiIcon from './UiIcon';
 import { request } from './services/api';
 import { labelKey } from './services/cardImport';
@@ -215,6 +216,9 @@ export default function PhysicalCardImporter({ admin = false, targetId, categori
             <label className="physical-card-check"><input type="checkbox" checked={row.selected} onChange={e => editRow(index, { selected: e.target.checked })} />등록할 카드</label>
             <label>이름<input maxLength="30" value={row.label} onChange={e => editRow(index, { label: e.target.value })} /></label>
             <label>뜻<input maxLength="120" value={row.meaning} onChange={e => editRow(index, { meaning: e.target.value })} /></label>
+            <CardImageTools label={row.label} file={row.file} targetId={targetId} admin={admin}
+              disabled={disabled || Boolean(busy) || ['saved', 'uncertain'].includes(row.status)}
+              onApply={(file, preview) => { editRow(index, { file, preview }); setRights(false); }} />
             <label>분류<select value={row.category} onChange={e => editRow(index, { category: e.target.value })}><option value="">분류 선택</option>{categories.filter(item => item.active !== false).map(item => <option key={item.id} value={item.name}>{item.name}</option>)}</select></label>
           </fieldset>
           <p>{row.note}</p>{row.selected && ['ready', 'failed'].includes(row.status) && issue(row, index) && <p className="error">{issue(row, index)}</p>}

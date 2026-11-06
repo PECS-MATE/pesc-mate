@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import UiIcon from './UiIcon';
 import CardPhotoPicker from './CardPhotoPicker';
 import CardOcrAssist from './CardOcrAssist';
+import CardImageTools from './CardImageTools';
 import { request, requestBlob } from './services/api';
 import { textCardImage } from './services/textCardImage';
 import './assets/adminCardRegistration.css';
@@ -88,6 +89,8 @@ export default function AdminCardRegistration({ categories, disabled, onCreated 
                 setLabel(value); if (!meaning.trim()) setMeaning(value);
               }} />
               <small>JPG·PNG·WebP · 5MB 이하 · 가로·세로 128~4096px</small>
+              <CardImageTools label={label} file={file} admin disabled={busy || disabled || photoBusy}
+                onApply={image => { setFile(image); setRights(false); }} />
               <label className="admin-card-rights"><input type="checkbox" required checked={rights} onChange={e => setRights(e.target.checked)} />모두에게 공개할 수 있는 사진입니다.</label>
             </>}
           </div>
