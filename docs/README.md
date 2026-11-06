@@ -1,6 +1,6 @@
 # PECS MATE 문서 안내
 
-> 정리일: 2026-11-04 · 저장소 Markdown 88개를 43개로 통합했습니다.
+> 정리일: 2026-11-06 · 저장소 Markdown 40개. 과거 개별 계획 3개를 주제별 문서로 통합했습니다.
 
 실행 방법은 [프로젝트 README](../README.md), 현재 작업은 [통합 TODO](planning/TODO.md)에서 확인합니다.
 작은 변경마다 별도 문서를 만들지 않고 아래 주제별 안내서에 사용법·구현 경계·검증 상태를 함께 관리합니다.
@@ -13,8 +13,8 @@
 | [로컬 실행과 태블릿 접속](development/LOCAL_DEVELOPMENT.md) | 로컬 실행과 태블릿 접속 |
 | [화면 UX와 계정 설정](development/USER_INTERFACE.md) | 아동은 홈의 빠른 표현과 말하기·연습하기를 사용합니다 |
 | [카드 등록과 카드판 관리](development/CARD_MANAGEMENT.md) | 보호자의 아이 관리 → 개인 카드 관리에서 사진·실물 카드를 등록합니다 |
-| [카드 이미지 제작과 어휘 목록](development/CARD_ASSETS.md) | 현재 내장 이미지와 기본 카드는 66종입니다 |
-| [학습 활동과 의사소통 기록](development/LEARNING_AND_RECORDS.md) | 현재 학습은 단어·그림 맞추기, 소리 듣고 카드 찾기, 카드 순서로 문장 만들기 3종입니다 |
+| [카드 이미지 제작과 어휘 목록](development/CARD_ASSETS.md) | 기본 카드 113종(그림 87·글자 26), 추가 원본 7장 매핑 대기 |
+| [학습 활동과 의사소통 기록](development/LEARNING_AND_RECORDS.md) | 학습 4종·보호자 맞춤 세트·30일 코스·복습 제안 |
 | [음성 합성과 문장 생성](development/SPEECH_AND_AI.md) | 온라인 음성은 로컬 MeloTTS 서버를 사용하고, 기기 음성·핵심 표현 녹음·오프라인 캐시는 별도 대체 경로입니다 |
 | [이미지 업로드와 로컬 저장](development/IMAGE_STORAGE.md) | 사용자가 업로드한 원본과 화면용 WebP·썸네일을 구분해 로컬 MongoDB에 저장합니다 |
 | [API 음성 동기화 지표와 운영 알림](development/OPERATIONS_METRICS.md) | API 처리·클라이언트 음성 재생·오프라인 동기화·운영 알림은 서로 다른 지표입니다 |
@@ -33,12 +33,11 @@
 
 | 문서 | 내용 |
 | --- | --- |
-| [보호자 UI 가독성과 작업 흐름 개선 개발 계획](planning/CAREGIVER_UI_IMPROVEMENT_PLAN.md) | 보호자 UI 가독성과 작업 흐름 개선 개발 계획 |
 | [PECS MATE 기능요구사양서](planning/functional_requirements_specification.md) | PECS MATE 기능요구사양서 |
-| [실물 카드 입력 기반 의사소통 MVP](planning/HARDWARE_MVP.md) | 실물 카드 입력 기반 의사소통 MVP |
-| [MVP 이후 UX 개선과 AI 연습 제안 개발 요청서](planning/POST_MVP_DEVELOPMENT.md) | MVP 이후 UX 개선과 AI 연습 제안 개발 요청서 |
 | [project_plan.md](planning/project_plan.md) | project_plan.md |
 | [PECS MATE 통합 TODO](planning/TODO.md) | PECS MATE 통합 TODO |
+
+통합된 과거 계획: [보호자 UI](development/USER_INTERFACE.md#caregiver-ui-plan-history), [MVP 이후 요청](development/USER_INTERFACE.md#post-mvp-plan-history), [하드웨어 최초 계획](development/RFID_USB_INTEGRATION.md#hardware-mvp-plan-history). 원문과 미실행 검수 기록을 접힌 절에 보존했습니다.
 
 ## 동작 정책
 

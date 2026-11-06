@@ -1,6 +1,23 @@
 # API 연동 가이드
 
-> 2026-10-28 저장소의 FastAPI 라우트 기준. 문서 작업이며 API 코드·응답 형식은 변경하지 않았다.
+## 2026-11-06 추가 API
+
+| 경로 | 용도 |
+| --- | --- |
+| `GET /api/learning/program?user_id=...` | 맞춤 세트·일일 코스·세트별 마지막 완료 조회 |
+| `PUT /api/learning/program?user_id=...` | 보호자/담당자 코스 저장. expected_revision 충돌 시 409 |
+| `GET /api/card-image-tools/status` | 개인/공용 이미지 도구 설정 상태 조회 |
+| `POST /api/card-image-tools/generate` | JSON label·external_accepted·scope·user_id로 명시적 Gemini 생성 |
+| `POST /api/card-image-tools/remove-background` | multipart image·scope·user_id로 로컬 배경 제거 |
+
+scope는 private/shared입니다. 공용은 콘텐츠 운영 권한, 개인은 연결 카드 권한·동의를 확인합니다.
+코스는 학습·카드 권한을 모두 요구하고 기록은 기존 학습 저장소에만 남깁니다.
+이미지 응답은 미리보기용 data URL이며 카드 저장 API를 별도로 호출해야 합니다.
+키·모델 미설정 시 이미지 실행은 503, 과부하/시간당 제한은 429입니다. 생성은 자동 재시도하지 마세요.
+자세한 스키마는 실행 중인 서버의 `/docs`, 사용·검증 경계는
+[학습](LEARNING_AND_RECORDS.md), [이미지 보조](CARD_MANAGEMENT.md#card-image-tools)를 따릅니다.
+
+> 기존 안내의 기준일은 2026-10-28입니다. 위 2026-11-06 추가 경로와 실행 서버 `/docs`를 우선합니다.
 
 ## 어디서 확인하나요?
 
