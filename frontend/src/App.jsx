@@ -13,6 +13,7 @@ import useSidebar from './hooks/useSidebar';
 import useCardScroll from './hooks/useCardScroll';
 import useLiveCardCatalog from './hooks/useLiveCardCatalog';
 import { CardArt, CardPicture, ExpressionVisual } from './components/CardVisuals';
+import SpeakingCardTile from './components/SpeakingCardTile';
 import PhysicalCardImporter from './PhysicalCardImporter';
 import CardPrintEditor from './CardPrintEditor';
 import HomeDashboard from './HomeDashboard';
@@ -654,8 +655,9 @@ function App() {
     setBoard(next); if (privacy.guardian_consent) saveBoard(user?.id, next); setText(''); setGeneratedSessionId(''); setGenerationFailed(false); setSpeechFailure(null); setRequestId(createRequestId());
   }
   function add(card) {
-    if (board.length >= 12) { setError('카드는 최대 12장까지 선택할 수 있어요.'); return; }
+    if (board.length >= 12) { setError('카드는 최대 12장까지 선택할 수 있어요.'); return false; }
     setError(''); updateBoard([...board, { ...card, selected_at: new Date().toISOString() }]);
+    return true;
   }
   function move(index, destination) {
     if (index === destination || destination < 0 || destination >= board.length) return;
@@ -1533,17 +1535,9 @@ function App() {
     } catch (e) { setCategoryError(e.message); }
     finally { setCategoryBusy(''); }
   }
-  function cardSpeaker(card) {
-    return <button type="button" className="card-speaker" disabled={busy} aria-label={`${card.label} 단어 듣기`} onClick={() => speakText(card.label, 'card', [card.id])}><UiIcon name="volume" />듣기</button>;
-  }
   function tile(card) {
-    const speakOnTap = outputMode === 'word';
-    return <div className="card-tile" key={card.id}><button type="button" className={`card${speakOnTap ? ' speak-on-tap' : ''}`} disabled={busy} aria-label={`${card.label} ${speakOnTap ? '바로 말하기' : '문장에 담기'}`} onClick={() => {
-      if (speakOnTap) speakText(card.label, 'card', [card.id]); else add(card);
-    }}>
-      {cardArt(card)}
-      <strong>{card.label}</strong>{card.reason && <small>{card.reason}</small>}
-    </button>{cardSpeaker(card)}</div>;
+    return <SpeakingCardTile key={card.id} card={card} renderArt={cardArt} disabled={busy}
+      compose={outputMode !== 'word'} onAdd={add} onSpeak={item => speakText(item.label, 'card', [item.id])} />;
   }
   const layoutCards = boardLayout?.available_cards || cards;
   const layoutCardsById = new Map(layoutCards.map(card => [card.id, card]));
@@ -1809,7 +1803,7 @@ function App() {
         cards={cards} categories={cardCategories} layout={boardLayout} recoveryCards={recoveryExpressions}
         renderPicture={cardPicture} hasPicture={card => Boolean(cardImage(card))} pageSize={accessibility.cards_per_page} busy={busy}
         renderCard={card => recoveryExpressions.some(item => item.id === card.id)
-          ? <div className="card-tile"><button type="button" className="card" disabled={speechState.status === 'starting'} aria-label={`${card.label} 복구 표현 말하기`} onClick={() => speakText(card.label, 'recovery')}>{cardArt(card)}<strong>{card.label}</strong></button><button type="button" className="card-speaker" aria-label={`${card.label} 다시 듣기`} onClick={() => speakText(card.label, 'recovery')}><UiIcon name="volume" /></button></div>
+          ? <SpeakingCardTile card={card} renderArt={cardArt} compose={false} disabled={speechState.status === 'starting'} onSpeak={item => speakText(item.label, 'recovery')} />
           : tile(card)} />
       </div>
     </div> : tab === 'practice' && user.role === 'user' ? <section className="learning-hub">
@@ -1839,17 +1833,17 @@ function App() {
         disabled={offline || !privacy.guardian_consent} onStart={startLearningGame} />}
     </section> : tab === 'catalog' && user.role === 'user' ? <section className="card-catalog">
       <div className="catalog-toolbar">
-        <div><h2>카드 보기</h2><p className="muted">카드를 눌러 그림과 뜻을 확인해 보세요.</p></div>
+        <div><h2>카드 보기</h2></div>
         <div className="catalog-actions"><input aria-label="카드 검색" placeholder="카드 이름 검색" value={search} onChange={event => setSearch(event.target.value)} /><button className="primary" onClick={() => { setEditingSubmission(null); setCardFormError(''); setShowCardForm(true); }}><UiIcon name="plus" />카드 등록</button></div>
       </div>
       <div className="categories" aria-label="카테고리">{['전체', ...cardCategories.map(item => item.name)].map(item => <button key={item} aria-pressed={category === item} className={category === item ? 'active' : ''} onClick={() => setCategory(item)}>{item}</button>)}</div>
       <div className="catalog-layout">
-        <div ref={catalogListRef} className="catalog-grid card-scroll-region" role="region" tabIndex="0" aria-label="카드 목록" onScroll={scrollCatalog}>{visibleCards.map(card => <div className="catalog-tile" key={card.id}><button type="button" className="catalog-card" aria-pressed={selectedCard?.id === card.id} onClick={() => setSelectedCard(card)}>
+        <div ref={catalogListRef} className="catalog-grid card-scroll-region" role="region" tabIndex="0" aria-label="카드 목록" onScroll={scrollCatalog}>{visibleCards.map(card => <div className="catalog-tile" key={card.id}><button type="button" className="catalog-card" disabled={busy} aria-pressed={selectedCard?.id === card.id} aria-label={`${card.label} 선택하고 말하기`} onClick={() => { setSelectedCard(card); speakText(card.label, 'card', [card.id]); }}>
           {cardArt(card)}
           <span><strong>{card.label}</strong><small>{card.category}</small></span>
-        </button>{cardSpeaker(card)}</div>)}</div>
+        </button></div>)}</div>
         <aside className="card-detail" aria-live="polite">
-          {selectedCard ? <>{cardArt(selectedCard, 'detail-art')}<span className="detail-category">{selectedCard.category}</span><h3>{selectedCard.label}</h3><div className="detail-actions"><button aria-label={`${selectedCard.label} 단어 듣기`} onClick={() => speakText(selectedCard.label, 'card', [selectedCard.id])}><UiIcon name="volume" />단어 듣기</button><button className="primary" onClick={() => { add(selectedCard); setTab('cards'); }}>문장에 사용하기</button></div></> : <div className="detail-empty"><Mascot /><strong>카드를 선택해 주세요</strong><p>선택한 카드의 그림과 뜻이 여기에 보여요.</p></div>}
+          {selectedCard ? <>{cardArt(selectedCard, 'detail-art')}<span className="detail-category">{selectedCard.category}</span><h3>{selectedCard.label}</h3><div className="detail-actions"><button className="primary" onClick={() => { if (add(selectedCard)) setTab('cards'); }}>문장에 사용하기</button></div></> : <div className="detail-empty"><Mascot /><strong>카드를 선택해 주세요</strong></div>}
         </aside>
       </div>
       {cardSubmissions.length > 0 && <div className="submission-list"><ul>{cardSubmissions.map(item => <li key={item.id}><span><strong>{item.label}</strong><small>{item.category} · {item.sharing_notice || (item.visibility === 'private' ? '나만 사용' : '공개 요청')}</small></span><div className="submission-actions"><b className={`submission-status ${item.status}`}>{item.visibility === 'private' && item.status === 'approved' ? '나만 사용 중' : ({ draft: '작성 중', pending: '승인 대기', approved: '공개 승인', rejected: '반려', inactive: '비활성' })[item.status] || item.status}</b>{['draft', 'rejected'].includes(item.status) && <button disabled={reviewBusy === item.id} onClick={() => { setEditingSubmission(item); setCardFormError(''); setShowCardForm(true); }}>수정</button>}{item.status === 'draft' && <button className="primary" disabled={reviewBusy === item.id} onClick={() => submitDraft(item)}>{item.visibility === 'private' ? '나만 사용 시작' : '공개 승인 요청'}</button>}</div></li>)}</ul></div>}
