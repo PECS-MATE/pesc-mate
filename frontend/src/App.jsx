@@ -1840,7 +1840,7 @@ function App() {
       <div className="catalog-layout">
         <div ref={catalogListRef} className="catalog-grid card-scroll-region" role="region" tabIndex="0" aria-label="카드 목록" onScroll={scrollCatalog}>{visibleCards.map(card => <div className="catalog-tile" key={card.id}><button type="button" className="catalog-card" disabled={busy} aria-pressed={selectedCard?.id === card.id} aria-label={`${card.label} 선택하고 말하기`} onClick={() => { setSelectedCard(card); speakText(card.label, 'card', [card.id]); }}>
           {cardArt(card)}
-          <span><strong>{card.label}</strong><small>{card.category}</small></span>
+          <span><strong>{card.label}</strong></span>
         </button></div>)}</div>
         <aside className="card-detail" aria-live="polite">
           {selectedCard ? <>{cardArt(selectedCard, 'detail-art')}<span className="detail-category">{selectedCard.category}</span><h3>{selectedCard.label}</h3><div className="detail-actions"><button className="primary" onClick={() => { if (add(selectedCard)) setTab('cards'); }}>문장에 사용하기</button></div></> : <div className="detail-empty"><Mascot /><strong>카드를 선택해 주세요</strong></div>}
