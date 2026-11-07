@@ -18,7 +18,6 @@ export function importIssues(row, rows, existingCards, categories) {
   if (!/^[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9 ]{1,30}$/.test(row.label.trim())) {
     issues.push('카드명은 한글·영문·숫자·공백으로 1~30자 입력해 주세요.');
   }
-  if (!row.meaning.trim() || row.meaning.trim().length > 120) issues.push('카드 뜻을 1~120자 입력해 주세요.');
   if (!categories.some(category => category.name === row.category)) issues.push('카테고리를 선택해 주세요.');
   const key = labelKey(row.label);
   if (key && (rows.some(other => other.id !== row.id && labelKey(other.label) === key)

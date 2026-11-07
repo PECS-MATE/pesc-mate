@@ -96,7 +96,7 @@ export default function PhysicalCardImporter({ admin = false, targetId, categori
       const data = await request('/cards/scan', { method: 'POST', body, timeoutMs: 30000 });
       if (!current()) return;
       const next = data.cards.map((card, index) => ({ file: cropFile(card.image, index), preview: card.image,
-        label: '', meaning: '', category, selected: true, status: 'ready', note: '' }));
+        label: '', category, selected: true, status: 'ready', note: '' }));
       setRows(next);
       for (let index = 0; index < next.length && current(); index += 1) {
         setNotice(`${index + 1}/${next.length} 카드 이름을 읽고 있습니다.`);
@@ -106,7 +106,7 @@ export default function PhysicalCardImporter({ admin = false, targetId, categori
           const result = await request(admin ? '/admin/cards/ocr' : '/cards/ocr', { method: 'POST', body, timeoutMs: 30000 });
           if (!current()) return;
           setRows(values => values.map((row, i) => i === index ? { ...row,
-            label: result.suggested_label || '', meaning: result.suggested_label || '',
+            label: result.suggested_label || '',
             note: result.suggested_label ? '인식한 이름을 확인하세요.' : '글자를 찾지 못했습니다. 이름을 입력하세요.' } : row));
         } catch (e) {
           if (!current()) return;
@@ -114,13 +114,12 @@ export default function PhysicalCardImporter({ admin = false, targetId, categori
           setError(e.message); break;
         }
       }
-      if (current()) setNotice('분리된 그림과 이름·뜻·분류를 확인하고 저장할 카드를 선택하세요.');
+      if (current()) setNotice('분리된 그림과 이름·분류를 확인하고 저장할 카드를 선택하세요.');
     } catch (e) { if (current()) setError(e.message); }
     finally { if (mounted.current && current.run === sequence.current) setBusy(''); }
   }
   function issue(row, index) {
     if (!/^[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9 ]{1,30}$/.test(row.label.trim())) return '이름을 한글·영문·숫자로 입력하세요.';
-    if (!row.meaning.trim() || row.meaning.trim().length > 120) return '뜻을 1~120자로 입력하세요.';
     if (!categories.some(item => item.name === row.category && item.active !== false)) return '분류를 선택하세요.';
     if (existingCards.some(item => item.status !== 'rejected' && labelKey(item.label) === labelKey(row.label))
       || rows.some((other, i) => i !== index && other.selected && other.status !== 'saved' && labelKey(other.label) === labelKey(row.label))) return '이미 있는 이름 또는 이번 목록의 중복 이름입니다.';
@@ -138,7 +137,7 @@ export default function PhysicalCardImporter({ admin = false, targetId, categori
         attempted = true;
         setRows(values => values.map((item, i) => i === index ? { ...item, status: 'saving' } : item));
         const body = new FormData();
-        for (const key of ['label', 'meaning', 'category']) body.set(key, row[key].trim());
+        for (const key of ['label', 'category']) body.set(key, row[key].trim());
         body.set('image', row.file);
         if (!admin) { body.set('visibility', 'private'); body.set('submission_mode', 'submit'); body.set('user_id', targetId); }
         try {
@@ -224,7 +223,6 @@ export default function PhysicalCardImporter({ admin = false, targetId, categori
           <fieldset disabled={disabled || Boolean(busy) || ['saved', 'uncertain'].includes(row.status)}><legend>{index + 1}번 카드 · {({ saved: '저장 완료', uncertain: '저장 확인 필요', failed: '등록 실패' })[row.status] || '확인 중'}</legend>
             <label className="physical-card-check"><input type="checkbox" checked={row.selected} onChange={e => editRow(index, { selected: e.target.checked })} />등록할 카드</label>
             <label>이름<input maxLength="30" value={row.label} onChange={e => editRow(index, { label: e.target.value })} /></label>
-            <label>뜻<input maxLength="120" value={row.meaning} onChange={e => editRow(index, { meaning: e.target.value })} /></label>
             <CardImageTools label={row.label} file={row.file} targetId={targetId} admin={admin}
               disabled={disabled || Boolean(busy) || ['saved', 'uncertain'].includes(row.status)}
               onApply={(file, preview) => { editRow(index, { file, preview }); setRights(false); }} />
@@ -232,7 +230,7 @@ export default function PhysicalCardImporter({ admin = false, targetId, categori
           </fieldset>
           {row.note && <p>{row.note}</p>}{row.selected && ['ready', 'failed'].includes(row.status) && issue(row, index) && <p className="error">{issue(row, index)}</p>}
         </li>)}</ol>
-        <label className="physical-card-check"><input type="checkbox" checked={confirmed} disabled={disabled || Boolean(busy)} onChange={e => setConfirmed(e.target.checked)} />선택한 카드의 그림과 이름·뜻을 확인했습니다.</label>
+        <label className="physical-card-check"><input type="checkbox" checked={confirmed} disabled={disabled || Boolean(busy)} onChange={e => setConfirmed(e.target.checked)} />선택한 카드의 그림과 이름을 확인했습니다.</label>
         {admin && <label className="physical-card-check"><input type="checkbox" checked={rights} disabled={disabled || Boolean(busy)} onChange={e => setRights(e.target.checked)} />모두에게 공개할 수 있는 이미지입니다.</label>}
         <div className="physical-card-tools"><button type="button" className="primary" onClick={save} disabled={disabled || Boolean(busy) || !confirmed || (admin && !rights) || !pending.length || invalid}>{pending.length}장 {admin ? '공용 카드로' : '개인 카드로'} 저장</button>
           {rows.some(row => row.status === 'uncertain') && <button type="button" disabled={Boolean(busy) || disabled} onClick={async () => { try { await onSaved?.(); } catch (e) { setError(e.message); } }}>등록 목록 갱신</button>}

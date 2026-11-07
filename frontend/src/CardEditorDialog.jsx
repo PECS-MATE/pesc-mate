@@ -64,7 +64,6 @@ export default function CardEditorDialog({ editing, categories, targetName, targ
         <fieldset disabled={busy}>
           <legend className="visually-hidden">카드 정보</legend>
           <label>카드명<input name="label" required maxLength="30" placeholder="예: 연필" defaultValue={editing?.label || ''} onChange={e => setToolLabel(e.target.value)} /></label>
-          <label>카드 뜻<textarea name="meaning" required maxLength="120" rows="3" placeholder="카드가 나타내는 뜻을 적어 주세요." defaultValue={editing?.meaning || ''} /></label>
           <label>카테고리<select name="category" required defaultValue={editing?.category || ''}>
             <option value="" disabled>카테고리 선택</option>{categories.map(item => <option key={item.id} value={item.name}>{item.name}</option>)}
           </select></label>
@@ -79,8 +78,6 @@ export default function CardEditorDialog({ editing, categories, targetName, targ
           const input = dialog.current?.querySelector('input[name="label"]');
           if (input) { input.value = value; input.focus(); }
           setToolLabel(value);
-          const meaning = dialog.current?.querySelector('textarea[name="meaning"]');
-          if (meaning && !meaning.value.trim()) meaning.value = value;
         }} />}
         {!editing && <CardImageTools label={toolLabel} file={image} targetId={targetId}
           disabled={busy || photoBusy || ocrDisabled} onApply={file => { setImage(file); setPhotoError(''); }} />}

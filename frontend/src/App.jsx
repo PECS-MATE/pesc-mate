@@ -1428,7 +1428,7 @@ function App() {
     try {
       const saved = editingSubmission
         ? await request(`/cards/submissions/${editingSubmission.id}${targetQuery}`, {
-          method: 'PATCH', body: JSON.stringify(Object.fromEntries(['label', 'meaning', 'category', 'visibility'].map(key => [key, formData.get(key)]))),
+          method: 'PATCH', body: JSON.stringify(Object.fromEntries(['label', 'category', 'visibility'].map(key => [key, formData.get(key)]))),
         })
         : await request('/cards/submissions', { method: 'POST', body: formData });
       if (!current()) return;

@@ -13,7 +13,6 @@ export default function AdminCardRegistration({ categories, disabled, onCreated 
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const [mode, setMode] = useState('text');
   const [label, setLabel] = useState('');
-  const [meaning, setMeaning] = useState('');
   const [category, setCategory] = useState('');
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState('');
@@ -44,7 +43,7 @@ export default function AdminCardRegistration({ categories, disabled, onCreated 
     try {
       if (mode === 'photo' && (!file || !rights)) throw new Error('사진과 공용 사용 권한을 확인해 주세요.');
       const data = new FormData();
-      data.set('label', label.trim()); data.set('meaning', meaning.trim()); data.set('category', category);
+      data.set('label', label.trim()); data.set('category', category);
       const image = mode === 'text' ? await textCardImage(label.trim()) : file;
       data.set('image', image, mode === 'text' ? 'text-card.png' : file.name);
       const saved = await request('/admin/cards', { method: 'POST', body: data });
@@ -57,7 +56,7 @@ export default function AdminCardRegistration({ categories, disabled, onCreated 
       if (!mounted.current) return;
       onCreated(saved);
       setNotice(`‘${saved.label}’ 카드를 공용 카드로 등록했습니다.`);
-      setLabel(''); setMeaning(''); setFile(null); setRights(false);
+      setLabel(''); setFile(null); setRights(false);
       form.reset();
     } catch (e) { if (mounted.current) setError(e.message); }
     finally { if (mounted.current) setBusy(false); }
@@ -78,7 +77,6 @@ export default function AdminCardRegistration({ categories, disabled, onCreated 
           </div>
           <div className="admin-card-inputs">
             <label>카드명<input required maxLength={30} value={label} onChange={e => setLabel(e.target.value)} placeholder="예: 언제" /></label>
-            <label>뜻<textarea required maxLength={120} rows={2} value={meaning} onChange={e => setMeaning(e.target.value)} placeholder="예: 시간을 묻는 표현" /></label>
             <label>분류<select required value={category} onChange={e => setCategory(e.target.value)}><option value="" disabled>분류 선택</option>
               {categories.filter(item => item.active !== false).map(item => <option key={item.id} value={item.name}>{item.name}</option>)}
             </select></label>
@@ -86,7 +84,7 @@ export default function AdminCardRegistration({ categories, disabled, onCreated 
               <CardPhotoPicker file={file} disabled={busy || disabled} onBusyChange={setPhotoBusy}
                 onChange={image => { setFile(image); setRights(false); setError(''); }} />
               <CardOcrAssist file={file} admin disabled={busy || disabled || photoBusy} onApply={value => {
-                setLabel(value); if (!meaning.trim()) setMeaning(value);
+                setLabel(value);
               }} />
               <small>JPG·PNG·WebP · 5MB 이하 · 가로·세로 128~4096px</small>
               <CardImageTools label={label} file={file} admin disabled={busy || disabled || photoBusy}

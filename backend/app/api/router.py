@@ -673,7 +673,7 @@ class CardReviewRequest(ReauthenticatedOperation):
 
 class CardUpdateRequest(BaseModel):
     label: str = Field(min_length=1, max_length=30)
-    meaning: str = Field(min_length=1, max_length=120)
+    meaning: str | None = Field(default=None, max_length=120)
     category: str = Field(min_length=1, max_length=30)
     visibility: Literal['private', 'shared']
 
@@ -1130,7 +1130,7 @@ def card_submissions(user_id: str | None = Query(default=None, max_length=64),
 
 @api_router.post('/cards/submissions', response_model=CardSubmissionResponse, status_code=201, tags=['카드'])
 async def submit_card(label: str = Form(min_length=1, max_length=30),
-                      meaning: str = Form(min_length=1, max_length=120),
+                      meaning: str | None = Form(default=None, max_length=120),
                       category: str = Form(min_length=1, max_length=30),
                       visibility: str = Form(),
                       submission_mode: str = Form(default='submit'),
@@ -1200,7 +1200,7 @@ def admin_card_submissions(user=Depends(current_user)):
 
 @api_router.post('/admin/cards', response_model=CardSubmissionResponse, status_code=201, tags=['운영'])
 async def publish_admin_card(label: str = Form(min_length=1, max_length=30),
-                             meaning: str = Form(min_length=1, max_length=120),
+                             meaning: str | None = Form(default=None, max_length=120),
                              category: str = Form(min_length=1, max_length=30),
                              image: UploadFile = File(), user=Depends(current_user)):
     require_account_permission(user, 'content_manage')

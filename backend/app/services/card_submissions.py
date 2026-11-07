@@ -199,6 +199,16 @@ def _image_payload(image_data, image_content_type, image_edits=None):
     return payload
 
 
+def _card_meaning(label, meaning, previous=None):
+    """Keep legacy descriptions, but never require a separate card definition."""
+    explicit = (meaning or '').strip()
+    if explicit:
+        return explicit
+    previous = previous or {}
+    old = (previous.get('meaning') or '').strip()
+    return old if old and old != previous.get('label') else label
+
+
 def create_submission(owner_id, label, meaning, category, visibility,
                       image_filename, image_content_type, image_data,
                       submission_mode='submit', actor_id=None, image_edits=None, *, content_operator=None):
@@ -211,10 +221,10 @@ def create_submission(owner_id, label, meaning, category, visibility,
     started = datetime.now(timezone.utc)
     actor_id = actor_id or owner_id
     label = label.strip()
-    meaning = meaning.strip()
+    meaning = _card_meaning(label, meaning)
     category = category.strip()
     if not label or not meaning or not category:
-        raise HTTPException(422, '카드명과 뜻, 카테고리를 모두 입력해 주세요.')
+        raise HTTPException(422, '카드명과 카테고리를 입력해 주세요.')
     if category not in active_category_names():
         raise HTTPException(422, '사용할 수 없는 카드 카테고리입니다.')
     if visibility not in {'private', 'shared'}:
@@ -410,20 +420,20 @@ def update_submission(submission_id, owner_id, label, meaning, category, visibil
                       actor_id=None):
     actor_id = actor_id or owner_id
     label = label.strip()
-    meaning = meaning.strip()
     category = category.strip()
-    if not label or not meaning or not category:
-        raise HTTPException(422, '카드명과 뜻, 카테고리를 모두 입력해 주세요.')
+    if not label or not category:
+        raise HTTPException(422, '카드명과 카테고리를 입력해 주세요.')
     if category not in active_category_names():
         raise HTTPException(422, '사용할 수 없는 카드 카테고리입니다.')
     if visibility not in {'private', 'shared'}:
         raise HTTPException(422, '공개 범위가 올바르지 않습니다.')
-    _validate_text(label, meaning, visibility)
     try:
         collection = _collection()
         document = collection.find_one({'_id': submission_id, 'owner_id': owner_id}, IMAGE_METADATA)
         if not document:
             raise HTTPException(404, '수정할 카드를 찾을 수 없습니다.')
+        meaning = _card_meaning(label, meaning, document)
+        _validate_text(label, meaning, visibility)
         if document['status'] not in {'draft', 'rejected'}:
             raise HTTPException(409, '작성 중이거나 반려된 카드만 수정할 수 있습니다.')
         normalized_label = _compact_text(label)

@@ -1,5 +1,10 @@
 # API 연동 가이드
 
+카드 등록/수정의 `meaning`은 2026-11-07부터 선택 항목입니다.
+`POST /api/cards/submissions`, `POST /api/admin/cards`는 생략 시 카드 이름을 내부 값으로 사용합니다.
+`PATCH /api/cards/submissions/{id}`는 생략 시 기존 별도 설명을 보존합니다.
+사용자 화면에는 뜻 입력이 없으며 이름·분류·이미지·공개/권한 조건은 기존대로 확인합니다.
+
 ## 2026-11-06 추가 API
 
 | 경로 | 용도 |

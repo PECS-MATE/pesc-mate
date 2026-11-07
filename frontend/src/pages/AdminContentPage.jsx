@@ -88,7 +88,6 @@ export default function AdminContentPage({
               {({ pending: '승인 대기', approved: '승인', rejected: '반려', inactive: '비활성' })[item.status] || item.status}
             </b>
           </div>
-          <p>{item.meaning}</p>
           <small>제출자 {item.owner_id} · {new Date(item.created_at).toLocaleString('ko-KR')}</small>
           {item.language_flags?.length > 0 && <div className="language-review">
             <strong>표현 검토 참고</strong>

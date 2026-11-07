@@ -204,7 +204,7 @@ export default function CardPrintEditor({ targetId = null, targetName, categorie
           let result;
           if (row.file) {
             const body = new FormData();
-            for (const [key, value] of Object.entries({ label: row.label.trim(), meaning: row.meaning.trim(), category: row.category,
+            for (const [key, value] of Object.entries({ label: row.label.trim(), category: row.category,
               visibility: 'private', submission_mode: 'submit', user_id: targetId })) body.set(key, value);
             body.set('image', row.file);
             result = await request('/cards/submissions', { method: 'POST', body });
@@ -292,14 +292,14 @@ export default function CardPrintEditor({ targetId = null, targetName, categorie
       <fieldset disabled={locked}><legend>{index + 1}번째 카드 · {STATUS[row.status]}</legend>
         {publish && ['ready', 'failed'].includes(row.status) && <label><input type="checkbox" checked={row.publishSelected !== false} onChange={event => change(row.id, { publishSelected: event.target.checked })} />이 카드도 아이 계정에 등록</label>}
         <label>보관함 이름<input value={row.label} maxLength="30" onChange={event => change(row.id, { label: event.target.value })} /></label>
-        {publish && row.file && ['ready', 'failed'].includes(row.status) && <><label>아이 카드 뜻<input value={row.meaning} maxLength="120" onChange={event => change(row.id, { meaning: event.target.value })} /></label>
+        {publish && row.file && ['ready', 'failed'].includes(row.status) && <>
           <label>아이 카드 분류<select value={row.category} onChange={event => change(row.id, { category: event.target.value })}><option value="">분류 선택</option>{categories.map(item => <option key={item.id} value={item.name}>{item.name}</option>)}</select></label></>}
         <IconButton icon="trash" label={`${row.label || `${index + 1}번째 카드`} 인쇄 목록에서 빼기`} onClick={() => remove(row)} />
       </fieldset>{row.error && <p role="alert">{row.error}</p>}
     </li>)}</ol>
     {!printOnly && <><label className="card-print-publish"><input type="checkbox" checked={publish} disabled={locked || disabled} onChange={event => setPublish(event.target.checked)} />저장할 때 {targetName}님의 아이 계정에서도 사용</label>
     <p>체크하지 않으면 새 사진은 서버에 저장하지 않아요. 체크 후 저장하면 해당 아이 전용 카드로 등록해요. 체크 해제·인쇄 목록 제거는 이미 저장된 카드를 삭제하지 않아요.</p>
-    <p>등록된 카드의 인쇄 문구를 바꿔도 아이 계정의 카드 이름·뜻·사진은 바뀌지 않아요. 사용 중지·반려 카드는 이 편집기에서 재활성화하지 않아요.</p>
+    <p>등록된 카드의 인쇄 문구를 바꿔도 아이 계정의 카드 이름·사진은 바뀌지 않아요. 사용 중지·반려 카드는 이 편집기에서 재활성화하지 않아요.</p>
     {publish && issues.length > 0 && <p role="alert">{[...new Set(issues)].join(' ')}</p>}
     <div className="card-print-actions"><IconButton icon="save" label="아이 계정에 카드 저장" disabled={!publish || disabled || locked || !candidates.length || issues.length > 0} onClick={save} />
       <IconButton icon="refresh" label="등록 목록 다시 불러오기" disabled={disabled || locked} onClick={refresh} /></div></>}
