@@ -1,11 +1,12 @@
 import { createRequestId } from './requestId.js';
+import { createSpeechAudioQueue } from './speechAudioQueue.js';
 
 const API_BASE_URL =
   import.meta.env?.VITE_API_BASE_URL ?? "";
 
 const TOKEN_KEY = 'pesc-mate-token';
-const speechAudioCache = new Map();
-let speechCacheToken = null;
+const speechAudioQueue = createSpeechAudioQueue({ fetchAudio: fetchSpeechAudio,
+  getSession: () => localStorage.getItem(TOKEN_KEY) });
 
 function notifyAccessDenied(status, path, authorization) {
   if (status === 403) {
@@ -52,7 +53,7 @@ async function responseError(response, requestId, fallbackMessage, path, authori
 }
 
 export function setToken(token) {
-  speechAudioCache.clear(); speechCacheToken = null;
+  speechAudioQueue.reset();
   if (token) localStorage.setItem(TOKEN_KEY, token);
   else localStorage.removeItem(TOKEN_KEY);
 }
@@ -102,12 +103,11 @@ export async function requestBlob(path, fallbackMessage = '이미지를 불러�
   }
 }
 
-export async function requestSpeechAudio(text, rate, signal) {
-  const token = localStorage.getItem(TOKEN_KEY);
-  if (speechCacheToken !== token) { speechAudioCache.clear(); speechCacheToken = token; }
-  const key = JSON.stringify([text, rate]);
-  const cached = speechAudioCache.get(key);
-  if (!signal?.aborted && cached && Date.now() - cached.at < 300000) return cached.blob;
+export function requestSpeechAudio(text, rate, signal) {
+  return speechAudioQueue.request(text, rate, signal);
+}
+
+async function fetchSpeechAudio(text, rate, signal, token) {
   const controller = new AbortController();
   const cancel = () => controller.abort();
   if (signal?.aborted) cancel();
@@ -126,10 +126,6 @@ export async function requestSpeechAudio(text, rate, signal) {
       || String.fromCharCode(...header.slice(8, 12)) !== 'WAVE') throw new Error('음성 서버의 응답 형식이 올바르지 않습니다.');
     if (signal?.aborted || localStorage.getItem(TOKEN_KEY) !== token) throw new DOMException('Cancelled', 'AbortError');
     const wav = blob.slice(0, blob.size, 'audio/wav');
-    speechAudioCache.set(key, { blob: wav, at: Date.now() });
-    while (speechAudioCache.size > 8 || [...speechAudioCache.values()].reduce((sum, entry) => sum + entry.blob.size, 0) > 16 * 1024 * 1024) {
-      speechAudioCache.delete(speechAudioCache.keys().next().value);
-    }
     return wav;
   } finally {
     clearTimeout(timer); signal?.removeEventListener('abort', cancel);
