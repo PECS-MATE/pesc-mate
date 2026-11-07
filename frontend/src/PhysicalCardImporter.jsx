@@ -206,6 +206,15 @@ export default function PhysicalCardImporter({ admin = false, targetId, categori
         <button type="button" className="primary" onClick={separate} disabled={disabled || Boolean(busy)}>분리하고 이름 읽기</button>
       </>}
       {rows.length > 0 && <>
+        <div className="physical-card-review-toolbar">
+          <strong>{rows.filter(row => row.selected && ['ready', 'failed'].includes(row.status)).length}/{rows.length}장 선택</strong>
+          <button type="button" disabled={disabled || Boolean(busy)} onClick={() => {
+            setRows(values => values.map(row => ['ready', 'failed'].includes(row.status) ? { ...row, selected: true } : row)); setConfirmed(false);
+          }}>전체 선택</button>
+          <button type="button" disabled={disabled || Boolean(busy)} onClick={() => {
+            setRows(values => values.map(row => ['ready', 'failed'].includes(row.status) ? { ...row, selected: false } : row)); setConfirmed(false);
+          }}>선택 해제</button>
+        </div>
         <label>공통 분류<select disabled={disabled || Boolean(busy)} value={category} onChange={e => {
           setCategory(e.target.value); setConfirmed(false);
           setRows(values => values.map(row => ['ready', 'failed'].includes(row.status) ? { ...row, category: e.target.value } : row));
@@ -221,7 +230,7 @@ export default function PhysicalCardImporter({ admin = false, targetId, categori
               onApply={(file, preview) => { editRow(index, { file, preview }); setRights(false); }} />
             <label>분류<select value={row.category} onChange={e => editRow(index, { category: e.target.value })}><option value="">분류 선택</option>{categories.filter(item => item.active !== false).map(item => <option key={item.id} value={item.name}>{item.name}</option>)}</select></label>
           </fieldset>
-          <p>{row.note}</p>{row.selected && ['ready', 'failed'].includes(row.status) && issue(row, index) && <p className="error">{issue(row, index)}</p>}
+          {row.note && <p>{row.note}</p>}{row.selected && ['ready', 'failed'].includes(row.status) && issue(row, index) && <p className="error">{issue(row, index)}</p>}
         </li>)}</ol>
         <label className="physical-card-check"><input type="checkbox" checked={confirmed} disabled={disabled || Boolean(busy)} onChange={e => setConfirmed(e.target.checked)} />선택한 카드의 그림과 이름·뜻을 확인했습니다.</label>
         {admin && <label className="physical-card-check"><input type="checkbox" checked={rights} disabled={disabled || Boolean(busy)} onChange={e => setRights(e.target.checked)} />모두에게 공개할 수 있는 이미지입니다.</label>}
