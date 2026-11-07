@@ -11,6 +11,7 @@ import CardEditorDialog from './CardEditorDialog';
 import AdminContentPage from './pages/AdminContentPage';
 import useSidebar from './hooks/useSidebar';
 import useCardScroll from './hooks/useCardScroll';
+import useLiveCardCatalog from './hooks/useLiveCardCatalog';
 import { CardArt, CardPicture, ExpressionVisual } from './components/CardVisuals';
 import PhysicalCardImporter from './PhysicalCardImporter';
 import CardPrintEditor from './CardPrintEditor';
@@ -230,6 +231,9 @@ function App() {
   const sentenceContext = JSON.stringify([user?.id, user?.role, loaded, requestId, board.map(card => [card.id, card.selected_at]),
     tab, myPageOpen, outputMode, offline, privacy.guardian_consent]);
   sentenceContextRef.current = sentenceContext;
+  const cardCatalog = useLiveCardCatalog({ account: user, loaded, offline, tab, cards,
+    categories: cardCategories, hydrateImages,
+    onUpdate: (next, categories) => { setCards(next); setCardCategories(categories); } });
   const caregiverSettingsDirty = user?.role === 'caregiver' && ((tab === 'support_settings' && !statsBusy && (!ttsSettingsSaved || !accessibilitySaved))
     || (tab === 'learning_progress' && learningDirty)
     || (tab === 'board_settings' && boardLayout?.user_id === selectedUser?.id && !statsBusy
@@ -1801,6 +1805,7 @@ function App() {
       {!privacy.guardian_consent && <p className="recordless-notice" role="status">기록 없이 말하기 · 지금 고른 카드와 발화는 저장하지 않아요.</p>}
       <div className="workspace">
       <SpeakingCardLibrary key={`${user.id}:${privacy.guardian_consent}`} accountId={user.id} persistFavorites={privacy.guardian_consent}
+        onRefresh={offline ? undefined : cardCatalog.refresh} refreshing={cardCatalog.refreshing} refreshNotice={cardCatalog.notice}
         cards={cards} categories={cardCategories} layout={boardLayout} recoveryCards={recoveryExpressions}
         renderPicture={cardPicture} hasPicture={card => Boolean(cardImage(card))} pageSize={accessibility.cards_per_page} busy={busy}
         renderCard={card => recoveryExpressions.some(item => item.id === card.id)
