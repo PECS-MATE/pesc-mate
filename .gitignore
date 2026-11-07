@@ -8,6 +8,7 @@ frontend/test-results/
 .local-audit/
 .local-security-tests/
 .local-validation/
+.local-voice-design/
 
 # Python
 __pycache__/

@@ -1,0 +1,19 @@
+# Standalone opt-in sample generator, not a replacement for the running TTS.
+name: pecsmate-voice-design
+services:
+  voice-design:
+    build: ./services/qwen-voice-design
+    init: true
+    cpus: 2
+    mem_limit: 10g
+    network_mode: bridge
+    environment:
+      QWEN_MODEL_REVISION: "${QWEN_MODEL_REVISION:-main}"
+    volumes:
+      - qwen_voice_models:/models
+      - ./services/qwen-voice-design/voice-description.txt:/app/voice-description.txt:ro
+      - ./.local-voice-design:/output
+    # No web port, application database access, or automatic startup.
+    restart: "no"
+volumes:
+  qwen_voice_models:

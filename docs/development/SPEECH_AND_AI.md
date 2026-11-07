@@ -11,6 +11,58 @@
 - [로컬 한국어 MeloTTS](#melo-tts)
 - [문장 생성의 첫 요청·유휴 후 지연 개선](#sentence-generation-performance)
 
+## 설명 기반 Qwen 음색 샘플 제작 (2026-11-07)
+
+현재 서비스 기본 음성은 **MeloTTS 그대로**입니다. Qwen 샘플 제작은 독립된
+`compose.voice-design.yaml`의 일회성 CPU 작업이며, 기본 Compose와 합치지 않습니다.
+`Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign`을 사용하고, 0.6B 한국어 화자 모델이나
+기존 기기 음성의 음높이 조절로 대체하지 않습니다. 실제 사람의 참고 녹음은 사용하지 않습니다.
+
+음색 설명은 `services/qwen-voice-design/voice-description.txt`에서 수정합니다.
+어린이 느낌·성별이 두드러지지 않는 음색은 생성 지시일 뿐 결과 보장이 아니므로 청음이 필요합니다.
+
+```powershell
+docker compose -f compose.voice-design.yaml run --rm --build voice-design --check
+docker compose -f compose.voice-design.yaml run --rm voice-design
+# 문장은 최대 100자. 처음에는 짧게 청음합니다.
+docker compose -f compose.voice-design.yaml run --rm voice-design --text "물 주세요. 싫어요."
+```
+
+첫 명령도 Python 패키지와 CPU PyTorch 이미지 빌드는 필요하지만, `--check`는
+모델 가중치를 다운로드하거나 합성하지 않습니다. 모델 다운로드는 실제 제작 명령에서만 실행합니다.
+Docker 총 메모리 8GiB·가용 6GiB를 프로젝트의 보수적인 사전 기준으로 적용합니다.
+이는 제조사 최소 사양이나 실행 성공 보장이 아닙니다. 기존 서비스 메모리도 별도로 필요합니다.
+컨테이너는 CPU 2개·메모리 최대 10GiB이며 CUDA/FlashAttention을 요구하지 않습니다.
+다운로드·로드·합성을 합쳐 기본 900초의 작업 제한을 두지만 CPU 연산/네트워크 내부의
+중단 반응은 지연될 수 있습니다. `Ctrl+C` 또는 해당 일회성 컨테이너 중단으로 종료할 수 있습니다.
+표본에는 512토큰 상한이 있어 긴 문장은 잘릴 수 있으며, 파일 생성만으로 완료로 판정하지 않습니다.
+
+출력은 `.local-voice-design/audition-*/sample.wav`와 `metadata.json`입니다.
+메타데이터에 설명·문장·모델 스냅샷 리비전·로드/합성 시간·길이를 남기고, 기존 시안은 덮어쓰지 않습니다.
+입력 문장이 로컬 파일에 저장되므로 개인정보 없는 시험 문장만 사용하세요.
+이 디렉터리는 Git에서 제외하며 외부 API로 문장을 전송하지 않습니다.
+가중치는 별도 `qwen_voice_models` Docker 볼륨에 보관합니다.
+기본 모델 리비전은 main이므로 재현 시 기록된 리비전을 `QWEN_MODEL_REVISION`으로 지정하세요.
+
+샘플을 듣고 음색·발음·누락·문장 끝을 확인한 뒤에만 서비스 연결을 진행합니다.
+매 문장을 VoiceDesign으로 다시 만들면 화자 일관성이 달라질 수 있습니다. 선택한 음색을
+유지할 기준 음성/Base 연결, 기본 카드 사전 합성, 음색별 영구 캐싱은 **후속 작업**입니다.
+현재 짧은 브라우저 메모리 캐시를 영구 캐시로 변경하지 않았고 여성 핵심 녹음도 교체하지 않았습니다.
+
+검증 기록:
+
+- 실제 Docker 총 메모리 약 3.83GiB 확인. 기존 서비스는 중단하지 않았습니다.
+- 이미지 빌드·가중치 다운로드·실제 Qwen 합성·속도 측정·청음·기기 재생은 미실행입니다.
+  현재 자원에서 무리하게 실행하지 않으며 샘플 생성 완료로 표시하지 않습니다.
+- 일회성 Python 검사: 문법, 메모리 부족 차단, 점검 전용 경로, 빈 문장 거부,
+  cgroup 메모리 한도 반영, 시간 제한 예외 통과. 모델 합성은 모의 검사하지 않았습니다.
+- 실제 실행 컨테이너에서 사전 점검은 가용 1.11GiB로 종료 코드 1(의도된 보류).
+  모델 다운로드는 시작하지 않았습니다. Compose 설정과 `git diff --check` 통과.
+- 생성기만 추가해 프론트 빌드는 미실행이며, Qwen 이미지 빌드·합성 호환성은 미검증입니다.
+
+참고: [Qwen 공식 구현](https://github.com/QwenLM/Qwen3-TTS),
+[VoiceDesign 모델](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign).
+
 ## 연속 카드 터치와 음성 대기 충돌 수정 (2026-11-07)
 
 연속 선택이 이전 HTTP 요청을 취소해도 서버의 CPU 합성은 계속되어 다음 요청이 429로 실패하는 경로를 수정했습니다.
