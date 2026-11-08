@@ -45,6 +45,7 @@ services:
     environment:
       MONGODB_URI: mongodb://mongodb:27017
       MELO_TTS_URL: http://melotts:8090
+      TTS_CACHE_VERSION: "${TTS_CACHE_VERSION:-melotts-kr-v1}"
       MONGODB_DATABASE: pesc_mate
       DEMO_ACCOUNTS_ENABLED: "true"
       ACCOUNT_PERMISSION_MANAGER_IDS: "${ACCOUNT_PERMISSION_MANAGER_IDS:-}"

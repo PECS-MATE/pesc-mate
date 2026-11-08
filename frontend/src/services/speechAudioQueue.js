@@ -3,7 +3,7 @@ const cancelled = () => new DOMException('Cancelled', 'AbortError');
 // One synthesis continues to completion; only the latest different phrase waits.
 // Cancelling playback must not create overlapping work on the CPU TTS server.
 export function createSpeechAudioQueue({ fetchAudio, getSession, now = Date.now,
-  ttlMs = 300000, maxEntries = 32, maxBytes = 16 * 1024 * 1024 }) {
+  ttlMs = 1800000, maxEntries = 128, maxBytes = 64 * 1024 * 1024 }) {
   let active = null, pending = null, session;
   const cache = new Map();
   function settle(job, error, value) {
@@ -45,7 +45,10 @@ export function createSpeechAudioQueue({ fetchAudio, getSession, now = Date.now,
     const key = JSON.stringify([text, rate]);
     if (pending && pending.key !== key) dropPending();
     const hit = cache.get(key);
-    if (hit && now() - hit.at < ttlMs) return Promise.resolve(hit.blob);
+    if (hit && now() - hit.at < ttlMs) {
+      cache.delete(key); cache.set(key, hit); // Keep frequently played expressions (LRU).
+      return Promise.resolve(hit.blob);
+    }
     cache.delete(key);
     let job = active?.key === key && !active.completed && active.session === currentSession && !active.controller.signal.aborted
       ? active : pending?.key === key ? pending : null;

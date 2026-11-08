@@ -882,7 +882,7 @@ def server_speech(request: ServerSpeechRequest, _user=Depends(current_user)):
     text = request.text.strip()
     if not text:
         raise HTTPException(422, '읽을 문장을 입력해 주세요.')
-    return Response(synthesize_speech(text, request.rate), media_type='audio/wav',
+    return Response(synthesize_speech(text, request.rate, account_id=_user['id']), media_type='audio/wav',
                     headers={'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff'})
 
 
