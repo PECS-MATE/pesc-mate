@@ -351,6 +351,16 @@ def submissions_for_review():
         raise HTTPException(503, '카드 승인 목록을 불러오지 못했습니다.') from exc
 
 
+def _edit_condition(document):
+    # Also detect two edits that both leave status='draft', including legacy rows.
+    return {'edit_revision': document['edit_revision'] if 'edit_revision' in document else {'$exists': False}}
+
+
+def _require_updated(result):
+    if result.matched_count != 1:
+        raise HTTPException(409, '다른 요청에서 카드가 변경되었습니다. 목록을 갱신한 뒤 다시 시도해 주세요.')
+
+
 def review_submission(submission_id, reviewer_id, decision, reason=''):
     if decision not in {'approved', 'rejected', 'inactive'}:
         raise HTTPException(422, '승인, 반려 또는 비활성만 선택할 수 있습니다.')
@@ -374,7 +384,9 @@ def review_submission(submission_id, reviewer_id, decision, reason=''):
         reviewed_at = datetime.now(timezone.utc)
         changes = {'status': decision, 'review_reason': reason or None,
                    'reviewer_id': reviewer_id, 'reviewed_at': reviewed_at}
-        collection.update_one({'_id': submission_id, 'status': document['status']}, {'$set': changes})
+        result = collection.update_one({'_id': submission_id, 'status': document['status'], **_edit_condition(document)},
+                                       {'$set': changes, '$inc': {'edit_revision': 1}})
+        _require_updated(result)
         _audit_collection().insert_one({
             'schema_version': SCHEMA_VERSION,
             '_id': str(uuid4()), 'card_submission_id': submission_id,
@@ -400,8 +412,10 @@ def submit_draft(submission_id, owner_id, actor_id=None):
         submitted_at = datetime.now(timezone.utc)
         next_status = 'approved' if document['visibility'] == 'private' else 'pending'
         changes = {'status': next_status, 'submitted_at': submitted_at}
-        collection.update_one({'_id': submission_id, 'owner_id': owner_id, 'status': 'draft'},
-                              {'$set': changes})
+        result = collection.update_one({'_id': submission_id, 'owner_id': owner_id, 'status': 'draft',
+                                        **_edit_condition(document)},
+                                       {'$set': changes, '$inc': {'edit_revision': 1}})
+        _require_updated(result)
         _audit_collection().insert_one({
             'schema_version': SCHEMA_VERSION,
             '_id': str(uuid4()), 'card_submission_id': submission_id,
@@ -446,8 +460,10 @@ def update_submission(submission_id, owner_id, label, meaning, category, visibil
             'review_reason': None, 'reviewer_id': None, 'reviewed_at': None,
             'updated_at': updated_at,
         }
-        collection.update_one({'_id': submission_id, 'owner_id': owner_id,
-                               'status': document['status']}, {'$set': changes})
+        result = collection.update_one({'_id': submission_id, 'owner_id': owner_id,
+                                        'status': document['status'], **_edit_condition(document)},
+                                       {'$set': changes, '$inc': {'edit_revision': 1}})
+        _require_updated(result)
         _audit_collection().insert_one({
             'schema_version': SCHEMA_VERSION,
             '_id': str(uuid4()), 'card_submission_id': submission_id,
