@@ -4,4 +4,3 @@ export function lockedSlotsPreserved(layout, ids) {
     return Number.isInteger(position) && ids[position - 1] === id;
   });
 }
-
