@@ -1,225 +1,261 @@
-# PECS MATE
+<div align="center">
+  <img src="frontend/public/pecsmate.png" width="300" alt="PECS MATE 대표 이미지" />
+  <h1>PECS MATE</h1>
+  <p><strong>그림과 실물 카드로 마음을 전하는 개인 맞춤형 AAC 플랫폼</strong></p>
+  <p>카드 선택 · 문장 생성 · 음성 출력 · 보호자 카드 제작</p>
+</div>
 
-> 익숙한 그림 한 장이 나의 말이 되도록, 개인 맞춤형 AAC 웹 애플리케이션
+<p align="center">
+  <img src="https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB" alt="React" />
+  <img src="https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white" alt="Vite" />
+  <img src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
+  <img src="https://img.shields.io/badge/MongoDB-47A248?logo=mongodb&logoColor=white" alt="MongoDB" />
+  <img src="https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white" alt="Docker" />
+  <img src="https://img.shields.io/badge/Arduino-00878F?logo=arduino&logoColor=white" alt="Arduino" />
+</p>
 
-<img src="frontend/public/pecsmate.png" width="340" alt="하트 카드와 물 카드를 든 PECS MATE 대표 캐릭터" />
+[소개](#프로젝트-소개) · [주요 기능](#주요-기능) · [화면 구성](#화면-구성) · [기술 스택](#기술-스택) · [아키텍처](#아키텍처) · [시작 가이드](#시작-가이드) · [팀 소개](#팀-소개)
 
-PECS MATE는 말로 의사를 표현하기 어려운 아동이 그림·사진·글자 카드를 선택해
-자신의 뜻을 음성으로 전달하는 AAC(보완대체의사소통) 프로젝트입니다.
-실물 카드북의 휴대·분류·교체 부담을 줄이고, 아동의 말하기와 보호자·담당자의 지원을 연결합니다.
+## 프로젝트 소개
 
-카드 위치의 일관성과 사용자의 명시적 선택을 우선합니다. AI나 네트워크의 장애가 기본
-말하기를 막지 않도록 대체 경로를 두고, 의사소통 기록과 학습 결과는 구분해 관리합니다.
-현재 로컬 실행형 MVP를 구현했으며 실제 사용자·기기 검수와 운영 배포 승인은 별도 과제입니다.
+PECS MATE는 말로 의사를 표현하기 어려운 아동이 그림·사진·글자 카드로 자신의 뜻을 전하는 AAC(보완대체의사소통) 웹 애플리케이션입니다.
+실물 카드가 늘어날수록 커지는 휴대·분류·교체 부담을 줄이고, 익숙한 카드를 디지털 화면에서도 사용할 수 있도록 만들었습니다.
+사용자는 화면의 카드를 터치하거나 실물 카드를 태그해 문장을 구성하고 음성으로 전달합니다.
+선택한 카드는 규칙 기반 문장으로 조합하거나 선택형 AI로 자연스럽게 다듬을 수 있습니다.
+보호자는 사진과 글자 카드를 등록하고, 여러 실물 카드를 촬영해 영역 분리와 OCR 이름 확인을 거쳐 가져올 수 있습니다.
+A4 편집기에서는 필요한 카드를 배치·인쇄하고, 만든 카드판을 다른 사용자와 공유할 수 있습니다.
+말하기와 학습 기록을 구분하고, 아동별 연결 권한과 동의 상태에 따라 관리 기능을 제공합니다.
+카드 위치의 일관성과 사용자의 선택을 우선하며, 현재는 로컬 실행형 MVP의 안정화·실기기 검수 단계입니다.
 
-[설치 방법](#설치-방법) · [사용 예제](#사용-예제) ·
-[개발 환경 설정](#개발-환경-설정) · [업데이트 내역](#업데이트-내역) ·
-[정보](#정보) · [기여 방법](#기여-방법)
+| 항목 | 내용 |
+| --- | --- |
+| 프로젝트 유형 | 팀 프로젝트 · 개인 맞춤형 AAC 및 실물 카드 연동 |
+| 개발 기간 | 2026.09–2026.11, Git 기록 기준 · 현재 안정화 진행 |
+| 주요 사용자 | AAC 사용자, 보호자, 담당자, 공용 콘텐츠 관리자 |
+| 실행 환경 | Windows PC의 Docker Desktop · 같은 사설망의 PC/태블릿 브라우저 |
 
-## 설치 방법
+## 주요 기능
 
-### Docker로 실행
+| 기능 | 구현 내용 |
+| --- | --- |
+| 그림으로 말하기 | 기본 카드 120종, 카테고리·폴더·검색·즐겨찾기, 빠른 표현과 긴급·복구 표현 |
+| 문장과 음성 | 최대 12장 문장 구성, 카드 순서 변경, 규칙 기반/선택형 AI 문장 생성, 카드·문장 음성 재생 |
+| 음성 재사용 | 브라우저와 서버의 제한된 메모리 캐시로 동일 표현의 반복 합성을 줄임 |
+| 실물 카드 태그 | USB 리더기 연결, 최대 세 리더기 상태 확인, 공용/개인 UID 매핑, 읽힌 카드를 문장에 추가 |
+| 카드 등록·OCR | 보호자 개인 카드와 관리자 공용 카드, 여러 실물 카드 영역 분리·OCR 이름 확인·선택 저장 |
+| A4 카드 편집 | 사진·카드 배치, 칸별 문구와 크기 조정, 인쇄 미리보기·방향·행/열·양면 설정 |
+| 카드판 공유 | 보호자 홈의 카드판 갤러리, 검색·보관함·가져오기·복사 편집 |
+| 연습하기 | 단어·그림, 소리·그림, 문장 순서, 상황 카드 선택 4종과 맞춤 세트·30일 코스·복습 제안 |
+| 보호자 지원 | 연결된 아이의 카드·카드판·음성/접근 설정·의사소통/학습 기록과 지원 메모 관리 |
+| 접근성·오프라인 | 글자/카드 크기·고대비·동작 줄이기·키보드 조작, 사전 캐시와 대기 기록 동기화 |
 
-Windows는 Docker Desktop의 Linux 컨테이너 모드를 사용합니다.
-macOS·Linux도 Docker와 Docker Compose v2가 필요합니다.
-처음에는 이미지·의존성을 내려받을 인터넷 연결이 필요합니다.
+기록 저장 동의 전에도 새 이력을 저장하지 않는 기본 말하기와 연습을 유지합니다.
+기록 저장과 보호자 관리 기능에는 해당 동의·연결 권한이 필요합니다.
+오프라인은 사전 준비된 카드·음성과 기기 지원 범위에 한정되며, 모든 기능의 완전 오프라인 동작을 뜻하지 않습니다.
 
-저장소를 내려받은 후 프로젝트 루트에서 실행합니다.
+## 화면 구성
 
-```sh
+| 화면 | 주요 동선 |
+| --- | --- |
+| 랜딩 | 서비스 소개 → 로그인/시작하기 |
+| 아동 홈 | 빠른 표현 → 말하기 또는 연습하기 |
+| 그림으로 말하기 | 카드 터치/태그 → 나의 문장 → 음성 재생 |
+| 연습하기 | 활동·범위 선택 → 문제 풀이 → 결과 확인 |
+| 보호자 홈 | 공유 카드판 탐색 → 보관·복사·편집 |
+| 아이 관리 | 아이 선택 → 기록·개인 카드·카드판·음성/접근·연습·RFID 관리 |
+| 카드 편집기 | 사진/등록 카드 가져오기 → A4 배치 → 저장·공유·인쇄 |
+| 공용 콘텐츠 운영 | 글자/사진 카드 등록 → 카테고리·공개 승인·공용 칩 관리 |
+
+## 기술 스택
+
+| 영역 | 사용 기술 |
+| --- | --- |
+| Frontend | React, JavaScript, Vite, Bootstrap Grid/Utilities, CSS, Google Material Symbols |
+| Backend | Python 3.12, FastAPI, Uvicorn, PyMongo, Pillow |
+| Database / Cache | MongoDB 8.0, IndexedDB, 브라우저·서버 메모리 캐시 |
+| 문장 생성 | Ollama, 기본 설정 모델 qwen2.5:0.5b, 규칙 기반 대체 문장 |
+| 음성 합성 | MeloTTS 한국어, CPU PyTorch, PCM WAV, 기기 음성·핵심 표현 녹음 대체 경로 |
+| OCR / 이미지 처리 | Tesseract 한국어·영어, OpenCV, Pillow |
+| Hardware | Arduino UNO R4 WiFi, RFID 카드 리더기, Web Serial API |
+| Environment | Docker Desktop, Docker Compose, Git / GitHub |
+
+Hugging Face/Gemini 이미지 생성과 rembg 배경 제거는 별도 설정이 필요한 선택 기능입니다.
+Qwen VoiceDesign은 음색 시안 제작 도구만 추가된 상태이며 현재 서비스 TTS가 아닙니다.
+
+## 아키텍처
+
+~~~mermaid
+flowchart LR
+    Child["아동 브라우저"] --> Web["React / Vite :5173"]
+    Caregiver["보호자 · 담당자 브라우저"] --> Web
+    RFID["실물 카드 / Arduino"] -->|"USB · PC 브라우저"| Web
+    Web -->|"/api 프록시"| API["FastAPI :8000"]
+    API --> DB[("MongoDB")]
+    API --> Speech["로컬 MeloTTS"]
+    API -. "선택형 문장 생성" .-> Ollama["호스트 Ollama"]
+    Speech -->|"WAV"| API
+    API -->|"카드 · 문장 · 음성"| Web
+    Web <--> Cache["계정별 기기 캐시"]
+~~~
+
+브라우저는 프런트엔드의 /api 프록시를 통해 백엔드에 접근합니다.
+태블릿 접속 구성에서도 프런트엔드 포트만 LAN에 공개하고 API와 DB 포트는 PC 내부로 제한합니다.
+USB 리더기는 PC의 Chrome/Edge에서 연결하며, iPad 브라우저가 USB 리더기에 직접 연결되는 구성은 아닙니다.
+
+- **배치 안정성:** 카드판 revision·사진 버전으로 충돌을 감지하고 핵심 카드의 위치를 보호합니다.
+- **접근 경계:** 서버에서 아동 소유자·지원 연결·기능별 권한을 확인합니다.
+- **사진 보관:** 원본은 로컬 MongoDB에 보관하고 화면용 WebP·썸네일을 별도로 제공합니다.
+- **음성 캐시:** 계정·텍스트·속도·서버 모델 버전을 구분하며 새 문장을 영구 저장하지 않습니다.
+- **실패 처리:** AI 생성 실패 시 규칙 기반 문장으로 대체합니다. 음성 서버 장애 시 모든 문장의 재생을 보장하지는 않습니다.
+
+### 디렉터리 구조
+
+~~~text
+.
+├── frontend/                   React 화면·카드 이미지·기기 캐시
+├── backend/                    API·권한·문장·OCR·카드·기록 서비스
+├── services/
+│   ├── melotts/                로컬 한국어 음성 서버
+│   └── qwen-voice-design/      선택형 음색 시안 제작 도구
+├── hardware/                   Arduino USB/Wi-Fi 펌웨어·배선 안내
+├── scripts/                    핵심 표현 음성 생성 도구
+├── deployment/                 인증 MongoDB 설정
+├── docs/                       기획·개발·정책·운영 문서
+├── compose.yaml                기본 로컬 실행
+├── compose.tablet.yaml         태블릿 LAN 접속
+└── .env.example                선택형 이미지 도구 환경변수 예시
+~~~
+
+## 시작 가이드
+
+### 요구 사항
+
+| 항목 | 요구 사항 |
+| --- | --- |
+| 기본 실행 | Git, Docker Desktop의 Linux 컨테이너 모드, Docker Compose v2 |
+| 태블릿 구성 | Compose 2.24.4 이상 — [포트 교체 태그 지원](https://docs.docker.com/reference/compose-file/merge/#replace-value) |
+| 첫 실행 | 패키지·음성 모델 다운로드를 위한 인터넷과 충분한 디스크/메모리 여유 |
+| USB 태그 | PC의 Chrome/Edge, Arduino 펌웨어 업로드, 시리얼 모니터 종료 |
+| 호스트에서 직접 개발할 때 | Python 3.12, Node.js 22.13 이상 22.x 또는 24.x·26 이상, MongoDB |
+
+Docker 기본 실행에는 호스트의 Python·Node.js 별도 설치가 필요하지 않습니다.
+MeloTTS와 Qwen 시안 도구는 별도 컨테이너이며 Python·모델 의존성도 분리되어 있습니다.
+
+### 설치 및 PC 실행
+
+~~~powershell
 git clone https://github.com/PESC-MATE/pesc-mate.git
 cd pesc-mate
-docker compose up --build
-```
+docker compose up -d --build
+docker compose ps
+~~~
 
-| 접속 대상 | 주소 |
-|---|---|
-| 웹 화면 | http://127.0.0.1:5173 |
-| API 문서 | http://127.0.0.1:8000/docs |
-| 준비 상태 | http://127.0.0.1:8000/api/health |
+기본 실행에 API 키는 필요하지 않습니다. 선택형 이미지 생성 등을 설정할 때만
+새로 clone한 저장소에서 .env.example을 .env로 복사하고 필요한 값을 입력하세요.
+기존 .env가 있다면 덮어쓰지 말고 항목을 병합하며 실제 토큰은 커밋하지 않습니다.
 
-종료할 때는 다음 명령을 사용합니다. MongoDB 데이터 볼륨은 유지됩니다.
+~~~powershell
+# .env가 없는 최초 설정에서만 실행
+Copy-Item .env.example .env
+~~~
 
-```sh
-docker compose down
-```
+| 대상 | PC 접속 주소 |
+| --- | --- |
+| 웹 | [http://localhost:5173](http://localhost:5173) |
+| Swagger API 문서 | [http://localhost:8000/docs](http://localhost:8000/docs) |
+| 서버 상태 | [http://localhost:8000/api/health](http://localhost:8000/api/health) |
 
-기본 구성은 시연 계정과 무인증 DB를 사용하는 **로컬 개발용**입니다. 인터넷에 공개하지 마세요.
-소스 변경은 개발 서버에 자동 반영됩니다. 개별 실행·선택형 AI·태블릿 연결은
-[로컬 개발 가이드](docs/development/LOCAL_DEVELOPMENT.md)를 참고하세요.
-프런트엔드 의존성이 변경되면 컨테이너 시작 시 `package-lock.json`을 확인해
-`frontend_node_modules` 볼륨을 자동 갱신합니다. 실행 중인 컨테이너에는
-`docker compose up -d --build frontend`로 새 시작 설정을 적용합니다.
+최초 실행은 빌드와 음성 모델 준비에 시간이 걸립니다. 웹이 열려도 음성 서버는 아직 준비 중일 수 있습니다.
 
-## 사용 예제
+### iPad 연결 — PC 모바일 핫스팟
+
+시연에서는 iPad를 **Windows PC가 만든 모바일 핫스팟**에 연결하는 방식을 사용합니다.
+PC가 iPhone 핫스팟으로 인터넷을 받고 있다면 그 Wi-Fi 연결을 PC 핫스팟으로 공유할 수 있습니다.
+
+1. PC **설정 → 네트워크 및 인터넷 → 모바일 핫스팟**에서 공유 연결을 선택하고 공유 방식을 Wi-Fi로 설정합니다.
+2. 모바일 핫스팟을 켜고 iPad를 **PC의 네트워크 이름**에 연결합니다.
+3. 프로젝트 루트에서 태블릿 접속 구성을 실행합니다.
+
+~~~powershell
+docker compose -f compose.yaml -f compose.tablet.yaml up -d --build
+~~~
+
+4. iPad **설정 → Wi-Fi → 연결한 PC 핫스팟 옆 ⓘ → IPv4 주소 → 라우터**를 확인합니다.
+5. Safari에서 http://라우터주소:5173을 엽니다. 예를 들어 라우터가 192.168.137.1이면 다음 주소입니다.
+
+~~~text
+http://192.168.137.1:5173
+~~~
+
+예시 주소를 고정 사용하지 말고 실제 라우터 값을 확인하세요. iPad에서 localhost는 PC가 아닌 iPad 자신입니다.
+접속되지 않으면 [포트·방화벽·핫스팟 확인 방법](docs/development/LOCAL_DEVELOPMENT.md#pc-모바일-핫스팟으로-ipad-연결)을 따릅니다.
+신뢰할 수 있는 사설망에서만 사용하고 기본 계정이 있는 개발 서버를 학교 공용망이나 인터넷에 공개하지 마세요.
 
 ### 시연 계정
 
-Compose 실행 시 아래 계정을 활성화하며, 기존 계정의 비밀번호는 덮어쓰지 않습니다.
+| 역할 | 아이디 | 비밀번호 |
+| --- | --- | --- |
+| AAC 사용자 | demo | demo1234 |
+| 보호자 | caregiver | caregiver1234 |
+| 담당자 | support | support1234 |
+| 공용 콘텐츠 관리자 | admin | admin1234 |
 
-| 아이디 | 비밀번호 | 역할 |
-|---|---|---|
-| `demo` | `demo1234` | AAC 사용자 |
-| `caregiver` | `caregiver1234` | 보호자 |
-| `support` | `support1234` | 담당자 |
-| `admin` | `admin1234` | 공용 콘텐츠 관리 권한을 가진 담당자 |
+Compose의 데모 설정으로 생성하며 기존 계정 비밀번호는 덮어쓰지 않습니다.
+실제 아동 정보 대신 시연용 사진·문구를 사용하세요. 기록·지원 기능은 동의·연결 상태에 따라 제한됩니다.
 
-### 주요 기능
+### 선택형 AI와 빌드
 
-| 기능 | 사용 방법 |
-|---|---|
-| 그림으로 말하기 | 카드를 탐색하고 최대 12장으로 문장을 구성해 기기 음성으로 재생합니다. 빠른 표현·긴급/복구 표현·마지막 말 재생도 제공합니다. |
-| 개인 카드북 | 사진 한 장의 여러 실물 카드를 분리·OCR 검토 후 선택 등록하고, 관리자에서는 글자·사진 공용 카드를 등록합니다. 이름·분류·순서를 편집합니다. 사진을 교체해도 카드 ID·문구·배치를 유지하며 핵심 카드는 잠글 수 있습니다. A4 편집기에서 사진을 추가하고 선택한 카드를 아이 계정에 등록할 수도 있습니다. |
-| 상황별 카드판 | 같은 아동의 집·학교·외출 등 카드판을 생성·복사하고, 아동이 미리보기를 확인한 뒤 전환합니다. 추천은 고정 배치를 바꾸지 않습니다. |
-| 실물 RFID 카드판 | USB 장치 연결·세 리더기 상태 확인·칩과 카드 매핑을 지원합니다. 읽힌 카드를 문장 영역에 추가하며 발화는 사용자가 실행합니다. Wi-Fi 연동은 선택형이며 새 펌웨어 실물 검수는 남아 있습니다. |
-| 학습 활동 | 단어·그림, 소리·그림, 문장 순서, 상황 카드 선택 4종과 보호자가 고른 카드 세트·30일 코스·복습 제안을 제공합니다. 학습 결과는 말하기 기록과 별도로 관리합니다. |
-| 선택형 이미지 보조 | OCR 이름으로 Hugging Face 원격 이미지 생성(선택형 Gemini 대체) 또는 로컬 rembg 배경 제거를 실행하고 확인 후 적용합니다. 생성용 로컬 GPU는 필요 없으며 토큰·서비스 준비 전에는 비활성화됩니다. |
-| 보호자·담당자 지원 | 연결된 아동의 허용된 기록을 보고 지원 메모·기간별 내보내기·추천 설정을 사용합니다. |
-| 오프라인·접근성 | 준비된 카드·설정 캐시와 대기 기록 동기화, 고대비·동작 줄이기·크기/글자 설정·키보드 접근을 지원합니다. |
+문장 AI를 사용하려면 호스트에 Ollama를 설치하고 모델을 준비합니다.
+기본 Compose는 host.docker.internal:11434로 접근합니다. 모델이 없어도 규칙 기반 문장은 사용할 수 있습니다.
 
-1. 접속하면 서비스 소개 랜딩이 열립니다. 상단 **로그인**에서 `demo`로 들어가 홈의 **말하기·연습하기** 중 활동을 선택합니다. 로그인된 기기는 기존 앱으로 바로 진입합니다.
-2. **연습하기**에서 활동을 선택합니다. 소리 학습은 **문제 소리 듣기** 버튼으로 시작합니다.
-3. 보호자 계정에서 연결된 아동의 개인 카드·핵심 잠금·상황별 카드판을 관리합니다.
-4. 보호자·담당자 계정에서 의사소통/학습 기록과 허용된 지원 기능을 확인합니다.
+~~~powershell
+ollama pull qwen2.5:0.5b
+~~~
 
-시연에는 실제 아동의 사진·이름 대신 데모 데이터를 사용하세요.
+프런트엔드만 호스트에서 개발하거나 빌드할 때는 다음 명령을 사용합니다.
+API·DB·음성 서버는 별도로 실행되어 있어야 합니다.
 
-맞춤 세트와 코스는 [학습 안내](docs/development/LEARNING_AND_RECORDS.md), 이미지 보조의
-API 키·선택 패키지·모델 배치와 미검증 범위는 [카드 관리 안내](docs/development/CARD_MANAGEMENT.md#card-image-tools)를 따릅니다.
-실제 외부 API 호출과 배경 제거 모델 추론은 아직 검증하지 않았습니다.
-
-랜딩의 **시작하기**는 기존 사용자 가입으로, **로그인**은 기존 계정 입력창으로 연결됩니다.
-소개·핵심 기능·이용 순서·FAQ와 화면 크기별 검증은 [랜딩페이지 기록](docs/development/USER_INTERFACE.md#landing-page)을 참고하세요.
-새 DB에서는 동의·연결 상태에 따라 기록과 지원 기능이 제한됩니다.
-해당 기능이 필요한 경우에만 개인정보·동의 관리에서 동의를 명시적으로 저장하고 연결·권한을 확인합니다.
-
-프로필 옆 **설정 아이콘**에서 프로필 또는 로그아웃을 선택합니다. 프로필·접근·음성 설정은 프로필 창에서
-관리하고, 개인정보·동의 관리는 **마이페이지 → 보호자 설정**에서 확인합니다.
-보호자·담당자는 부여받은 연결 사용자·운영 설정 메뉴로 이동할 수 있습니다.
-자세한 흐름은 [마이페이지 안내](docs/development/USER_INTERFACE.md#my-page-settings)를 따릅니다.
-
-삼선 메뉴 버튼으로 사이드바를 접고 다시 펼칠 수 있습니다.
-새 참고 화면에 따른 문장 상단 고정·연습·칩 등록·리포트 UX 변경은
-[참고 화면 UX 기록](docs/development/USER_INTERFACE.md#reference-ux)에 정리했으며, 해당 변경의 검사는 사용자 직접 진행 상태입니다.
-동의 전에도 새 의사소통·학습 이력을
-저장하지 않는 기본 말하기와 연습은 유지합니다. 로그인까지 없애는 익명 모드는 아니며,
-설정 화면의 분리가 법정대리인 신원 인증을 대신하지는 않습니다.
-
-오프라인은 사전 캐시와 기기 음성 지원이 필요하고, 소리 학습은 한국어 로컬 음성이 필요합니다.
-LAN HTTP에서는 서비스 워커 기반 설치·완전 오프라인 검수를 할 수 없습니다.
-실제 PC USB 연결 조건은 [USB 카드 리더기 안내](docs/development/RFID_USB_INTEGRATION.md)에 있습니다.
-
-PC USB 연결·리더기 상태 확인·공용 칩 등록과 개인 매핑은
-[USB 연결 및 칩 등록 안내](docs/development/RFID_USB_INTEGRATION.md)를 따릅니다.
-선택형 무선 연결은 [Wi-Fi 연동 안내](docs/development/RFID_WIFI_INTEGRATION.md)를 참고하세요.
-실물 배선·펌웨어 업로드·기기 음질 검수는 별도로 필요합니다.
-
-## 개발 환경 설정
-
-### 기술 스택
-
-| 영역 | 기술 |
-|---|---|
-| 프런트엔드 | React, Vite, JavaScript, Web Speech API |
-| 로컬 음성 합성 | MeloTTS 한국어, CPU PyTorch, PCM WAV |
-| 백엔드 | Python 3.12, FastAPI, Uvicorn, PyMongo, Pillow |
-| 데이터·오프라인 | MongoDB 8.0, IndexedDB, Service Worker |
-| 선택형 AI | Ollama, 기본 설정 모델 `qwen2.5:0.5b` |
-| 로컬 실행 | Docker Compose, Node.js |
-
-Ollama와 모델은 별도로 설치합니다. 모델이 없거나 실패하면 규칙 기반 문장과 선택 카드
-발화로 대체하며, 한국어 음성은 별도 로컬 MeloTTS 서비스에서 합성합니다.
-오프라인 기기 음성과 핵심 표현 녹음은 유지합니다. [설치·운영 및 검증 범위](docs/development/SPEECH_AND_AI.md#melo-tts)
-
-### 구조와 주요 설계
-
-```mermaid
-flowchart LR
-    User["아동 · 보호자 · 담당자"] --> Web["React / Vite"]
-    Web -->|/api| API["FastAPI"]
-    RFID["RC522 / UNO R4 WiFi"] -->|"USB Serial"| Web
-    RFID -. "선택형 인증 Wi-Fi 스냅샷" .-> API
-    API --> DB[("MongoDB")]
-    API -. "선택형 문장 생성" .-> LLM["로컬 Ollama"]
-    API --> Melo["로컬 MeloTTS 한국어 WAV"]
-    Melo --> Web
-    Web --> Voice["오프라인 기기 TTS / 핵심 표현 음성 캐시"]
-    Web <--> Cache["IndexedDB / Service Worker"]
-```
-
-- **배치 안정성**: 고정 슬롯·핵심 잠금·명시적 상황 전환으로 익숙한 카드 위치를 보호합니다.
-- **데이터 일관성**: 카드판 revision·사진 버전 검사로 충돌을 감지하고, 같은 요청 UUID의 재전송은 중복 저장하지 않습니다.
-- **접근 경계**: 서버에서 아동 소유자·지원 연결·기능별 권한을 검사하고 기기 캐시도 계정별로 구분합니다.
-- **사진 보관**: 원본은 로컬 MongoDB에 보관하고, 화면에는 메타데이터를 제거한 WebP·썸네일을 제공합니다.
-- **의미·기록 분리**: AI 출력의 선택 카드 의미를 검사하고, 학습과 의사소통 저장소·동의 편집 초안과 확정 상태를 분리합니다.
-
-```text
-frontend/       웹 화면, 기기 음성·캐시 서비스
-backend/        API, 권한·문장·이미지·기록 서비스
-hardware/       세 위치 RFID Wi-Fi 펌웨어, 비밀 설정 예제와 배선·검수 안내
-scripts/        핵심 표현 음성 생성 도구
-deployment/     인증 MongoDB 구성
-docs/           기획·개발·정책·운영·현장 검수 문서
-compose*.yaml   개발·태블릿·RFID·인증 DB 구성
-```
-
-### 로컬 실행과 빌드
-
-자동 테스트·격리 검증 실행기는 프로젝트 정리 과정에서 제거했습니다.
-기존 문서의 검사 수치는 당시 개발 이력이며 현재 소스의 통과 상태를 뜻하지 않습니다.
-
-프런트엔드만 호스트에서 개발하려면 별도 터미널에서 실행합니다.
-백엔드·MongoDB는 먼저 준비해야 합니다.
-
-```sh
+~~~powershell
 cd frontend
 npm ci
 npm run dev
-```
+# 프로덕션 빌드는 개발 서버를 종료하거나 별도 터미널에서 실행
+npm run build
+~~~
 
-같은 `frontend` 디렉터리에서 `npm run build`로 배포용 정적 파일을 만들 수 있습니다.
-실제 기기 연결·음성·접근성은 사용할 기기에서 직접 확인해야 합니다.
+기본 서비스 종료는 docker compose down, 태블릿 구성 종료는 아래 명령입니다.
+볼륨 삭제 옵션을 붙이지 않으면 DB 볼륨은 유지됩니다.
 
-## 업데이트 내역
+~~~powershell
+docker compose -f compose.yaml -f compose.tablet.yaml down
+~~~
 
-릴리스 버전을 새로 부여하지 않고 기능별 개발 기록과 실제 커밋 기준으로 정리했습니다.
+## 팀 소개
 
-| 날짜 | 변경 내용 | 커밋·기록 |
-|---|---|---|
-| 2026-10-27 | RFID 세 위치 수신·장치 인증·아동별 UID 매핑·기존 문장/TTS 적용, 실물 검수 대기 | [연동 기록](docs/development/RFID_WIFI_INTEGRATION.md) |
-| 2026-10-24 | 카드 순서로 문장 만들기, 선택 재개·재도전·학습 전용 결과 | [개발 기록](docs/development/LEARNING_AND_RECORDS.md#sentence-order-learning) |
-| 2026-10-24 | 소리 듣고 카드 찾기, 명시 재생·학습 결과 분리·오프라인 동기화 | `5ac2902` |
-| 2026-10-24 | 보호자 동의 관리와 아동의 기록 없는 기본 말하기 분리 | `e85fd3e` |
-| 2026-10-24 | 상황별 카드판 생성·복사·전환 | `beb3344` |
-| 2026-10-23 | 핵심 카드 잠금과 위치 보호 | `712e5e6` |
-| 2026-10-23 | 카드 정보·배치를 유지하는 개인 사진 교체 | `043241a` |
-| 2026-10-23 | 가져온 카드 순서의 슬롯 적용 | `6c3808d` |
+김은비 · 강지민 · 박근우 · 이동현
 
-전체 구현 상태와 다음 과제는 [통합 TODO](docs/planning/TODO.md)에서 관리합니다.
+## 구현 상태와 문서
 
-## 정보
+로컬 MVP 주요 기능을 구현했으며 현재는 안정화와 실제 기기 검수를 진행합니다.
+Qwen 어린이 느낌 음색은 샘플 생성·청음·서비스 연결 전이고 이미지 생성/배경 제거는 실제 공급자·모델 검수가 남아 있습니다.
+음성 캐시는 반복 재생을 돕지만 첫 합성 지연까지 없애지는 않습니다.
+실제 iPad 음성, 스캔 등록 후 아이 계정 반영, 세 리더기 통합, 실물 인쇄와 접근성은 별도 확인 대상입니다.
 
-보호자 홈에서 A4 카드판을 공유·복사·맞춤 편집·인쇄할 수 있습니다.
-전체 공개는 별도 확인과 운영 승인이 필요합니다. [사용 흐름과 검증 범위](docs/development/CARD_MANAGEMENT.md#a4-card-sharing)
+자동 테스트 실행기와 CI는 정리 과정에서 제거했습니다. 과거 검사 통과 수치는 현재 버전 전체의 검증이나 배포 승인이 아닙니다.
+현재 기능별 검증·미실행 범위는 아래 문서와 커밋 기록에서 확인할 수 있습니다.
 
-- 프로젝트 저장소: [PESC-MATE/pesc-mate](https://github.com/PESC-MATE/pesc-mate)
-- 하드웨어 확장: [Arduino 카드판 코드·안내](hardware/README.md) — Wi-Fi 연동 구현, 실제 세 리더기 검수 대기
-- 문서: [전체 목차](docs/README.md) · [API 연동 가이드](docs/development/API_GUIDE.md) · [API 명세](docs/development/API_SPECIFICATION.md) · [기능요구사양서](docs/planning/functional_requirements_specification.md)
-- 남은 검수: 실제 AAC 사용자 과업, 태블릿 TTS·스크린리더·터치 사용성, 법정대리인 동의·이미지 권리 검토
-- 운영 전환: HTTPS·운영 자격 증명·인증 DB 전환, 백업/복구 훈련과 배포 승인
-- 라이선스: 현재 저장소에 `LICENSE` 파일이 없습니다. 코드·이미지의 사용 및 배포 조건은 별도 확인이 필요합니다.
+| 문서 | 내용 |
+| --- | --- |
+| [문서 목차](docs/README.md) | 기획·개발·정책·운영 전체 안내 |
+| [통합 TODO](docs/planning/TODO.md) | 구현 상태·안정화·확장 백로그 |
+| [API 가이드](docs/development/API_GUIDE.md) / [명세](docs/development/API_SPECIFICATION.md) | 인증·역할·요청/응답 규격 |
+| [카드 등록과 제작](docs/development/CARD_MANAGEMENT.md) | OCR·A4 편집·공유·등록 반영 |
+| [음성과 AI](docs/development/SPEECH_AND_AI.md) | MeloTTS·캐시·문장 생성·Qwen 시안 |
+| [USB 태그 연결](docs/development/RFID_USB_INTEGRATION.md) | 장치 연결·칩 등록·기기 지원 범위 |
+| [로컬 개발](docs/development/LOCAL_DEVELOPMENT.md) | 개별 실행·태블릿·진단 |
 
-의사소통 보조와 연습을 위한 소프트웨어이며 임상 효과·진단 기능·공식 PECS 인증을 주장하지 않습니다.
-문장 연습은 [정해진 예문 따라 만들기](docs/development/LEARNING_AND_RECORDS.md#sentence-order-learning)이며,
-자유 문장 채점·상황 연습 등 추가 학습 콘텐츠는 후속 확장 범위입니다.
+본 프로젝트는 의사소통 보조·연습용 소프트웨어이며 임상 효과·진단 기능·공식 PECS 인증을 주장하지 않습니다.
+현재 저장소에는 LICENSE가 없으며 코드·사진·상징·모델의 사용/재배포 조건은 각각 확인해야 합니다.
+외부 운영 전에는 개발 계정 제거, HTTPS·인증 DB 전환과 개인정보·라이선스·백업 복구 검토가 필요합니다.
 
-## 기여 방법
-
-1. 변경 목적과 영향 범위를 정리하고 별도 작업 브랜치에서 수정합니다.
-2. 기능·문서의 정책과 [통합 TODO](docs/planning/TODO.md)를 함께 확인합니다.
-3. 변경 범위에 맞는 검증을 실행하고, 실패·미실행 항목을 기록합니다.
-4. [커밋 규칙](docs/development/COMMIT_CONVENTION.md)에 따라 작업 단위로 커밋합니다.
-   제목은 `feat : 한글 설명`, `docs : 한글 설명` 형식을 사용합니다.
-5. 변경 내용과 검증 결과를 포함해 Pull Request로 제안합니다.
-
-README 구성은 [한국어 README 템플릿](https://github.com/sujinleeme/readme-template/tree/master/korean)을 참고했습니다.
+기여 시 [커밋 규칙](docs/development/COMMIT_CONVENTION.md)에 따라 유형만 영어, 설명은 한글로 작성하고 검증 결과와 미실행 항목을 남깁니다.

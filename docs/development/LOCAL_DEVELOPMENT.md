@@ -108,6 +108,43 @@ Ollama 서버가 백엔드에서 접근 가능한지 확인한다. 개별 백엔
 
 ## 같은 Wi-Fi의 태블릿 연결
 
+### PC 모바일 핫스팟으로 iPad 연결
+
+2026-11-10 시연 연결 안내: PC가 iPhone 핫스팟의 인터넷을 받더라도 iPad는
+Windows가 만든 별도 모바일 핫스팟에 연결합니다. 사용이 허용된 개인 연결에서만 진행하며
+학교 네트워크의 제한을 우회하지 않습니다. 서로 다른 네트워크의 주소를 혼용하지 않습니다.
+
+1. Windows 설정 → 네트워크 및 인터넷 → 모바일 핫스팟에서 공유 연결과 Wi-Fi 공유를 선택합니다.
+2. iPad를 PC가 만든 Wi-Fi 이름에 연결합니다.
+3. `docker compose -f compose.yaml -f compose.tablet.yaml up -d --build`로 실행합니다.
+4. iPad 설정 → Wi-Fi → 해당 이름 옆 ⓘ의 IPv4 **라우터** 주소를 확인합니다.
+5. Safari에서 `http://라우터주소:5173`으로 접속합니다. 예시 `192.168.137.1`을 고정값으로 간주하지 않습니다.
+
+라우터는 이 구성에서 PC의 핫스팟 어댑터 주소입니다. PC의 `ipconfig`로도 확인할 수 있습니다.
+일반 공유기에 두 기기를 연결한 경우에는 라우터가 아니라 **PC의 Wi-Fi IPv4**를 사용합니다.
+태블릿에서는 localhost를 사용하지 않습니다.
+
+PC에서 같은 주소가 열리는데 iPad에서만 실패하고 방화벽 허용 규칙이 없다면,
+관리자 PowerShell에서 로컬 서브넷의 TCP 5173만 허용합니다. 방화벽 전체를 끄지 않습니다.
+
+```powershell
+New-NetFirewallRule -DisplayName "PECS MATE 5173" -Direction Inbound -Protocol TCP -LocalPort 5173 -RemoteAddress LocalSubnet -Action Allow -Profile Any
+```
+
+기존 동일 규칙이 있으면 중복 생성하지 않습니다. 추가한 규칙을 되돌릴 때만 다음 명령을 사용합니다.
+
+```powershell
+Remove-NetFirewallRule -DisplayName "PECS MATE 5173"
+```
+
+사용자와 확인한 시연 연결 방식을 README에 반영했습니다. 이번 문서 작업에서는
+기기 재연결·명령 실행·방화벽 변경·앱 빌드/테스트를 수행하지 않았습니다.
+일회성 문서 검사에서 로컬 링크·이미지·앵커 23개, 코드 블록 짝,
+팀원 이름·카드 수·선택형 Qwen 상태 대조와 `git diff --check`를 통과했습니다.
+GitHub 실제 렌더링·외부 배지 이미지 로딩은 미검수입니다.
+
+### 일반 사설 Wi-Fi
+
 신뢰할 수 있는 사설망에서 다음 검수용 구성으로 실행한다.
 
 ```sh
