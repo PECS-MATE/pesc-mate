@@ -784,7 +784,8 @@ function App() {
     const runId = ++speechRunRef.current;
     const currentVoices = koreanVoices(window.speechSynthesis?.getVoices() || []);
     const voice = selectTtsVoice(currentVoices.length ? currentVoices : ttsVoices, ttsSettings.voiceName, offline);
-    const coreAudioUrl = playback.speechOnly ? null : coreSpeechCache.urlFor(content, { online: !offline });
+    const useServerVoice = !offline && !playback.audioOnly && import.meta.env.VITE_TTS_PROVIDER === 'qwen3-tts';
+    const coreAudioUrl = playback.speechOnly || useServerVoice ? null : coreSpeechCache.urlFor(content, { online: !offline });
     setSpeechState({ status: 'starting', content });
     speechPlayback.speak({
       text: content, voice: playback.systemVoice ? null : voice,

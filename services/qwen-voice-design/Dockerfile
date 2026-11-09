@@ -9,4 +9,5 @@ RUN pip install --no-cache-dir torch==2.8.0 torchaudio==2.8.0 \
     --index-url https://download.pytorch.org/whl/cpu \
     && pip install --no-cache-dir qwen-tts==0.1.1
 COPY generate.py ./generate.py
+COPY server.py ./server.py
 ENTRYPOINT ["python", "generate.py"]

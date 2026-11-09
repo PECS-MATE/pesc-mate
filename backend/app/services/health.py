@@ -11,6 +11,7 @@ from pymongo.errors import PyMongoError
 
 from app.services.database import client
 from app.services.model import enabled as ollama_enabled
+from app.services.speech_runtime import speech_runtime
 
 CHECK_TIMEOUT_SECONDS = 2.0
 MAX_TAGS_BYTES = 65536
@@ -74,9 +75,9 @@ def _ollama_check():
 
 
 def _tts_check():
-    check = {'status': 'unavailable', 'required': False, 'provider': 'melotts',
+    base, provider = speech_runtime()
+    check = {'status': 'unavailable', 'required': False, 'provider': provider,
              'detail': 'not_configured', 'device_check': 'client_side'}
-    base = os.environ.get('MELO_TTS_URL', '').rstrip('/')
     if not base:
         return check
     check['detail'] = 'unreachable'
@@ -87,7 +88,7 @@ def _tts_check():
             check['detail'] = 'invalid_response'
             return check
         result = json.loads(body)
-        if isinstance(result, dict) and result.get('status') == 'ready' and result.get('provider') == 'melotts':
+        if isinstance(result, dict) and result.get('status') == 'ready' and result.get('provider') == provider:
             check.update(status='ok', detail='ready')
         else:
             check['detail'] = 'invalid_response'
@@ -102,7 +103,7 @@ def health_report():
     """Return a safe readiness payload and its HTTP status code.
 
     MongoDB is required. Ollama can degrade while sentence generation keeps
-    using its rule fallback. MeloTTS readiness is checked separately; audible
+    using its rule fallback. Selected speech-worker readiness is checked separately; audible
     playback and device fallback still require checks on the user's device.
     """
     # Independent 2s checks must not accumulate past the Compose 5s health timeout.

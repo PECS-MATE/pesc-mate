@@ -12,7 +12,7 @@ import uuid
 
 MODEL_ID = 'Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign'
 GIB = 1024 ** 3
-# Conservative project preflight for float32 CPU inference, not a vendor minimum.
+# Conservative project preflight, not a vendor minimum. CPU BF16 is measured separately.
 MIN_TOTAL = 8 * GIB
 MIN_AVAILABLE = 6 * GIB
 
@@ -60,6 +60,7 @@ def main():
     parser.add_argument('--description-file', default='/app/voice-description.txt')
     parser.add_argument('--output-dir', default='/output')
     parser.add_argument('--timeout-seconds', type=int, default=900)
+    parser.add_argument('--dtype', choices=['bfloat16', 'float32'], default='bfloat16')
     args = parser.parse_args()
     if not 30 <= args.timeout_seconds <= 3600:
         parser.error('제한 시간은 30~3600초입니다.')
@@ -85,7 +86,7 @@ def main():
     revision = os.environ.get('QWEN_MODEL_REVISION', 'main')
     snapshot = snapshot_download(MODEL_ID, revision=revision)
     model = Qwen3TTSModel.from_pretrained(snapshot, device_map='cpu',
-                                         dtype=torch.float32, attn_implementation='sdpa')
+                                         dtype=getattr(torch, args.dtype), attn_implementation='sdpa')
     loaded = time.monotonic()
     print('모델 준비 완료. 샘플 합성 중입니다.', flush=True)
     torch.manual_seed(42)
@@ -107,7 +108,7 @@ def main():
     output = Path(args.output_dir) / ('audition-' + uuid.uuid4().hex[:12])
     output.mkdir(parents=True, exist_ok=False)
     sf.write(output / 'sample.wav', audio, sample_rate, subtype='PCM_16')
-    metadata = dict(model=MODEL_ID, revision=Path(snapshot).name,
+    metadata = dict(model=MODEL_ID, revision=Path(snapshot).name, dtype=args.dtype,
                     description=description, text=text, seed=42,
                     description_sha256=hashlib.sha256(description.encode()).hexdigest(),
                     load_seconds=round(loaded - started, 2),

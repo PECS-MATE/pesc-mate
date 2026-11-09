@@ -69,13 +69,14 @@ PECS MATE는 말로 의사를 표현하기 어려운 아동이 그림·사진·�
 | Backend | Python 3.12, FastAPI, Uvicorn, PyMongo, Pillow |
 | Database / Cache | MongoDB 8.0, IndexedDB, 브라우저·서버 메모리 캐시 |
 | 문장 생성 | Ollama, 기본 설정 모델 qwen2.5:0.5b, 규칙 기반 대체 문장 |
-| 음성 합성 | MeloTTS 한국어, CPU PyTorch, PCM WAV, 기기 음성·핵심 표현 녹음 대체 경로 |
+| 음성 합성 | MeloTTS 기본 / Qwen3-TTS 선택형, CPU PyTorch, PCM WAV, 기기 음성·핵심 표현 녹음 대체 경로 |
 | OCR / 이미지 처리 | Tesseract 한국어·영어, OpenCV, Pillow |
 | Hardware | Arduino UNO R4 WiFi, RFID 카드 리더기, Web Serial API |
 | Environment | Docker Desktop, Docker Compose, Git / GitHub |
 
 Hugging Face/Gemini 이미지 생성과 rembg 배경 제거는 별도 설정이 필요한 선택 기능입니다.
-Qwen VoiceDesign은 음색 시안 제작 도구만 추가된 상태이며 현재 서비스 TTS가 아닙니다.
+Qwen은 VoiceDesign으로 설명 기반 합성 음색을 만든 뒤 0.6B Base로 새 문장을 읽는 선택형 구성입니다.
+CPU의 첫 합성은 지연이 있으며 반복 재생은 캐시를 사용합니다. [설정·실측·제약](docs/development/SPEECH_AND_AI.md#qwen-합성-서버-선택형-연결-2026-11-10)
 
 ## 아키텍처
 
@@ -86,7 +87,7 @@ flowchart LR
     RFID["실물 카드 / Arduino"] -->|"USB · PC 브라우저"| Web
     Web -->|"/api 프록시"| API["FastAPI :8000"]
     API --> DB[("MongoDB")]
-    API --> Speech["로컬 MeloTTS"]
+    API --> Speech["로컬 MeloTTS / 선택형 Qwen"]
     API -. "선택형 문장 생성" .-> Ollama["호스트 Ollama"]
     Speech -->|"WAV"| API
     API -->|"카드 · 문장 · 음성"| Web
@@ -134,7 +135,7 @@ USB 리더기는 PC의 Chrome/Edge에서 연결하며, iPad 브라우저가 USB 
 | 호스트에서 직접 개발할 때 | Python 3.12, Node.js 22.13 이상 22.x 또는 24.x·26 이상, MongoDB |
 
 Docker 기본 실행에는 호스트의 Python·Node.js 별도 설치가 필요하지 않습니다.
-MeloTTS와 Qwen 시안 도구는 별도 컨테이너이며 Python·모델 의존성도 분리되어 있습니다.
+MeloTTS와 Qwen 도구/서버는 별도 컨테이너이며 Python·모델 의존성도 분리되어 있습니다.
 
 ### 설치 및 PC 실행
 
@@ -237,7 +238,7 @@ docker compose -f compose.yaml -f compose.tablet.yaml down
 | [통합 TODO](docs/planning/TODO.md) | 구현 상태·안정화·확장 백로그 |
 | [API 가이드](docs/development/API_GUIDE.md) / [명세](docs/development/API_SPECIFICATION.md) | 인증·역할·요청/응답 규격 |
 | [카드 등록과 제작](docs/development/CARD_MANAGEMENT.md) | OCR·A4 편집·공유·등록 반영 |
-| [음성과 AI](docs/development/SPEECH_AND_AI.md) | MeloTTS·캐시·문장 생성·Qwen 시안 |
+| [음성과 AI](docs/development/SPEECH_AND_AI.md) | MeloTTS·캐시·문장 생성·Qwen 음색/서버 |
 | [USB 태그 연결](docs/development/RFID_USB_INTEGRATION.md) | 장치 연결·칩 등록·기기 지원 범위 |
 | [로컬 개발](docs/development/LOCAL_DEVELOPMENT.md) | 개별 실행·태블릿·진단 |
 

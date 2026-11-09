@@ -1,4 +1,4 @@
-"""Bounded proxy to the private local MeloTTS worker; no text persistence."""
+"""Bounded proxy to private local speech workers; no text persistence."""
 from io import BytesIO
 from http.client import HTTPException as HTTPClientError
 import json
@@ -10,6 +10,7 @@ import wave
 
 from fastapi import HTTPException
 from app.services.speech_cache import SpeechCache
+from app.services.speech_runtime import speech_runtime
 
 _gate = BoundedSemaphore(1)
 _waiting = BoundedSemaphore(4)
@@ -18,13 +19,13 @@ _cache = SpeechCache()
 
 
 def synthesize_speech(text, rate, *, account_id=None):
-    base = os.environ.get('MELO_TTS_URL', '').rstrip('/')
+    base, provider = speech_runtime()
     if not base:
         raise HTTPException(503, '로컬 음성 서버가 설정되지 않았습니다.')
     # Authentication is still checked by the route before every cache lookup.
     # A model/voice change must bump this version, even at the same worker URL.
     version = os.environ.get('TTS_CACHE_VERSION', 'melotts-kr-v1')
-    key = (str(account_id), base, version, text, rate) if account_id else None
+    key = (str(account_id), base, provider, version, text, rate) if account_id else None
     if key is not None:
         hit = _cache.get(key)
         if hit is not None:

@@ -1,0 +1,44 @@
+# Opt-in only: first create/listen to a VoiceDesign sample. Never combine both TTS workers by default.
+services:
+  melotts:
+    profiles: [melo]
+  qwen-tts:
+    build: ./services/qwen-voice-design
+    entrypoint: [python, /app/server.py]
+    init: true
+    cpus: 2
+    mem_limit: 8g
+    volumes:
+      - qwen_voice_models:/models
+      - ${QWEN_REFERENCE_DIR:-./.local-voice-design/selected}:/reference:ro
+    environment:
+      QWEN_BASE_REVISION: "${QWEN_BASE_REVISION:-main}"
+      QWEN_DTYPE: "${QWEN_DTYPE:-bfloat16}"
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8090/health', timeout=3)"]
+      interval: 20s
+      timeout: 5s
+      start_period: 15m
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: '2'
+  backend:
+    environment:
+      SPEECH_TTS_URL: http://qwen-tts:8090
+      SPEECH_TTS_PROVIDER: qwen3-tts
+      TTS_CACHE_VERSION: "${QWEN_CACHE_VERSION:-qwen-synthetic-v1}"
+    depends_on: !override
+      mongodb:
+        condition: service_healthy
+      qwen-tts:
+        condition: service_started
+  frontend:
+    environment:
+      VITE_TTS_PROVIDER: qwen3-tts
+volumes:
+  qwen_voice_models:
+    external: true
+    name: pecsmate-voice-design_qwen_voice_models

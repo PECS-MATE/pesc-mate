@@ -11,6 +11,86 @@
 - [로컬 한국어 MeloTTS](#melo-tts)
 - [문장 생성의 첫 요청·유휴 후 지연 개선](#sentence-generation-performance)
 
+## Qwen 합성 서버 선택형 연결 (2026-11-10)
+
+VoiceDesign 1.7B로 **설명 기반 합성 음색**을 한 번 만든 뒤, Base 0.6B가 그 WAV와
+정확한 텍스트를 기준으로 새 한국어 문장을 합성하는 경로를 추가했습니다.
+실제 사람·아동의 녹음을 업로드하는 기능은 아닙니다. 생성 음색의 나이/성별/발음은 청음이 필요합니다.
+기존 기본 Compose는 MeloTTS를 유지하며, 새 overlay를 명시해야만 Qwen으로 전환합니다.
+
+```powershell
+# 최초 설치/샘플. 모델 다운로드는 별도 볼륨에 재사용됩니다.
+docker compose -f compose.voice-design.yaml run --rm --build voice-design --text "물 주세요. 도와주세요."
+# 생성된 audition 폴더의 sample.wav를 먼저 청음한 뒤 실제 폴더를 지정합니다.
+$env:QWEN_REFERENCE_DIR = './.local-voice-design/audition-실제생성ID'
+$env:QWEN_CACHE_VERSION = 'qwen-실제생성ID'
+# 위 audition 컨테이너가 끝난 뒤에 실행합니다. 두 모델을 동시에 메모리에 올리지 않습니다.
+docker compose -f compose.yaml -f compose.qwen.yaml -f compose.tablet.yaml up -d --build
+```
+
+Qwen overlay는 Melo 서비스를 기본 시작에서 제외하고 backend의 의존성을 교체합니다.
+이미 실행 중인 Melo 컨테이너는 별도로 중지해야 메모리가 반환됩니다. DB 볼륨은 삭제하지 않습니다.
+Qwen은 내부 8090 포트만 사용하고, reference 경로는 읽기 전용이며 모델 캐시는 별도 볼륨입니다.
+reference 없는 상태에서는 자동으로 여성 기본 음성으로 성공 처리하지 않고 worker가 시작에 실패합니다.
+Qwen 상태가 ready가 될 때까지 API는 degraded일 수 있으며, 준비 상태가 실제 청음 성공은 아닙니다.
+
+API는 SPEECH_TTS_URL/SPEECH_TTS_PROVIDER를 우선 사용하고 미설정이면 기존 MELO_TTS_URL을 사용합니다.
+응답은 기존 mono PCM16 WAV 규격이고 세션 메모리/계정별 서버 캐시를 그대로 사용합니다.
+속도는 worker에서 시간 신축으로 적용하며 기존 기기 pitch 설정을 실제 아동 화자로 오해하지 않습니다.
+합성 최대 토큰 제한이 있어 긴 문장의 누락/잘림·발음은 별도 검수가 필요합니다.
+CPU 추론이 기존 상위 합성 35초/브라우저 50초 제한보다 오래 걸리면 오류로 처리하며,
+이 제한을 늘리는 것만으로 실사용 준비 완료로 보지 않습니다.
+
+Qwen 모드의 온라인 카드/문장은 기존 여성 핵심 녹음보다 서버 음성을 우선합니다.
+기본 녹음 테스트·명시 기기 음성 테스트·오프라인 녹음 경로는 유지합니다.
+프런트엔드도 overlay로 재시작하고 페이지를 새로고침해야 VITE_TTS_PROVIDER가 반영됩니다.
+reference 변경 때는 캐시 버전을 바꿔 backend를 재생성하고 브라우저도 새로고침하세요.
+
+Melo 복귀 시 Qwen worker를 중지한 뒤 기본/태블릿 Compose로 backend/frontend를 재생성합니다.
+Qwen 모델 볼륨은 다시 실행할 때 재사용할 수 있으므로 일괄 삭제하지 않습니다.
+
+검증: 내부 HTTP 정상/입력 범위/429/합성 실패와 잠금 반환, 공급자 선택과 health 확인,
+기본+Qwen+태블릿 Compose 문법, 프론트 빌드 통과(기존 큰 번들 경고 유지).
+API WAV 규격과 공급자/음색 캐시 버전 분리 검사도 통과했습니다.
+
+실제 실행 기록:
+
+- CPU 이미지 빌드와 공개 VoiceDesign 가중치 다운로드 완료. 모델 revision은
+  `5ecdb67327fd37bb2e042aab12ff7391903235d3`입니다.
+- FP32 로드 시 컨테이너 약 7.7GiB·Windows 여유 약 260MB로 줄어들어 직접 작업을 중단했습니다.
+  실패/중단 시안이며 성공으로 표시하지 않습니다. 모델 볼륨은 보존했습니다.
+- BF16으로 재실행해 ‘물 주세요.’ 3.44초·24kHz PCM WAV를 생성했습니다.
+  로드 16.56초, 합성 47.62초, peak 0.8203으로 비무음 확인. 파일은
+  `.local-voice-design/audition-202cad3642fa/sample.wav`이며 Git에 넣지 않았습니다.
+- CPU에서 BF16 연산이 동작함을 확인했지만 모든 PC에서 속도/품질이 보장되지는 않습니다.
+  생성기 기본 dtype은 BF16이고 `--dtype float32`는 여유가 충분한 환경에서만 사용합니다.
+  0.6B worker도 QWEN_DTYPE으로 선택합니다.
+- VoiceDesign 실시간 합성은 기존 35초 API 제한을 넘겼으므로 서버 요청마다 사용하지 않습니다.
+  기준 샘플의 실제 음색·발음·나이 인상은 청음 승인 전입니다.
+- Base 0.6B의 같은 합성 음색으로 ‘도와주세요.’ 17.45초/1.07초 WAV,
+  ‘나는 물을 마시고 싶어요.’ 17.56초/1.69초 WAV를 반환했습니다. 진폭도 비무음 확인했습니다.
+- 실제 backend 합성 프록시에서 ‘도와주세요’ 첫 요청 15.89초, 같은 진단 계정 캐시 재사용
+  0.00004초, 0.98초 WAV/peak 11884 확인. 이 진단 호출은 사용자 이력/DB를 저장하지 않았습니다.
+- 생성 시안 `audition-202cad3642fa`, 캐시 버전 `qwen-202cad3642fa`를 지정해
+  Qwen+태블릿 Compose를 실제 실행했습니다. backend·MongoDB·Qwen healthy와 frontend 실행,
+  프런트 /api/health의 qwen3-tts/ready, Vite의 Qwen 환경변수 주입을 확인했습니다.
+  기존 DB 볼륨은 유지하고 시험 worker는 중지했습니다. 기본 Compose 파일은 여전히 MeloTTS입니다.
+- 워밍업 중 첫 health 확인은 connection refused였으며 준비 후 정상 응답을 확인했습니다.
+  이미지 빌드/모델 다운로드는 최초 준비 비용입니다. 다음 실행은 캐시를 재사용합니다.
+- 사용자의 직접 청음·발음/누락·iPad 브라우저 재생·긴 문장·동시 부하 검수는 미실행입니다.
+  파형 생성/healthy/캐시 성공을 임상적 아동 음성 품질이나 실제 스피커 재생 성공으로 취급하지 않습니다.
+
+현재 시안으로 다시 시작할 때 (해당 로컬 샘플 파일이 있는 PC에서):
+
+```powershell
+$env:QWEN_REFERENCE_DIR = './.local-voice-design/audition-202cad3642fa'
+$env:QWEN_CACHE_VERSION = 'qwen-202cad3642fa'
+docker compose -f compose.yaml -f compose.qwen.yaml -f compose.tablet.yaml up -d
+```
+
+Qwen overlay 없이 기본 up을 실행하면 Melo 구성으로 돌아가므로 이 실행 구성을 유지하세요.
+Melo 복귀 전에는 Qwen overlay로 qwen-tts를 중지해 두 모델이 동시에 메모리를 사용하지 않게 합니다.
+
 ## 반복 음성의 이중 메모리 캐시 강화 (2026-11-08)
 
 브라우저 캐시를 최대 128건/64MiB, 생성 후 30분 재사용으로 확대했습니다.
