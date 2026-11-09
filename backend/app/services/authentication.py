@@ -126,6 +126,8 @@ def login(username, password, client_ip=None):
         if not hmac.compare_digest(candidate, user['password_hash']) or not account_access_allowed(user):
             record_login_failure(username, client_ip)
             raise HTTPException(401, '아이디 또는 비밀번호가 올바르지 않습니다.')
+        if user.get('registration_state') == 'pending':
+            raise HTTPException(409, '회원가입 설정이 완료되지 않았습니다. 같은 정보로 가입을 다시 시도해 주세요.')
         clear_login_failures(username, client_ip)
         token = secrets.token_urlsafe(32)
         expires_at = datetime.now(timezone.utc) + timedelta(hours=SESSION_HOURS)
@@ -150,23 +152,38 @@ def login(username, password, client_ip=None):
         raise HTTPException(503, '로그인 저장소에 연결하지 못했습니다.') from exc
 
 
-def register(username, password, name):
+def register(username, password, name, guardian_consent=False):
     try:
         database = _database()
-        if database.users.find_one({'username': username}):
+        user = database.users.find_one({'username': username})
+        if user is None:
+            salt, password_hash = _password_hash(password)
+            user = {
+                'schema_version': SCHEMA_VERSION, '_id': username, 'username': username,
+                'name': name, 'role': 'user', 'default_output_mode': 'selection',
+                'password_salt': salt, 'password_hash': password_hash,
+                'registration_state': 'pending', 'created_at': datetime.now(timezone.utc),
+            }
+            try:
+                database.users.insert_one(user)
+            except DuplicateKeyError:
+                user = database.users.find_one({'username': username})
+        # Resume only registrations created by this flow with exactly the same credentials.
+        # Never reset an existing account's password/name or repeat its saved privacy settings.
+        if not user or user.get('registration_state') not in {'pending', 'ready'}:
             raise HTTPException(409, '이미 사용 중인 아이디입니다.')
-        salt, password_hash = _password_hash(password)
-        database.users.insert_one({
-            'schema_version': SCHEMA_VERSION,
-            '_id': username,
-            'username': username,
-            'name': name,
-            'role': 'user',
-            'default_output_mode': 'selection',
-            'password_salt': salt,
-            'password_hash': password_hash,
-            'created_at': datetime.now(timezone.utc),
-        })
+        _, candidate = _password_hash(password, user['password_salt'])
+        if user['name'] != name or not hmac.compare_digest(candidate, user['password_hash']):
+            raise HTTPException(409, '이미 사용 중인 아이디입니다.')
+        if user['registration_state'] == 'pending':
+            from app.services.privacy import save_privacy
+            save_privacy(str(user['_id']), guardian_consent, 365)
+            result = database.users.update_one({'_id': user['_id'], 'registration_state': 'pending'},
+                                               {'$set': {'registration_state': 'ready'}})
+            if result.matched_count != 1:
+                current = database.users.find_one({'_id': user['_id']}) or {}
+                if current.get('registration_state') != 'ready':
+                    raise HTTPException(409, '회원가입 상태가 변경되었습니다. 다시 확인해 주세요.')
         return login(username, password)
     except DuplicateKeyError as exc:
         raise HTTPException(409, '이미 사용 중인 아이디입니다.') from exc
@@ -194,6 +211,8 @@ def current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
         user = database.users.find_one({'_id': session['user_id']}, {'profile.image_data': 0, 'profile.thumbnail_data': 0, 'profile.original_image': 0})
         if not user:
             raise HTTPException(401, '사용자 계정을 찾을 수 없습니다.')
+        if user.get('registration_state') == 'pending':
+            raise HTTPException(401, '회원가입 설정이 완료되지 않았습니다.')
         if not account_access_allowed(user):
             raise HTTPException(401, '계정이 비활성화되었거나 접근 기간이 만료되었습니다.',
                                 headers={'WWW-Authenticate': 'Bearer'})

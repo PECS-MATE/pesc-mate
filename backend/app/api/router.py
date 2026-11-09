@@ -749,9 +749,7 @@ def create_account(request: RegisterRequest):
     name = request.name.strip()
     if not name:
         raise HTTPException(422, '이름을 입력해 주세요.')
-    result = register(request.username.strip(), request.password, name)
-    save_privacy(result['user']['id'], request.guardian_consent, 365)
-    return result
+    return register(request.username.strip(), request.password, name, request.guardian_consent)
 
 
 @api_router.get('/auth/me', response_model=UserResponse, tags=['인증'])
