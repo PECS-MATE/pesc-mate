@@ -24,6 +24,7 @@ DEFAULT_CATEGORIES = [
     {'id': 'play', 'name': '놀이', 'display_order': 13, 'active': True},
     {'id': 'time-schedule', 'name': '시간과 일정', 'display_order': 14, 'active': True},
     {'id': 'social', 'name': '사회적 표현', 'display_order': 15, 'active': True},
+    {'id': 'animals', 'name': '동물', 'display_order': 16, 'active': True},
 ]
 CATEGORY_NAME_PATTERN = re.compile(r'^[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9 ]+$')
 

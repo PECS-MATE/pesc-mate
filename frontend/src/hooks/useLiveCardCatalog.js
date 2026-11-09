@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { request } from '../services/api';
+import { observeCardCatalog } from '../services/cardCatalogEvents';
 
 const signature = cards => JSON.stringify(cards.map(({ image_src, image_blob, image_failed, ...card }) => card));
 
@@ -38,7 +39,9 @@ export default function useLiveCardCatalog({ account, loaded, offline, tab, card
           return image;
         }));
         if (!valid() || latest.current.cards !== baseline.cards) return;
+        const added = next.filter(card => card.custom && !previous.has(card.id)).length;
         latest.current.onUpdate(next, nextCategories);
+        if (added) setNotice(`등록한 카드 ${added}장이 추가됐어요. ‘등록한 카드’에서 확인하세요.`);
         created.forEach(url => owned.current.add(url)); created = [];
       } catch { if (valid() && manual) setNotice('카드를 갱신하지 못했어요. 기존 카드는 계속 사용할 수 있어요.'); }
       finally { created.forEach(url => URL.revokeObjectURL(url)); pending = false; if (valid()) setRefreshing(false); }
@@ -47,9 +50,11 @@ export default function useLiveCardCatalog({ account, loaded, offline, tab, card
     const resume = () => { if (document.visibilityState !== 'hidden') refresh(); };
     window.addEventListener('focus', resume); window.addEventListener('online', resume);
     document.addEventListener('visibilitychange', resume);
-    const interval = window.setInterval(resume, 30000);
+    const stopObserving = observeCardCatalog(account.id, resume);
+    const interval = window.setInterval(resume, 10000);
     return () => { disposed = true; refreshRef.current = null; window.clearInterval(interval);
       window.removeEventListener('focus', resume); window.removeEventListener('online', resume);
+      stopObserving();
       document.removeEventListener('visibilitychange', resume); };
   }, [account?.id, account?.role, token, loaded, offline, hydrateImages]);
   useEffect(() => { refreshRef.current?.(); }, [tab, account?.id, loaded, offline]);

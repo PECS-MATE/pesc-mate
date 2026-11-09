@@ -1,5 +1,6 @@
 import { createRequestId } from './requestId.js';
 import { createSpeechAudioQueue } from './speechAudioQueue.js';
+import { notifyCardCatalogChanged } from './cardCatalogEvents.js';
 
 const API_BASE_URL =
   import.meta.env?.VITE_API_BASE_URL ?? "";
@@ -77,7 +78,12 @@ export async function request(path, options = {}) {
   if (!response.ok) throw await responseError(response, requestId, '요청을 처리하지 못했습니다.', path, headers.get('Authorization'));
   if (response.status === 204) return null;
   try {
-    return await response.json();
+    const data = await response.json();
+    if (data?.status === 'approved' && /^(?:\/admin\/cards|\/cards\/submissions(?:\/[^/]+(?:\/submit|\/image)?)?)(?:\?|$)/.test(path)
+      && ['POST', 'PATCH', 'PUT'].includes((options.method || 'GET').toUpperCase())) {
+      notifyCardCatalogChanged(data.visibility === 'shared' ? null : data.owner_id);
+    }
+    return data;
   } catch (error) {
     error.status = response.status;
     error.requestId = responseRequestId(response, requestId);

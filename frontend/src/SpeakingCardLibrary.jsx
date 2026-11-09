@@ -35,11 +35,11 @@ export default function SpeakingCardLibrary({ accountId, persistFavorites, cards
   const byId = new Map(pool.map(card => [card.id, card]));
   const ordered = slots => (slots || []).map(slot => byId.get(slot.card_id)).filter(Boolean);
   const folders = [
+    ...(cards.some(card => card.custom) ? [{ id: 'registered', name: '등록한 카드', cards: cards.filter(card => card.custom).slice().reverse() }] : []),
     ...(layout?.slots?.length ? [{ id: 'default', name: '기본 카드판', cards: ordered(layout.slots) }] : []),
     ...(layout?.situations || []).map(item => ({ id: `situation:${item.id}`, name: item.name, cards: ordered(item.slots) })),
     ...categories.map(item => ({ id: `category:${item.id}`, name: item.name, cards: cards.filter(card => card.category === item.name) })),
     ...(recoveryCards.length ? [{ id: 'recovery', name: '다시 말하기', cards: recoveryCards }] : []),
-    ...(cards.some(card => card.custom) ? [{ id: 'registered', name: '등록한 카드', cards: cards.filter(card => card.custom) }] : []),
     { id: 'all', name: '모든 카드', cards },
   ].filter(item => item.cards.length > 0 || item.id === 'all');
   const folder = folders.find(item => item.id === folderId);
@@ -77,6 +77,7 @@ export default function SpeakingCardLibrary({ accountId, persistFavorites, cards
       {TABS.map(item => <button type="button" key={item.id} aria-pressed={tab === item.id} onClick={() => selectTab(item.id)}><UiIcon name={item.icon} /><span>{item.name}</span></button>)}
     </nav>
     <div className="speaking-library-search"><input aria-label="말하기 카드 검색" placeholder="카드 검색" value={search} onChange={event => setSearch(event.target.value)} />{onRefresh && <IconButton icon="refresh" label="카드 새로고침" disabled={refreshing || busy} onClick={onRefresh} />}<IconButton icon="settings" label="카드 도구" aria-pressed={showTools} onClick={() => setShowTools(current => !current)} /></div>
+    {cards.some(card => card.custom) && <button type="button" disabled={busy} onClick={() => { setSearch(''); setTab('home'); openFolder('registered'); }}>등록한 카드</button>}
     {refreshNotice && <p role="status">{refreshNotice}</p>}
     {folder && <div className="symbol-folder-heading"><IconButton icon="arrow-left" label="폴더 목록" onClick={closeFolder} /><h2 ref={contentRef} tabIndex="-1">{folder.name}</h2></div>}
     {!folder && <h2 className="visually-hidden">{search.trim() ? '카드 검색 결과' : TABS.find(item => item.id === tab)?.name}</h2>}

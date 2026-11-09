@@ -1450,7 +1450,7 @@ function App() {
       form.reset();
       if (saved.status === 'approved') {
         if (isSupporter) await loadSupportCards(selectedUser);
-        else await load(user);
+        else { await load(user); setCategory('전체'); setSearch(''); }
       }
     } catch (e) { if (current()) { setCardFormError(e.message); setError(e.message); } }
     finally { setCardFormBusy(false); }

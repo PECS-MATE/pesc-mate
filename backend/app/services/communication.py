@@ -134,6 +134,13 @@ CARDS = [with_inferred_metadata(dict(id=key, label=label, symbol=symbol, categor
     ('thanks', '고마워요', '💬', '사회적 표현', '상대방에게 고마움을 전하는 표현', 'interjection', 'response'),
     ('sorry', '미안해요', '💬', '사회적 표현', '상대방에게 사과하는 표현', 'interjection', 'response'),
     ('okay', '괜찮아요', '💬', '사회적 표현', '괜찮다는 의사를 전하는 표현', 'interjection', 'response'),
+    ('cat', '고양이', '🐈', '동물', '고양이', 'noun', 'object'),
+    ('bear', '곰', '🐻', '동물', '곰', 'noun', 'object'),
+    ('why', '왜', '❓', '질문', '이유를 묻는 표현', 'adverb', 'response'),
+    ('doctor', '의사선생님', '🧑‍⚕️', '사람', '진료하는 의사', 'noun', 'subject'),
+    ('friend', '친구', '🧑', '사람', '함께 지내는 친구', 'noun', 'subject'),
+    ('grandmother', '할머니', '👵', '사람', '할머니', 'noun', 'subject'),
+    ('grandfather', '할아버지', '👴', '사람', '할아버지', 'noun', 'subject'),
 ])]
 
 SEMANTIC_GROUPS = {
@@ -144,7 +151,7 @@ SEMANTIC_GROUPS = {
     'stop': 'core', 'more': 'core', 'again': 'core', 'wait': 'core',
     'unknown': 'uncertainty', 'other': 'core',
     'please_give': 'core', 'want': 'core', 'finished': 'core', 'this': 'core', 'alone': 'core',
-    'refuse': 'rejection', 'who': 'question', 'what': 'question', 'where': 'question',
+    'refuse': 'rejection', 'who': 'question', 'what': 'question', 'where': 'question', 'why': 'question',
     'confirm': 'affirmation', 'deny': 'rejection',
     'wrong_tap': 'core', 'not_that': 'core', 'hold_on': 'core', 'say_again': 'core',
     'please_wait': 'core', 'dont_understand': 'uncertainty', 'change_it': 'core',

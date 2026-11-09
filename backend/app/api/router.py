@@ -936,8 +936,9 @@ def complete_tts_event(request_id: UUID, request: TtsEventResultRequest, user=De
 
 
 @api_router.get('/cards', response_model=list[CardResponse], response_model_exclude_none=True, tags=['카드'])
-def cards(user=Depends(current_user)):
+def cards(response: Response, user=Depends(current_user)):
     require_communicator(user)
+    response.headers['Cache-Control'] = 'no-store'
     return CARDS + approved_cards_for(user['id'])
 
 

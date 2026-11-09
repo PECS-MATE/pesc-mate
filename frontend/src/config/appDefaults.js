@@ -46,6 +46,8 @@ export const CARD_META = Object.fromEntries([
   ['blocks', '블럭'], ['doll', '인형'], ['puzzle', '퍼즐'], ['picture', '그림'], ['paper', '종이'],
   ['walk', '걷다'], ['draw', '그리다'], ['run', '뛰다'], ['wash_hands', '손 씻다'],
   ['read_book', '책을 읽다'], ['ride', '타다'], ['where', '어디'],
+  ['cat', '고양이'], ['bear', '곰'], ['why', '왜'], ['doctor', '의사선생님'],
+  ['friend', '친구'], ['grandmother', '할머니'], ['grandfather', '할아버지'],
   ...TEXT_CARDS.map(({ id, label }) => [id, label]),
 ].map(([id, label]) => [id, { id, label }]));
 
