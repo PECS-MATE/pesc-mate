@@ -1,7 +1,7 @@
-한국어를 자연스럽고 또렷하게 말하는 어린이 느낌의 목소리.
-성별이 강하게 드러나지 않는 부드럽고 밝은 음색.
-지나치게 높거나 날카롭지 않고 차분하고 편안하게 말한다.
-유아어, 과장된 애교, 만화 캐릭터 같은 연기는 사용하지 않는다.
-말하는 속도는 약간 느리게 하고 단어 끝까지 명확하게 발음한다.
-질문과 요청의 억양은 자연스럽게 표현한다.
-배경음악, 효과음, 웃음소리 없이 입력한 문장만 읽는다.
+A young girl speaking natural Korean with a clearly youthful, light and bright voice.
+Her pitch is moderately high, with a small, clear and gentle resonance.
+Keep the voice consistently feminine and childlike, not an adult woman's voice.
+Avoid a deep male register, chesty bass resonance, huskiness or a heavy mature tone.
+Speak warmly and calmly at a slightly slow pace, articulating every Korean syllable clearly.
+Use natural request intonation without baby talk, exaggerated cuteness, squealing or cartoon acting.
+Read only the supplied Korean text, with no laughter, music or sound effects.
