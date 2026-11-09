@@ -93,12 +93,18 @@ def _ensure_unique_label(collection, normalized_label, owner_id, visibility, exc
     from app.services.communication import CARDS
     if normalized_label in {_compact_text(card['label']) for card in CARDS}:
         raise HTTPException(409, '이미 등록된 카드명입니다.')
-    duplicate = next((row for row in collection.find({}, IMAGE_METADATA)
-                      if row['_id'] != exclude_id
-                      and row.get('status') != 'rejected'
-                      and _compact_text(row['label']) == normalized_label
-                      and (row['owner_id'] == owner_id if visibility == 'private'
-                           else row['visibility'] == 'shared')), None)
+    scope = {'owner_id': owner_id} if visibility == 'private' else {'visibility': 'shared'}
+    query = {**scope, 'normalized_label': normalized_label, 'status': {'$ne': 'rejected'}}
+    if exclude_id is not None:
+        query['_id'] = {'$ne': exclude_id}
+    duplicate = collection.find_one(query, {'_id': 1})
+    if not duplicate:
+        # Old rows without normalized_label are scanned only within this owner/public scope.
+        legacy = {**scope, 'normalized_label': {'$exists': False}, 'status': {'$ne': 'rejected'}}
+        if exclude_id is not None:
+            legacy['_id'] = {'$ne': exclude_id}
+        duplicate = next((row for row in collection.find(legacy, {'label': 1})
+                          if _compact_text(row['label']) == normalized_label), None)
     if duplicate:
         raise HTTPException(409, '이미 등록되었거나 승인 대기 중인 카드명입니다.')
 
@@ -479,11 +485,10 @@ def update_submission(submission_id, owner_id, label, meaning, category, visibil
 
 def approved_cards_for(owner_id, *, shared_only=False):
     try:
-        rows = _collection().find({}, IMAGE_METADATA).sort('created_at', 1)
-        visible = [row for row in rows
-                   if (row['visibility'] == 'shared' and row['status'] == 'approved')
-                   or (not shared_only and row['visibility'] == 'private' and row['owner_id'] == owner_id
-                       and row['status'] in {'approved', 'pending'})]
+        public = {'visibility': 'shared', 'status': 'approved'}
+        query = public if shared_only or owner_id is None else {'$or': [public,
+            {'visibility': 'private', 'owner_id': owner_id, 'status': {'$in': ['approved', 'pending']}}]}
+        visible = _collection().find(query, IMAGE_METADATA).sort('created_at', 1)
         return [with_inferred_metadata({
             'id': f"custom:{row['_id']}", 'label': row['label'], 'meaning': row['meaning'],
             'symbol': '🖼️', 'category': row['category'], 'image_index': None,
