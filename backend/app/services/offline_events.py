@@ -7,8 +7,10 @@ from pymongo.errors import DuplicateKeyError, PyMongoError
 from app.services.database import database as _database
 from app.services.schema_versions import SCHEMA_VERSION
 from app.services.communication_activity import ACTIVITY_FIELDS
+from app.services.recording_guard import guarded_recording
 
 
+@guarded_recording
 def sync_events(user_id, events, observation=None):
     accepted = []
     try:

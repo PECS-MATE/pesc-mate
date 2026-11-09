@@ -8,6 +8,7 @@ from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from app.services.database import database as _database
 from app.services.schema_versions import SCHEMA_VERSION
+from app.services.recording_guard import guarded_recording
 
 
 CONTENT_VERSIONS = {'word_picture_match': 'word-picture-v1', 'sound_picture_match': 'sound-picture-v1',
@@ -69,6 +70,7 @@ def save_settings(user_id, actor_id, category_ids, question_count, option_count,
         raise HTTPException(503, '학습 설정을 저장하지 못했습니다.') from exc
 
 
+@guarded_recording
 def record_attempt(user_id, request_id, activity_type, category_id,
                    total_questions, correct_answers, duration_seconds, items=None, observation=None,
                    content_version=None, program_set_id=None):

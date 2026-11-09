@@ -7,6 +7,7 @@ from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from app.services.database import database as _database
 from app.services.schema_versions import SCHEMA_VERSION
+from app.services.recording_guard import guarded_recording
 
 
 def _public(document):
@@ -20,6 +21,7 @@ def _public(document):
     return result
 
 
+@guarded_recording
 def start_event(user_id, request_id, content_type, char_count):
     try:
         now = datetime.now(timezone.utc)
@@ -46,6 +48,7 @@ def start_event(user_id, request_id, content_type, char_count):
         raise HTTPException(503, '음성 재생 요청 이력을 저장하지 못했습니다.') from exc
 
 
+@guarded_recording
 def finish_event(user_id, request_id, status, error_code='', startup_ms=None):
     try:
         now = datetime.now(timezone.utc)

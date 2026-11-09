@@ -13,6 +13,7 @@ from app.services.schema_versions import SCHEMA_VERSION
 from app.services.model import generate_sentence, status as model_status
 from app.services.sentence_policy import policy_versions
 from app.services.sentence_validation import validate_safety, validate_semantics
+from app.services.recording_guard import recording_revision, recording_write
 
 logger = logging.getLogger('uvicorn.error')
 
@@ -330,6 +331,7 @@ def sentence(ids, card_index=None):
 
 
 def save_session(request, user_id, custom_cards=None, regeneration_of=None, generation_attempt=1):
+    consent_revision = recording_revision(user_id)
     card_ids = list(request.cards)
     request_id = str(request.request_id)
     try:
@@ -389,7 +391,8 @@ def save_session(request, user_id, custom_cards=None, regeneration_of=None, gene
                     'regeneration_of': regeneration_of, 'generation_attempt': generation_attempt,
                     'created_at': datetime.now(timezone.utc)}
         try:
-            collection.insert_one(document)
+            with recording_write(user_id, consent_revision):
+                collection.insert_one(document)
         except DuplicateKeyError:
             existing = collection.find_one({'_id': request_id, 'user_id': user_id})
             if (not existing or existing['cards'] != card_ids or

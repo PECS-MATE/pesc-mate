@@ -46,7 +46,7 @@ def privacy_for(user_id):
 
 
 def save_privacy(user_id, guardian_consent, retention_days):
-    # Serialize withdrawal with hardware registration/ingest and account deletion.
+    # Serialize withdrawal with hardware/image writes, guarded history writes and deletion.
     # Otherwise a writer that already checked consent could insert after withdrawal.
     if retention_days not in {30, 90, 365, 1095}:
         raise HTTPException(422, '보존 기간이 올바르지 않습니다.')
@@ -75,6 +75,7 @@ def _save_privacy(user_id, guardian_consent, retention_days):
         database.privacy_settings.update_one(
             {'_id': user_id},
             {'$set': settings | {'updated_at': now},
+             '$inc': {'recording_revision': 1},
              '$setOnInsert': {'schema_version': SCHEMA_VERSION, 'user_id': user_id, 'created_at': now}},
             upsert=True,
         )
@@ -183,7 +184,8 @@ def _delete_personal_data(user_id):
         database = _database()
         database.privacy_settings.update_one({'_id': user_id}, {'$set': {
             'guardian_consent': False, 'deletion_status': 'in_progress', 'deletion_receipt': confirmation,
-        }, '$setOnInsert': {'schema_version': SCHEMA_VERSION, 'user_id': user_id, 'created_at': now}}, upsert=True)
+        }, '$inc': {'recording_revision': 1},
+            '$setOnInsert': {'schema_version': SCHEMA_VERSION, 'user_id': user_id, 'created_at': now}}, upsert=True)
         card_ids = [row['_id'] for row in database.card_submissions.find({'owner_id': user_id}, {'_id': 1})]
         a4_ids = [row['_id'] for row in database.a4_projects.find({'owner_id': user_id}, {'_id': 1})]
         for name, query in (
