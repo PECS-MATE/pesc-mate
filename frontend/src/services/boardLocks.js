@@ -5,8 +5,3 @@ export function lockedSlotsPreserved(layout, ids) {
   });
 }
 
-export function movedSlots(ids, index, offset) {
-  const next = [...ids];
-  [next[index], next[index + offset]] = [next[index + offset], next[index]];
-  return next;
-}
