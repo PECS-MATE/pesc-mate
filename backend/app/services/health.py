@@ -1,6 +1,7 @@
 """Readiness checks for the API and its required and optional dependencies."""
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor
 from http.client import HTTPException
 from urllib.error import URLError
 from urllib.request import urlopen
@@ -72,21 +73,49 @@ def _ollama_check():
     return check
 
 
+def _tts_check():
+    check = {'status': 'unavailable', 'required': False, 'provider': 'melotts',
+             'detail': 'not_configured', 'device_check': 'client_side'}
+    base = os.environ.get('MELO_TTS_URL', '').rstrip('/')
+    if not base:
+        return check
+    check['detail'] = 'unreachable'
+    try:
+        with urlopen(f'{base}/health', timeout=CHECK_TIMEOUT_SECONDS) as response:
+            body = response.read(4097)
+        if len(body) > 4096:
+            check['detail'] = 'invalid_response'
+            return check
+        result = json.loads(body)
+        if isinstance(result, dict) and result.get('status') == 'ready' and result.get('provider') == 'melotts':
+            check.update(status='ok', detail='ready')
+        else:
+            check['detail'] = 'invalid_response'
+    except (HTTPException, URLError, TimeoutError, OSError):
+        pass
+    except ValueError:
+        check['detail'] = 'invalid_response'
+    return check
+
+
 def health_report():
     """Return a safe readiness payload and its HTTP status code.
 
     MongoDB is required. Ollama can degrade while sentence generation keeps
-    using its rule fallback. Browser TTS must be checked on the user's device.
+    using its rule fallback. MeloTTS readiness is checked separately; audible
+    playback and device fallback still require checks on the user's device.
     """
-    mongodb = _mongodb_check()
-    ollama = _ollama_check()
+    # Independent 2s checks must not accumulate past the Compose 5s health timeout.
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        checks_pending = [pool.submit(check) for check in (_mongodb_check, _ollama_check, _tts_check)]
+        mongodb, ollama, tts = [check.result() for check in checks_pending]
     checks = {
         'service': {'status': 'ok', 'required': True},
         'mongodb': mongodb,
         'ollama': ollama,
-        'tts': {'status': 'client_side', 'required': False, 'detail': 'device_check_required'},
+        'tts': tts,
     }
     if mongodb['status'] != 'ok':
         return {'status': 'unavailable', 'checks': checks}, 503
-    status = 'degraded' if ollama['status'] == 'unavailable' else 'ok'
+    status = 'degraded' if ollama['status'] == 'unavailable' or tts['status'] != 'ok' else 'ok'
     return {'status': status, 'checks': checks}, 200

@@ -170,8 +170,13 @@ docker compose -f compose.yaml -f compose.tablet.yaml down
 ## 상태 확인과 장애 진단
 
 `/api/health`는 DB와 선택형 AI 상태를 구분한다. DB 연결 실패는 `503/unavailable`,
-선택형 AI 장애는 기본 경로를 유지하며 `200/degraded`로 응답한다. 기기 TTS는 서버에서
-확인하지 못하므로 `client_side`로 표시한다.
+선택형 AI 장애는 기본 경로를 유지하며 `200/degraded`로 응답한다.
+2026-11-10부터 `checks.tts`는 MeloTTS `/health`의 ready 응답을 실제 점검한다.
+미설정·네트워크 장애·warming/비정상 응답은 음성 unavailable과 API degraded로 표시한다.
+각 검사 2초 제한을 병렬 수행해 세 검사 지연이 Compose 5초 제한을 넘도록 누적되지 않게 한다.
+`device_check: client_side`는 여전히 실제 기기 청음이 필요하다는 뜻이며 서버 합성 성공과 다르다.
+모의 검사에서 정상·미설정·네트워크/형식/크기 오류·degraded와 DB 실패 503 분기를 통과했다.
+실제 TTS 서비스 장애 주입·iPad/PC 청음은 이번 수정에서 미실행이다.
 
 MongoDB 내부 로그·Uvicorn 접근 로그·정상 CRUD 및 기기 접속 추적은 기본 출력에서 제외한다.
 서버 오류·필수 경고·감사 이력·운영 지표와 검증 리포트는 유지한다. 응답의 `X-Request-ID`와
