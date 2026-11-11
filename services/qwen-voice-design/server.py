@@ -79,7 +79,7 @@ class Handler(BaseHTTPRequestHandler):
             self.connection.settimeout(5)
             body = json.loads(self.rfile.read(size))
             text = body.get('text')
-            rate = body.get('rate', 1.0)
+            rate = body.get('rate', 0.9)
             voice = body.get('voice', 'girl')
             if (not isinstance(text, str) or not 1 <= len(text.strip()) <= 300
                     or not isinstance(voice, str) or voice not in prompts
