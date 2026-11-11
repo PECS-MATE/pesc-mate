@@ -22,7 +22,9 @@ def settings_for(user_id):
         document = _database().tts_settings.find_one({'_id': user_id})
         if not document:
             return DEFAULT_SETTINGS.copy()
-        return {key: document.get(key, value) for key, value in DEFAULT_SETTINGS.items()}
+        settings = {key: document.get(key, value) for key, value in DEFAULT_SETTINGS.items()}
+        settings['preset'] = 'boy' if settings['preset'] in {'boy', 'man'} else 'girl'
+        return settings
     except PyMongoError as exc:
         raise HTTPException(503, '음성 설정을 불러오지 못했습니다.') from exc
 
@@ -30,7 +32,7 @@ def settings_for(user_id):
 def save_settings(user_id, preset, voice_name, rate, pitch, volume):
     try:
         settings = {
-            'preset': preset,
+            'preset': 'boy' if preset in {'boy', 'man'} else 'girl',
             'voice_name': voice_name,
             'rate': rate,
             'pitch': pitch,

@@ -1,9 +1,10 @@
-"""Bounded proxy to private local speech workers; no text persistence."""
+"""Local speech proxy: private text in memory, public vocabulary optionally on disk."""
 from io import BytesIO
 from http.client import HTTPException as HTTPClientError
 import json
 import math
 import os
+from functools import lru_cache
 from threading import BoundedSemaphore
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -12,6 +13,7 @@ import wave
 from fastapi import HTTPException
 from app.services.speech_cache import SpeechCache
 from app.services.speech_runtime import speech_runtime
+from app.services.public_speech_cache import PublicSpeechCache
 
 _gate = BoundedSemaphore(1)
 _waiting = BoundedSemaphore(4)
@@ -19,7 +21,19 @@ MAX_AUDIO_BYTES = 12 * 1024 * 1024
 _cache = SpeechCache()
 
 
+@lru_cache(maxsize=1)
+def _public_labels():
+    from app.services.communication import CARDS
+    return frozenset(card['label'] for card in CARDS)
+
+
+@lru_cache(maxsize=1)
+def _disk_cache(directory):
+    return PublicSpeechCache(directory)
+
+
 def synthesize_speech(text, rate, *, account_id=None, voice='girl'):
+    text = text.strip()
     if voice not in {'girl', 'boy'}:
         raise HTTPException(422, '지원하지 않는 음색입니다.')
     base, provider = speech_runtime()
@@ -29,9 +43,19 @@ def synthesize_speech(text, rate, *, account_id=None, voice='girl'):
     # A model/voice change must bump this version, even at the same worker URL.
     version = os.environ.get('TTS_CACHE_VERSION', 'melotts-kr-v1')
     key = (str(account_id), base, provider, version, voice, text, rate) if account_id else None
+    directory = os.environ.get('PUBLIC_SPEECH_CACHE_DIR', '')
+    # Only the shipped catalog, never private uploads or generated sentences.
+    disk = _disk_cache(directory) if directory and text in _public_labels() else None
+    public_key = (base, provider, version, voice, text, rate)
     if key is not None:
         hit = _cache.get(key)
         if hit is not None:
+            return hit
+    if disk is not None:
+        hit = disk.get(public_key)
+        if hit is not None:
+            if key is not None:
+                _cache.put(key, hit)
             return hit
     if not _waiting.acquire(blocking=False):
         raise HTTPException(429, '음성 요청이 많습니다. 잠시 후 다시 눌러 주세요.')
@@ -43,6 +67,12 @@ def synthesize_speech(text, rate, *, account_id=None, voice='girl'):
         if key is not None:
             hit = _cache.get(key)
             if hit is not None:
+                return hit
+        if disk is not None:
+            hit = disk.get(public_key)
+            if hit is not None:
+                if key is not None:
+                    _cache.put(key, hit)
                 return hit
         payload = {'text': text, 'rate': rate}
         if provider == 'qwen3-tts':
@@ -68,6 +98,8 @@ def synthesize_speech(text, rate, *, account_id=None, voice='girl'):
                     raise ValueError('truncated audio')
             if key is not None:
                 _cache.put(key, data)
+            if disk is not None:
+                disk.put(public_key, data)
             return data
         except HTTPError as error:
             if error.code == 429:

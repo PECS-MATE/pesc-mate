@@ -31,7 +31,10 @@ services:
       SPEECH_TTS_URL: http://qwen-tts:8090
       SPEECH_TTS_PROVIDER: qwen3-tts
       SPEECH_TIMEOUT_SECONDS: '75'
+      PUBLIC_SPEECH_CACHE_DIR: /var/cache/pecsmate/public-speech
       TTS_CACHE_VERSION: "${QWEN_CACHE_VERSION:-qwen-synthetic-v1}"
+    volumes:
+      - public_speech_cache:/var/cache/pecsmate/public-speech
     depends_on: !override
       mongodb:
         condition: service_healthy
@@ -42,6 +45,7 @@ services:
       VITE_TTS_PROVIDER: qwen3-tts
       VITE_SPEECH_TIMEOUT_SECONDS: '90'
 volumes:
+  public_speech_cache:
   qwen_voice_models:
     external: true
     name: pecsmate-voice-design_qwen_voice_models

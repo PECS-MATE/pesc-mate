@@ -1645,19 +1645,14 @@ function App() {
       </div></section> },
       { id: 'voice', label: '음성 설정', content: <section className="tts-settings">
           <h3>음성 설정</h3>
-          <p className="form-notice">{import.meta.env.VITE_TTS_PROVIDER === 'qwen3-tts' ? '여자아이·남자아이 합성 음색을 선택할 수 있어요. 기본 속도는 0.90배이며 기기 음성과 음높이는 기기 재생에만 적용됩니다.' : '서버 연결 시 MeloTTS 한국어 음성을 사용합니다. 속도·볼륨을 조절할 수 있고, 음색·음높이는 기기 재생에만 적용됩니다.'}</p>
+          <p className="form-notice">{import.meta.env.VITE_TTS_PROVIDER === 'qwen3-tts' ? '기본 속도는 0.90배예요. 한 번 만든 기본 카드 음성은 저장해 다시 사용해요.' : '두 합성 음색은 Qwen 연결 시 사용할 수 있어요. 현재 서버는 단일 음색을 사용해요.'}</p>
           <div className="tts-settings-grid">
-            <label>음성 느낌<select value={ttsSettings.preset} onChange={event => changeTtsPreset(event.target.value)}>{Object.entries(TTS_PRESETS).map(([value, preset]) => <option key={value} value={value}>{preset.label}</option>)}</select></label>
-            <label>기기 한국어 음성<select value={ttsSettings.voiceName} onChange={event => updateTtsSettings({ voiceName: event.target.value })}><option value="">한국어 음성 자동 선택</option>{ttsSettings.voiceName && !ttsVoices.some(voice => voice.name === ttsSettings.voiceName) && <option value={ttsSettings.voiceName}>{ttsSettings.voiceName} (현재 기기에 없음)</option>}{ttsVoices.map(voice => <option key={voice.voiceURI} value={voice.name}>{voice.name}{voice.localService === true ? ' · 기기 저장' : voice.localService === false ? ' · 온라인 음성' : ' · 오프라인 확인 필요'}</option>)}</select></label>
+            <label>목소리<select value={ttsSettings.preset} onChange={event => changeTtsPreset(event.target.value)}>{Object.entries(TTS_PRESETS).map(([value, preset]) => <option key={value} value={value}>{preset.label}</option>)}</select></label>
             <label>속도 <output>{ttsSettings.rate.toFixed(2)}배</output><input type="range" min="0.5" max="1.5" step="0.05" value={ttsSettings.rate} onChange={event => updateTtsSettings({ rate: Number(event.target.value) })} /></label>
-            <label>음높이 <output>{ttsSettings.pitch.toFixed(2)}</output><input type="range" min="0.5" max="1.5" step="0.05" value={ttsSettings.pitch} onChange={event => updateTtsSettings({ pitch: Number(event.target.value) })} /></label>
             <label>기본 볼륨 <output>{Math.round(ttsSettings.volume * 100)}%</output><input type="range" min="0" max="1" step="0.05" value={ttsSettings.volume} onChange={event => updateTtsSettings({ volume: Number(event.target.value) })} /></label>
           </div>
-          <div className="tts-preview"><small role="status">{localKoreanVoices.length ? `이 기기에 저장된 한국어 음성 ${localKoreanVoices.length}개` : ttsVoices.length ? `이 기기의 한국어 음성 ${ttsVoices.length}개 · 오프라인 사용은 별도 확인` : '이 기기에서 한국어 음성을 아직 찾지 못했어요. 기기 음성 테스트를 눌러 확인해 주세요.'}</small><span>
-            <button type="button" disabled={busy || ttsSettingsBusy || offline} onClick={() => speakText('안녕하세요. 서버에서 만든 한국어 음성입니다.', 'preview')}>서버 음성 테스트</button>
-            <button type="button" disabled={busy || ttsSettingsBusy} onClick={() => speakText('안녕하세요. 목소리를 확인해 보세요.', 'preview', [], '', { speechOnly: true })}>기기 음성 테스트</button>
-            <button type="button" disabled={busy || ttsSettingsBusy} onClick={() => speakText('한국어 기본 음성을 확인합니다.', 'preview', [], '', { speechOnly: true, systemVoice: true })}>한국어 기본 음성 테스트</button>
-            <button type="button" disabled={busy || ttsSettingsBusy} onClick={() => speakText('도와주세요', 'preview', [], '', { preferAudio: true, audioOnly: true })}>기본 녹음 테스트</button>
+          <div className="tts-preview"><span>
+            <button type="button" disabled={busy || ttsSettingsBusy || offline} onClick={() => speakText('도와주세요', 'preview')}>미리 듣기</button>
             <button type="button" className="primary" disabled={ttsSettingsBusy || ttsSettingsSaved} onClick={saveTtsSettings}>{ttsSettingsBusy ? '저장 중…' : ttsSettingsSaved ? '저장됨' : '설정 저장'}</button></span></div>
         </section> },
       { id: 'guardian', label: '보호자 설정', content: <div className="guardian-settings">
@@ -1930,10 +1925,8 @@ function App() {
       <fieldset className="support-settings-fieldset" disabled={isCaregiver && (statsBusy || ttsSettingsBusy || accessibilityBusy)}><legend className="visually-hidden">아이 음성 및 화면 설정</legend>
       <div className="support-settings-grid">
         <article><h3>목소리 설정</h3>{isCaregiver && <p>이 영역의 저장 버튼은 {selectedUser?.name}님의 목소리에만 적용돼요.</p>}<div className="tts-settings-grid">
-          <label>음성 느낌<select value={ttsSettings.preset} onChange={event => changeTtsPreset(event.target.value)}>{Object.entries(TTS_PRESETS).map(([value, preset]) => <option key={value} value={value}>{preset.label}</option>)}</select></label>
-          <label>기기 한국어 음성<select value={ttsSettings.voiceName} onChange={event => updateTtsSettings({ voiceName: event.target.value })}><option value="">한국어 음성 자동 선택</option>{ttsVoices.map(voice => <option key={voice.voiceURI} value={voice.name}>{voice.name}{voice.localService === true ? ' · 기기 저장' : voice.localService === false ? ' · 온라인 음성' : ' · 오프라인 확인 필요'}</option>)}</select></label>
+          <label>목소리<select value={ttsSettings.preset} onChange={event => changeTtsPreset(event.target.value)}>{Object.entries(TTS_PRESETS).map(([value, preset]) => <option key={value} value={value}>{preset.label}</option>)}</select></label>
           <label>속도 <output>{ttsSettings.rate.toFixed(2)}배</output><input type="range" min="0.5" max="1.5" step="0.05" value={ttsSettings.rate} onChange={event => updateTtsSettings({ rate: Number(event.target.value) })} /></label>
-          <label>음높이 <output>{ttsSettings.pitch.toFixed(2)}</output><input type="range" min="0.5" max="1.5" step="0.05" value={ttsSettings.pitch} onChange={event => updateTtsSettings({ pitch: Number(event.target.value) })} /></label>
           <label>기본 볼륨 <output>{Math.round(ttsSettings.volume * 100)}%</output><input type="range" min="0" max="1" step="0.05" value={ttsSettings.volume} onChange={event => updateTtsSettings({ volume: Number(event.target.value) })} /></label>
         </div><button className="primary" disabled={ttsSettingsBusy || ttsSettingsSaved} onClick={saveTtsSettings}>{ttsSettingsBusy ? '저장 중…' : ttsSettingsSaved ? '저장됨' : '목소리 저장'}</button></article>
         <article><h3>화면 접근 설정</h3>{isCaregiver && <p>화면 표시와 발화 방식은 여기에서 따로 저장해 주세요.</p>}<div className="support-access-fields">
