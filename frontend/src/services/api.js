@@ -109,21 +109,24 @@ export async function requestBlob(path, fallbackMessage = '이미지를 불러�
   }
 }
 
-export function requestSpeechAudio(text, rate, signal) {
-  return speechAudioQueue.request(text, rate, signal);
+export function requestSpeechAudio(text, rate, signal, preset = 'girl') {
+  return speechAudioQueue.request(text, rate, signal, ['boy', 'man'].includes(preset) ? 'boy' : 'girl');
 }
 
-async function fetchSpeechAudio(text, rate, signal, token) {
+async function fetchSpeechAudio(text, rate, signal, token, voice) {
   const controller = new AbortController();
   const cancel = () => controller.abort();
   if (signal?.aborted) cancel();
   signal?.addEventListener('abort', cancel, { once: true });
-  const timer = setTimeout(cancel, 50000);
+  const configuredTimeout = Number(import.meta.env.VITE_SPEECH_TIMEOUT_SECONDS ?? 50);
+  const timeoutSeconds = Number.isFinite(configuredTimeout) && configuredTimeout >= 5 && configuredTimeout <= 125
+    ? configuredTimeout : 50;
+  const timer = setTimeout(cancel, timeoutSeconds * 1000);
   try {
     const { response, requestId } = await fetchWithRequestId(`${API_BASE_URL}/api/tts/speech`, {
       method: 'POST', signal: controller.signal, cache: 'no-store',
       headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: JSON.stringify({ text, rate }),
+      body: JSON.stringify({ text, rate, voice }),
     });
     if (!response.ok) throw await responseError(response, requestId, '로컬 음성 서버를 확인해 주세요.', '/tts/speech', token ? `Bearer ${token}` : null);
     const blob = await response.blob();

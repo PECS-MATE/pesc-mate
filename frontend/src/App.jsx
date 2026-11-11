@@ -737,7 +737,7 @@ function App() {
   }
   function speechFailureMessage(errorCode) {
     if (errorCode === 'server-busy') return '로컬 음성 서버가 사용 중입니다. 잠시 후 다시 눌러 주세요.';
-    if (errorCode === 'server-unavailable') return 'MeloTTS 음성 서버를 확인해 주세요. 첫 실행은 모델 다운로드와 준비에 시간이 필요합니다.';
+    if (errorCode === 'server-unavailable') return '음성 서버를 확인해 주세요. 첫 실행은 모델 다운로드와 준비에 시간이 필요합니다.';
     if (errorCode === 'volume-zero') return '기본 볼륨이 0입니다. 음성 설정에서 볼륨을 올려 주세요.';
     if (errorCode === 'not-allowed') return '이 기기의 브라우저가 음성 재생을 막았어요. 다시 재생을 직접 눌러 주세요. 기기 음량과 블루투스 출력도 확인해 주세요.';
     if (['language-unavailable', 'voice-unavailable'].includes(errorCode)) return '기기에 한국어 음성을 설치하거나 음성 설정에서 다른 음성을 선택해 주세요.';
@@ -793,7 +793,7 @@ function App() {
       audioUrl: coreAudioUrl,
       preferAudio: !playback.speechOnly && (Boolean(coreAudioUrl) || playback.preferAudio || offline || !voice),
       resolveAudio: !offline && !coreAudioUrl && !playback.speechOnly && !playback.audioOnly
-        ? signal => requestSpeechAudio(content, ttsSettings.rate, signal) : null,
+        ? signal => requestSpeechAudio(content, ttsSettings.rate, signal, ttsSettings.preset) : null,
       allowSpeechFallback: !playback.audioOnly && Boolean(offline || playback.speechOnly),
       onStart: () => {
         speechEvent.startupMs = Math.max(0, Date.now() - speechEvent.requestedAt);
@@ -836,7 +836,7 @@ function App() {
     // Reuse the shared player so urgent/communication speech can always replace
     // a prompt. Prompts never become communication events or the last utterance.
     speechPlayback.speak({ text: card.label, voice, rate: ttsSettings.rate, pitch: ttsSettings.pitch, volume: ttsSettings.volume,
-      resolveAudio: !offline ? signal => requestSpeechAudio(card.label, ttsSettings.rate, signal) : null,
+      resolveAudio: !offline ? signal => requestSpeechAudio(card.label, ttsSettings.rate, signal, ttsSettings.preset) : null,
       allowSpeechFallback: offline,
       onStart: () => { if (isCurrent()) { setSpeechState({ status: 'playing', content: '학습 문제 음성' }); callbacks.onStart(); } },
       onPause: () => { if (isCurrent()) setSpeechState({ status: 'paused', content: '학습 문제 음성' }); },
@@ -1645,7 +1645,7 @@ function App() {
       </div></section> },
       { id: 'voice', label: '음성 설정', content: <section className="tts-settings">
           <h3>음성 설정</h3>
-          <p className="form-notice">서버 연결 시 MeloTTS 한국어 음성을 사용합니다. 속도·볼륨을 조절할 수 있고, 기기 음성 선택·느낌·음높이는 오프라인 기기 합성에만 적용됩니다.</p>
+          <p className="form-notice">{import.meta.env.VITE_TTS_PROVIDER === 'qwen3-tts' ? '여자아이·남자아이 합성 음색을 선택할 수 있어요. 기본 속도는 0.90배이며 기기 음성과 음높이는 기기 재생에만 적용됩니다.' : '서버 연결 시 MeloTTS 한국어 음성을 사용합니다. 속도·볼륨을 조절할 수 있고, 음색·음높이는 기기 재생에만 적용됩니다.'}</p>
           <div className="tts-settings-grid">
             <label>음성 느낌<select value={ttsSettings.preset} onChange={event => changeTtsPreset(event.target.value)}>{Object.entries(TTS_PRESETS).map(([value, preset]) => <option key={value} value={value}>{preset.label}</option>)}</select></label>
             <label>기기 한국어 음성<select value={ttsSettings.voiceName} onChange={event => updateTtsSettings({ voiceName: event.target.value })}><option value="">한국어 음성 자동 선택</option>{ttsSettings.voiceName && !ttsVoices.some(voice => voice.name === ttsSettings.voiceName) && <option value={ttsSettings.voiceName}>{ttsSettings.voiceName} (현재 기기에 없음)</option>}{ttsVoices.map(voice => <option key={voice.voiceURI} value={voice.name}>{voice.name}{voice.localService === true ? ' · 기기 저장' : voice.localService === false ? ' · 온라인 음성' : ' · 오프라인 확인 필요'}</option>)}</select></label>

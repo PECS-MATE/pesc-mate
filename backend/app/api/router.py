@@ -263,7 +263,7 @@ def update_account_access(target_id: str, payload: AccountAccessRequest, request
 
 
 class TtsSettingsRequest(BaseModel):
-    preset: Literal['child', 'woman', 'man']
+    preset: Literal['girl', 'boy', 'child', 'woman', 'man']
     voice_name: str = Field(default='', max_length=120)
     rate: float = Field(ge=0.5, le=1.5)
     pitch: float = Field(ge=0.5, le=1.5)
@@ -872,6 +872,7 @@ def sign_out(_user=Depends(current_user), credentials=Depends(security)):
 
 class ServerSpeechRequest(BaseModel):
     text: str = Field(min_length=1, max_length=300)
+    voice: Literal['girl', 'boy'] = 'girl'
     rate: float = Field(default=1.0, ge=0.5, le=1.5, allow_inf_nan=False)
 
 
@@ -880,7 +881,7 @@ def server_speech(request: ServerSpeechRequest, _user=Depends(current_user)):
     text = request.text.strip()
     if not text:
         raise HTTPException(422, '읽을 문장을 입력해 주세요.')
-    return Response(synthesize_speech(text, request.rate, account_id=_user['id']), media_type='audio/wav',
+    return Response(synthesize_speech(text, request.rate, account_id=_user['id'], voice=request.voice), media_type='audio/wav',
                     headers={'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff'})
 
 

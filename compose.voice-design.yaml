@@ -12,6 +12,7 @@ services:
     volumes:
       - qwen_voice_models:/models
       - ./services/qwen-voice-design/voice-description.txt:/app/voice-description.txt:ro
+      - ./services/qwen-voice-design/voice-description-boy.txt:/app/voice-description-boy.txt:ro
       - ./.local-voice-design:/output
     # No web port, application database access, or automatic startup.
     restart: "no"

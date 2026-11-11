@@ -14,11 +14,11 @@ from generate import preflight
 MODEL_ID = 'Qwen/Qwen3-TTS-12Hz-0.6B-Base'
 gate = Lock()
 model = None
-prompt = None
+prompts = {}
 voice_version = None
 
 
-def synthesize(text, rate):
+def synthesize(text, rate, voice='girl'):
     import librosa
     import numpy as np
     import soundfile as sf
@@ -26,7 +26,7 @@ def synthesize(text, rate):
     with torch.inference_mode(), redirect_stdout(StringIO()):
         torch.manual_seed(42)
         wavs, sample_rate = model.generate_voice_clone(
-            text=text, language='Korean', voice_clone_prompt=prompt, max_new_tokens=2048)
+            text=text, language='Korean', voice_clone_prompt=prompts[voice], max_new_tokens=2048)
     audio = np.asarray(wavs[0], dtype=np.float32)
     if audio.ndim != 1 or not len(audio) or not np.isfinite(audio).all():
         raise ValueError('invalid audio')
@@ -67,7 +67,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path != '/health':
             return self.reply(404, {'detail': 'not found'})
         self.reply(200, {'status': 'ready', 'provider': 'qwen3-tts', 'language': 'ko-KR',
-                         'voice_version': voice_version})
+                         'voice_version': voice_version, 'voices': sorted(prompts)})
 
     def do_POST(self):
         if self.path != '/speech':
@@ -80,7 +80,9 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(size))
             text = body.get('text')
             rate = body.get('rate', 1.0)
+            voice = body.get('voice', 'girl')
             if (not isinstance(text, str) or not 1 <= len(text.strip()) <= 300
+                    or not isinstance(voice, str) or voice not in prompts
                     or isinstance(rate, bool) or not isinstance(rate, (int, float))
                     or not math.isfinite(rate) or not 0.5 <= rate <= 1.5):
                 raise ValueError('invalid input')
@@ -89,7 +91,7 @@ class Handler(BaseHTTPRequestHandler):
         if not gate.acquire(blocking=False):
             return self.reply(429, {'detail': 'busy'})
         try:
-            data = synthesize(text.strip(), rate)
+            data = synthesize(text.strip(), rate, voice)
             self.reply(200, data, 'audio/wav')
         except Exception as error:
             print('QWEN | FAILED | ' + type(error).__name__, flush=True)
@@ -99,14 +101,21 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    global model, prompt, voice_version
+    global model, voice_version
     preflight()
-    reference = Path('/reference')
-    metadata = json.loads((reference / 'metadata.json').read_text(encoding='utf-8'))
-    # Only references produced by our VoiceDesign tool, not uploaded human recordings.
-    if metadata.get('model') != 'Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign' or not metadata.get('text'):
-        raise RuntimeError('VoiceDesign sample metadata required')
-    voice_version = hashlib.sha256((reference / 'sample.wav').read_bytes()).hexdigest()[:20]
+    references = {}
+    for voice, directory in (('girl', '/reference'), ('boy', '/reference-boy')):
+        reference = Path(directory)
+        # The original single-reference setup remains usable; never fake a boy voice.
+        if voice == 'boy' and not (reference / 'metadata.json').is_file():
+            continue
+        metadata = json.loads((reference / 'metadata.json').read_text(encoding='utf-8'))
+        if metadata.get('model') != 'Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign' or not metadata.get('text'):
+            raise RuntimeError('VoiceDesign sample metadata required')
+        references[voice] = (reference, metadata)
+    voice_version = hashlib.sha256(b''.join(
+        voice.encode() + (reference / 'sample.wav').read_bytes()
+        for voice, (reference, _) in sorted(references.items()))).hexdigest()[:20]
     import torch
     from huggingface_hub import snapshot_download
     from qwen_tts import Qwen3TTSModel
@@ -118,8 +127,9 @@ def main():
     model = Qwen3TTSModel.from_pretrained(snapshot,
         device_map='cpu', dtype=getattr(torch, dtype), attn_implementation='sdpa')
     with redirect_stdout(StringIO()), torch.inference_mode():
-        prompt = model.create_voice_clone_prompt(ref_audio=str(reference / 'sample.wav'),
-                                                  ref_text=metadata['text'])
+        for voice, (reference, metadata) in references.items():
+            prompts[voice] = model.create_voice_clone_prompt(ref_audio=str(reference / 'sample.wav'),
+                                                             ref_text=metadata['text'])
     synthesize('안녕하세요.', 0.9)  # Warm decoder and rate processing before readiness.
     print('QWEN | READY | synthetic reference=' + voice_version, flush=True)
     ThreadingHTTPServer(('0.0.0.0', 8090), Handler).serve_forever()

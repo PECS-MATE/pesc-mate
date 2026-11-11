@@ -2,6 +2,7 @@
 from io import BytesIO
 from http.client import HTTPException as HTTPClientError
 import json
+import math
 import os
 from threading import BoundedSemaphore
 from urllib.error import HTTPError, URLError
@@ -18,14 +19,16 @@ MAX_AUDIO_BYTES = 12 * 1024 * 1024
 _cache = SpeechCache()
 
 
-def synthesize_speech(text, rate, *, account_id=None):
+def synthesize_speech(text, rate, *, account_id=None, voice='girl'):
+    if voice not in {'girl', 'boy'}:
+        raise HTTPException(422, '지원하지 않는 음색입니다.')
     base, provider = speech_runtime()
     if not base:
         raise HTTPException(503, '로컬 음성 서버가 설정되지 않았습니다.')
     # Authentication is still checked by the route before every cache lookup.
     # A model/voice change must bump this version, even at the same worker URL.
     version = os.environ.get('TTS_CACHE_VERSION', 'melotts-kr-v1')
-    key = (str(account_id), base, provider, version, text, rate) if account_id else None
+    key = (str(account_id), base, provider, version, voice, text, rate) if account_id else None
     if key is not None:
         hit = _cache.get(key)
         if hit is not None:
@@ -41,11 +44,20 @@ def synthesize_speech(text, rate, *, account_id=None):
             hit = _cache.get(key)
             if hit is not None:
                 return hit
+        payload = {'text': text, 'rate': rate}
+        if provider == 'qwen3-tts':
+            payload['voice'] = voice
         request = Request(f'{base}/speech', method='POST',
-                          data=json.dumps({'text': text, 'rate': rate}, ensure_ascii=False).encode('utf-8'),
+                          data=json.dumps(payload, ensure_ascii=False).encode('utf-8'),
                           headers={'Content-Type': 'application/json'})
         try:
-            with urlopen(request, timeout=35) as response:
+            try:
+                timeout = float(os.environ.get('SPEECH_TIMEOUT_SECONDS', '35'))
+                if not math.isfinite(timeout) or not 5 <= timeout <= 120:
+                    raise ValueError('timeout range')
+            except ValueError:
+                timeout = 35
+            with urlopen(request, timeout=timeout) as response:
                 data = response.read(MAX_AUDIO_BYTES + 1)
             if len(data) > MAX_AUDIO_BYTES:
                 raise ValueError('oversized audio')

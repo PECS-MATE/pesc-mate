@@ -11,6 +11,7 @@ services:
     volumes:
       - qwen_voice_models:/models
       - ${QWEN_REFERENCE_DIR:-./.local-voice-design/selected}:/reference:ro
+      - ${QWEN_BOY_REFERENCE_DIR:-./.local-voice-design/selected-boy}:/reference-boy:ro
     environment:
       QWEN_BASE_REVISION: "${QWEN_BASE_REVISION:-main}"
       QWEN_DTYPE: "${QWEN_DTYPE:-bfloat16}"
@@ -29,6 +30,7 @@ services:
     environment:
       SPEECH_TTS_URL: http://qwen-tts:8090
       SPEECH_TTS_PROVIDER: qwen3-tts
+      SPEECH_TIMEOUT_SECONDS: '75'
       TTS_CACHE_VERSION: "${QWEN_CACHE_VERSION:-qwen-synthetic-v1}"
     depends_on: !override
       mongodb:
@@ -38,6 +40,7 @@ services:
   frontend:
     environment:
       VITE_TTS_PROVIDER: qwen3-tts
+      VITE_SPEECH_TIMEOUT_SECONDS: '90'
 volumes:
   qwen_voice_models:
     external: true

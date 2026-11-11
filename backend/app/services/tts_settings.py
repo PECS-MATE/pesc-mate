@@ -9,7 +9,7 @@ from app.services.schema_versions import SCHEMA_VERSION
 
 
 DEFAULT_SETTINGS = {
-    'preset': 'child',
+    'preset': 'girl',
     'voice_name': '',
     'rate': 0.9,
     'pitch': 1.25,

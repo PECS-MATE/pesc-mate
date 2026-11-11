@@ -52,18 +52,24 @@ export const CARD_META = Object.fromEntries([
 ].map(([id, label]) => [id, { id, label }]));
 
 export const TTS_PRESETS = {
-  child: { label: '어린이 느낌', rate: 0.9, pitch: 1.25 },
-  woman: { label: '여성 느낌', rate: 0.95, pitch: 1.05 },
-  man: { label: '남성 느낌', rate: 0.85, pitch: 0.8 },
+  girl: { label: '여자아이', rate: 0.9, pitch: 1.25 },
+  boy: { label: '남자아이', rate: 0.9, pitch: 1.15 },
+  ...(import.meta.env.VITE_TTS_PROVIDER === 'qwen3-tts' ? {} : {
+    child: { label: '어린이 느낌', rate: 0.9, pitch: 1.25 },
+    woman: { label: '여성 느낌', rate: 0.95, pitch: 1.05 },
+    man: { label: '남성 느낌', rate: 0.85, pitch: 0.8 },
+  }),
 };
 
 export const DEFAULT_TTS_SETTINGS = {
-  preset: 'child', voiceName: '', rate: 0.9, pitch: 1.25, volume: 1,
+  preset: 'girl', voiceName: '', rate: 0.9, pitch: 1.25, volume: 1,
 };
 
 export function normalizeTtsSettings(settings = {}) {
+  const preset = settings.preset || DEFAULT_TTS_SETTINGS.preset;
   return {
-    preset: settings.preset || DEFAULT_TTS_SETTINGS.preset,
+    preset: import.meta.env.VITE_TTS_PROVIDER === 'qwen3-tts'
+      ? (['boy', 'man'].includes(preset) ? 'boy' : 'girl') : preset,
     voiceName: settings.voiceName ?? settings.voice_name ?? '',
     rate: settings.rate ?? DEFAULT_TTS_SETTINGS.rate,
     pitch: settings.pitch ?? DEFAULT_TTS_SETTINGS.pitch,
