@@ -1,4 +1,5 @@
 """Stable per-user communication board and quick-expression configuration."""
+from app.services.write_lock import image_write_lock
 from datetime import datetime, timezone
 from uuid import uuid4
 import unicodedata
@@ -124,7 +125,7 @@ def save_locks(user_id, requester, card_ids, expected_revision):
     # Serialize lock changes with photo replacement and privacy deletion. Board
     # moves are independently serialized by the same board revision CAS below.
     db = _database()
-    with image_storage.image_write_lock(db):
+    with image_write_lock(db):
         image_storage.check_deletion_race(db, user_id, started)
         require_link_permission(requester, user_id, 'board_manage')
         return _save(user_id, requester['id'], 'locked_card_ids', values,
@@ -180,7 +181,7 @@ def change_situations(user_id, requester, expected_revision, operation, *,
 
     started = datetime.now(timezone.utc)
     db = _database()
-    with image_storage.image_write_lock(db):
+    with image_write_lock(db):
         image_storage.check_deletion_race(db, user_id, started)
         require_link_permission(requester, user_id, 'board_manage')
         return _save(user_id, requester['id'], 'situations', transform,

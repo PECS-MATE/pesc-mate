@@ -1,4 +1,5 @@
 """User card submissions waiting for administrator review."""
+from app.services.write_lock import image_write_lock
 from datetime import datetime, timezone
 from hashlib import sha256
 from io import BytesIO
@@ -263,7 +264,7 @@ def create_submission(owner_id, label, meaning, category, visibility,
     try:
         collection = _collection()
         _ensure_indexes(collection)
-        with storage.image_write_lock(collection.database):
+        with image_write_lock(collection.database):
             storage.check_deletion_race(collection.database, owner_id, started,
                                         require_consent=content_operator is None)
             _ensure_unique_label(collection, normalized_label, owner_id, visibility)
@@ -311,7 +312,7 @@ def replace_submission_image(submission_id, owner_id, requester, image_content_t
         collection = _collection(); db = collection.database
         check(collection.find_one({'_id': submission_id, 'owner_id': owner_id}, IMAGE_METADATA), db)
         payload = _image_payload(image_data, image_content_type, image_edits)
-        with storage.image_write_lock(db):
+        with image_write_lock(db):
             storage.check_deletion_race(db, owner_id, started, require_consent=True)
             require_link_permission(requester, owner_id, 'cards_manage')
             previous = collection.find_one({'_id': submission_id, 'owner_id': owner_id})

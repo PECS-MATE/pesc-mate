@@ -50,7 +50,7 @@ def save_privacy(user_id, guardian_consent, retention_days):
     # Otherwise a writer that already checked consent could insert after withdrawal.
     if retention_days not in {30, 90, 365, 1095}:
         raise HTTPException(422, '보존 기간이 올바르지 않습니다.')
-    from app.services.image_storage import image_write_lock
+    from app.services.write_lock import image_write_lock
     try:
         with image_write_lock(_database()):
             return _save_privacy(user_id, guardian_consent, retention_days)
@@ -160,7 +160,8 @@ def export_for(user_id):
 
 
 def delete_personal_data(user_id):
-    from app.services.image_storage import deletion_watermark, image_write_lock
+    from app.services.image_storage import deletion_watermark
+    from app.services.write_lock import image_write_lock
     try:
         db = _database()
         with image_write_lock(db):

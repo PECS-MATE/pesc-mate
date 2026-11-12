@@ -12,7 +12,7 @@ from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from app.services.database import database
 from app.services.schema_versions import SCHEMA_VERSION
-from app.services.image_storage import image_write_lock
+from app.services.write_lock import image_write_lock
 from app.services.privacy import privacy_for
 from app.services.communication import CARDS
 from app.services.card_submissions import approved_cards_for

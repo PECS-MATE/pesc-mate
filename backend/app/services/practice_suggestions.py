@@ -14,7 +14,7 @@ from app.services.privacy import privacy_for
 from app.services.recommendations import available_cards
 from app.services.schema_versions import SCHEMA_VERSION
 from app.services.learning_model import choose as choose_with_model, PROMPT_VERSION
-from app.services.image_storage import image_write_lock
+from app.services.write_lock import image_write_lock
 
 WINDOW_DAYS = 14
 MAX_SELECTIONS = 500

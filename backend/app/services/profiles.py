@@ -1,4 +1,5 @@
 """Persistent account profiles with fail-closed image safety validation."""
+from app.services.write_lock import image_write_lock
 from datetime import datetime, timezone
 from fastapi import HTTPException
 from pymongo.errors import PyMongoError
@@ -42,7 +43,7 @@ def save_profile(user_id, preset=None, image_data=None, content_type=None):
         profile['thumbnail_url'] = profile['image_url'] + '&variant=thumbnail'
     try:
         db = database()
-        with storage.image_write_lock(db):
+        with image_write_lock(db):
             storage.check_deletion_race(db, user_id, started)
             previous = db.users.find_one({'_id': user_id}) or {}
             storage.check_capacity(db, user_id, storage.byte_count(profile), storage.byte_count(previous.get('profile') or {}))

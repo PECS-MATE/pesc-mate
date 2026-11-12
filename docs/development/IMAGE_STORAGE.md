@@ -350,3 +350,36 @@ Chromium 39개로 총 721개가 제외 없이 통과했고 빌드·임시 환경
 
 </details>
 
+
+## 공통 쓰기 잠금 모듈 — 2026-11-13
+
+구현은 `app.services.write_lock.image_write_lock`이 소유하며
+`image_storage.image_write_lock`과 `image_storage.LOCK_ID`는 호환 경로로 유지한다.
+컬렉션 `image_storage_state`, 문서 ID `image-writes`, UUID 소유 토큰,
+무기한 유지, 기존 409/503 메시지와 토큰 조건 해제는 그대로다.
+
+| 호출자 | 보호 대상·임계 구역 | 최종 재검사·삭제 방지 |
+| --- | --- | --- |
+| card_submissions create/replace | 이미지·원본·파생본 용량 집계, 카드 쓰기와 감사 | 삭제 watermark, 권한 재검사, 이미지 revision/CAS |
+| profiles save_profile | 계정 프로필 이미지 교체·용량 | 계정 존재·삭제 watermark |
+| a4_projects insert/report/delete | 카드판 용량·저장·신고·삭제 | 소유자/가시성, 삭제 watermark, 상태·version 조건 |
+| board_layout locks/situations | 카드판 변경과 감사 | 연결 권한, 삭제 watermark, 기존 revision |
+| rfid device/session/ingest/binding | 장치·세션·매핑 변경과 감사 | 현재 계정·연결 권한·동의, 활성 세션 조건, upsert 범위 유지 |
+| practice_suggestions | 개인화 설정·생성 후보 저장·승인·피드백 | 최신 동의·연결 권한·후보 및 피드백 상태 |
+| recording_guard | communication/learning/offline_events/tts_events 등의 짧은 기록 쓰기 | 잠금 안에서 기록 동의·삭제 상태·recording_revision 비교 |
+| privacy | 동의 변경·보존기간 정리·개인정보 삭제 | 기록 revision 증가, 이미지 삭제 watermark, 실패 상태·삭제 확인 기록 |
+| image_maintenance | 이미지 복구·backfill | DB 이름·작성자 중지 확인, 정확한 소유 토큰 |
+
+추론·TTS·OCR·이미지 정규화는 기존처럼 저장 임계 구역 밖에 둔다.
+잠금 안의 `available_cards`, 권한·동의·용량 조회 등은 DB 작업이며 일부
+추가 헬퍼 조회가 있다. 네트워크 요청 위치를 바꾸거나 잠금 범위를 축소하지 않았다.
+잠금 수·획득 순서·재시도·오류 처리도 바꾸지 않았다.
+
+사용자별 잠금은 사용자 간 경합을 줄일 수 있으나 전체 용량 집계와 공용 매핑·공유,
+삭제 경계가 여러 잠금에 걸려 획득 순서와 원자성 설계가 필요하다.
+현 구조는 병렬 쓰기를 제한하지만 기존 전체 용량·삭제 보호를 한 경계에서 유지한다.
+이번 작업은 현 구조 유지와 모듈 격리를 선택했다. TTL·자동 해제·트랜잭션 전환은 제외한다.
+
+1단계에서 실제 MongoDB 프로세스 경합·강제 종료 복구·용량 검사를 통과했지만,
+이 모듈 이동 후에는 사용자 지시로 검증을 실행하지 않았다.
+기존 수치를 이동 후 동작이나 실사용 성능의 근거로 사용하지 않는다.

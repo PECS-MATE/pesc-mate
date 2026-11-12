@@ -7,6 +7,7 @@ from fastapi import HTTPException
 
 from app.services.database import client
 from app.services import image_storage as storage
+from app.services.write_lock import LOCK_ID, image_write_lock
 from app.services.card_submissions import _normalize_image
 
 
@@ -19,19 +20,19 @@ def maintain(db, command='audit', *, apply=False, confirm_database=None, writers
         raise ValueError('database_and_stopped_writers_confirmation_required')
     if not 1 <= batch_size <= 500:
         raise ValueError('invalid_batch_size')
-    lock = db.image_storage_state.find_one({'_id': storage.LOCK_ID})
+    lock = db.image_storage_state.find_one({'_id': LOCK_ID})
     if command == 'clear-lock':
         if apply:
             if not lock or not lock_token or lock.get('token') != lock_token:
                 raise ValueError('exact_lock_token_required')
-            removed = db.image_storage_state.delete_one({'_id': storage.LOCK_ID, 'token': lock_token}).deleted_count
+            removed = db.image_storage_state.delete_one({'_id': LOCK_ID, 'token': lock_token}).deleted_count
             return {'mode': 'apply', 'locks_removed': removed}
         return {'mode': 'dry_run', 'lock_present': bool(lock), 'lock_token': (lock or {}).get('token')}
     if command not in {'audit', 'backfill'}:
         raise ValueError('unknown_command')
     if not apply:
         return _run(db, command, False, batch_size, bool(lock))
-    with storage.image_write_lock(db):
+    with image_write_lock(db):
         return _run(db, command, True, batch_size, False)
 
 

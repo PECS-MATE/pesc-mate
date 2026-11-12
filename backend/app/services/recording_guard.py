@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from pymongo.errors import PyMongoError
 
 from app.services.database import database
-from app.services.image_storage import image_write_lock
+from app.services.write_lock import image_write_lock
 
 
 def recording_revision(user_id):

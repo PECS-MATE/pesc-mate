@@ -1,4 +1,5 @@
 """Account-owned A4 copies and explicitly moderated caregiver sharing."""
+from app.services.write_lock import image_write_lock
 import base64
 from datetime import datetime, timezone
 from functools import wraps
@@ -215,7 +216,7 @@ def _preview(project, images):
 
 def _insert(row, fingerprint, user, started):
     collection = _collection()
-    with storage.image_write_lock(collection.database):
+    with image_write_lock(collection.database):
         storage.check_deletion_race(collection.database, user['id'], started)
         return _insert_locked(row, fingerprint, user, collection)
 
@@ -386,7 +387,7 @@ def report_project(project_id, reason, user):
         raise HTTPException(422, '신고 사유를 세 글자 이상 입력해 주세요.')
     key = sha256(f'{project_id}:{user["id"]}'.encode()).hexdigest()
     db = database()
-    with storage.image_write_lock(db):
+    with image_write_lock(db):
         storage.check_deletion_race(db, user['id'], started)
         if _load(project_id, user)['status'] != 'approved':
             raise HTTPException(409, '공유가 중단된 카드판입니다.')
@@ -406,7 +407,7 @@ def delete_project(project_id, expected_version, user):
     if row['status'] not in {'private', 'rejected', 'withdrawn'}:
         raise HTTPException(409, '먼저 공유를 중단한 뒤 삭제해 주세요.')
     collection = _collection()
-    with storage.image_write_lock(collection.database):
+    with image_write_lock(collection.database):
         # Keep only an idempotency tombstone so delayed retries cannot resurrect images.
         result = collection.update_one({'_id': project_id, 'owner_id': user['id'], 'version': expected_version}, {
             '$set': {'status': 'deleted', 'storage_bytes': 0}, '$inc': {'version': 1},

@@ -194,3 +194,12 @@ docker compose logs --since 15m --tail 300 backend | Select-String -SimpleMatch 
 마이그레이션 전 백업과 실패 시 되돌리기는 [로컬 백업·격리 복구 절차](MIGRATION_BACKUP_RECOVERY.md)를 따른다.
 감사 무결성 불일치는 [감사 보관·검증 절차](AUDIT_RETENTION_INTEGRITY.md)에 따라 기존
 서명과 승인된 삭제/변경 증거를 보존하고 조사한다. 불일치를 감추기 위해 원본 서명을 덮어쓰지 않는다.
+
+## 공통 쓰기 잠금 복구 경계 — 2026-11-13
+
+이미지·개인정보·학습·기록·RFID 쓰기는 `app.services.write_lock`의
+단일 비만료 MongoDB 잠금을 공유한다. 강제 종료로 남은 잠금은 기존
+`app.image_maintenance clear-lock` 절차로만 복구한다. DB 이름·작성자 중지·
+정확한 현재 소유 토큰 확인을 유지하며, 잘못된 토큰이나 다른 소유 토큰을 해제하지 않는다.
+`image_storage`의 이전 진입점도 유지한다. 자동 TTL 해제는 추가하지 않았다.
+분리 후 검증은 사용자 요청으로 미실행이다.
