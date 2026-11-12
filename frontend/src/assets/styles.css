@@ -408,6 +408,8 @@ body::before, body::after { display: none; }
 .topbar .status.offline { color: var(--color-warning); border-color: var(--color-warning); background: var(--color-warning-surface); }
 .offline-notice { margin: -12px 0 18px; padding: 12px 14px; border: 1px solid var(--color-warning); border-radius: 12px; color: var(--color-warning); background: var(--color-warning-surface); font-weight: 700; line-height: 1.5; }
 .topbar-statuses { display: grid; justify-items: end; gap: 9px; }
+.topbar-statuses > .status { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.topbar-statuses > .status > b { flex: 0 0 8px; }
 .topbar.topbar-controls-only { min-height: 0; margin-bottom: 0; padding: 0; }
 .connection-menu { position: relative; z-index: 20; width: 220px; max-width: 100%; }
 .connection-menu > summary.status { display: grid; grid-template-columns: 8px minmax(0, 1fr) 20px; align-items: center; gap: 8px; width: 100%; min-height: 44px; cursor: pointer; list-style: none; color: var(--ui-muted); font-weight: 700; line-height: 1.4; }
