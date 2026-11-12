@@ -41,6 +41,7 @@ def settings_for(user_id):
         raise HTTPException(503, '학습 설정을 불러오지 못했습니다.') from exc
 
 
+@guarded_recording
 def save_settings(user_id, actor_id, category_ids, question_count, option_count,
                   repeat_frequency, time_limit_seconds, retry_enabled):
     categories = list(dict.fromkeys(category_ids))

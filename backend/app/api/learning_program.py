@@ -15,6 +15,7 @@ from app.services.schema_versions import SCHEMA_VERSION
 from app.services.communication import CARDS
 from app.services.card_submissions import approved_cards_for
 from app.services.learning import _audit
+from app.services.recording_guard import recording_revision, recording_write
 
 router = APIRouter(prefix='/learning/program', tags=['학습 코스'])
 ACTIVITIES = Literal['word_picture_match', 'sound_picture_match', 'situation_card_match']
@@ -112,23 +113,27 @@ def get_program(response: Response, user_id: str | None = Query(default=None, ma
 def save_program(body: ProgramChange, response: Response, user_id: str = Query(min_length=1, max_length=64),
                  user=Depends(current_user)):
     authorize(user, user_id, True)
+    consent_revision = recording_revision(user_id)
     cards = available_cards(user_id)
     allowed = {card['id'] for card in cards}
     if any(key not in allowed for row in body.sets for key in row.card_ids):
         raise HTTPException(422, '현재 사용할 수 없는 카드가 있습니다. 목록을 다시 불러오세요.')
     values = body.model_dump(mode='json', exclude={'expected_revision'})
     try:
-        collection = database().learning_settings
-        # Keep ordinary learning settings and their privacy/export/deletion lifecycle.
-        collection.update_one({'_id': user_id}, {'$setOnInsert': {'schema_version': SCHEMA_VERSION}}, upsert=True)
-        result = collection.update_one({'_id': user_id, 'program_revision':
-            {'$in': [0, None]} if body.expected_revision == 0 else body.expected_revision},
-            {'$set': {'program': values, 'program_revision': body.expected_revision + 1,
-                      'program_updated_by': user['id'], 'program_updated_at': datetime.now(timezone.utc)}})
-        if result.matched_count != 1:
-            raise HTTPException(409, '다른 화면에서 코스가 변경됐습니다. 다시 불러온 뒤 수정하세요.')
-        _audit(database(), user_id, user['id'], 'learning_program_changed', None,
-               {'revision': body.expected_revision + 1, 'set_count': len(body.sets)})
+        # Card loading/validation stay outside the lock. Recheck consent revision
+        # and current link permissions before any upsert or audit write.
+        with recording_write(user_id, consent_revision):
+            authorize(user, user_id, True)
+            collection = database().learning_settings
+            collection.update_one({'_id': user_id}, {'$setOnInsert': {'schema_version': SCHEMA_VERSION}}, upsert=True)
+            result = collection.update_one({'_id': user_id, 'program_revision':
+                {'$in': [0, None]} if body.expected_revision == 0 else body.expected_revision},
+                {'$set': {'program': values, 'program_revision': body.expected_revision + 1,
+                          'program_updated_by': user['id'], 'program_updated_at': datetime.now(timezone.utc)}})
+            if result.matched_count != 1:
+                raise HTTPException(409, '다른 화면에서 코스가 변경됐습니다. 다시 불러온 뒤 수정하세요.')
+            _audit(database(), user_id, user['id'], 'learning_program_changed', None,
+                   {'revision': body.expected_revision + 1, 'set_count': len(body.sets)})
         response.headers['Cache-Control'] = 'no-store'
         return public_program({'program': values, 'program_revision': body.expected_revision + 1}, cards)
     except PyMongoError as exc:
