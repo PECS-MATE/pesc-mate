@@ -86,7 +86,7 @@ export default function A4SharingGallery({ accountId, categories = [], canReview
     let active = true;
     const token = localStorage.getItem('pesc-mate-token');
     setCards([]); setCatalogError('');
-    if (!disabled && !canReview) request('/cards').then(result => {
+    if (!disabled && !canReview) request('/cards/builtin').then(result => {
       if (active && token === localStorage.getItem('pesc-mate-token')) setCards(result);
     }).catch(() => {
       if (active && token === localStorage.getItem('pesc-mate-token')) setCatalogError('기본 카드판을 불러오지 못했어요. 화면을 다시 열어 주세요.');

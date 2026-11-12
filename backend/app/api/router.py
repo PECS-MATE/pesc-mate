@@ -934,6 +934,13 @@ def complete_tts_event(request_id: UUID, request: TtsEventResultRequest, user=De
                         request.startup_ms)
 
 
+@api_router.get('/cards/builtin', response_model=list[CardResponse], response_model_exclude_none=True, tags=['카드'])
+def builtin_cards(response: Response, user=Depends(current_user)):
+    # Shared starter boards need no child link and must never include personal cards.
+    response.headers['Cache-Control'] = 'no-store'
+    return CARDS
+
+
 @api_router.get('/cards', response_model=list[CardResponse], response_model_exclude_none=True, tags=['카드'])
 def cards(response: Response, user=Depends(current_user)):
     require_communicator(user)
