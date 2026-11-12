@@ -19,6 +19,10 @@
 .app .a4-sharing-gallery .a4-sharing-pagination button:hover:not(:disabled) { color: var(--color-primary-action); background: transparent; box-shadow: none; }
 .app .a4-sharing-gallery .a4-sharing-pagination button:disabled { opacity: .4; }
 .a4-sharing-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem; margin-block: 1.5rem; }
+.a4-starter-preview { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-content: start; gap: 4px; min-height: 180px; padding: 12px; background: var(--color-selected); }
+.a4-starter-preview > span { display: grid; grid-template-rows: 1fr auto; min-width: 0; aspect-ratio: 1; padding: 3px; background: var(--color-surface); }
+.a4-sharing-tile .a4-starter-preview img { position: static; width: 100%; height: 100%; min-height: 0; object-fit: contain; }
+.a4-sharing-tile .a4-starter-preview small { font-size: .65rem; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .a4-sharing-tile { display: flex; flex-direction: column; align-items: stretch; padding: 0; text-align: left; min-width: 0; overflow: hidden; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: .75rem; box-shadow: none; }
 .a4-sharing-tile:hover { background: var(--color-surface); border-color: var(--color-primary-action); }
 .a4-sharing-tile-preview { display: block; position: relative; flex-shrink: 0; aspect-ratio: 4 / 3; background: var(--color-selected); border-bottom: 1px solid var(--color-border); }

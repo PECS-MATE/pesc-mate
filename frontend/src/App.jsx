@@ -1772,7 +1772,7 @@ function App() {
           {linkedUsers.filter(person => person.permissions.includes('board_manage')).map(person => <option key={person.id} value={person.id}>{person.name}</option>)}
         </select></label>
         <RfidBoard key={`rfid-${user.id}-${selectedUser.id}-${canManageCards}`} targetId={selectedUser.id} targetName={selectedUser.name} variant={isCaregiver ? 'caregiver' : 'default'} manager canMap={canManageCards} />
-      </div> : tab === 'support_home' && isCaregiver ? <A4SharingGallery key={`sharing-${user.id}`} accountId={user.id} disabled={offline} />
+      </div> : tab === 'support_home' && isCaregiver ? <A4SharingGallery key={`sharing-${user.id}`} accountId={user.id} categories={cardCategories} disabled={offline} />
       : tab === 'caregiver_manage' && isCaregiver ? <CaregiverHome accountId={user.username || user.id} users={linkedUsers}
         target={selectedUser} offline={offline} onSelect={changeLinkedUser}
         onOpen={next => next === 'rfid' ? setTab('rfid') : openSupportSection(next)} onPractice={() => openLearning(selectedUser)}>
