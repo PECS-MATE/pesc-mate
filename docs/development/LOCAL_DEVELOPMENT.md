@@ -1,5 +1,30 @@
 # 로컬 개발과 시연
 
+## 자동 회귀 테스트 — 2026-11-13
+
+```sh
+npm --prefix frontend install
+npm --prefix frontend test -- --run
+python -m pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+python -m pytest backend/tests
+python backend/tools/check_refactor_mutations.py
+```
+
+기본 검사는 MongoDB·Docker·모델 서버를 시작하지 않는다. 합성 데이터와 대역을
+사용하며 실제 프로세스 경합·바이너리 집계는 선택형 통합 검사로 분리한다.
+
+```powershell
+$env:PECS_TEST_MONGODB_URI = 'mongodb://127.0.0.1:27017'
+$env:PECS_TEST_MONGODB_DATABASE = 'pesc_mate_test_local'
+python -m pytest backend/integration_tests
+```
+
+통합 검사는 명시된 테스트 접두사 뒤에 고유 이름을 붙이고, 그 실행에서 만든 DB만
+종료 시 제거한다. 앱의 `MONGODB_DATABASE`를 대체 사용하지 않는다. 설정하지 않으면
+skip이며 검증 통과가 아니다. 연결 실패는 실패로 처리한다.
+실행 결과·기존 동작·후속 미검증 범위는
+[리팩터링 실행 기록](REFACTORING_VERIFICATION.md)을 따른다.
+
 ## 안정화 회귀 점검 — 2026-11-12
 
 별도 MongoDB와 합성 계정으로 인증·개인정보·카드·학습을 검사하고, 실행 중인 웹의
@@ -161,7 +186,7 @@ npm run dev
 
 `/api` 요청은 기본적으로 `http://127.0.0.1:8000`으로 프록시된다.
 빌드는 `npm run build`, 정적 산출물 감시는 `npm run build:watch`다.
-자동 검증 실행기는 2026-10-28 제거했다. PC USB 연결은
+2026-10-28 제거했던 자동 검증 실행기는 2026-11-13 회귀 기반으로 다시 추가했다. PC USB 연결은
 [USB 연동 안내](RFID_USB_INTEGRATION.md)를 참고한다.
 
 ## 선택형 로컬 AI와 이미지 검수

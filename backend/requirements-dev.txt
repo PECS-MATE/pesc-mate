@@ -1,0 +1,4 @@
+# Install production dependencies separately with -r requirements.txt.
+pytest>=8.3,<10
+httpx>=0.28,<1
+mongomock>=4.3,<5
