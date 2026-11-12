@@ -1804,7 +1804,7 @@ function App() {
           : tile(card)} />
       </div>
     </div> : tab === 'practice' && user.role === 'user' ? <section className="learning-hub">
-      <div className="panel-heading"><span aria-hidden="true"><UiIcon name="book" /></span><div><h2>연습하기</h2>{user.role !== 'user' && <p className="muted">연습 결과는 실제 의사소통 기록과 섞이지 않고 따로 저장됩니다.</p>}</div></div>
+      <div className="panel-heading practice-heading"><span aria-hidden="true"><UiIcon name="book" /></span><div><h2>연습하기</h2></div><IconButton icon="message" label="말하기로 이동" className="communication-return" onClick={() => setTab('cards')} /></div>
       {learningBusy ? <p role="status">학습 정보를 불러오는 중입니다…</p> : learningGame?.phase === 'playing' || learningGame?.phase === 'saving' ? <article className="learning-game" aria-labelledby="learning-question-title">
         {learningGame.resumed && <p className="learning-resumed" role="status">저장된 문제부터 이어서 연습해요.</p>}
         <div className="learning-game-progress"><strong>{learningGame.questionIndex + 1} / {learningGame.questions.length}</strong><progress value={learningGame.questionIndex + (learningGame.feedback ? 1 : 0)} max={learningGame.questions.length} /><span>천천히 골라도 괜찮아요.</span></div>
@@ -1825,7 +1825,6 @@ function App() {
         onActivity={id => { if (id !== practiceActivity) { setPracticeActivity(id); setPracticeCategory('all'); } }}
         onCategory={setPracticeCategory} onStart={() => startLearningGame()}
         onStartPlan={startPracticePlan} busy={learningBusy} offline={offline} />}
-      <IconButton icon="message" label="말하기로 이동" className="primary communication-return" onClick={() => setTab('cards')} />
       {!learningGame && <LearningProgram key={`course-${user.id}`} accountId={user.id} targetId={user.id}
         disabled={offline || !privacy.guardian_consent} onStart={startLearningGame} />}
     </section> : tab === 'catalog' && user.role === 'user' ? <section className="card-catalog">
