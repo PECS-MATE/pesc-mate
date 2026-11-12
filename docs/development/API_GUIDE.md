@@ -44,8 +44,9 @@ scope는 private/shared입니다. 공용은 콘텐츠 운영 권한, 개인은 �
 
 로컬 백엔드 주소는 `http://127.0.0.1:8000`이고, 서비스 경로는 `/api`로 시작한다.
 서버를 실행한 뒤 [Swagger UI](http://127.0.0.1:8000/docs)에서 실제 요청·응답 모델과
-쿼리 매개변수를 확인할 수 있다. 기계가 읽는 명세는 `/openapi.json`, 전체 경로·권한 목록과
-오류 규약은 [API 명세서](API_SPECIFICATION.md)에 있다. 이 URL은 로컬 실행 환경 기준이다.
+쿼리 매개변수를 확인할 수 있다. 기계가 읽는 명세는 `http://127.0.0.1:8000/openapi.json`이다.
+경로·요청/응답 모델을 중복 관리하던 수기 명세는 제거했다. 아래는 통합에 필요한 공통 규약이다.
+이 URL은 PC 로컬 실행 환경 기준이며 iPad의 localhost는 PC가 아니다.
 
 | 먼저 볼 영역 | 대표 경로 | 목적 |
 |---|---|---|
@@ -55,6 +56,23 @@ scope는 private/shared입니다. 공용은 콘텐츠 운영 권한, 개인은 �
 | 프로필·지원 | `/api/profile/*`, `/api/support/links` | 사진·보호자/담당자 연결 |
 | 학습·기록 | `/api/learning/*`, `/api/dashboard` | 학습 결과와 사용 현황 |
 | RFID | `/api/rfid/*` | USB 카드 조회·공용/개인 칩 등록·선택형 Wi-Fi 장치 |
+
+## 요청과 응답 규약
+
+- JSON 요청은 `Content-Type: application/json`, 인증은 `Authorization: Bearer <token>`을 사용한다.
+  이미지 업로드 등 multipart 요청에는 JSON Content-Type을 강제로 지정하지 않는다.
+- 세션 기본 유효 기간은 12시간이다. 계정 비활성·접근 만료·운영 권한 변경으로 더 일찍 거부될 수 있다.
+  권한 관리와 재인증은 [운영 권한 절차](../operations/ACCOUNT_PERMISSION_MANAGEMENT.md)를 따른다.
+- 시각은 UTC 기준 ISO 8601이다. 응답 예시의 버전·시각·카드 개수를 계약 상수로 사용하지 않는다.
+- 음성 합성은 `{ "text": "도와주세요", "voice": "girl", "rate": 0.9 }`이며 boy도 허용한다.
+  공백 정리 후 빈 본문은 거부하며 요청 텍스트는 최대 300자, 속도는 0.5~1.5 유한값이다.
+  성공은 JSON이 아닌 PCM16 모노 WAV다. 공급자·제한·캐시는 [TTS 정책](../policies/TTS_POLICY.md)을 따른다.
+- 실패는 기존 `detail`과 `error: { code, message, request_id }`를 사용한다.
+  입력 검증 detail은 필드 위치·원인을 포함하는 목록일 수 있으며 원문·토큰·내부 예외는 표시하지 않는다.
+- `X-Request-ID`는 HTTP 추적용 UUID다. 본문의 중복 방지 `request_id`와 별개다.
+  바이너리/스트리밍이 이미 시작된 뒤 실패하면 JSON 오류로 바꿀 수 없으므로 전송 실패도 확인한다.
+- 정상 CRUD/DB 조회를 별도 콘솔 로그로 남기지 않는다. 장애 추적과 개인정보 제외 기준은
+  [장애 대응](../operations/INCIDENT_RESPONSE.md), 저장 관계는 [데이터 스키마](DATA_SCHEMA_MIGRATIONS.md)를 따른다.
 
 ## 기본 호출 순서
 

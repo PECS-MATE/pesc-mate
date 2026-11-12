@@ -11,7 +11,7 @@
 | Docker·태블릿·핫스팟·장애 확인 | [로컬 실행](development/LOCAL_DEVELOPMENT.md) |
 | 여자아이/남자아이 음성·0.90배·캐시·Qwen 실행 | [음성과 AI](development/SPEECH_AND_AI.md#현재-실행과-캐시) |
 | 최신 안정화 검사 범위와 미검증 항목 | [2026-11-12 안정화 기록](development/LOCAL_DEVELOPMENT.md#안정화-회귀-점검--2026-11-12) |
-| API 요청·권한·오류 처리 | [빠른 가이드](development/API_GUIDE.md) · [상세 명세](development/API_SPECIFICATION.md) |
+| API 요청·권한·오류 처리 | [API 가이드](development/API_GUIDE.md) · 실제 스키마는 실행 서버 `/docs` |
 
 기본 Compose는 MeloTTS, Qwen overlay는 여자아이·남자아이 두 합성 음색을 사용합니다.
 기본 카드는 120종(그림 PNG 94종·글자 26종)입니다.
@@ -40,8 +40,8 @@
 | --- | --- |
 | 개인정보·동의·삭제 | [개인정보 정책](policies/PRIVACY_POLICY.md) |
 | 음성·저장 범위 | [TTS 정책](policies/TTS_POLICY.md) · [오프라인 정책](policies/OFFLINE_POLICY.md) |
-| 문장·의사표현 | [문장 정책](policies/SENTENCE_POLICY.md) · [복구 표현](policies/RECOVERY_SPEECH_POLICY.md) |
-| 카드판 보호·충돌 | [핵심 카드 잠금](policies/CORE_CARD_LOCK_POLICY.md) · [동시 수정](policies/BOARD_CONFLICT_POLICY.md) |
+| 문장·의사표현 | [문장 정책](policies/SENTENCE_POLICY.md) · [복구 표현](policies/TTS_POLICY.md#복구-표현) |
+| 카드판 보호·충돌 | [핵심 카드 잠금](policies/CORE_CARD_LOCK_POLICY.md) · [동시 수정](policies/CORE_CARD_LOCK_POLICY.md#동시-수정) |
 | 프로필 | [프로필 정책](policies/PROFILE_POLICY.md) |
 
 ## 운영 절차
@@ -55,10 +55,9 @@
 - [장애 대응](operations/INCIDENT_RESPONSE.md)
 - [감사 보관·무결성](operations/AUDIT_RETENTION_INTEGRITY.md)
 
-## 기획 원문과 하드웨어
+## 하드웨어
 
-[과제 계획서](planning/project_plan.md)와 [기능요구사양서](planning/functional_requirements_specification.md)는
-과제 목표 원문입니다. 현재 구현·검수 여부는 [TODO](planning/TODO.md)가 우선합니다.
+프로젝트 목표·구현은 루트 README, 남은 작업·검수는 [TODO](planning/TODO.md)를 기준으로 합니다.
 각 기능 안내서의 접힌 상세 기록은 당시 실패·미실행 상태까지 보존하며 현행 명령으로 간주하지 않습니다.
 
 - [하드웨어 전체](../hardware/README.md) · [USB 펌웨어](../hardware/arduino/rfid-usb-board/README.md)
@@ -79,11 +78,13 @@
 
 ### 이번 정리의 확인 범위 — 2026-11-12
 
-현재 카드 수·두 음색·캐시·API/health 안내를 소스와 대조했습니다.
-Markdown 40개·내부 파일/절 링크 315개와 접힘 태그·diff 공백 검사에서 오류가 없었습니다.
-과거 계획·실패·미실행 기록은 보존했으며 중복된 오래된 문서 집계 설명만 정리했습니다.
+중복된 과제 계획서·기능요구사양서·수기 API 명세를 제거했습니다. 실제 API 스키마는 OpenAPI로 확인합니다.
+카드판 동시 수정 정책은 핵심 카드 잠금 문서로, 복구 표현 정책은 TTS 정책으로 통합했습니다.
+미확정 운영 요구사항은 TODO에 남겼으며 고유한 개인정보·운영 정책과 검증 이력은 유지합니다.
+문서 5개를 제거해 Markdown 40개에서 35개로 줄였습니다. 삭제 원문은 Git 이력에서 복구할 수 있습니다.
+내부 파일/절 링크 279개·diff 공백 검사 통과, 통합한 두 정책의 본문 보존을 대조했습니다.
 문서만 변경했으므로 이번 정리의 앱 빌드·모델 호출·브라우저/기기 검사는 미실행입니다.
-실제 정책·운영 절차는 범위가 달라 독립 문서로 유지했습니다. 검사 도구·문서를 새로 추가하지 않았습니다.
+고유한 정책·운영 절차는 독립 문서로 유지했습니다. 검사 도구·문서를 새로 추가하지 않았습니다.
 
 <details>
 <summary>이전 문서 통합 작업의 실패·미실행 기록</summary>

@@ -249,7 +249,7 @@ docker compose -f compose.yaml -f compose.tablet.yaml down
 | --- | --- |
 | [문서 목차](docs/README.md) | 기획·개발·정책·운영 전체 안내 |
 | [통합 TODO](docs/planning/TODO.md) | 구현 상태·안정화·확장 백로그 |
-| [API 가이드](docs/development/API_GUIDE.md) / [명세](docs/development/API_SPECIFICATION.md) | 인증·역할·요청/응답 규격 |
+| [API 가이드](docs/development/API_GUIDE.md) | 인증·역할·공통 규약·실행 서버 OpenAPI 안내 |
 | [카드 등록과 제작](docs/development/CARD_MANAGEMENT.md) | OCR·A4 편집·공유·등록 반영 |
 | [음성과 AI](docs/development/SPEECH_AND_AI.md) | MeloTTS·캐시·문장 생성·Qwen 음색/서버 |
 | [USB 태그 연결](docs/development/RFID_USB_INTEGRATION.md) | 장치 연결·칩 등록·기기 지원 범위 |
