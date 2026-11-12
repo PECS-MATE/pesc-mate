@@ -409,6 +409,8 @@ body::before, body::after { display: none; }
 .offline-notice { margin: -12px 0 18px; padding: 12px 14px; border: 1px solid var(--color-warning); border-radius: 12px; color: var(--color-warning); background: var(--color-warning-surface); font-weight: 700; line-height: 1.5; }
 .topbar-statuses { display: grid; justify-items: end; gap: 9px; }
 .builtin-card-print { margin-block: 16px; }
+.builtin-print-layout { display: grid; gap: 6px; width: min(100%, 300px); margin-bottom: 8px; }
+.builtin-print-layout select { width: 100%; min-width: 0; }
 .builtin-card-print > button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; max-width: 100%; }
 .builtin-card-print > p { margin-block: 8px; overflow-wrap: anywhere; }
 .topbar-statuses > .status { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }

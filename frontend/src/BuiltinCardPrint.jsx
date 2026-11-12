@@ -4,6 +4,7 @@ import UiIcon from './UiIcon';
 
 export default function BuiltinCardPrint({ accountId, disabled = false }) {
   const [busy, setBusy] = useState(false), [notice, setNotice] = useState(''), [error, setError] = useState('');
+  const [mode, setMode] = useState('single');
   const generation = useRef(0), working = useRef(false), downloads = useRef(new Map());
   useEffect(() => {
     ++generation.current; working.current = false; setBusy(false); setNotice(''); setError('');
@@ -22,8 +23,8 @@ export default function BuiltinCardPrint({ accountId, disabled = false }) {
       const cards = await request('/cards/builtin');
       if (!current()) return;
       const { builtinCardPrint } = await import('./services/builtinCardPrint');
-      const result = await builtinCardPrint(cards, { current, onProgress: (done, total) => {
-        if (current()) setNotice(`인쇄 파일 준비 중 · ${done}/${total}`);
+      const result = await builtinCardPrint(cards, { mode, current, onProgress: (done, total) => {
+        if (current()) setNotice(`인쇄 파일 준비 중 · 분류 ${done}/${total}`);
       } });
       if (!current()) return;
       const url = URL.createObjectURL(result.blob), link = document.createElement('a');
@@ -36,7 +37,9 @@ export default function BuiltinCardPrint({ accountId, disabled = false }) {
     finally { if (current()) { working.current = false; setBusy(false); } }
   }
   return <div className="builtin-card-print">
+    <label className="builtin-print-layout">인쇄 배치<select aria-label="전체 카드 인쇄 배치" value={mode} disabled={disabled || busy} onChange={event => { setMode(event.target.value); setNotice(''); }}><option value="single">A4 한 장에 모두 넣기</option><option value="standard">카드 4cm · 여러 쪽</option></select></label>
     <button type="button" disabled={disabled || busy} onClick={download}><UiIcon name="download" />전체 카드 인쇄 파일</button>
+    {mode === 'single' && <p>한 장에 모두 넣으면 그림과 글씨가 작아집니다.</p>}
     {notice && <p role="status">{notice}</p>}{error && <p role="alert">{error}</p>}
   </div>;
 }
