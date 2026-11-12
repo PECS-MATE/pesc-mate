@@ -41,7 +41,7 @@ export default function useLiveCardCatalog({ account, loaded, offline, tab, card
         if (!valid() || latest.current.cards !== baseline.cards) return;
         const added = next.filter(card => card.custom && !previous.has(card.id)).length;
         latest.current.onUpdate(next, nextCategories);
-        if (added) setNotice(`등록한 카드 ${added}장이 추가됐어요. ‘등록한 카드’에서 확인하세요.`);
+        if (added) setNotice(`새 카드 ${added}장이 추가됐어요.`);
         created.forEach(url => owned.current.add(url)); created = [];
       } catch { if (valid() && manual) setNotice('카드를 갱신하지 못했어요. 기존 카드는 계속 사용할 수 있어요.'); }
       finally { created.forEach(url => URL.revokeObjectURL(url)); pending = false; if (valid()) setRefreshing(false); }

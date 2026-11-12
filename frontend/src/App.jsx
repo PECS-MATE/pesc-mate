@@ -92,10 +92,9 @@ function App() {
   const activeUserRef = useRef(null);
   activeUserRef.current = user;
   const [myPageOpen, setMyPageOpen] = useState(false);
-  const [usbTopbarTarget, setUsbTopbarTarget] = useState(null);
+  const [usbSidebarTarget, setUsbSidebarTarget] = useState(null);
   const [usbStatus, setUsbStatus] = useState({ state: 'disconnected', fresh: false, count: 0 });
   useEffect(() => { setUsbStatus({ state: 'disconnected', fresh: false, count: 0 }); }, [user?.id]);
-  const connectionMenuRef = useRef(null);
   const [authReady, setAuthReady] = useState(false);
   const accountButtonRef = useRef(null);
   const {
@@ -1585,6 +1584,7 @@ function App() {
     ? usbStatus.fresh ? '기기 연결됨' : '기기 응답 대기'
     : usbStatus.state === 'connecting' ? '기기 연결 중' : '기기 연결';
   const speechStatusLabel = ({ starting: '음성 준비 중', playing: '음성 재생 중', paused: '음성 일시 정지' })[speechState.status];
+  const showPageHeading = user?.role !== 'user' || (tab === 'home' && !myPageOpen);
   const pageTitle = tab === 'account_permissions' && canManageAccounts ? '담당자의 운영 권한을 관리해요.'
     : tab === 'rfid_registration' && canManageContent ? '칩을 읽고 그림카드에 연결해요.'
     : tab === 'admin' && canManageContent
@@ -1716,6 +1716,10 @@ function App() {
         <button aria-current={!myPageOpen && tab === 'catalog' ? 'page' : undefined} className={!myPageOpen && tab === 'catalog' ? 'active' : ''} onClick={() => setTab('catalog')}><span aria-hidden="true"><UiIcon name="cards" /></span>카드</button>
         <button aria-current={!myPageOpen && tab === 'practice' ? 'page' : undefined} className={!myPageOpen && tab === 'practice' ? 'active' : ''} onClick={() => openLearning(null)}><span aria-hidden="true"><UiIcon name="book" /></span>연습하기</button>
         </>}</nav>
+      {user.role === 'user' && loaded && <details className="connection-menu sidebar-device-menu" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}>
+        <summary className="status" aria-label={`${usbConnectionLabel} · 연결 메뉴 열기`}><UiIcon name="reader" /><span className="connection-menu-label">{usbConnectionLabel}</span><b className={usbConnected ? 'online' : ''} aria-hidden="true"></b><UiIcon name="chevron-down" className="connection-menu-chevron" /></summary>
+        <div className="connection-menu-panel"><div ref={setUsbSidebarTarget} className="sidebar-usb-slot" /></div>
+      </details>}
       <AccountMenu key={user.id} user={user} buttonRef={accountButtonRef} disabled={busy} onLogout={handleLogout}
         onProfile={() => { stopSpeech(); setMyPageOpen(true); setProfileNotice(''); if (compactSidebar) toggleSidebar(true); }} />
     </aside>
@@ -1726,10 +1730,7 @@ function App() {
         onClick={() => toggleSidebar(false)}><UiIcon name="menu" /></button></div>}
       <div>
       {!myPageOpen && profileNotice && <p role="status">{profileNotice}</p>}
-      <header className="topbar"><div><p className="eyebrow">오늘은 {todayLabel}</p><h1>{pageTitle}</h1></div><div className="topbar-statuses">{user.role === 'user' && loaded ? <details ref={connectionMenuRef} className="connection-menu" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}>
-          <summary className="status" aria-label={`${usbConnectionLabel} · 연결 메뉴 열기`}><b className={usbConnected ? 'online' : ''} aria-hidden="true"></b><span className="connection-menu-label">{usbConnectionLabel}</span><UiIcon name="chevron-down" className="connection-menu-chevron" /></summary>
-          <div className="connection-menu-panel"><div ref={setUsbTopbarTarget} className="topbar-usb-slot" />
-          </div></details> : <span className={`status${offline ? ' offline' : ''}`}><b className={!offline && loaded ? 'online' : ''}></b>{offline ? '오프라인 사용 중' : '연결 대기'}</span>}<span className="visually-hidden" role="status">{speechActive ? speechStatusLabel : ''}</span>{speechActive && <div className="speech-player" role="group" aria-label="음성 재생 제어">{speechState.status === 'playing' && <button type="button" onClick={pauseSpeech}>일시 정지</button>}{speechState.status === 'paused' && <button type="button" onClick={resumeSpeech}>재개</button>}<button type="button" onClick={stopSpeech}>중지</button></div>}</div></header>
+      <header className={`topbar${showPageHeading ? '' : ' topbar-controls-only'}`} >{showPageHeading && <div><p className="eyebrow">오늘은 {todayLabel}</p><h1>{pageTitle}</h1></div>}<div className="topbar-statuses">{user.role !== 'user' && <span className={`status${offline ? ' offline' : ''}`}><b className={!offline && loaded ? 'online' : ''}></b>{offline ? '오프라인 사용 중' : '연결 대기'}</span>}<span className="visually-hidden" role="status">{speechActive ? speechStatusLabel : ''}</span>{speechActive && <div className="speech-player" role="group" aria-label="음성 재생 제어">{speechState.status === 'playing' && <button type="button" onClick={pauseSpeech}>일시 정지</button>}{speechState.status === 'paused' && <button type="button" onClick={resumeSpeech}>재개</button>}<button type="button" onClick={stopSpeech}>중지</button></div>}</div></header>
       {user.role === 'user' && tab === 'cards' && <>
       <section className="board" ref={boardRef}><div className="section-title"><h2 tabIndex="-1">나의 문장 <small>{board.length}/12</small></h2><div className="sentence-toolbar" role="group" aria-label="문장 도구">
         <button type="button" aria-label="고른 카드 모두 비우기" title="고른 카드 모두 비우기" disabled={!board.length || busy} onClick={() => { if (window.confirm('선택한 카드를 모두 지울까요?')) { rememberBoardFocus(0, 'remove'); updateBoard([]); } }}><UiIcon name="trash" size={24} /></button>
@@ -1744,7 +1745,7 @@ function App() {
       {offline && <p className="offline-notice" role="status">인터넷 연결 없이 저장된 카드를 사용 중입니다. 즉시 발화와 선택 카드 그대로 발화는 계속 사용할 수 있습니다.{localKoreanVoices.length ? ` 기기에 저장된 한국어 음성 ${localKoreanVoices.length}개를 확인했습니다.` : ' 한국어 음성이 재생되지 않으면 기기 설정에서 음성 데이터를 설치해 주세요.'}{pendingSyncCount ? ` 재연결 후 동기화할 이력 ${pendingSyncCount}건이 있습니다.` : ''}</p>}
       {user.role === 'user' && privacy.guardian_consent && !offline && (pendingSyncCount > 0 || syncState === 'failed') && <div className="offline-notice" data-testid="sync-status"><span role="status">{syncState === 'syncing' ? `기기에 저장한 기록 ${pendingSyncCount}건을 동기화하고 있어요.` : syncState === 'failed' ? `저장한 기록을 모두 전송하지 못했어요. 남은 ${pendingSyncCount}건은 기기에 보관됩니다.` : `동기화할 기록 ${pendingSyncCount}건이 기기에 있습니다.`}</span> <button type="button" disabled={syncState === 'syncing'} onClick={() => syncPendingEvents(user)}>기록 동기화 다시 시도</button></div>}
       {loaded && user.role === 'user' && <UsbRfidReader key={`rfid-${user.id}`} targetId={user.id} cards={cards} autoAppend
-        connectionTarget={usbTopbarTarget} onStatus={setUsbStatus} onReadError={setError}
+        connectionTarget={usbSidebarTarget} onStatus={setUsbStatus} onReadError={setError}
         appendScope={`${requestId}:${tab}:${myPageOpen}:${compactSidebar && !sidebarCollapsed}:${offline}`}
         disabled={busy || speechActive || offline || myPageOpen || (compactSidebar && !sidebarCollapsed) || !['home', 'cards'].includes(tab)}
         onAppend={selection => {

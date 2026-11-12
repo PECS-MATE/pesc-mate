@@ -302,7 +302,6 @@ button.primary:hover:not(:disabled), button.active:hover:not(:disabled) { backgr
 .output-mode > span { margin-right: 4px; color: var(--color-text-secondary); font-weight: 800; }
 .output-mode button { min-height: 44px; padding: 8px 14px; }
 .card.speak-on-tap { border-color: var(--color-border-control); box-shadow: 0 4px 0 var(--color-shadow), 0 0 0 3px var(--color-shadow) inset; }
-.card.speak-on-tap::after { content: "눌러서 말하기"; position: absolute; z-index: 3; top: 7px; left: 7px; padding: 4px 7px; border-radius: 999px; color: var(--color-text); background: var(--color-selected); font-size: .66rem; font-weight: 800; }
 input { border-color: var(--color-border-control); }
 .sentence { background: var(--color-selected); border-color: var(--color-border); }
 .dashboard { background: var(--color-selected); }
@@ -409,6 +408,7 @@ body::before, body::after { display: none; }
 .topbar .status.offline { color: var(--color-warning); border-color: var(--color-warning); background: var(--color-warning-surface); }
 .offline-notice { margin: -12px 0 18px; padding: 12px 14px; border: 1px solid var(--color-warning); border-radius: 12px; color: var(--color-warning); background: var(--color-warning-surface); font-weight: 700; line-height: 1.5; }
 .topbar-statuses { display: grid; justify-items: end; gap: 9px; }
+.topbar.topbar-controls-only { min-height: 0; margin-bottom: 0; padding: 0; }
 .connection-menu { position: relative; z-index: 20; width: 220px; max-width: 100%; }
 .connection-menu > summary.status { display: grid; grid-template-columns: 8px minmax(0, 1fr) 20px; align-items: center; gap: 8px; width: 100%; min-height: 44px; cursor: pointer; list-style: none; color: var(--ui-muted); font-weight: 700; line-height: 1.4; }
 .connection-menu > summary.status::-webkit-details-marker { display: none; }
@@ -419,6 +419,11 @@ body::before, body::after { display: none; }
 .connection-menu[open] > summary.status { border-color: var(--color-border); background: var(--color-selected); }
 .connection-menu[open] > summary.status.offline { border-color: var(--color-warning); background: var(--color-warning-surface); }
 .connection-menu-panel { position: absolute; top: calc(100% + 8px); right: 0; width: min(300px, calc(100vw - 40px)); padding: 16px; border: 1px solid var(--color-border); border-radius: 16px; background: var(--color-surface); box-shadow: 0 12px 32px var(--color-shadow); }
+.sidebar-device-menu { width: 100%; margin: 0 0 16px; }
+.sidebar-device-menu .status b { width: 8px; height: 8px; border-radius: 50%; background: var(--color-selected); }
+.sidebar-device-menu .status b.online { background: var(--color-success); }
+.sidebar-device-menu > summary.status { grid-template-columns: 24px minmax(0, 1fr) 8px 20px; padding: 12px; border: 0; border-radius: 12px; background: transparent; }
+.sidebar-device-menu .connection-menu-panel { position: static; width: 100%; margin-top: 8px; padding: 12px; border-radius: 12px; box-shadow: none; }
 .usb-quick-control { display: grid; gap: 8px; color: var(--color-text); }
 .usb-quick-control > small { color: var(--color-text-secondary); }
 .connection-open-reader { width: 100%; min-height: 44px; margin-top: 10px; border: 1px solid var(--color-border); border-radius: 12px; color: var(--color-text); background: var(--color-surface); box-shadow: none; }
