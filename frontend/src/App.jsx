@@ -4,6 +4,7 @@ import AccountMenu from './AccountMenu';
 import AccountSettingsDialog from './AccountSettingsDialog';
 import CaregiverHome from './CaregiverHome';
 import A4SharingGallery from './A4SharingGallery';
+import BuiltinCardPrint from './BuiltinCardPrint';
 import './assets/caregiverUx.css';
 import UiIcon from './UiIcon';
 import IconButton from './IconButton';
@@ -1780,6 +1781,7 @@ function App() {
       </CaregiverHome> : tab === 'support_home' && isSupporter ? <section className="support-home">
         <div className="support-home-panel">
         <div className="panel-heading"><span aria-hidden="true"><UiIcon name="users" /></span><div><h2>{user.role === 'caregiver' ? '보호자 지원 홈' : '담당자 지원 홈'}</h2><p className="muted">연결 사용자를 선택하면 부여된 권한 범위의 메뉴만 표시됩니다.</p></div></div>
+        <BuiltinCardPrint accountId={user.id} disabled={offline} />
         {linkedUsers.length ? <><label className="user-picker">지원할 사용자<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)}>{linkedUsers.map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>
           <div className="support-action-grid">
             {canReadRecords && <button onClick={() => openSupportSection('dashboard')}><span aria-hidden="true"><UiIcon name="chart" /></span><strong>의사소통 기록</strong><small>문장 저장·카드 사용 · 의사소통 기록 조회 권한</small></button>}
