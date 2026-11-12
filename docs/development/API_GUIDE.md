@@ -144,3 +144,38 @@ USB 데이터는 먼저 브라우저로 들어온다. 공용 칩 등록은 `GET 
 
 **검증 상태:** 2026-11-12 격리 DB/HTTP 검사의 범위는 위 안정화 기록에 있다.
 이번 문서 정리는 소스·내부 링크를 대조한 작업이며 앱 테스트나 실제 기기 검수의 추가 실행은 아니다.
+
+## 도메인 코드 경계 — 2026-11-13
+
+`app/api/router.py`는 라우터 조립만 담당한다. 외부 `/api` prefix는 여전히
+`main.py`가 한 번 적용한다. 각 도메인 라우터에는 새 prefix를 추가하지 않는다.
+
+| API 모듈 | 담당 | 스키마 |
+| --- | --- | --- |
+| auth | 로그인·가입·세션·로그아웃 | schemas/auth.py |
+| accounts | 계정 권한·접근기간·연결 사용자·지원 연결·프로필 | schemas/accounts.py |
+| boards | 카드판·빠른/복구 표현·슬롯·상황·변경 이력 | schemas/boards.py |
+| cards | 기본/등록 카드·카테고리·OCR·스캔·이미지·승인 | schemas/cards.py |
+| communication | 문장·재생성·TTS 합성/이벤트·오프라인 동기화 | schemas/communication.py |
+| learning | 일반 학습 설정·결과·진행·감사 | schemas/learning.py |
+| records | 기록·통계·보호자 노트·개인정보 조회/삭제/내보내기 | schemas/records.py |
+| recommendations | 추천·피드·노출/선택·설정·모니터링 | schemas/recommendations.py |
+| settings | 음성·접근성·개인정보 동의 설정 | schemas/settings.py |
+| operations | health·모델 상태·운영 지표·경고 | schemas/operations.py |
+
+기존 RFID·A4·이미지 도구·연습 제안 라우터는 유지한다.
+`api/learning_program.py`는 DTO 검증·인증 의존성·응답 헤더를 담당하며,
+DB 조회·최종 권한/동의 재검사·revision 갱신·감사는
+`services/learning_program.py`로 이동했다. 코스 DTO는 `schemas/learning.py`에 있다.
+공통 권한 검사는 `api/dependencies.py`, 권한 확인 후 이미지 ETag 응답은
+`api/image_response.py`가 담당한다. 업무 규칙·DB/브라우저 저장 형식은 변경하지 않는다.
+
+DTO 클래스명·필드·validator, HTTP 핸들러 이름·데코레이터·경로·응답 모델·
+상태 코드·보안 의존성은 원본에서 이동했다. 기존 자동 생성 operation ID를
+별도 새 이름으로 덮어쓰지 않았다. 같은 도메인 안의 정적/동적 경로 등록 순서를 유지한다.
+OpenAPI 기준값은 `backend/tests/fixtures/openapi.json`에 보존했다.
+내부 코드 이동에 맞춰 계약 테스트의 이미지/음성 대역과 코스 서비스 대역 위치만 옮겼다.
+
+사용자 요청으로 이번 분리 후 OpenAPI·HTTP·바이너리·캐시·ETag·요청 ID·
+중복 경로·순환 import 및 회귀/실제 MongoDB 재검증은 실행하지 않았다.
+따라서 구현 반영 상태이며 계약 동일성 검증 완료 또는 배포 승인을 뜻하지 않는다.

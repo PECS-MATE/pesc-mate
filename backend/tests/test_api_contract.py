@@ -6,7 +6,7 @@ import struct
 
 import pytest
 from app.main import app
-from app.api import router
+from app.api import cards as cards_api, communication as communication_api
 from app.services.authentication import current_user
 
 BASELINE = Path(__file__).with_name('fixtures') / 'openapi.json'
@@ -46,7 +46,7 @@ def test_tts_binary_default_voice_rate_and_headers(client, monkeypatch):
     def synthesize(text, rate, **kwargs):
         calls.append((text, rate, kwargs))
         return wave
-    monkeypatch.setattr(router, 'synthesize_speech', synthesize)
+    monkeypatch.setattr(communication_api, 'synthesize_speech', synthesize)
     result = client.post('/api/tts/speech', json={'text': ' 물 '})
     assert result.status_code == 200 and result.content == wave
     assert result.headers['content-type'] == 'audio/wav'
@@ -63,7 +63,7 @@ def test_image_conditional_request_reauthorizes_and_preserves_headers(client, mo
     def image(submission_id, user, variant):
         calls.append((submission_id, user['id'], variant))
         return png_bytes, 'image/png'
-    monkeypatch.setattr(router, 'image_for', image)
+    monkeypatch.setattr(cards_api, 'image_for', image)
     first = client.get('/api/cards/submissions/synthetic/image')
     etag = '"' + sha256(png_bytes).hexdigest() + '"'
     assert first.status_code == 200 and first.content == png_bytes

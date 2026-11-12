@@ -9,12 +9,13 @@ from fastapi import HTTPException, Response
 import pytest
 from PIL import Image
 from app.api import learning_program
+from app.services import learning_program as program_service
 from app.services import card_submissions, rfid, card_scan, authentication
 
 
 def test_course_revision_conflict_preserves_first_save_and_audit(consented, monkeypatch):
-    monkeypatch.setattr(learning_program, 'authorize', lambda *a: None)
-    monkeypatch.setattr(learning_program, 'available_cards', lambda _: [])
+    monkeypatch.setattr(program_service, 'authorize', lambda *a: None)
+    monkeypatch.setattr(program_service, 'available_cards', lambda _: [])
     body = learning_program.ProgramChange(expected_revision=0, sets=[], daily_set_ids=[], starts_on=date(2026, 1, 1))
     user = {'id': 'guardian', 'role': 'caregiver'}
     response = Response()
