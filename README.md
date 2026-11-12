@@ -35,7 +35,7 @@ PECS MATE는 말로 의사를 표현하기 어려운 아동이 그림·사진·�
 | --- | --- |
 | 그림으로 말하기 | 기본 카드 120종, 카테고리·폴더·검색·즐겨찾기, 빠른 표현과 긴급·복구 표현 |
 | 문장과 음성 | 최대 12장 문장 구성, 카드 순서 변경, 규칙 기반/선택형 AI 문장 생성, 카드·문장 음성 재생 |
-| 음성 재사용 | 브라우저와 서버의 제한된 메모리 캐시로 동일 표현의 반복 합성을 줄임 |
+| 음성 재사용 | 음색·속도별 메모리 캐시와 기본 카드 전용 Docker 영속 캐시로 반복 합성을 줄임 |
 | 실물 카드 태그 | USB 리더기 연결, 최대 세 리더기 상태 확인, 공용/개인 UID 매핑, 읽힌 카드를 문장에 추가 |
 | 카드 등록·OCR | 보호자 개인 카드와 관리자 공용 카드, 여러 실물 카드 영역 분리·OCR 이름 확인·선택 저장 |
 | A4 카드 편집 | 사진·카드 배치, 칸별 문구와 크기 조정, 인쇄 미리보기·방향·행/열·양면 설정 |
@@ -67,7 +67,7 @@ PECS MATE는 말로 의사를 표현하기 어려운 아동이 그림·사진·�
 | --- | --- |
 | Frontend | React, JavaScript, Vite, Bootstrap Grid/Utilities, CSS, Google Material Symbols |
 | Backend | Python 3.12, FastAPI, Uvicorn, PyMongo, Pillow |
-| Database / Cache | MongoDB 8.0, IndexedDB, 브라우저·서버 메모리 캐시 |
+| Database / Cache | MongoDB 8.0, IndexedDB, 브라우저·서버 메모리와 공개 카드 음성 볼륨 |
 | 문장 생성 | Ollama, 기본 설정 모델 qwen2.5:0.5b, 규칙 기반 대체 문장 |
 | 음성 합성 | MeloTTS 기본 / Qwen3-TTS 선택형, CPU PyTorch, PCM WAV, 기기 음성·핵심 표현 녹음 대체 경로 |
 | OCR / 이미지 처리 | Tesseract 한국어·영어, OpenCV, Pillow |
@@ -76,7 +76,8 @@ PECS MATE는 말로 의사를 표현하기 어려운 아동이 그림·사진·�
 
 Hugging Face/Gemini 이미지 생성과 rembg 배경 제거는 별도 설정이 필요한 선택 기능입니다.
 Qwen은 VoiceDesign으로 설명 기반 합성 음색을 만든 뒤 0.6B Base로 새 문장을 읽는 선택형 구성입니다.
-CPU의 첫 합성은 지연이 있으며 반복 재생은 캐시를 사용합니다. [설정·실측·제약](docs/development/SPEECH_AND_AI.md#qwen-합성-서버-선택형-연결-2026-11-10)
+여자아이·남자아이 두 음색의 기본 속도는 0.90배입니다. CPU의 첫 합성은 지연이 있으며 반복 재생은 캐시를 사용합니다.
+[현재 실행·캐시·검증 경계](docs/development/SPEECH_AND_AI.md#현재-실행과-캐시)
 
 ## 아키텍처
 
@@ -112,14 +113,15 @@ USB 리더기는 PC의 Chrome/Edge에서 연결하며, iPad 브라우저가 USB 
 ├── backend/                    API·권한·문장·OCR·카드·기록 서비스
 ├── services/
 │   ├── melotts/                로컬 한국어 음성 서버
-│   └── qwen-voice-design/      선택형 음색 시안 제작 도구
+│   └── qwen-voice-design/      선택형 음색 시안·Qwen 합성 서버
 ├── hardware/                   Arduino USB/Wi-Fi 펌웨어·배선 안내
 ├── scripts/                    핵심 표현 음성 생성 도구
 ├── deployment/                 인증 MongoDB 설정
 ├── docs/                       기획·개발·정책·운영 문서
 ├── compose.yaml                기본 로컬 실행
 ├── compose.tablet.yaml         태블릿 LAN 접속
-└── .env.example                선택형 이미지 도구 환경변수 예시
+├── compose.qwen.yaml           선택형 Qwen 음성·공개 카드 캐시
+└── .env.example                선택형 이미지·음성 환경변수 예시
 ~~~
 
 ## 시작 가이드
@@ -163,6 +165,14 @@ Copy-Item .env.example .env
 
 최초 실행은 빌드와 음성 모델 준비에 시간이 걸립니다. 웹이 열려도 음성 서버는 아직 준비 중일 수 있습니다.
 
+### 여자아이·남자아이 음성으로 실행하기
+
+위 기본 실행은 MeloTTS입니다. Qwen의 두 음색을 사용하려면
+[음성 준비·실행 안내](docs/development/SPEECH_AND_AI.md#현재-실행과-캐시)에 따라 참조를 준비하고
+`compose.qwen.yaml`을 포함해 실행합니다. 생성 음성은 Git에 없어 새 PC에서는 별도 준비가 필요합니다.
+이미 Qwen을 사용 중이라면 이후 시작·태블릿 연결에도 같은 Compose 조합을 유지하세요.
+기본 카드 음성 캐시는 서버 재시작 후에도 재사용되며 개인 문장은 메모리에만 캐시합니다.
+
 ### iPad 연결 — PC 모바일 핫스팟
 
 시연에서는 iPad를 **Windows PC가 만든 모바일 핫스팟**에 연결하는 방식을 사용합니다.
@@ -175,6 +185,9 @@ PC가 iPhone 핫스팟으로 인터넷을 받고 있다면 그 Wi-Fi 연결을 P
 ~~~powershell
 docker compose -f compose.yaml -f compose.tablet.yaml up -d --build
 ~~~
+
+위 명령은 기본 Melo 구성입니다. Qwen을 사용 중이라면 음성 안내의 환경변수와
+`-f compose.qwen.yaml`도 유지해 실행합니다.
 
 4. iPad **설정 → Wi-Fi → 연결한 PC 핫스팟 옆 ⓘ → IPv4 주소 → 라우터**를 확인합니다.
 5. Safari에서 http://라우터주소:5173을 엽니다. 예를 들어 라우터가 192.168.137.1이면 다음 주소입니다.

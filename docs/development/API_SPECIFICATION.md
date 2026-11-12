@@ -1,6 +1,6 @@
 ---
 title: "PECS MATE API 명세서"
-date: "2026년 10월 28일"
+date: "2026년 11월 12일"
 lang: ko-KR
 ---
 
@@ -149,7 +149,7 @@ HTTP 500은 일반 안내만 반환하고 내부 예외 문구를 응답에 포�
 | 프로필 | POST | `/api/profile/image` | 필요 | 내 프로필 사진 업로드(`multipart/form-data`) |
 | 프로필 | GET | `/api/profile/{user_id}/image` | 본인 또는 연결 권한 | 권한이 있는 사용자 사진 조회 |
 | 음성 | GET | `/api/tts/settings` | 필요 | 현재 사용자의 TTS 설정 조회 |
-| 음성 | POST | `/api/tts/speech` | 필요 | 로컬 MeloTTS로 문장을 PCM WAV 합성 |
+| 음성 | POST | `/api/tts/speech` | 필요 | 로컬 MeloTTS/선택형 Qwen으로 PCM WAV 합성 |
 | A4 공유 | GET/POST | `/api/a4/projects` | 보호자/운영 | 공개·보관함·검토 목록과 새 편집본 저장 |
 | A4 공유 | GET/DELETE | `/api/a4/projects/{id}` | 권한 확인 | 편집 가능한 사본 조회·본인 보관함 삭제 |
 | A4 공유 | POST | `/api/a4/projects/{id}/copy` | 보호자 | 공개 자료의 독립 비공개 사본 |
@@ -418,21 +418,21 @@ GET /
 GET /api/health
 ```
 
-인증 없이 서버, MongoDB, 선택형 Ollama와 기기 TTS의 검사 범위를 확인한다.
+인증 없이 서버, MongoDB, 선택형 Ollama와 서버 TTS의 준비 상태를 확인한다.
 MongoDB는 실제 `ping`, Ollama는 `/api/tags`에서 설정된 모델의 존재를 검사한다.
-모델 존재 확인은 실제 생성 성공을 보장하지 않는다. 기기 TTS는 서버에서 검사할 수
-없어 `client_side/device_check_required`로 표시한다.
+모델 존재 확인은 실제 생성 성공을 보장하지 않는다. TTS는 선택된 Melo/Qwen worker의
+`/health`를 점검하며 `device_check: client_side`는 실제 스피커 재생이 별도 검수라는 뜻이다.
 
 | HTTP 상태 | `status` | 의미 |
 |---|---|---|
-| 200 | `ok` | MongoDB 준비 완료, Ollama 정상 또는 비활성 |
-| 200 | `degraded` | MongoDB 준비 완료, 선택형 Ollama 장애·모델 미설치. 규칙 기반 문장 생성 유지 |
+| 200 | `ok` | MongoDB와 설정된 음성 서버 준비 완료, Ollama 정상 또는 비활성 |
+| 200 | `degraded` | MongoDB 준비 완료, Ollama 또는 음성 서버 장애·미설정·준비 중. 모든 음성 재생을 보장하지 않음 |
 | 503 | `unavailable` | 필수 MongoDB 연결 실패. 선택형 AI 상태와 구분 |
 
 MongoDB 검사에는 2초 작업 제한을 적용한다. Ollama 연결·소켓 대기 시간은 2초,
 응답 본문은 최대 65,536바이트로 제한한다. 소켓 대기 제한은 전체 요청의 절대 시간
 제한과 다르다. 검사는 동기 작업용 스레드에서 실행하며 API 이벤트 루프를 막지 않는다.
-Docker의 백엔드 헬스체크 제한은 순차 검사를 고려해 5초다. 응답은 캐시하지 않으며
+DB/Ollama/TTS 검사는 병렬 수행하며 Docker 백엔드 헬스체크 제한은 5초다. 응답은 캐시하지 않으며
 서버 주소·자격 증명·예외 원문을 반환하지 않는다.
 
 ### 성공 응답: 200 OK
@@ -448,13 +448,14 @@ Docker의 백엔드 헬스체크 제한은 순차 검사를 고려해 5초다. �
       "detail": "disabled", "fallback": "rule"
     },
     "tts": {
-      "status": "client_side", "required": false,
-      "detail": "device_check_required"
+      "status": "ok", "required": false,
+      "provider": "qwen3-tts", "detail": "ready", "device_check": "client_side"
     }
   }
 }
 ```
 
+위는 Qwen 준비 완료 예시이며 기본 Compose의 공급자 표시는 `melotts`다.
 Ollama가 활성화돼 정상일 때는 `status: ok`, `detail: ready`를 반환한다.
 장애 시 `status: unavailable`이며 `detail`은 `unreachable`, `model_missing`,
 `invalid_response` 중 하나다. MongoDB 장애 응답에도 `checks`를 유지하고
@@ -636,15 +637,20 @@ Content-Type: application/json
 
 ```json
 {
-  "preset": "child",
-  "voice_name": "Microsoft Heami",
+  "preset": "girl",
+  "voice_name": "",
   "rate": 0.9,
   "pitch": 1.25,
   "volume": 1.0
 }
 ```
 
-일반 사용자 본인 또는 `voice_access_manage` 권한이 있는 보호자·담당자가 음성 프리셋, 기기 음성 이름, 속도, 음높이와 기본 볼륨을 조회하거나 저장한다. 저장된 설정이 없으면 어린이 느낌과 100% 볼륨을 기본값으로 반환한다. `preset`은 `child`, `woman`, `man` 중 하나이며 속도와 음높이는 `0.5`부터 `1.5`, 볼륨은 `0.0`부터 `1.0`까지 허용한다. 볼륨이 0이면 클라이언트는 무음 재생 대신 설정 변경 안내를 표시한다.
+일반 사용자 본인 또는 `voice_access_manage` 권한이 있는 보호자·담당자가 조회/저장한다.
+현재 선택지는 `girl`/`boy` 두 개이며 기본은 girl·0.90배·볼륨 100%다.
+입력 호환을 위해 child/woman/man도 허용하지만 읽기/저장 시 girl/girl/boy로 정규화한다.
+`voice_name`·`pitch`는 기기 대체 경로 호환 필드이며 서버 Qwen 화자를 결정하지 않는다.
+속도·음높이는 0.5~1.5, 볼륨은 0~1이다. 일반 UI는 목소리·속도·볼륨만 표시한다.
+볼륨 0은 클라이언트에서 무음 성공 대신 설정 변경 안내를 표시한다.
 
 ## 6.9 TTS 이용 이력 저장
 
@@ -1395,7 +1401,7 @@ preflight는 요청 ID와 지표 집계를 유지하지만 콘솔 요청 로그�
 3. MongoDB 자체 인증은 현재 개발 구성에 적용되지 않았다.
 4. 카드 요청의 임시 저장·제출·수정·승인/반려는 구현됐다. 별도 카드 요청 삭제 API는 없다.
 5. Ollama가 실행되지 않거나 모델 응답이 60초를 초과하면 규칙 기반 문장을 사용한다.
-6. 서버 연결 시 `/api/tts/speech`의 MeloTTS WAV를 재생한다. 오프라인은 기존 기기 음성·
+6. 서버 연결 시 `/api/tts/speech`의 Melo/Qwen WAV를 재생한다. 오프라인은 기존 기기 음성·
    준비된 핵심 녹음을 사용한다. 설정·이벤트 API 자체는 합성 음성 파일을 반환하지 않는다.
 7. `/api/health`의 기기 TTS 상태는 실제 음성 설치·오프라인 재생 성공을 판정하지 않는다. 기기별 검수는 별도로 수행한다.
 
@@ -1411,15 +1417,18 @@ preflight는 요청 ID와 지표 집계를 유지하지만 콘솔 요청 로그�
 
 ## 로컬 음성 합성 API
 
-- `POST /api/tts/speech`, Bearer 로그인 필수. 요청은 `{ "text": "물 주세요", "rate": 0.9 }`.
+- `POST /api/tts/speech`, Bearer 로그인 필수. 요청은 `{ "text": "물 주세요", "voice": "girl", "rate": 0.9 }`.
   공백 제외 1~300자, 속도 0.5~1.5의 유한값만 허용한다. 별도 사용자 ID는 받지 않는다.
-- 현재 PC 내부 MeloTTS 서비스의 한국어 음성으로 합성하고 `audio/wav` PCM16 모노를 반환한다.
-  요청 본문·완성 음성을 DB나 디스크에 저장하지 않는다. 개인정보 기록 동의가 없어도
+- 기본 구성은 MeloTTS 단일 음색, Qwen overlay는 `girl`/`boy` 두 음색이다. 생략 기본값은 girl/0.90배다.
+  `audio/wav` PCM16 모노를 반환한다. 기본 카드 label 음성만 제한된 Docker 볼륨에 캐시하며
+  개인 카드/생성 문장은 메모리 캐시만 사용한다. [캐시 정책](../policies/TTS_POLICY.md#캐시)을 따른다.
+  개인정보 기록 동의가 없어도
   기록 없는 기본 말하기 용도로 이용할 수 있다. 기존 이력 저장 동의 정책은 별도 유지한다.
-- 프로세스당 1개 합성 요청, 프록시 제한 45초, 응답 상한 12MiB. 사용 중 429,
+- 프로세스당 1개 합성 요청, 최대 4개 진행/대기 슬롯·잠금 대기 10초, 응답 상한 12MiB.
+  기본 프록시 제한 35초, Qwen overlay는 75초이며 브라우저 제한은 각각 50/90초다. 사용 중 429,
   준비 중·연결 실패·시간 초과·잘못된 WAV 503, 빈 입력 422. 모든 음성 응답은 no-store다.
 - worker는 호스트 포트를 열지 않는다. 브라우저는 인증된 API를 통해서만 요청한다.
-  모델 최초 다운로드와 준비 시간, 속도·기기 검수 범위는 [MeloTTS 운영 안내](SPEECH_AND_AI.md#melo-tts)를 따른다.
+  준비·캐시·속도·기기 검수 범위는 [현재 음성 안내](SPEECH_AND_AI.md#현재-실행과-캐시)를 따른다.
 
 ## 카드 사진 글자 인식 API
 

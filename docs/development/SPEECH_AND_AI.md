@@ -8,10 +8,66 @@
 
 ## 찾기
 
+- [현재 실행과 캐시](#현재-실행과-캐시)
+- [음성 선택·보관 정책](../policies/TTS_POLICY.md)
+- [최신 안정화 결과](LOCAL_DEVELOPMENT.md#안정화-회귀-점검--2026-11-12)
 - [로컬 한국어 MeloTTS](#melo-tts)
 - [문장 생성의 첫 요청·유휴 후 지연 개선](#sentence-generation-performance)
 
+## 현재 실행과 캐시
+
+기본 `compose.yaml`은 MeloTTS입니다. Qwen으로 실행하려면 여자아이·남자아이 합성 참조 두 개와
+`compose.qwen.yaml`이 필요합니다. 두 음색은 기본 0.90배이며 일반 설정에서는 목소리·속도·볼륨만 고릅니다.
+기존 개인 속도는 강제로 덮어쓰지 않습니다. 기기별 음색 목록과 수동 음높이 선택은 일반 UI에서 제거했습니다.
+
+### 최초 Qwen 준비
+
+생성 WAV는 Git에 포함하지 않으므로 새로 clone한 PC에는 없습니다. VoiceDesign 시안을 만든 뒤
+직접 들어보고 선택합니다. 이미지 생성 API 키는 필요하지 않지만 공개 모델의 최초 다운로드는 필요합니다.
+CPU BF16 경로이며 사전 점검은 Docker 총 8GiB·가용 6GiB 이상을 요구합니다. 실제 PC의 여유 메모리도 확인하세요.
+시안 생성 중 Melo/Qwen 합성 서버를 함께 실행하지 않습니다(실행 중이면 잠시 음성이 중단됩니다).
+
+```powershell
+docker compose -f compose.voice-design.yaml run --rm --build voice-design --text "물 주세요. 도와주세요. 잠깐만요."
+docker compose -f compose.voice-design.yaml run --rm voice-design --description-file /app/voice-description-boy.txt --text "물 주세요. 도와주세요. 잠깐만요."
+```
+
+각 명령이 출력한 `.local-voice-design/audition-...` 폴더의 `sample.wav`를 듣고 실제 폴더를 아래에 넣습니다.
+형식 검사나 파형 생성만으로 발음·음색·표현 누락이 검증된 것은 아닙니다. 실존 아동의 녹음 업로드 기능이 아닙니다.
+
+### Qwen 실행·태블릿 접속
+
+```powershell
+$env:QWEN_REFERENCE_DIR = './.local-voice-design/audition-여자아이ID'
+$env:QWEN_BOY_REFERENCE_DIR = './.local-voice-design/audition-남자아이ID'
+$env:QWEN_CACHE_VERSION = 'qwen-선택한두음색-v1'
+docker compose -f compose.yaml -f compose.qwen.yaml -f compose.tablet.yaml up -d --build
+```
+
+위 ID는 예시이며 실제 생성 폴더로 바꿉니다. 이후 터미널에서도 같은 값을 지정하거나 로컬 `.env`에 보관합니다.
+참조를 교체하면 캐시 버전도 바꾸고 브라우저를 새로고침합니다. 기존 `.env`를 예제로 덮어쓰지 마세요.
+Qwen을 쓰던 중 기본/태블릿 Compose만 실행하면 Melo 설정으로 돌아갈 수 있으므로 같은 파일 조합을 유지합니다.
+반대 음성 서버가 이미 실행 중이면 해당 서버를 중지해 메모리를 확보합니다. DB/캐시 볼륨은 삭제하지 않습니다.
+태블릿은 [PC 모바일 핫스팟 안내](LOCAL_DEVELOPMENT.md#pc-모바일-핫스팟으로-ipad-연결)를 따릅니다.
+
+### 캐시와 검사 범위
+
+| 범위 | 보관 | 재시작 후 |
+| --- | --- | --- |
+| 브라우저 | 세션 메모리, 30분·128개/64MiB | 새로고침·세션 변경 시 소멸 |
+| backend 개인 음성 | 계정별 메모리 키, 30분·전체 256개/64MiB | 프로세스 재시작 시 소멸 |
+| 기본 카드 label 음성 | Qwen Docker 볼륨, 생성 후 7일·512개/128MiB | 볼륨을 유지하면 재사용 |
+
+음색·속도·공급자·참조 버전을 구분합니다. 개인 카드/생성 문장을 디스크에 추가 보관하지 않습니다.
+만료 파일은 조회/저장 때 정리하며 주기 삭제 작업이 아닙니다. 자세한 보관 경계는 [TTS 정책](../policies/TTS_POLICY.md)을 따릅니다.
+캐시 미스의 첫 CPU 합성 지연은 남습니다. Qwen 요청 제한은 backend 75초·브라우저 90초이며 성능 보장은 아닙니다.
+`/api/health`의 Qwen ready와 실제 기기 소리 출력은 별도입니다. 실측은 아래 날짜별 기록,
+최신 검사·미검증 항목은 [안정화 결과](LOCAL_DEVELOPMENT.md#안정화-회귀-점검--2026-11-12)를 참고합니다.
+
 ## Qwen 합성 서버 선택형 연결 (2026-11-10)
+
+<details>
+<summary>2026-11-07~12 음색 시안·서버 연결·캐시 구현 이력 (현재 실행은 위 안내 우선)</summary>
 
 ### 두 음색 선택 및 기본 카드 영속 캐시 (2026-11-11)
 
@@ -338,6 +394,8 @@ Docker 총 메모리 8GiB·가용 6GiB를 프로젝트의 보수적인 사전 �
 - 실제 Docker MeloTTS 두 건 동시 진입에서 약 10초에 모두 WAV 반환, 진폭 18485/10254로 비무음 확인. 사용 기록 저장 없음.
 - 실제 합성 검사 첫 명령은 셸 인용 오류로 실행되지 않았고 표준입력 방식으로 재실행 통과.
 - 프론트 빌드 통과(큰 번들 경고 유지). 실제 사용자 Windows 스피커·iPad 청취 확인은 미실행입니다.
+
+</details>
 
 <a id="melo-tts"></a>
 ## 로컬 한국어 MeloTTS
