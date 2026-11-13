@@ -12,6 +12,7 @@ export function useCommunicationState() {
   const [cardCategories, setCardCategories] = useState([]);
   const [board, setBoard] = useState([]);
   const boardCardsRef = useRef(board);
+  const rfidBoardRevisionRef = useRef(0);
   boardCardsRef.current = board;
   const boardRef = useRef(null);
   const boardFocusRef = useRef(null);
@@ -30,11 +31,11 @@ export function useCommunicationState() {
   const [situation, setSituation] = useState('unspecified');
   const [requestId, setRequestId] = useState(() => createRequestId());
   const activityConsentRef = useRef(false);
-  return { cards, setCards, cardCategories, setCardCategories, board, setBoard, boardCardsRef, boardRef, boardFocusRef, outputMode, setOutputMode, category, setCategory, search, setSearch, selectedCard, setSelectedCard, text, setText, generatedSessionId, setGeneratedSessionId, generationFailed, setGenerationFailed, generating, setGenerating, generationInFlightRef, sentenceContextRef, activityStreamRef, selectionEventRef, situation, setSituation, requestId, setRequestId, activityConsentRef };
+  return { cards, setCards, cardCategories, setCardCategories, board, setBoard, boardCardsRef, rfidBoardRevisionRef, boardRef, boardFocusRef, outputMode, setOutputMode, category, setCategory, search, setSearch, selectedCard, setSelectedCard, text, setText, generatedSessionId, setGeneratedSessionId, generationFailed, setGenerationFailed, generating, setGenerating, generationInFlightRef, sentenceContextRef, activityStreamRef, selectionEventRef, situation, setSituation, requestId, setRequestId, activityConsentRef };
 }
 
 export default function useCommunication({
-  activeUserRef, activityConsentRef, situation, activityStreamRef, offline, updatePendingSyncCount, setError, boardCardsRef, sentenceContextRef, stopSpeech, selectionEventRef, setBoard, privacy, user, setText, setGeneratedSessionId, setGenerationFailed, setSpeechFailure, setRequestId, board, boardRef, boardFocusRef, generationInFlightRef, speechPlayback, speechRunRef, setGenerating, requestId, speakBoardSentence, dashboardPath, setStats, generatedSessionId, loaded, tab, myPageOpen, outputMode
+  activeUserRef, activityConsentRef, situation, activityStreamRef, offline, updatePendingSyncCount, setError, boardCardsRef, sentenceContextRef, stopSpeech, selectionEventRef, setBoard, privacy, user, setText, setGeneratedSessionId, setGenerationFailed, setSpeechFailure, setRequestId, board, boardRef, boardFocusRef, generationInFlightRef, speechPlayback, speechRunRef, setGenerating, requestId, speakBoardSentence, dashboardPath, setStats, generatedSessionId, loaded, tab, myPageOpen, outputMode, rfidBoardRevisionRef, busy, speechState, compactSidebar, sidebarCollapsed, setTab, speakText
 }) {
   activityConsentRef.current = user?.role === 'user' && privacy.guardian_consent;
   const sentenceContext = JSON.stringify([user?.id, user?.role, loaded, requestId, board.map(card => [card.id, card.selected_at]),
@@ -65,7 +66,8 @@ export default function useCommunication({
       } catch { if (isCurrent()) setError('선택·발화 기록을 저장하지 못했습니다. 말하기는 계속 사용할 수 있어요.'); }
     }
   }
-  function updateBoard(next) {
+  function updateBoard(next, { source = 'manual' } = {}) {
+    if (source !== 'rfid') rfidBoardRevisionRef.current += 1;
     boardCardsRef.current = next;
     // Invalidate pending generation before React commits the new selection.
     sentenceContextRef.current = '';
@@ -74,6 +76,19 @@ export default function useCommunication({
     selectionEventRef.current = activity?.event.id || null;
     persistActivity(activity);
     setBoard(next); if (privacy.guardian_consent) saveBoard(user?.id, next); setText(''); setGeneratedSessionId(''); setGenerationFailed(false); setSpeechFailure(null); setRequestId(createRequestId());
+  }
+  function appendRfidSelection(selection, { autoSpeak = false } = {}) {
+    if (busy || speechState.status !== 'idle' || offline || myPageOpen || (compactSidebar && !sidebarCollapsed)
+        || !['home', 'cards'].includes(tab) || document.visibilityState === 'hidden') return false;
+    const currentBoard = boardCardsRef.current;
+    if (currentBoard.length + selection.length > 12) {
+      setError('문장은 최대 12장입니다. 현재 문장을 정리한 뒤 카드를 다시 대주세요.');
+      return false;
+    }
+    const next = [...currentBoard, ...selection.map(card => ({ ...card, selected_at: card.selected_at || new Date().toISOString() }))];
+    setError(''); updateBoard(next, { source: 'rfid' }); setTab('cards');
+    if (autoSpeak) speakText(next.map(card => card.label).join(' '), 'sentence', next.map(card => card.id), '', { freshSelection: true });
+    return true;
   }
   function add(card) {
     if (board.length >= 12) { setError('카드는 최대 12장까지 선택할 수 있어요.'); return false; }
@@ -139,7 +154,7 @@ export default function useCommunication({
     } catch (e) { if (isCurrent()) { setGenerationFailed(true); setError(`${e.message} 선택한 카드는 유지되며 로컬 음성은 계속 사용할 수 있어요.`); } }
     finally { generationInFlightRef.current = false; setGenerating(false); }
   }
-  return { makeActivity, persistActivity, updateBoard, add, move, rememberBoardFocus, removeBoardCard, generate, regenerate };
+  return { makeActivity, persistActivity, updateBoard, appendRfidSelection, add, move, rememberBoardFocus, removeBoardCard, generate, regenerate };
 }
 
 export function useUsbStatusReset({ setUsbStatus, user }) {

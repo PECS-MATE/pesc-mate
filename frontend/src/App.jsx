@@ -56,7 +56,7 @@ function App() {
   const { user, setUser, activeUserRef, authReady, setAuthReady, profileNotice, setProfileNotice, username, setUsername, password, setPassword, authMode, setAuthMode, authPanelRef, entryPageRef, name, setName, passwordConfirm, setPasswordConfirm, registrationConsent, setRegistrationConsent, error, setError, busy, setBusy } = useAuthSessionState();
   const { loaded, setLoaded, offlineSync, syncState, setSyncState, offline, setOffline, pendingSyncCount, setPendingSyncCount } = useOfflineSessionState();
   const { speechState, setSpeechState, speechFailure, setSpeechFailure, speechRunRef, speechEventRef, lastSpeechTapRef, speechPlayback, coreSpeechCache, ttsVoices, setTtsVoices, ttsSettings, setTtsSettings, ttsSettingsBusy, setTtsSettingsBusy, ttsSettingsSaved, setTtsSettingsSaved, accessibility, setAccessibility, accessibilityBusy, setAccessibilityBusy, accessibilitySaved, setAccessibilitySaved } = useSpeechControllerState();
-  const { cards, setCards, cardCategories, setCardCategories, board, setBoard, boardCardsRef, boardRef, boardFocusRef, outputMode, setOutputMode, category, setCategory, search, setSearch, selectedCard, setSelectedCard, text, setText, generatedSessionId, setGeneratedSessionId, generationFailed, setGenerationFailed, generating, setGenerating, generationInFlightRef, sentenceContextRef, activityStreamRef, selectionEventRef, situation, setSituation, requestId, setRequestId, activityConsentRef } = useCommunicationState();
+  const { cards, setCards, cardCategories, setCardCategories, board, setBoard, boardCardsRef, rfidBoardRevisionRef, boardRef, boardFocusRef, outputMode, setOutputMode, category, setCategory, search, setSearch, selectedCard, setSelectedCard, text, setText, generatedSessionId, setGeneratedSessionId, generationFailed, setGenerationFailed, generating, setGenerating, generationInFlightRef, sentenceContextRef, activityStreamRef, selectionEventRef, situation, setSituation, requestId, setRequestId, activityConsentRef } = useCommunicationState();
   const { learningDirty, setLearningDirty, learningSettings, setLearningSettings, learningProgress, setLearningProgress, learningBusy, setLearningBusy, practiceCategory, setPracticeCategory, practiceActivity, setPracticeActivity, practiceSituation, setPracticeSituation, learningGame, setLearningGame, activePracticePlan, setActivePracticePlan } = useLearningSessionState();
   const { showCardForm, setShowCardForm, cardSubmissions, setCardSubmissions, cardFormBusy, setCardFormBusy, cardFormError, setCardFormError, managedCardSearch, setManagedCardSearch, managedCardCategory, setManagedCardCategory, managedCardNotice, setManagedCardNotice, supportSettingsNotice, setSupportSettingsNotice, supportSettingsRequestRef, editingSubmission, setEditingSubmission, adminSubmissions, setAdminSubmissions, adminCategories, setAdminCategories, categoryEdits, setCategoryEdits, categoryBusy, setCategoryBusy, categoryError, setCategoryError, reviewDrafts, setReviewDrafts, reviewBusy, setReviewBusy, stats, setStats, period, setPeriod, statsBusy, setStatsBusy, linkedUsers, setLinkedUsers, selectedUser, setSelectedUser, selectedUserRef, supportRecordRequestRef, supportCardRequestRef, noteDrafts, setNoteDrafts, noteBusy, setNoteBusy, privacy, setPrivacy, privacyDraft, setPrivacyDraft, privacyCaregivers, setPrivacyCaregivers, privacyAudit, setPrivacyAudit, privacyBusy, setPrivacyBusy, localDeletionStatus, setLocalDeletionStatus, caregiverUsername, setCaregiverUsername, newSupportPermissions, setNewSupportPermissions, supportPermissionDrafts, setSupportPermissionDrafts, boardLayout, setBoardLayout, boardLayoutAudit, setBoardLayoutAudit, quickDraft, setQuickDraft, recoveryDraft, setRecoveryDraft, slotDraft, setSlotDraft, boardConfigBusy, setBoardConfigBusy, boardConflict, setBoardConflict } = useSupportWorkspaceState();
   const [myPageOpen, setMyPageOpen] = useState(false);
@@ -224,7 +224,7 @@ function App() {
     setAccessibilityBusy,
     accessibility,
   });
-  const { makeActivity, persistActivity, updateBoard, add, move, rememberBoardFocus, removeBoardCard, generate, regenerate } = useCommunication({
+  const { makeActivity, persistActivity, updateBoard, appendRfidSelection, add, move, rememberBoardFocus, removeBoardCard, generate, regenerate } = useCommunication({
     activeUserRef,
     activityConsentRef,
     situation,
@@ -260,6 +260,7 @@ function App() {
     tab,
     myPageOpen,
     outputMode,
+    rfidBoardRevisionRef, busy, speechState, compactSidebar, sidebarCollapsed, setTab, speakText,
   });
   const { restoreLearningSession, loadLearning, updateLearningSetting, saveLearningConfiguration, openLearning, availablePracticeCards, startLearningGame, startPracticePlan, answerLearningQuestion, changeLearningOrder, finishLearningGame, nextLearningQuestion } = useLearningSession({
     setError,
@@ -544,17 +545,10 @@ function App() {
       {user.role === 'user' && privacy.guardian_consent && !offline && (pendingSyncCount > 0 || syncState === 'failed') && <div className="offline-notice" data-testid="sync-status"><span role="status">{syncState === 'syncing' ? `기기에 저장한 기록 ${pendingSyncCount}건을 동기화하고 있어요.` : syncState === 'failed' ? `저장한 기록을 모두 전송하지 못했어요. 남은 ${pendingSyncCount}건은 기기에 보관됩니다.` : `동기화할 기록 ${pendingSyncCount}건이 기기에 있습니다.`}</span> <button type="button" disabled={syncState === 'syncing'} onClick={() => syncPendingEvents(user)}>기록 동기화 다시 시도</button></div>}
       {loaded && user.role === 'user' && <UsbRfidReader key={`rfid-${user.id}`} targetId={user.id} cards={cards} autoAppend
         connectionTarget={usbSidebarTarget} onStatus={setUsbStatus} onReadError={setError}
-        appendScope={`${requestId}:${tab}:${myPageOpen}:${compactSidebar && !sidebarCollapsed}:${offline}`}
+        appendScope={`${rfidBoardRevisionRef.current}:${['home', 'cards'].includes(tab) ? 'communication' : tab}:${myPageOpen}:${compactSidebar && !sidebarCollapsed}:${offline}`}
+        onActivateAudio={speechPlayback.unlock}
         disabled={busy || speechActive || offline || myPageOpen || (compactSidebar && !sidebarCollapsed) || !['home', 'cards'].includes(tab)}
-        onAppend={selection => {
-          if (busy || speechActive || offline || myPageOpen || (compactSidebar && !sidebarCollapsed) || !['home', 'cards'].includes(tab) || document.visibilityState === 'hidden') return false;
-          const currentBoard = boardCardsRef.current;
-          if (currentBoard.length + selection.length > 12) { setError('문장은 최대 12장입니다. 현재 문장을 정리한 뒤 카드를 다시 대주세요.'); return false; }
-          setError('');
-          updateBoard([...currentBoard, ...selection.map(card => ({ ...card, selected_at: new Date().toISOString() }))]);
-          setTab('cards');
-          return true;
-        }} />}
+        onAppend={appendRfidSelection} />}
       {user.role === 'user' && tab !== 'cards' && <section className="quick-speech" aria-labelledby="quick-speech-title" data-scan-group="quick-speech"><div><strong id="quick-speech-title">빠른 표현</strong></div>{quickExpressionCards.map(item => <button key={item.id} disabled={speechState.status === 'starting'} aria-label={`${item.label} 바로 말하기`} onClick={() => speakText(item.label, 'card', [item.id])}>{expressionVisual(item)}{item.label}</button>)}</section>}
       {tab === 'home' && user.role === 'user' && <HomeDashboard selectedCount={board.length}
         cards={cards} renderPicture={cardPicture}

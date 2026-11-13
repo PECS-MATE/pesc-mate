@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { request } from './services/api';
 import { parseUsbLine, UsbPresentationTracker, UsbSerialConnection } from './services/usbRfid';
+import { createUsbTagQueue } from './services/usbTagQueue';
 
 const messages = {
   connected: 'USB 장치를 연결했습니다.', disconnected: 'USB 장치 연결이 해제됐습니다.',
@@ -14,7 +15,7 @@ const messages = {
   unsupported_firmware: 'Wi-Fi용 출력입니다. USB 카드 인식에는 진단 스케치 또는 USB용 펌웨어를 사용해 주세요.',
 };
 
-export default function UsbRfidReader({ targetId, variant = 'default', manager = false, canMap = false, cards = [], mappingVersion = 0, onUid, onAppend, onApply, disabled = false, registration = false, eventScope = 'personal', compact = false, artStyle = () => ({}), onStatus, connectionTarget, autoAppend = false, appendScope, onReadError }) {
+export default function UsbRfidReader({ targetId, variant = 'default', manager = false, canMap = false, cards = [], mappingVersion = 0, onUid, onAppend, onApply, disabled = false, registration = false, eventScope = 'personal', compact = false, artStyle = () => ({}), onStatus, connectionTarget, autoAppend = false, appendScope, onReadError, onActivateAudio }) {
   const [state, setState] = useState('disconnected'), [logs, setLogs] = useState([]);
   const [resolved, setResolved] = useState([]), [mode, setMode] = useState('queue');
   const [protocol, setProtocol] = useState(''), [pending, setPending] = useState(false), [unsafe, setUnsafe] = useState(true);
@@ -27,12 +28,38 @@ export default function UsbRfidReader({ targetId, variant = 'default', manager =
   useEffect(() => {
     let disposed = false, entries = [], revision = 0, currentMode = 'queue', tracker = new UsbPresentationTracker();
     let lastActivity = 0, lastReaderState = '', previousVersion = '', resolvePending = false, needsResolve = false;
-    let readerSafe = false, autoPositions = new Map();
+    let readerSafe = false;
     const throttled = new Map();
     const current = () => !disposed && token && localStorage.getItem('pesc-mate-token') === token;
     const canAppend = () => current() && !handlers.current.disabled && readerSafe && navigator.onLine
       && document.visibilityState !== 'hidden' && Date.now() - lastActivity < 20000;
     const query = `?user_id=${encodeURIComponent(targetId)}`;
+    const tagQueue = createUsbTagQueue({
+      isCurrent: scope => current() && scope === handlers.current.appendScope,
+      isEnabled: canAppend,
+      resolve: rows => request('/rfid/usb/resolve' + query, { method: 'POST',
+        body: JSON.stringify({ uids: rows.map(row => row.uid) }), headers: { Authorization: `Bearer ${token}` } }),
+      onBatch: (results, batch) => {
+        const selected = batch.rows.map((row, index) => {
+          const result = results[index];
+          const card = result?.status === 'PRESENT' && handlers.current.cards.find(item => item.id === result.card_id);
+          return card ? { ...card, selected_at: row.selected_at } : null;
+        });
+        const complete = selected.every(Boolean);
+        const availableCards = selected.filter(Boolean);
+        if (availableCards.length) handlers.current.onAppend?.(availableCards, { autoSpeak: batch.autoSpeak && complete });
+        if (!complete) {
+          log('unmapped');
+          handlers.current.onReadError?.('등록되지 않았거나 사용할 수 없는 카드입니다. 보호자 화면에서 태그 연결을 확인해 주세요.');
+        }
+      },
+      onError: failure => {
+        const message = failure.message === 'queue_full' ? '태그 처리 중인 카드가 많습니다. 잠시 뒤 카드를 다시 대주세요.'
+          : '태그 연결을 조회하지 못했습니다. 카드를 떼었다가 다시 대주세요.';
+        setError(message); handlers.current.onReadError?.(message);
+      },
+    });
+
     setResolved([]); setLogs([]); setError(''); setState('disconnected'); setUnsafe(true); setFresh(false); setPending(false); setProtocol('');
     function log(action, message = messages[action]) {
       if (!current()) return;
@@ -59,17 +86,7 @@ export default function UsbRfidReader({ targetId, variant = 'default', manager =
         let index = 0;
         const mapped = reading.map(row => row.uid ? { ...row, ...results[index++] } : row);
         if (mapped.some(row => ['UNMAPPED', 'UNAVAILABLE'].includes(row.status))) log('unmapped');
-        if (autoAppend) {
-          if (canAppend() && scope === handlers.current.appendScope) {
-            const selected = mapped.filter(row => row.status === 'PRESENT')
-              .map(row => handlers.current.cards.find(card => card.id === row.card_id)).filter(Boolean);
-            if (selected.length) handlers.current.onAppend?.(selected);
-            if (mapped.some(row => ['UNMAPPED', 'UNAVAILABLE'].includes(row.status))) {
-              handlers.current.onReadError?.('등록되지 않았거나 사용할 수 없는 카드입니다. 보호자 화면에서 태그 연결을 확인해 주세요.');
-            }
-          }
-          clear(); // Consume this presentation even when the sentence is full or its context changed.
-        } else setResolved(mapped);
+        setResolved(mapped);
       } catch { if (current() && sequence === revision) {
         const message = '태그 연결을 조회하지 못했습니다. 카드를 떼었다가 다시 대주세요.';
         if (autoAppend) {
@@ -83,7 +100,7 @@ export default function UsbRfidReader({ targetId, variant = 'default', manager =
         else if (current() && sequence === revision) setPending(false);
       }
     }
-    function clear() { entries = []; ++revision; needsResolve = false; setResolved([]); setError(''); setPending(false); }
+    function clear() { tagQueue.reset(); entries = []; ++revision; needsResolve = false; setResolved([]); setError(''); setPending(false); }
     function onLine(line) {
       if (!current()) return;
       let frame;
@@ -100,17 +117,26 @@ export default function UsbRfidReader({ targetId, variant = 'default', manager =
       if (['reader_ready', 'reader_error', 'unsupported_firmware'].includes(frame.type)) {
         if (frame.type !== lastReaderState) log(frame.type);
         lastReaderState = frame.type;
-        if (frame.type !== 'reader_ready') { readerSafe = false; if (autoAppend) { clear(); setError(messages[frame.type]); } setUnsafe(true); }
+        if (frame.type !== 'reader_ready') {
+          if (autoAppend && frame.type === 'reader_error' && frame.reader_id) {
+            setError(`리더기 ${frame.reader_id}번을 확인해 주세요. 다른 정상 리더기는 계속 사용할 수 있어요.`);
+          } else { readerSafe = false; if (autoAppend) { clear(); setError(messages[frame.type]); } setUnsafe(true); }
+        }
         return;
       }
       const accepted = tracker.accept(frame);
       if (!accepted) return;
       setProtocol(frame.protocol);
-      if (accepted.reset || accepted.mode !== currentMode) { clear(); autoPositions.clear(); if (accepted.reset) log('reset'); }
+      if (accepted.reset || accepted.mode !== currentMode) { clear(); tagQueue.reset({ forgetPositions: true }); if (accepted.reset) log('reset'); }
       currentMode = accepted.mode; setMode(currentMode);
       if (accepted.status === 'ERROR' || accepted.rows.some(row => row.status === 'ERROR')) {
         readerSafe = false; setUnsafe(true); log('reader_error');
-        if (autoAppend) { clear(); handlers.current.onReadError?.('카드 리더기에 오류가 있습니다. 전원과 연결 상태를 확인해 주세요.'); return; }
+        if (autoAppend) {
+          readerSafe = accepted.rows.some(row => ['PRESENT', 'EMPTY'].includes(row.status));
+          setUnsafe(!readerSafe);
+          setError(readerSafe ? '일부 리더기가 연결되지 않았거나 오류가 있습니다. 정상 리더기는 계속 사용할 수 있어요.' : '카드 리더기에 오류가 있습니다. 전원과 연결 상태를 확인해 주세요.');
+          if (!readerSafe) { clear(); setError('카드 리더기에 오류가 있습니다. 전원과 연결 상태를 확인해 주세요.'); return; }
+        }
       } else { readerSafe = true; setUnsafe(false); }
       if (registration) {
         const chips = accepted.rows.filter(row => row.uid);
@@ -119,13 +145,9 @@ export default function UsbRfidReader({ targetId, variant = 'default', manager =
         return; // Registration never fills a sentence queue or calls a child's mapping lookup.
       }
       if (autoAppend) {
-        const newRows = currentMode === 'positions'
-          ? accepted.rows.filter(row => row.uid && autoPositions.get(row.reader_id) !== row.uid)
-          : accepted.rows;
-        if (currentMode === 'positions') autoPositions = new Map(accepted.rows.map(row => [row.reader_id, row.uid]));
-        if (!canAppend() || !newRows.length) return;
-        if (entries.length + newRows.length > 12) { log('queue_full'); handlers.current.onReadError?.('태그 처리 중인 카드가 많습니다. 잠시 뒤 카드를 다시 대주세요.'); return; }
-        entries = [...entries, ...newRows];
+        if (accepted.rows.some(row => row.uid)) log('tag_read');
+        tagQueue.accept(accepted, handlers.current.appendScope);
+        return;
       } else if (currentMode === 'queue') {
         if (!accepted.rows.length) return;
         if (entries.some(row => row.uid === accepted.rows[0].uid)) return;
@@ -144,7 +166,7 @@ export default function UsbRfidReader({ targetId, variant = 'default', manager =
       onInvalid: () => { if (current()) { readerSafe = false; if (autoAppend) clear(); setUnsafe(true); log('invalid_frame'); } },
       onState: next => {
         if (!current()) return;
-        if (next === 'connected') { clear(); autoPositions.clear(); tracker = new UsbPresentationTracker(); lastActivity = Date.now(); setFresh(true); setProtocol(''); discover(); }
+        if (next === 'connected') { clear(); tagQueue.reset({ forgetPositions: true }); tracker = new UsbPresentationTracker(); lastActivity = Date.now(); setFresh(true); setProtocol(''); discover(); }
         if (next !== 'connected') { readerSafe = false; if (autoAppend) clear(); setUnsafe(true); setFresh(false); }
         if (autoAppend && ['connect_failed', 'open_failed', 'read_failed'].includes(next)) {
           setError(next === 'read_failed' ? '기기 연결을 읽지 못했습니다. 연결 상태를 확인하고 다시 연결해 주세요.' : messages[next]);
@@ -154,7 +176,7 @@ export default function UsbRfidReader({ targetId, variant = 'default', manager =
         if (next === 'read_failed') log('reader_error');
         if (['cancelled', 'connect_failed', 'open_failed'].includes(next)) discover();
       } }) : null;
-    session.current = { connection, clear, refresh: resolve };
+    session.current = { connection, clear, refresh: autoAppend ? () => {} : resolve };
     const serial = navigator.serial;
     async function discover() {
       try { const ports = await serial?.getPorts(); if (current()) setGranted(ports?.length || 0); } catch { if (current()) setGranted(0); }
@@ -162,7 +184,7 @@ export default function UsbRfidReader({ targetId, variant = 'default', manager =
     discover(); serial?.addEventListener('connect', discover); serial?.addEventListener('disconnect', discover);
     const timer = setInterval(() => { if (current()) setFresh(lastActivity > 0 && Date.now() - lastActivity < 20000); }, 1000);
     return () => {
-      disposed = true; ++revision; clearInterval(timer);
+      disposed = true; ++revision; tagQueue.reset({ forgetPositions: true }); clearInterval(timer);
       serial?.removeEventListener('connect', discover); serial?.removeEventListener('disconnect', discover);
       connection?.dispose(); session.current = null;
     };
@@ -179,7 +201,7 @@ export default function UsbRfidReader({ targetId, variant = 'default', manager =
     if (callback?.(selection) === true && mode === 'queue') session.current?.clear();
   }
   const connectionControls = <div className="usb-connection-controls">
-    <button type="button" className={variant === 'caregiver' && state !== 'connected' ? 'primary' : undefined} disabled={state === 'connected' || state === 'connecting'} onClick={() => session.current?.connection?.connect()}>{state === 'connecting' ? '연결 중…' : autoAppend ? '기기 연결' : 'USB 리더기 연결하기'}</button>
+    <button type="button" className={variant === 'caregiver' && state !== 'connected' ? 'primary' : undefined} disabled={state === 'connected' || state === 'connecting'} onClick={() => { onActivateAudio?.(); session.current?.connection?.connect(); }}>{state === 'connecting' ? '연결 중…' : autoAppend ? '기기 연결' : 'USB 리더기 연결하기'}</button>
     <button type="button" disabled={!['connected', 'connecting'].includes(state)} onClick={() => session.current?.connection?.disconnect()}>{autoAppend ? '연결 해제' : 'USB 연결 해제'}</button>
   </div>;
 

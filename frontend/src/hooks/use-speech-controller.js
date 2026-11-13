@@ -76,7 +76,7 @@ export default function useSpeechController({
     speechEvent.activity = contentType === 'preview' ? null : makeActivity(recoveryId ? 'recovery_speech' : 'speech_result', cardIds,
       { ...(recoveryId ? { recovery_id: recoveryId } : {}),
         ...(contentType === 'sentence' && selectionEventRef.current ? { selection_id: selectionEventRef.current } : {}),
-        ...(contentType === 'sentence' && (sessionId || (content === text && generatedSessionId)) ? { session_id: sessionId || generatedSessionId } : {}) });
+        ...(contentType === 'sentence' && (sessionId || (!playback.freshSelection && content === text && generatedSessionId)) ? { session_id: sessionId || generatedSessionId } : {}) });
     const startTracking = () => request('/tts/events', { method: 'POST', body: JSON.stringify({
       request_id: speechEvent.id, content_type: contentType, char_count: content.length,
     }) }).then(() => true).catch(async e => {
