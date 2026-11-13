@@ -61,15 +61,28 @@ def _request(payload):
                    headers={'Content-Type': 'application/json'}, method='POST')
 
 
+def _sentence_prompt(labels, fallback):
+    subject_rule = ('나/저 카드를 골랐으므로 반드시 저는을 넣으세요.'
+                    if any(label.strip() in {'나', '저'} for label in labels)
+                    else '나/저 카드가 없으므로 주어를 추가하지 마세요.')
+    return (
+        '선택 카드의 뜻을 유지해 짧은 존댓말 한 문장만 출력하세요.\n'
+        f'{subject_rule} 참고 문장이 자연스러우면 그대로 쓰세요.\n'
+        f"카드: {json.dumps(labels, ensure_ascii=False, separators=(',', ':'))}\n참고: {fallback}\n문장:"
+    )
+
+
 def warmup():
-    """Load only the configured local model; never send cards or delay API startup."""
+    """Prepare the model and shared prompt prefix without user cards or startup blocking."""
     if not enabled() or not warmup_enabled() or not _model_gate.acquire(blocking=False):
         return False
     _warming.set()
     try:
         settings = _settings()
-        payload = {'model': settings['model'], 'prompt': '', 'stream': False,
-                   'keep_alive': settings['keep_alive'], 'options': {'num_ctx': settings['num_ctx']}}
+        payload = {'model': settings['model'], 'system': system_prompt(),
+                   'prompt': _sentence_prompt([], ''), 'stream': False, 'think': False,
+                   'keep_alive': settings['keep_alive'],
+                   'options': {'num_ctx': settings['num_ctx'], 'num_predict': 1, 'temperature': 0.1}}
         with urlopen(_request(payload), timeout=_timeout('OLLAMA_WARMUP_TIMEOUT_SECONDS', 30)) as response:
             result = json.load(response)
         if not isinstance(result, dict) or result.get('done') is not True or result.get('error'):
@@ -122,11 +135,7 @@ def generate_sentence(labels, fallback, *, metrics=None):
         payload = {
             'model': settings['model'], 'stream': False, 'think': False,
             'keep_alive': settings['keep_alive'], 'system': system_prompt(),
-            'prompt': (
-                '선택 카드의 뜻을 유지해 짧은 존댓말 한 문장만 출력하세요.\n'
-                '나/저 카드가 없으면 주어를 추가하지 마세요. 참고 문장이 자연스러우면 그대로 쓰세요.\n'
-                f"카드: {json.dumps(labels, ensure_ascii=False, separators=(',', ':'))}\n참고: {fallback}\n문장:"
-            ),
+            'prompt': _sentence_prompt(labels, fallback),
             'options': {'temperature': 0.1, 'num_ctx': settings['num_ctx'],
                         'num_predict': settings['num_predict'], 'stop': ['\n']},
         }

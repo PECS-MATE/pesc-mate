@@ -4,7 +4,7 @@ PERSONA_VERSION = 'aac-ko-v1'
 OUTPUT_RULES_VERSION = 'sentence-output-v2'
 RULE_ENGINE_VERSION = 'ko-particle-v6'
 SAFETY_POLICY_VERSION = 'sentence-safety-v1'
-PROMPT_TEMPLATE_VERSION = 'sentence-prompt-v3'
+PROMPT_TEMPLATE_VERSION = 'sentence-prompt-v4'
 
 PERSONA = (
     '당신은 어린 사용자가 그림 카드로 의사를 표현하도록 돕는 '

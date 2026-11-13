@@ -35,8 +35,9 @@ export function useCommunicationState() {
 }
 
 export default function useCommunication({
-  activeUserRef, activityConsentRef, situation, activityStreamRef, offline, updatePendingSyncCount, setError, boardCardsRef, sentenceContextRef, stopSpeech, selectionEventRef, setBoard, privacy, user, setText, setGeneratedSessionId, setGenerationFailed, setSpeechFailure, setRequestId, board, boardRef, boardFocusRef, generationInFlightRef, speechPlayback, speechRunRef, setGenerating, requestId, speakBoardSentence, dashboardPath, setStats, generatedSessionId, loaded, tab, myPageOpen, outputMode, rfidBoardRevisionRef, busy, speechState, compactSidebar, sidebarCollapsed, setTab, speakText
+  activeUserRef, activityConsentRef, situation, activityStreamRef, offline, updatePendingSyncCount, setError, boardCardsRef, sentenceContextRef, stopSpeech, selectionEventRef, setBoard, privacy, user, setText, setGeneratedSessionId, setGenerationFailed, setSpeechFailure, setRequestId, board, boardRef, boardFocusRef, generationInFlightRef, speechPlayback, speechRunRef, setGenerating, generating, requestId, speakBoardSentence, dashboardPath, setStats, generatedSessionId, loaded, tab, myPageOpen, outputMode, rfidBoardRevisionRef, busy, speechState, compactSidebar, sidebarCollapsed, setTab, speakText
 }) {
+  const queuedAutoSpeech = useRef(null);
   activityConsentRef.current = user?.role === 'user' && privacy.guardian_consent;
   const sentenceContext = JSON.stringify([user?.id, user?.role, loaded, requestId, board.map(card => [card.id, card.selected_at]),
     tab, myPageOpen, outputMode, offline, privacy.guardian_consent]);
@@ -67,6 +68,7 @@ export default function useCommunication({
     }
   }
   function updateBoard(next, { source = 'manual' } = {}) {
+    queuedAutoSpeech.current = null;
     if (source !== 'rfid') rfidBoardRevisionRef.current += 1;
     boardCardsRef.current = next;
     // Invalidate pending generation before React commits the new selection.
@@ -87,7 +89,12 @@ export default function useCommunication({
     }
     const next = [...currentBoard, ...selection.map(card => ({ ...card, selected_at: card.selected_at || new Date().toISOString() }))];
     setError(''); updateBoard(next, { source: 'rfid' }); setTab('cards');
-    if (autoSpeak) speakText(next.map(card => card.label).join(' '), 'sentence', next.map(card => card.id), '', { freshSelection: true });
+    if (autoSpeak) {
+      if (privacy.guardian_consent && !offline) {
+        queuedAutoSpeech.current = { userId: user.id, token: localStorage.getItem('pesc-mate-token'),
+          selection: JSON.stringify(next.map(card => [card.id, card.selected_at])) };
+      } else speakText(next.map(card => card.label).join(' '), 'sentence', next.map(card => card.id), '', { freshSelection: true });
+    }
     return true;
   }
   function add(card) {
@@ -109,7 +116,7 @@ export default function useCommunication({
     rememberBoardFocus(index, 'remove');
     updateBoard(board.filter((_, position) => position !== index));
   }
-  async function generate(speakResult = false) {
+  async function generate(speakResult = false, { fallbackOnFailure = false } = {}) {
     if (!privacy.guardian_consent || offline || !board.length || generationInFlightRef.current) return;
     if (speakResult) speechPlayback.unlock();
     generationInFlightRef.current = true;
@@ -128,7 +135,12 @@ export default function useCommunication({
       request(dashboardPath()).then(stats => {
         if (localStorage.getItem('pesc-mate-token') === sessionToken) setStats(stats);
       }).catch(() => {});
-    } catch (e) { if (isCurrent()) { setGenerationFailed(true); setError(`${e.message} 선택한 카드는 유지되며 로컬 음성은 계속 사용할 수 있어요.`); } }
+    } catch (e) { if (isCurrent()) {
+      setGenerationFailed(true); setError(`${e.message} 선택한 카드는 유지되며 로컬 음성은 계속 사용할 수 있어요.`);
+      if (fallbackOnFailure && speakResult && speechRunRef.current === speechRun) {
+        speakText(board.map(card => card.label).join(' '), 'sentence', board.map(card => card.id), '', { freshSelection: true });
+      }
+    } }
     finally { generationInFlightRef.current = false; setGenerating(false); }
   }
   async function regenerate(speakResult = false) {
@@ -154,6 +166,21 @@ export default function useCommunication({
     } catch (e) { if (isCurrent()) { setGenerationFailed(true); setError(`${e.message} 선택한 카드는 유지되며 로컬 음성은 계속 사용할 수 있어요.`); } }
     finally { generationInFlightRef.current = false; setGenerating(false); }
   }
+  useEffect(() => {
+    const pending = queuedAutoSpeech.current;
+    if (!pending) return;
+    const valid = pending.token && pending.userId === user?.id && pending.token === localStorage.getItem('pesc-mate-token')
+      && loaded && !offline && privacy.guardian_consent && !busy && speechState.status === 'idle'
+      && !myPageOpen && !(compactSidebar && !sidebarCollapsed) && ['home', 'cards'].includes(tab)
+      && document.visibilityState !== 'hidden'
+      && pending.selection === JSON.stringify(board.map(card => [card.id, card.selected_at]));
+    if (!valid) { queuedAutoSpeech.current = null; return; }
+    if (generationInFlightRef.current) return;
+    // Wait for the committed next board so request ID, selection times and speech IDs agree.
+    queuedAutoSpeech.current = null;
+    void generate(true, { fallbackOnFailure: true });
+  }, [board, requestId, user?.id, loaded, offline, privacy.guardian_consent, busy, speechState.status,
+    myPageOpen, compactSidebar, sidebarCollapsed, tab, generating]);
   return { makeActivity, persistActivity, updateBoard, appendRfidSelection, add, move, rememberBoardFocus, removeBoardCard, generate, regenerate };
 }
 

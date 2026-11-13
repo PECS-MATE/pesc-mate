@@ -4,13 +4,14 @@ from datetime import datetime, timedelta, timezone
 from itertools import combinations
 import logging
 from types import SimpleNamespace
+from time import perf_counter
 
 from fastapi import HTTPException
 from pymongo.errors import DuplicateKeyError, PyMongoError
 from app.services.card_metadata import with_inferred_metadata
 from app.services.database import database
 from app.services.schema_versions import SCHEMA_VERSION
-from app.services.model import generate_sentence, status as model_status
+from app.services.model import generate_sentence, status as model_status, _valid_response as valid_model_response
 from app.services.sentence_policy import policy_versions
 from app.services.sentence_validation import validate_safety, validate_semantics
 from app.services.recording_guard import recording_revision, recording_write
@@ -330,6 +331,36 @@ def sentence(ids, card_index=None):
     return ' · '.join(cards[key]['label'] for key in ids)
 
 
+AI_REUSE_SECONDS = 300
+AI_REUSE_CANDIDATES = 32
+
+
+def _recent_ai_sentence(collection, user_id, card_ids, snapshots, versions, runtime, cards):
+    """Reuse only this account's recent validated AI output; never maintain a second text store."""
+    if not runtime.get('enabled'):
+        return None
+    try:
+        cutoff = datetime.now(timezone.utc) - timedelta(seconds=AI_REUSE_SECONDS)
+        rows = collection.find({'user_id': user_id, 'created_at': {'$gte': cutoff}},
+            {'cards': 1, 'card_metadata': 1, 'sentence': 1, 'generation': 1, 'generation_source': 1})
+        rows = rows.sort('created_at', -1).limit(AI_REUSE_CANDIDATES).max_time_ms(100)
+        for row in rows:
+            generation = row.get('generation') or {}
+            if (row.get('cards') != card_ids or row.get('card_metadata', {}) != snapshots
+                    or row.get('generation_source') != 'ollama'
+                    or generation.get('model') != runtime['model'] or generation.get('versions') != versions):
+                continue
+            text = row.get('sentence')
+            if (isinstance(text, str) and valid_model_response(text, [card['label'] for card in cards])
+                    and validate_semantics(cards, text)['passed']
+                    and validate_safety(text)['passed']):
+                return text
+    except PyMongoError:
+        # Optional reuse must not prevent a fresh generation; final saving still fails closed.
+        return None
+    return None
+
+
 def save_session(request, user_id, custom_cards=None, regeneration_of=None, generation_attempt=1):
     consent_revision = recording_revision(user_id)
     card_ids = list(request.cards)
@@ -347,9 +378,22 @@ def save_session(request, user_id, custom_cards=None, regeneration_of=None, gene
     custom_index = {card['id']: with_inferred_metadata(card) for card in (custom_cards or [])}
     card_index = INDEX | custom_index
     fallback = sentence(card_ids, card_index)
+    snapshots = {key: {field: card_index[key].get(field) for field in (
+        'id', 'label', 'symbol', 'category', 'meaning', 'part_of_speech', 'has_batchim',
+        'sentence_role', 'semantic_group', 'safety_relevant')}
+                 for key in card_ids if key in custom_index}
+    versions = policy_versions()
+    runtime = model_status()
     performance = {}
-    result, generation_source = generate_sentence(
-        [card_index[key]['label'] for key in card_ids], fallback, metrics=performance)
+    started = perf_counter()
+    reused = None if regeneration_of else _recent_ai_sentence(
+        collection, user_id, card_ids, snapshots, versions, runtime, [card_index[key] for key in card_ids])
+    if reused is not None:
+        result, generation_source = reused, 'ollama'
+        performance.update(status='reused', elapsed_ms=round((perf_counter() - started) * 1000, 1))
+    else:
+        result, generation_source = generate_sentence(
+            [card_index[key]['label'] for key in card_ids], fallback, metrics=performance)
     initial_source = generation_source
     validation = validate_semantics([card_index[key] for key in card_ids], result)
     safety = validate_safety(result)
@@ -363,15 +407,10 @@ def save_session(request, user_id, custom_cards=None, regeneration_of=None, gene
         logger.warning('MODEL | BLOCKED | 안전하지 않은 문장 차단 (%s)', ','.join(fallback_safety['flags']))
         raise HTTPException(422, '안전한 문장을 만들지 못했습니다. 다른 카드를 선택해 주세요.')
     try:
-        snapshots = {key: {field: card_index[key].get(field) for field in (
-            'id', 'label', 'symbol', 'category', 'meaning', 'part_of_speech', 'has_batchim',
-            'sentence_role', 'semantic_group', 'safety_relevant')}
-                     for key in card_ids if key in custom_index}
-        versions = policy_versions()
         generation = {
             'source': generation_source,
             'initial_source': initial_source,
-            'model': model_status()['model'] if initial_source == 'ollama' else None,
+            'model': runtime['model'] if initial_source == 'ollama' else None,
             'versions': versions,
             'performance': performance,
             'validation': {

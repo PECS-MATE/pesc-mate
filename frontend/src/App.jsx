@@ -251,6 +251,7 @@ function App() {
     speechPlayback,
     speechRunRef,
     setGenerating,
+    generating,
     requestId,
     speakBoardSentence: (...args) => speakBoardSentence(...args),
     dashboardPath: (...args) => dashboardPath(...args),
