@@ -10,6 +10,10 @@ const CARD_IMAGE_MODULES = import.meta.glob(['../assets/cards/*.png', '../assets
 const bundledCardImage = createCardImageLookup(CARD_IMAGE_MODULES);
 export const CARD_IMAGE_URLS = Object.values(CARD_IMAGE_MODULES);
 
+export function isTextOnlyCard(card) {
+  return Boolean(card.builtInText || card.image_filename === 'text-card.png');
+}
+
 export function cardImage(card) {
   return card.image_src || bundledCardImage(card.label);
 }

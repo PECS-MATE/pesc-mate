@@ -1,3 +1,5 @@
+import { isTextOnlyCard } from '../services/cardMedia';
+
 // Keep playback in the direct button gesture for touch/keyboard audio permission.
 export default function SpeakingCardTile({ card, renderArt, disabled, compose = true, onAdd, onSpeak }) {
   return <div className="card-tile"><button type="button" className="card speak-on-tap" disabled={disabled}
@@ -5,6 +7,6 @@ export default function SpeakingCardTile({ card, renderArt, disabled, compose = 
       if (compose) onAdd(card);
       onSpeak(card);
     }}>
-    {renderArt(card)}<strong>{card.label}</strong>{card.reason && <small>{card.reason}</small>}
+    {renderArt(card)}{!isTextOnlyCard(card) && <strong>{card.label}</strong>}{card.reason && <small>{card.reason}</small>}
   </button></div>;
 }

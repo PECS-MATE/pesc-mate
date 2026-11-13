@@ -1,6 +1,7 @@
-import { artStyle, cardImage } from '../services/cardMedia';
+import { artStyle, cardImage, isTextOnlyCard } from '../services/cardMedia';
 
 export function CardArt({ card, className = 'card-art' }) {
+  if (isTextOnlyCard(card)) return <span className={`${className} text-only-art`} role="img" aria-label={card.label}><span>{card.label}</span></span>;
   const hasImage = Boolean(cardImage(card));
   return <span className={`${className}${hasImage ? '' : ' image-fallback'}`} role="img" aria-label={hasImage ? `${card.label} 그림` : `${card.label} 대체 이미지`} style={hasImage ? artStyle(card) : undefined}>
     {!hasImage && <><b aria-hidden="true">🖼️</b><small>{card.label}</small></>}

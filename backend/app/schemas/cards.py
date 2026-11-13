@@ -9,6 +9,7 @@ class CardResponse(BaseModel):
     symbol: str
     category: str
     image_index: int | None = None
+    image_filename: str | None = None
     meaning: str | None = None
     part_of_speech: str | None = None
     has_batchim: bool | None = None

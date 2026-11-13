@@ -493,6 +493,7 @@ def approved_cards_for(owner_id, *, shared_only=False):
         return [with_inferred_metadata({
             'id': f"custom:{row['_id']}", 'label': row['label'], 'meaning': row['meaning'],
             'symbol': '🖼️', 'category': row['category'], 'image_index': None,
+            'image_filename': row.get('image', {}).get('filename'),
             'image_url': f"/api/cards/submissions/{row['_id']}/image", 'custom': True,
             'thumbnail_url': f"/api/cards/submissions/{row['_id']}/image?variant=thumbnail&v={row.get('thumbnail', {}).get('version', 'legacy')}",
         }) for row in visible]

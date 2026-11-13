@@ -73,3 +73,13 @@ def test_scan_selected_regions_produce_decodable_crops_in_order(png_bytes):
     with pytest.raises(HTTPException) as error:
         card_scan.crop_card_regions(png_bytes, 'image/png', json.dumps([{'corners': [[2, 0]] * 4}]))
     assert error.value.status_code == 422
+
+
+def test_text_card_filename_survives_catalog_response(db, png_bytes):
+    from app.schemas.cards import CardResponse
+    db.card_submissions.insert_one({'_id': 'text', 'owner_id': 'one', 'visibility': 'private',
+        'status': 'approved', 'label': '기다려 주세요', 'meaning': '기다림', 'category': '요청',
+        'created_at': datetime.now(timezone.utc),
+        'image': {'data': png_bytes, 'content_type': 'image/png', 'filename': 'text-card.png'}})
+    card = CardResponse.model_validate(card_submissions.approved_cards_for('one')[0])
+    assert card.image_filename == 'text-card.png'
