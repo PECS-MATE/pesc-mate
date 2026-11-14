@@ -15,7 +15,7 @@ export function useAuthSessionState() {
   const [authReady, setAuthReady] = useState(false);
   const [profileNotice, setProfileNotice] = useState('');
   const [username, setUsername] = useState('demo');
-  const [password, setPassword] = useState('demo1234');
+  const [password, setPassword] = useState('1234');
   const [authMode, setAuthMode] = useState('login');
   const authPanelRef = useRef(null);
   const entryPageRef = useRef(null);

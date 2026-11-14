@@ -78,13 +78,15 @@ def _migrate_legacy_admins():
 
 def ensure_demo_users():
     user_id = os.environ.get('DEMO_USERNAME', 'demo')
-    _ensure_user(user_id, os.environ.get('DEMO_PASSWORD', 'demo1234'), '민준', 'user')
+    _ensure_user(user_id, os.environ.get('DEMO_PASSWORD', '1234'), '민준', 'user')
+    second_user_id = os.environ.get('DEMO_SECOND_USERNAME', 'demo2')
+    _ensure_user(second_user_id, os.environ.get('DEMO_SECOND_PASSWORD', '1234'), '시연 사용자 2', 'user')
     caregiver_id = os.environ.get('CAREGIVER_USERNAME', 'caregiver')
-    _ensure_user(caregiver_id, os.environ.get('CAREGIVER_PASSWORD', 'caregiver1234'), '민준 보호자', 'caregiver')
+    _ensure_user(caregiver_id, os.environ.get('CAREGIVER_PASSWORD', '1234'), '민준 보호자', 'caregiver')
     staff_id = os.environ.get('SUPPORT_USERNAME', 'support')
-    _ensure_user(staff_id, os.environ.get('SUPPORT_PASSWORD', 'support1234'), '민준 담당자', 'support_staff')
+    _ensure_user(staff_id, os.environ.get('SUPPORT_PASSWORD', '1234'), '민준 담당자', 'support_staff')
     admin_id = os.environ.get('ADMIN_USERNAME', 'admin')
-    _ensure_user(admin_id, os.environ.get('ADMIN_PASSWORD', 'admin1234'),
+    _ensure_user(admin_id, os.environ.get('ADMIN_PASSWORD', '1234'),
                  '운영 권한 담당자', 'support_staff', ['content_manage'])
     database = _database()
     privacy = database.privacy_settings.find_one({'_id': user_id})

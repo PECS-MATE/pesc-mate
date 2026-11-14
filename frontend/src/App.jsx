@@ -473,7 +473,7 @@ function App() {
       <button className="primary full" disabled={busy}>{busy ? '처리 중…' : authMode === 'login' ? '로그인' : '가입하고 시작하기'}</button>
     </form>
     <button className="auth-switch" disabled={busy} onClick={() => openAuthentication(authMode === 'login' ? 'register' : 'login', true)}>{authMode === 'login' ? '처음 이용하시나요? 사용자 가입' : '이미 계정이 있나요? 로그인'}</button>
-    {authMode === 'login' && <p className="demo-account">사용자: <code>demo</code> / <code>demo1234</code><br />보호자: <code>caregiver</code> / <code>caregiver1234</code><br />담당자: <code>support</code> / <code>support1234</code><br />운영 권한 담당자: <code>admin</code> / <code>admin1234</code></p>}
+    {authMode === 'login' && <p className="demo-account">사용자 1: <code>demo</code> / <code>1234</code><br />사용자 2: <code>demo2</code> / <code>1234</code><br />보호자: <code>caregiver</code> / <code>1234</code><br />담당자: <code>support</code> / <code>1234</code><br />운영 권한 담당자: <code>admin</code> / <code>1234</code></p>}
   </section></LandingPage>;
   const profileSession = localStorage.getItem('pesc-mate-token');
   function profileSaved(account) {

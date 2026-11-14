@@ -23,3 +23,11 @@ it('clears a rejected restored session and returns to authentication', async () 
   expect(await screen.findByRole('textbox', { name: '아이디' })).toBeInTheDocument();
   await waitFor(() => expect(localStorage.getItem('pesc-mate-token')).toBeNull());
 });
+
+it('shows two presentation children and the shared login password', async () => {
+  render(<App />);
+  expect(await screen.findByRole('textbox', { name: '아이디' })).toHaveValue('demo');
+  expect(screen.getByLabelText('비밀번호')).toHaveValue('1234');
+  expect(screen.getByText('demo2', { selector: 'code' })).toBeInTheDocument();
+  expect(screen.getAllByText('1234', { selector: 'code' })).toHaveLength(5);
+});
