@@ -1,4 +1,56 @@
 /* Reference UX: a persistent sentence, a focused exercise and clear registration steps. */
+/* Home launchers keep the picture and label centered as one group. */
+.app .home-launcher-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(12px, 2vw, 24px);
+}
+.app .home-launcher-grid > .home-activity {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(16px, 3vw, 28px);
+  min-width: 0;
+  /* Override the shared button minimum, which is also marked important. */
+  min-height: clamp(320px, 52dvh, 560px) !important;
+  padding: clamp(20px, 4vw, 48px);
+  text-align: center;
+}
+.app .home-launcher-grid .home-activity-pictures {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: clamp(112px, 14vw, 184px);
+  height: auto;
+  aspect-ratio: 1;
+  margin: 0;
+}
+.app .home-launcher-grid .home-activity-picture {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background-size: contain !important;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.app .home-launcher-grid strong {
+  margin: 0;
+  max-width: 100%;
+  font-size: clamp(1.4rem, 2.6vw, 2rem);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 480px) {
+  .app .home-launcher-grid > .home-activity {
+    min-height: clamp(240px, 42dvh, 360px) !important;
+    padding: 20px 12px;
+    gap: 16px;
+  }
+  .app .home-launcher-grid .home-activity-pictures { width: min(100%, 104px); }
+}
+
 .board-organization-suggestions > p { line-height: 1.65; }
 .board-organization-suggestions > fieldset { min-width: 0; margin-top: 16px; padding: 16px; border: 1px solid var(--color-border); border-radius: 14px; background: var(--color-surface); }
 .board-organization-suggestions legend { font-weight: 700; }
