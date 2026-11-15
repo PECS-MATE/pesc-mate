@@ -26,7 +26,6 @@ hardware/**/arduino_secrets.h
 hardware/**/build/
 .env
 .env.*
-!.env.example
 
 # IDE and OS
 .codex/

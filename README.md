@@ -139,11 +139,10 @@ flowchart LR
 ├── hardware/                 Arduino 펌웨어·배선·기기 연결 안내
 ├── scripts/                  음성 준비 등 개발 도구
 ├── deployment/               MongoDB 배포 설정
-├── docs/                     통합 사용·운영 안내와 커밋 규칙
+├── docs/                     통합 안내·환경변수 예제·커밋 규칙
 ├── compose.yaml              기본 PC 실행
 ├── compose.tablet.yaml       태블릿 LAN 접속
-├── compose.qwen.yaml         선택형 Qwen 실행
-└── .env.example              선택 기능 환경변수 예시
+└── compose.qwen.yaml         선택형 Qwen 실행
 ~~~
 
 ## 시작 가이드
@@ -174,11 +173,11 @@ docker compose ps
 
 기본 실행에 외부 API 키는 필요하지 않습니다. 첫 실행에는 음성 모델 준비 시간이 포함됩니다.
 
-선택 기능을 설정할 때만 .env.example을 .env로 복사해 필요한 값을 입력합니다. 기존 .env는 덮어쓰지 않습니다.
+선택 기능을 설정할 때만 [환경변수 예제](docs/env.example)를 루트의 .env로 복사해 필요한 값을 입력합니다. 기존 .env는 덮어쓰지 않습니다.
 
 ~~~powershell
 # .env가 없는 최초 설정에서만 실행
-Copy-Item .env.example .env
+Copy-Item docs/env.example .env
 ~~~
 
 ### 2. 시연 계정으로 접속
