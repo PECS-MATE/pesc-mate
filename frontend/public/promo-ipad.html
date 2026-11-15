@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PECS MATE · 아이패드 시연</title>
+  <style>
+    :root { color-scheme: light; --paper: #edf5f1; --ink: #223c35; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font-family: system-ui, sans-serif; }
+    .stage { width: 100%; height: 100dvh; min-height: 240px; display: grid; place-items: center; overflow: hidden; background: radial-gradient(ellipse at 50% 35%, #fff 0%, #edf5f1 60%, #d7e8e0 100%); }
+    .tablet { position: relative; width: 1250px; height: 942px; flex-shrink: 0; padding: 25px; border-radius: 48px; background: #17191b; border: 3px solid #69706f; box-shadow: 0 2px 0 #c4ccca inset, 0 35px 65px #183b352b, 0 8px 18px #183b3520; transform: scale(var(--scale, .7)); }
+    .tablet::before { content: ''; position: absolute; width: 7px; height: 7px; background: #253143; border: 2px solid #080b10; border-radius: 50%; top: 50%; left: 9px; }
+    .tablet::after { content: ''; position: absolute; width: 60px; height: 3px; background: #69706f; border-radius: 3px; right: 80px; top: -5px; }
+    iframe { display: block; width: 1194px; height: 886px; border: 0; border-radius: 24px; background: white; }
+    .toolbar { position: fixed; z-index: 2; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid #c5d4ce; border-radius: 18px; background: #ffffffed; box-shadow: 0 5px 25px #183b3514; white-space: nowrap; }
+    .toolbar strong { padding: 0 8px; font-size: 13px; letter-spacing: .06em; }
+    button { padding: 10px 14px; border: 1px solid #c5d4ce; border-radius: 10px; background: white; color: var(--ink); font: inherit; font-size: 13px; cursor: pointer; }
+    button:hover { background: #edf5f1; }
+    button:focus-visible, a:focus-visible { outline: 3px solid #167e69; outline-offset: 4px; }
+    .recording .toolbar { display: none; }
+    .restore { display: none; position: fixed; z-index: 3; left: 12px; top: 12px; }
+    .recording .restore:focus { display: block; }
+    .recording .restore { display: block; opacity: 0; }
+    .recording .restore:focus-visible { opacity: 1; }
+    .plain .stage { background: #fff; }
+    .status { position: fixed; top: 15px; left: 50%; transform: translateX(-50%); font-size: 14px; }
+    @media (max-width: 540px) { .toolbar { gap: 6px; padding: 8px; } .toolbar strong { display: none; } button { padding: 10px; } }
+  </style>
+</head>
+<body>
+  <main class="stage" aria-label="아이패드 프레임의 실제 PECS MATE 서비스">
+    <div class="tablet"><iframe src="/" title="PECS MATE 서비스 시연" allow="autoplay; fullscreen; microphone"></iframe></div>
+  </main>
+  <nav class="toolbar" aria-label="촬영 설정">
+    <strong>PECS MATE</strong>
+    <button id="background" type="button" aria-pressed="false">흰 배경</button>
+    <button id="fullscreen" type="button">전체 화면</button>
+    <button id="recording" type="button">촬영 모드</button>
+  </nav>
+  <button class="restore" type="button" aria-label="촬영 설정 다시 표시">촬영 설정 표시</button>
+  <p class="status" role="status"></p>
+  <script>
+    const tablet = document.querySelector('.tablet');
+    const frame = document.querySelector('iframe');
+    const status = document.querySelector('.status');
+    function fit() {
+      const reserve = document.body.classList.contains('recording') ? 64 : 120;
+      tablet.style.setProperty('--scale', Math.max(.05, Math.min((innerWidth - 48) / 1250, (innerHeight - reserve) / 942)));
+    }
+    function restore() { document.body.classList.remove('recording'); fit(); }
+    document.querySelector('#background').addEventListener('click', (event) => {
+      const plain = document.body.classList.toggle('plain');
+      event.currentTarget.setAttribute('aria-pressed', String(plain));
+      event.currentTarget.textContent = plain ? '민트 배경' : '흰 배경';
+    });
+    document.querySelector('#fullscreen').addEventListener('click', async () => {
+      try {
+        if (document.fullscreenElement) await document.exitFullscreen();
+        else await document.documentElement.requestFullscreen();
+      } catch { status.textContent = '브라우저 메뉴에서 전체 화면을 선택해 주세요.'; }
+    });
+    document.querySelector('#recording').addEventListener('click', () => {
+      status.textContent = '';
+      document.body.classList.add('recording');
+      frame.focus();
+      fit();
+    });
+    document.querySelector('.restore').addEventListener('click', restore);
+    function onKey(event) { if (event.key === 'Escape') restore(); }
+    document.addEventListener('keydown', onKey);
+    frame.addEventListener('load', () => {
+      try { frame.contentWindow.document.addEventListener('keydown', onKey); } catch { /* The embedded app is served on the same origin. */ }
+    });
+    document.addEventListener('fullscreenchange', () => {
+      document.querySelector('#fullscreen').textContent = document.fullscreenElement ? '전체 화면 해제' : '전체 화면';
+      fit();
+    });
+    addEventListener('resize', fit);
+    fit();
+  </script>
+</body>
+</html>
