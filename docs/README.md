@@ -1,6 +1,6 @@
 # PECS MATE 문서 안내
 
-> 갱신: 2026-11-14 · 현재 안내와 과거 구현 이력을 구분합니다.
+> 갱신: 2026-11-15 · 현재 안내와 과거 구현 이력을 구분합니다.
 
 ## 먼저 읽을 문서
 
@@ -65,6 +65,12 @@
 - 통합된 과거 계획: [보호자 UI](development/USER_INTERFACE.md#caregiver-ui-plan-history) · [MVP 이후](development/USER_INTERFACE.md#post-mvp-plan-history) · [하드웨어 최초 계획](development/RFID_USB_INTEGRATION.md#hardware-mvp-plan-history)
 
 ## 문서 관리 기준
+
+### 완료 프로젝트 README 정리 — 2026-11-15
+
+사용자가 선언한 개발 완료 상태에 맞춰 메인 README를 완성된 AAC 플랫폼 소개로 정리했습니다. MVP·진행 상황 중심 문구를 프로젝트 상태와 완성한 사용자 흐름으로 바꾸고, 시연 계정 안내에서 일회성 DB 작업 내역을 제외했습니다. 기능·설계·실행 방법과 팀 이름은 유지하며 과거 검증 이력과 TODO는 변경하지 않았습니다.
+
+문서 검사 CLI가 없어 내부 파일·절 링크와 코드 블록 구분자를 수동 확인하고 diff 공백 검사를 수행했습니다. 외부 URL 가용성, 앱 명령 실행·빌드·테스트·기기 검수는 미실행입니다. 프로젝트 소개의 개발 완료 표기는 이번 작업에서 앱 검증을 새로 수행했다는 의미가 아닙니다.
 
 ### 메인 README 재작성 — 2026-11-14
 
