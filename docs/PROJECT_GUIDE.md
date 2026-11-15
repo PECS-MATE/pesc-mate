@@ -8,7 +8,7 @@
 ## 실행과 태블릿 접속
 
 기본 실행은 Docker Desktop Linux 컨테이너와 Compose v2를 사용한다.
-태블릿·Qwen 구성은 Compose 2.24.4 이상이 필요하다. 기본 음성 서버는 MeloTTS다.
+Compose 2.24.4 이상을 사용하며 실행 설정은 루트 `compose.yaml` 하나로 관리한다. 기본 음성 서버는 MeloTTS다.
 
 ```powershell
 docker compose up -d --build
@@ -37,7 +37,8 @@ Compose 내부 DB 주소는 `mongodb://mongodb:27017`이다.
 5. Safari에서 `http://라우터주소:5173`을 연다. 일반 공유기에서는 PC의 Wi-Fi IPv4를 쓴다.
 
 ```powershell
-docker compose -f compose.yaml -f compose.tablet.yaml up -d --build
+$env:TABLET_BIND_ADDRESS = "0.0.0.0"
+docker compose up -d --build
 ```
 
 iPad의 `localhost`는 PC 주소가 아니다. 태블릿 구성은 웹 포트만 LAN에 공개한다.
@@ -52,10 +53,10 @@ New-NetFirewallRule -DisplayName "PECS MATE 5173" -Direction Inbound -Protocol T
 Chrome과 Edge처럼 브라우저를 나눈다. 같은 브라우저의 일반 탭은 로그인 저장소를 공유한다.
 USB 태그 결과는 리더기를 연결한 PC에서 표시하며 다른 iPad에 실시간 복제하는 시연은 아니다.
 
-종료 시 사용한 Compose 파일 조합을 유지한다. `down`에 볼륨 삭제 옵션을 붙이지 않는다.
+태블릿 접속 주소는 `TABLET_BIND_ADDRESS`로 선택한다. 종료 시 `down`에 볼륨 삭제 옵션을 붙이지 않는다.
 
 ```powershell
-docker compose -f compose.yaml -f compose.tablet.yaml down
+docker compose down
 ```
 
 ### 개별 개발 실행
@@ -142,25 +143,31 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\prepare-card-speec
 
 ### 선택형 Qwen 음성
 
-기본 `compose.yaml`은 MeloTTS다. Qwen을 사용하려면 VoiceDesign으로 두 합성 음색을 준비한다.
+기본 실행은 MeloTTS다. Qwen은 같은 파일의 `qwen` 프로필에서 선택 실행한다. Qwen을 사용하려면 VoiceDesign으로 두 합성 음색을 준비한다.
 실존 아동의 녹음을 업로드하는 절차가 아니다. 최초 모델 다운로드와 시안 생성은 시간이 걸린다.
 시안 생성 중 다른 음성 서버를 함께 실행하지 않는다.
 
 ```powershell
-docker compose -f compose.voice-design.yaml run --rm --build voice-design --text "물 주세요. 도와주세요. 잠깐만요."
-docker compose -f compose.voice-design.yaml run --rm voice-design --description-file /app/voice-description-boy.txt --text "물 주세요. 도와주세요. 잠깐만요."
+docker compose run --rm --build voice-design --text "물 주세요. 도와주세요. 잠깐만요."
+docker compose run --rm voice-design --description-file /app/voice-description-boy.txt --text "물 주세요. 도와주세요. 잠깐만요."
 ```
 
 출력된 `.local-voice-design/audition-.../sample.wav`를 직접 듣고 선택한다.
-다음 ID를 실제 생성 폴더로 바꿔 실행하며, 이후에도 같은 환경값과 Compose 조합을 유지한다.
+다음 ID를 실제 생성 폴더로 바꾼다. 기본 모드를 먼저 중지한 뒤 `frontend-qwen`을 명시해 실행한다.
+이 대상의 의존성인 MongoDB·Qwen 서버·Qwen용 backend만 함께 시작한다.
+`--profile qwen up`만 실행하면 기본 서비스까지 시작되므로 아래 대상 지정 명령을 사용한다.
 
 ```powershell
 $env:QWEN_REFERENCE_DIR = './.local-voice-design/audition-여자아이ID'
 $env:QWEN_BOY_REFERENCE_DIR = './.local-voice-design/audition-남자아이ID'
 $env:QWEN_CACHE_VERSION = 'qwen-선택한두음색-v1'
-docker compose -f compose.yaml -f compose.qwen.yaml -f compose.tablet.yaml up -d --build
+docker compose stop frontend backend melotts
+docker compose --profile qwen up -d --build frontend-qwen
 ```
 
+Qwen 중지는 `docker compose stop frontend-qwen backend-qwen qwen-tts`다.
+Melo로 돌아갈 때는 Qwen 서비스를 중지하고 `docker compose up -d`로 실행한다.
+태블릿은 같은 `TABLET_BIND_ADDRESS`를 사용하며 이후 재시작에도 Qwen 대상 명령을 유지한다.
 선택 음색은 여자아이·남자아이 두 종류이며 기본 속도는 0.90배다. 기존 개인 설정을 덮어쓰지 않는다.
 참조를 바꾸면 캐시 버전도 바꾼다. `.local-voice-design/`은 합성에 필요한 원본이므로 삭제하지 않는다.
 
@@ -227,7 +234,9 @@ USB의 동시 입력 자동 발화 규칙과 혼용하지 않는다.
 3. Wi-Fi·PC 서버 주소·장치 ID/키를 입력한다. 보드에서 `localhost`는 PC 주소가 아니다.
 4. 기본 SS D10/D8/D7, RST D9/D6/D5와 공유 SPI를 사용한다. 1개부터 연결해 늘린다.
 
-사설망 개발 HTTP는 `compose.rfid.yaml`과 펌웨어 `SECRET_ALLOW_INSECURE_LAN=1`이 필요하다.
+사설망 개발 HTTP는 `RFID_BIND_ADDRESS=0.0.0.0`, `RFID_ALLOW_INSECURE_LAN=true`와
+펌웨어 `SECRET_ALLOW_INSECURE_LAN=1`을 설정한 뒤 선택한 앱 서비스를 재시작한다.
+기본값은 PC 내부 바인딩과 비허용이며 USB 연결에는 이 설정이 필요하지 않다.
 HTTPS는 유효한 서버 인증서·호스트와 `SECRET_USE_TLS=1`을 사용한다.
 등록·세션·스냅샷 API는 `/api/rfid/devices` 아래에 있으며 장치는 별도 키로 인증한다.
 실제 3개 리더기의 전압·간섭·제거·재태그·재연결은 최종 기기 확인이 필요하다.
@@ -347,7 +356,7 @@ docker compose run --rm --no-deps backend python -m app.migrations --database $m
 
 ### 선택형 인증 DB와 감사
 
-`compose.secure-db.yaml`은 기본 구성에 덧붙이지 않는 별도 프로젝트다.
+`secure` 프로필은 기본 앱과 분리된 인증 DB·API 서비스를 같은 파일에 정의한다.
 별도 `mongodb_secure_data` 볼륨을 사용하며 기존 개발 DB를 자동 이전하지 않는다.
 앱 계정은 해당 DB의 `readWrite`, 초기 관리 계정은 별도이며 backend는 root 비밀번호를 받지 않는다.
 비밀 디렉터리에 `mongodb_root_username`, `mongodb_root_password`,
@@ -358,9 +367,12 @@ docker compose run --rm --no-deps backend python -m app.migrations --database $m
 ```powershell
 $env:PESC_SECURE_SECRETS_DIR = '<비밀 파일 디렉터리 절대 경로>'
 $env:SECURE_MONGODB_DATABASE = '<새 앱 DB 이름>'
-docker compose -f compose.secure-db.yaml up -d --build --wait
+docker compose --profile secure up -d --build --wait backend-secure
 ```
 
+`backend-secure`와 `mongodb-secure`만 시작되며 일반 앱·Melo·데모 계정은 시작하지 않는다.
+중지는 `docker compose stop backend-secure mongodb-secure`다.
+기존 `pesc-mate-secure_mongodb_secure_data` 볼륨을 그대로 사용하고 네트워크는 앱 DB와 분리한다.
 API 기본 포트는 loopback 8001이며 웹·HTTPS 게이트웨이가 포함된 운영 전체 구성이 아니다.
 감사 서명·검증·보관 정리는 backend의 `python -m app.audit`로 명시 실행한다.
 감사 키·출력은 저장소 밖 승인된 위치에 보관하며 개인정보 삭제는 과거 지문과 달라질 수 있다.
@@ -413,3 +425,24 @@ iPad 음성·오프라인 재시작, 실제 1/2/3개 RFID 입력, OCR 사진·�
 Compose 설정 6개에 이전 예제 경로 참조가 없음을 확인했다.
 이동에 따라 사용하지 않는 `.gitignore`의 루트 예제 예외도 제거했다.
 앱 테스트·빌드·실제 인쇄는 이번 파일 정리에서 실행하지 않는다.
+
+
+### Compose 단일 파일 통합 (2026-11-16)
+
+루트 실행 YAML 6개를 `compose.yaml` 하나로 합쳤다. 기본 4개 서비스의 설정을 유지하고,
+Qwen·음색 생성·인증 DB는 선택 프로필과 대상 서비스로 구분했다.
+태블릿·RFID 포트 바인딩은 환경변수로 선택한다. 기존 DB·모델·공개 음성 캐시 볼륨 이름은 유지한다.
+이 변경에서는 실행 중 컨테이너를 재시작하거나 DB·모델 볼륨을 변경하지 않는다.
+검증 결과:
+
+- 기존 파일과 통합 파일의 `docker compose config --format json` 비교 7개 항목 통과:
+  기본 서비스 4개, 태블릿 바인딩, RFID 바인딩·허용 설정, Qwen 설정·의존성,
+  음색 생성 설정·모델 볼륨, 인증 DB·권한·격리·기존 데이터 볼륨, 공개 음성 캐시 볼륨.
+- 기본·qwen·voice-design·secure의 최종 `docker compose config --quiet` 4개 구성 통과.
+  실제 컨테이너·모델·DB를 시작하지 않는 설정 검사다.
+- 문서의 로컬 링크·앵커 24개, 코드 블록 짝, 이전 다중 파일 명령 제거와 diff 공백 검사 통과.
+- Qwen은 `frontend-qwen`을 대상으로 지정해 기본 Melo 앱과 의존성을 분리한다.
+  인증 DB는 `backend-secure` 대상으로 지정해 인증 DB/API만 실행한다.
+- 실행·중지 명령과 환경변수 예제를 새 방식으로 수정했다.
+- 실제 기동·전환·음성 합성·DB 접속·전체 앱 테스트·빌드는 미실행이다.
+  외부 문서 URL의 자동 링크 검사는 미실행이며 로컬 참조를 직접 검사했다.

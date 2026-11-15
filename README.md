@@ -140,9 +140,7 @@ flowchart LR
 ├── scripts/                  음성 준비 등 개발 도구
 ├── deployment/               MongoDB 배포 설정
 ├── docs/                     통합 안내·환경변수 예제·커밋 규칙
-├── compose.yaml              기본 PC 실행
-├── compose.tablet.yaml       태블릿 LAN 접속
-└── compose.qwen.yaml         선택형 Qwen 실행
+└── compose.yaml              기본 실행·Qwen·음색 생성·인증 DB 통합
 ~~~
 
 ## 시작 가이드
@@ -150,7 +148,7 @@ flowchart LR
 ### 요구 사항
 
 - Git, Docker Desktop의 Linux 컨테이너 모드, Docker Compose v2
-- 태블릿·Qwen 구성: Compose 2.24.4 이상
+- Docker Compose 2.24.4 이상
 - 최초 패키지·모델 다운로드를 위한 인터넷과 디스크·메모리 여유
 - USB 태그 사용 시 PC의 Chrome/Edge와 펌웨어를 올린 Arduino
 
@@ -201,7 +199,8 @@ Copy-Item docs/env.example .env
 3. 태블릿 접속 구성을 실행합니다.
 
 ~~~powershell
-docker compose -f compose.yaml -f compose.tablet.yaml up -d --build
+$env:TABLET_BIND_ADDRESS = "0.0.0.0"
+docker compose up -d --build
 ~~~
 
 4. iPad의 **설정 → Wi-Fi → 연결한 네트워크 옆 ⓘ → IPv4 주소 → 라우터**를 확인합니다.
@@ -216,19 +215,19 @@ docker compose -f compose.yaml -f compose.tablet.yaml up -d --build
 | 기능 | 준비 |
 | --- | --- |
 | AI 문장 생성 | 호스트에 Ollama 설치 후 아래 모델 준비. Compose는 host.docker.internal:11434로 접근 |
-| Qwen 두 음색 | [음성 준비·실행 안내](docs/PROJECT_GUIDE.md#음성과-문장-생성)에 따라 참조 생성 후 compose.qwen.yaml 포함 |
+| Qwen 두 음색 | [음성 준비·실행 안내](docs/PROJECT_GUIDE.md#음성과-문장-생성)에 따라 참조 생성 후 Qwen 선택 서비스 실행 |
 | 이미지 생성·배경 제거 | [카드 등록 안내](docs/PROJECT_GUIDE.md#말하기와-카드-제작)의 공급자·토큰·로컬 모델 설정 |
 
 ~~~powershell
 ollama pull qwen2.5:0.5b
 ~~~
 
-Qwen 참조 파일은 Git에 포함하지 않습니다. Qwen을 사용 중이라면 태블릿 실행·재시작에도 같은 Compose 파일 조합을 유지합니다. 기본/태블릿 구성만 실행하면 MeloTTS 설정으로 돌아갈 수 있습니다.
+Qwen 참조 파일은 Git에 포함하지 않습니다. Qwen은 `docker compose --profile qwen up -d --build frontend-qwen`으로 선택 실행합니다. 기본 모드에서 바꿀 때는 먼저 `docker compose stop frontend backend melotts`를 실행합니다. 태블릿 접속은 같은 `TABLET_BIND_ADDRESS` 설정을 사용합니다.
 
-기본 서비스 종료는 `docker compose down`, 태블릿 구성 종료는 아래 명령입니다. 볼륨 삭제 옵션을 붙이지 않으면 DB 볼륨은 유지됩니다.
+기본·태블릿 서비스 종료는 아래 명령입니다. Qwen은 `docker compose stop frontend-qwen backend-qwen qwen-tts`로 중지합니다. 볼륨 삭제 옵션을 붙이지 않으면 DB 볼륨은 유지됩니다.
 
 ~~~powershell
-docker compose -f compose.yaml -f compose.tablet.yaml down
+docker compose down
 ~~~
 
 직접 개발과 회귀 검사 실행 방법은 [로컬 개발 안내](docs/PROJECT_GUIDE.md#개별-개발-실행)를 참고하세요.
