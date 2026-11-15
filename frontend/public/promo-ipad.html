@@ -13,7 +13,7 @@
     .tablet::before { content: ''; position: absolute; width: 7px; height: 7px; background: #253143; border: 2px solid #080b10; border-radius: 50%; top: 50%; left: 9px; }
     .tablet::after { content: ''; position: absolute; width: 60px; height: 3px; background: #69706f; border-radius: 3px; right: 80px; top: -5px; }
     iframe { display: block; width: 1194px; height: 886px; border: 0; border-radius: 24px; background: white; }
-    .toolbar { position: fixed; z-index: 2; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid #c5d4ce; border-radius: 18px; background: #ffffffed; box-shadow: 0 5px 25px #183b3514; white-space: nowrap; }
+    .toolbar { position: fixed; z-index: 2; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; align-items: center; justify-content: center; flex-wrap: wrap; width: max-content; max-width: calc(100% - 24px); gap: 10px; padding: 10px 14px; border: 1px solid #c5d4ce; border-radius: 18px; background: #ffffffed; box-shadow: 0 5px 25px #183b3514; }
     .toolbar strong { padding: 0 8px; font-size: 13px; letter-spacing: .06em; }
     button { padding: 10px 14px; border: 1px solid #c5d4ce; border-radius: 10px; background: white; color: var(--ink); font: inherit; font-size: 13px; cursor: pointer; }
     button:hover { background: #edf5f1; }
@@ -29,11 +29,15 @@
   </style>
 </head>
 <body>
-  <main class="stage" aria-label="아이패드 프레임의 실제 PECS MATE 서비스">
-    <div class="tablet"><iframe src="/" title="PECS MATE 서비스 시연" allow="autoplay; fullscreen; microphone"></iframe></div>
+  <main class="stage" aria-label="아이패드 프레임의 PECS MATE 자동 시연">
+    <div class="tablet"><iframe src="/?promo=demo" title="PECS MATE 자동 시연 애니메이션" allow="autoplay; fullscreen; microphone"></iframe></div>
   </main>
   <nav class="toolbar" aria-label="촬영 설정">
     <strong>PECS MATE</strong>
+    <button id="play" type="button">일시정지</button>
+    <button id="restart" type="button">처음부터</button>
+    <button id="next" type="button">다음 장면</button>
+    <button id="mode" type="button">실제 앱 조작</button>
     <button id="background" type="button" aria-pressed="false">흰 배경</button>
     <button id="fullscreen" type="button">전체 화면</button>
     <button id="recording" type="button">촬영 모드</button>
@@ -44,8 +48,27 @@
     const tablet = document.querySelector('.tablet');
     const frame = document.querySelector('iframe');
     const status = document.querySelector('.status');
+    let demo = true;
+    function send(command) {
+      frame.contentWindow.postMessage({ type: 'pecsmate:promo-command', command }, location.origin);
+    }
+    document.querySelector('#play').addEventListener('click', () => send('toggle'));
+    document.querySelector('#restart').addEventListener('click', () => send('restart'));
+    document.querySelector('#next').addEventListener('click', () => send('next'));
+    document.querySelector('#mode').addEventListener('click', (event) => {
+      demo = !demo;
+      frame.src = demo ? '/?promo=demo' : '/';
+      frame.title = demo ? 'PECS MATE 자동 시연 애니메이션' : 'PECS MATE 실제 서비스';
+      event.currentTarget.textContent = demo ? '실제 앱 조작' : '자동 시연';
+      for (const id of ['play', 'restart', 'next']) document.getElementById(id).hidden = !demo;
+      fit();
+    });
+    addEventListener('message', (event) => {
+      if (event.origin !== location.origin || event.source !== frame.contentWindow || event.data?.type !== 'pecsmate:promo-state') return;
+      document.querySelector('#play').textContent = event.data.playing ? '일시정지' : '재생';
+    });
     function fit() {
-      const reserve = document.body.classList.contains('recording') ? 64 : 120;
+      const reserve = document.body.classList.contains('recording') ? 64 : document.querySelector('.toolbar').offsetHeight + 60;
       tablet.style.setProperty('--scale', Math.max(.05, Math.min((innerWidth - 48) / 1250, (innerHeight - reserve) / 942)));
     }
     function restore() { document.body.classList.remove('recording'); fit(); }

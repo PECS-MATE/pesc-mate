@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 
 import App from "./App";
+import PromoDemo from "./promo/promo-demo";
 import "bootstrap/dist/css/bootstrap-grid.min.css";
 import "bootstrap/dist/css/bootstrap-utilities.min.css";
 import "./assets/styles.css";
@@ -13,7 +14,7 @@ import "./assets/speakingLibrary.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <App />
+    {new URLSearchParams(window.location.search).get('promo') === 'demo' ? <PromoDemo /> : <App />}
   </React.StrictMode>,
 );
 
