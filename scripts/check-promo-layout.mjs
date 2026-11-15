@@ -7,8 +7,9 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const output = path.join(root, '.local-validation', 'promo-layout');
-const deadline = Date.now() + 90000;
+const live = process.argv.includes('--live');
+const output = path.join(root, '.local-validation', live ? 'promo-presentation' : 'promo-layout');
+const deadline = Date.now() + (live ? 180000 : 90000);
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 const styles = ['src/assets/caregiverUx.css',
   'node_modules/bootstrap/dist/css/bootstrap-grid.min.css', 'node_modules/bootstrap/dist/css/bootstrap-utilities.min.css',
@@ -41,7 +42,7 @@ const server = http.createServer(async (request, response) => {
   } catch { response.writeHead(404).end(); }
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-const address = `http://127.0.0.1:${server.address().port}`;
+const address = live ? (process.env.PROMO_BASE_URL || 'http://localhost:5173') : `http://127.0.0.1:${server.address().port}`;
 const browserPath = process.env.PROMO_CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const profile = path.join(output, `chrome-${Date.now()}`);
 const browser = spawn(browserPath, ['--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-background-networking', '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank'], { windowsHide: true, stdio: 'ignore' });
@@ -79,11 +80,76 @@ try {
   closeBrowser = () => call('Browser.close');
   await call('Page.enable');
   const failures = [];
+  if (live) {
+    const waitFor = async expression => {
+      while (Date.now() < deadline) { if (await evaluate(`Boolean(${expression})`)) return; await pause(60); }
+      throw new Error(`Readiness deadline: ${expression}`);
+    };
+    let loaded = false;
+    for (const [width, height] of [[320, 640], [768, 1024], [1024, 768], [1440, 900], [1920, 1080]]) {
+      await call('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
+      if (!loaded) {
+        await call('Page.navigate', { url: `${address}/promo-ipad.html` });
+        await waitFor(`document.querySelectorAll('.chapters button').length === 7 && document.querySelector('iframe')?.contentDocument?.querySelector('.promo-demo:not(.is-loading)')`);
+        await waitFor(`[...document.querySelectorAll('.visual-panel img')].every(img => img.complete && img.naturalWidth > 0)`);
+        loaded = true;
+      }
+      for (let chapter = 0; chapter < 7; chapter++) {
+        await evaluate(`document.querySelectorAll('.chapters button')[${chapter}].click()`);
+        await pause(500);
+        const issues = await evaluate(`(() => {
+          const issues = [], canvas = document.querySelector('.presentation').getBoundingClientRect();
+          const toolbar = document.querySelector('.toolbar').getBoundingClientRect();
+          const story = document.querySelector('.story').getBoundingClientRect();
+          const visual = document.querySelector('.visual').getBoundingClientRect();
+          const footer = document.querySelector('.presentation-footer').getBoundingClientRect();
+          const iframe = document.querySelector('iframe'), doc = iframe.contentDocument;
+          if (canvas.left < -1 || canvas.right > innerWidth + 1 || canvas.top < -1 || canvas.bottom > toolbar.top - 5) issues.push('presentation clipped or overlaps toolbar');
+          if (story.right > visual.left || story.bottom > footer.top || visual.bottom > footer.top) issues.push('story, visual, or footer overlaps');
+          for (const img of document.querySelectorAll('.visual-panel img')) if (!img.complete || !img.naturalWidth) issues.push('PDF image missing');
+          if (document.documentElement.scrollWidth > innerWidth || document.documentElement.scrollHeight > innerHeight) issues.push('outer document overflows');
+          if (doc.documentElement.scrollWidth > iframe.clientWidth || doc.documentElement.scrollHeight > iframe.clientHeight) issues.push('React demo overflows');
+          const caption = doc.querySelector('.promo-caption').getBoundingClientRect();
+          if ([...doc.querySelector('.promo-content').children].some(el => el.getBoundingClientRect().bottom > caption.top + 1)) issues.push('React scene overlaps caption');
+          return issues;
+        })()`);
+        const name = `${width}x${height}-chapter-${chapter + 1}`;
+        if (issues.length) failures.push({ name, issues });
+        if (width === 1920 || (width === 320 && chapter === 2) || issues.length) {
+          const screenshot = await call('Page.captureScreenshot', { format: 'png' });
+          await fs.writeFile(path.join(output, `${name}.png`), Buffer.from(screenshot.data, 'base64'));
+        }
+        console.log(`${issues.length ? 'FAIL' : 'PASS'} ${name}: ${issues.join('; ') || 'presentation and React demo fit'}`);
+      }
+    }
+    await evaluate(`document.querySelectorAll('.chapters button')[2].click(); document.querySelector('#play').click()`);
+    await waitFor(`document.querySelector('iframe').contentDocument.querySelectorAll('.promo-mini').length === 1`);
+    await evaluate(`document.querySelector('#play').click()`);
+    const controls = await evaluate(`(() => {
+      const issues = [];
+      document.querySelector('#recording').click();
+      if (getComputedStyle(document.querySelector('.toolbar')).display !== 'none') issues.push('recording toolbar visible');
+      if (getComputedStyle(document.querySelector('.restore')).opacity !== '0') issues.push('restore control visible in recording');
+      document.querySelector('iframe').contentDocument.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      if (document.body.classList.contains('recording')) issues.push('iframe Escape restoration failed');
+      document.querySelector('#layout').click();
+      if (!document.body.classList.contains('tablet-only')) issues.push('tablet layout failed');
+      document.querySelector('#layout').click();
+      if (document.body.classList.contains('tablet-only')) issues.push('presentation layout failed');
+      document.querySelector('#mode').click();
+      if (!document.querySelector('iframe').src.endsWith('/') || !document.body.classList.contains('tablet-only')) issues.push('actual app mode failed');
+      document.querySelector('#mode').click();
+      return issues;
+    })()`);
+    if (controls.length) failures.push({ name: 'controls', issues: controls });
+    await waitFor(`document.querySelector('iframe')?.contentDocument?.querySelector('.promo-demo:not(.is-loading)')`);
+    console.log(`${controls.length ? 'FAIL' : 'PASS'} live cue synchronization, recording, iframe Escape, layout and app mode`);
+  } else {
   for (const [width, height] of [[320, 640], [768, 1024], [1024, 768], [1440, 900], [1920, 1080]]) {
     await call('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
     for (scene of ['home', 'cards', 'practice', 'closing']) {
       if (Date.now() >= deadline) throw new Error('Layout check deadline exceeded');
-      await call('Page.navigate', { url: `${address}/promo-ipad.html?scene=${scene}` });
+      await call('Page.navigate', { url: `${address}/promo-ipad.html?view=tablet&scene=${scene}` });
       let ready = false;
       while (!ready && Date.now() < deadline) {
         ready = await evaluate(`document.querySelector('iframe')?.contentDocument?.querySelector('.promo-demo')?.dataset.layoutScene === ${JSON.stringify(scene)} && document.querySelector('iframe').contentDocument.readyState === 'complete'`);
@@ -119,10 +185,11 @@ try {
       const fits = box.left >= 0 && box.right <= innerWidth + 1 && box.top >= 0 && box.bottom <= innerHeight + 1;
       const centered = Math.abs((box.top + box.bottom) / 2 - innerHeight / 2) <= 1;
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-      return fits && centered && !document.body.classList.contains('recording');
+      return { pass: fits && centered && !document.body.classList.contains('recording'), fits, centered, box: { left: box.left, top: box.top, right: box.right, bottom: box.bottom }, scrollY };
     })()`);
-    if (!recording) failures.push({ name: `${width}x${height}-recording`, issues: ['recording frame fit or Esc restoration failed'] });
-    console.log(`${recording ? 'PASS' : 'FAIL'} ${width}x${height}-recording: frame fit and Esc restoration`);
+    if (!recording.pass) failures.push({ name: `${width}x${height}-recording`, issues: ['recording frame fit or Esc restoration failed'], ...recording });
+    console.log(`${recording.pass ? 'PASS' : 'FAIL'} ${width}x${height}-recording: frame fit and Esc restoration${recording.pass ? '' : JSON.stringify(recording)}`);
+  }
   }
   await fs.writeFile(path.join(output, 'result.json'), JSON.stringify({ failures }, null, 2));
   if (failures.length) process.exitCode = 1;

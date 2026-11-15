@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import HomeDashboard from '../HomeDashboard';
 import { CardArt, CardPicture } from '../components/CardVisuals';
 import UiIcon from '../UiIcon';
+import { cardImage } from '../services/cardMedia';
 import { STEP_MS, captions, nextStep, sceneAt, selectedCountAt } from './promo-timeline';
 
 // Scripted promotional examples; no account, learning record, or API writes.
@@ -16,14 +17,24 @@ const picture = (card, className) => <CardPicture key={card.id} card={card} clas
 export default function PromoDemo() {
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(() => !window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const [mediaStatus, setMediaStatus] = useState('loading');
   const scene = sceneAt(step);
   const selected = cards.slice(0, selectedCountAt(step));
 
   useEffect(() => {
-    if (!playing) return undefined;
+    if (!playing || mediaStatus !== 'ready') return undefined;
     const timer = window.setTimeout(() => setStep(nextStep), STEP_MS);
     return () => window.clearTimeout(timer);
-  }, [playing, step]);
+  }, [playing, step, mediaStatus]);
+
+  useEffect(() => {
+    let active = true;
+    Promise.all(cards.map(card => {
+      const image = new Image(); image.src = cardImage(card);
+      return image.decode();
+    })).then(() => { if (active) setMediaStatus('ready'); }, () => { if (active) setMediaStatus('error'); });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     function command(event) {
@@ -32,18 +43,23 @@ export default function PromoDemo() {
       if (event.data.command === 'toggle') setPlaying(value => !value);
       if (event.data.command === 'restart') { setStep(0); setPlaying(true); }
       if (event.data.command === 'next') { setStep(nextStep); setPlaying(false); }
+      if (event.data.command === 'seek' && Number.isInteger(event.data.step) && event.data.step >= 0 && event.data.step < captions.length) {
+        setStep(event.data.step);
+        setPlaying(false);
+      }
     }
     window.addEventListener('message', command);
     return () => window.removeEventListener('message', command);
   }, []);
 
   useEffect(() => {
-    if (window.parent !== window) window.parent.postMessage({ type: 'pecsmate:promo-state', playing, step, total: captions.length }, window.location.origin);
-  }, [playing, step]);
+    if (window.parent !== window) window.parent.postMessage({ type: 'pecsmate:promo-state', playing, step, total: captions.length, ready: mediaStatus === 'ready' }, window.location.origin);
+  }, [playing, step, mediaStatus]);
 
   function jump(next) { setStep(next); setPlaying(false); }
 
-  return <div className={`promo-demo ${playing ? 'is-playing' : 'is-paused'}`}>
+  return <div className={`promo-demo ${playing ? 'is-playing' : 'is-paused'} ${mediaStatus !== 'ready' ? 'is-loading' : ''}`}>
+    {mediaStatus !== 'ready' && <div className="promo-loading" role="status"><img src="/pecsmate.png" alt="" /><p>{mediaStatus === 'error' ? '그림을 불러오지 못했어요. 새로고침해 주세요.' : '시연을 준비하고 있어요.'}</p></div>}
     <aside className="promo-sidebar">
       <img src="/pecsmate.png" alt="PECS MATE" />
       <span className="promo-wordmark">PECS MATE</span>

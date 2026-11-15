@@ -61,3 +61,6 @@
 @media (prefers-reduced-motion: reduce) { .promo-demo *, .promo-demo *::before, .promo-demo *::after { animation: none !important; transition: none !important; } }
 .promo-document { overflow: hidden; scrollbar-gutter: auto; }
 .promo-document body, .promo-document #root { height: 100%; }
+.promo-demo.is-loading .promo-sidebar, .promo-demo.is-loading .promo-workspace { visibility: hidden; }
+.promo-loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; background: var(--color-selected); color: var(--color-primary-action); font-size: 24px; }
+.promo-loading img { width: 150px; height: 150px; object-fit: contain; }

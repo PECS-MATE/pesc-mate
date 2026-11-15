@@ -3,25 +3,39 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PECS MATE · 아이패드 시연</title>
+  <title>PECS MATE · 전시 발표와 서비스 시연</title>
   <link rel="stylesheet" href="/promo/promo-ipad.css">
 </head>
 <body>
-  <main class="stage" aria-label="아이패드 프레임의 PECS MATE 자동 시연">
-    <div class="tablet"><iframe src="/?promo=demo" title="PECS MATE 자동 시연 애니메이션" allow="autoplay; fullscreen; microphone"></iframe></div>
+  <main class="stage" tabindex="-1" aria-label="PECS MATE 전시 발표 및 자동 시연">
+    <div class="presentation">
+      <header class="brand"><a href="/promo-ipad.html" aria-label="PECS MATE 발표 처음부터"><img src="/pecsmate.png" alt=""><strong>PECS MATE</strong></a><span>유한대학교 · 인공지능전공 <b>CAPSTONE DESIGN</b></span></header>
+      <div class="presentation-body">
+        <section class="story" aria-label="서비스 소개"><p class="eyebrow"></p><h1></h1><p class="description"></p><div class="tags"></div><p class="story-note"></p></section>
+        <div class="visual" data-visual="demo">
+          <div class="tablet"><iframe src="/?promo=demo" title="PECS MATE 자동 시연 예시" allow="autoplay; fullscreen; microphone"></iframe></div>
+          <figure class="visual-panel card-panel"><div class="image-heading"><span>나만의 그림카드</span><b>등록 → 편집 → 인쇄</b></div><img src="/promo/assets/card-print-editor.png" alt="그림카드를 A4 용지에 배치하는 실제 인쇄 편집 화면"><figcaption>필요한 그림을 고르고, 실물 카드로 출력해요.</figcaption></figure>
+          <div class="visual-panel rfid-panel"><figure class="prototype"><img src="/promo/assets/rfid-prototype.png" alt="Arduino와 RC522 리더기 및 RFID 태그를 연결한 실제 배선 시제품"><figcaption><b>실제 배선 시제품</b><span>RFID 태그 → 리더기 → USB → 웹</span></figcaption></figure><figure class="concept"><img src="/promo/assets/rfid-concept.png" alt="RFID 리더기 세 개를 한 판에 배치한 콘셉트 이미지"><figcaption>리더기 배치 콘셉트 이미지<br><span>최종 실물 제작 사진이 아닙니다.</span></figcaption></figure></div>
+          <section class="visual-panel journey-panel" aria-label="제작 발전 과정"><ol><li><span>01</span><div><h2>기본 AAC</h2><p>그림카드 · 문장 구성 · 음성 출력</p></div></li><li><span>02</span><div><h2>맞춤형 카드</h2><p>나만의 카드 등록 · 편집 · 인쇄</p></div></li><li><span>03</span><div><h2>실물 카드 연결</h2><p>RFID 태그 인식 · 웹 문장 연동</p></div></li><li><span>04</span><div><h2>사진 글자 인식</h2><p>기존 카드 사진을 디지털 카드로</p></div></li></ol><div class="future"><span>NEXT</span>아동별 학습지 제작 <b>계획</b></div></section>
+          <p class="demo-label">SERVICE DEMO <span>자동 시연 예시</span></p>
+        </div>
+      </div>
+      <footer class="presentation-footer"><nav class="chapters" aria-label="발표 장면 선택"></nav><div class="loop-label"><span class="chapter-count"></span><span>자동 반복 · <b class="loop-duration"></b></span></div><div class="chapter-progress"><span></span></div></footer>
+    </div>
   </main>
-  <nav class="toolbar" aria-label="촬영 설정">
-    <strong>PECS MATE</strong>
+  <nav class="toolbar" aria-label="발표 및 촬영 설정">
     <button id="play" type="button">일시정지</button>
     <button id="restart" type="button">처음부터</button>
+    <button id="previous" type="button">이전 장면</button>
     <button id="next" type="button">다음 장면</button>
+    <button id="layout" type="button" aria-pressed="false">아이패드만</button>
     <button id="mode" type="button">실제 앱 조작</button>
     <button id="background" type="button" aria-pressed="false">흰 배경</button>
     <button id="fullscreen" type="button">전체 화면</button>
-    <button id="recording" type="button">촬영 모드</button>
+    <button id="recording" type="button">전시·촬영 모드</button>
   </nav>
-  <button class="restore" type="button" aria-label="촬영 설정 다시 표시">촬영 설정 표시</button>
+  <button class="restore" type="button" aria-label="발표 설정 다시 표시">설정 표시</button>
   <p class="status" role="status"></p>
-  <script src="/promo/promo-ipad.js"></script>
+  <script type="module" src="/promo/promo-ipad.js"></script>
 </body>
 </html>
