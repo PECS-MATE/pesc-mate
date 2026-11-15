@@ -24,6 +24,9 @@ self.addEventListener('fetch', event => {
   const request = event.request;
   const url = new URL(request.url);
   if (request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
+  // The generated public pack can be published after the app shell was cached.
+  // Its catalog must be fresh; offline child speech restores its catalog from IndexedDB.
+  if (url.pathname === '/audio/core/v2/manifest.json') return;
   if (request.mode === 'navigate') {
     event.respondWith(fetch(request).then(response => {
       if (response.ok) caches.open(CACHE_NAME).then(cache => cache.put('/index.html', response.clone()));

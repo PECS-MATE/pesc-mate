@@ -387,7 +387,7 @@ function App() {
   useSessionSidebar({ setSidebarCollapsed, user });
   useActivityStream({ activityStreamRef, selectionEventRef, setSituation, user });
   useSessionRestore({ setAuthReady, setUser, load, speechPlayback, coreSpeechCache });
-  useCoreSpeechPreparation({ user, coreSpeechCache, offline });
+  useCoreSpeechPreparation({ user, coreSpeechCache, offline, ttsSettings });
   useSpeechDeviceEvents({ setTtsVoices, finishSpeechEvent, speechEventRef, speechRunRef, speechPlayback, setSpeechState });
   useNetworkSessionEvents({ setOffline, syncPendingEvents, user, load, clearSupportTargetData, setTab, setError });
   useSupportAccessRevocation({ user, clearSupportTargetData, setTab, setError });

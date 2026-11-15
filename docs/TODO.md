@@ -14,7 +14,7 @@
 - [ ] 후속 변경의 자동 검증. 사용자가 추가 검증 없이 구현 진행을 요청함.
 - [ ] RFID·OCR·TTS·오프라인·보호자 흐름 최종 실기기 검수.
 
-상세 범위와 실패·중단 이력: [실행 기록](../development/REFACTORING_VERIFICATION.md).
+상세 범위와 실패·중단 이력: [실행 기록](development/REFACTORING_VERIFICATION.md).
 
 ## USB 입력 핵심 규칙 — 2026-11-13
 
@@ -23,7 +23,7 @@
 - [x] 매핑 직렬 처리·유지 중 중복 억제·연결/계정/수동 편집 시 이전 입력 취소.
 - [ ] 실물 1/2/3개 연결·동시 배치·자동 재생 최종 검수.
 
-검증 결과와 범위: [USB 입력 규칙](../development/RFID_USB_INTEGRATION.md).
+검증 결과와 범위: [USB 입력 규칙](development/RFID_USB_INTEGRATION.md).
 
 ## AI 문장 자동 발화와 지연 개선 — 2026-11-13
 
@@ -32,19 +32,19 @@
 - [x] 합성 카드 실제 측정: 새 생성 약 2.08초, 반복 조합 서비스 처리 약 5ms.
 - [ ] 실기기 태그부터 첫 소리까지의 지연과 새로운 조합의 장기 성능 검수.
 
-조건·회귀 결과·실패 이력: [문장 지연 기록](../development/SENTENCE_LATENCY.md).
+조건·회귀 결과·실패 이력: [문장 지연 기록](development/SENTENCE_LATENCY.md).
 
 ## 현재 기능
 
 2026-11-12 안정화 회귀: 학습 코스/일반 설정의 동의·삭제 경합을 수정하고 격리 MongoDB·HTTP,
 공개 화면 Edge 반응형 검사, A4/RFID/학습/캐시 로직·구문·프론트 빌드를 확인했습니다.
 실제 기기·로그인 후 전체 브라우저 검수와 부하 게이트는 미완료로 유지합니다.
-상세: [최신 안정화 기록](../development/LOCAL_DEVELOPMENT.md#안정화-회귀-점검--2026-11-12).
+상세: [최신 안정화 기록](development/LOCAL_DEVELOPMENT.md#안정화-회귀-점검--2026-11-12).
 
 2026-11-10 이미지 제외 안정화: 동의/삭제와 기록 저장 경쟁, 카드 상태 충돌, 가입 중간 실패 복구,
 카드 조회 쿼리/인덱스, 서버 TTS 상태 점검을 수정했습니다. 실제 임시 MongoDB·격리 HTTP 검사와
 구문/프론트 빌드는 통과했으며 이미지 최적화·실제 사용자/기기 검수·대규모 구조 분리는 포함하지 않았습니다.
-상세 경계는 [안정화 기록](../development/LOCAL_DEVELOPMENT.md#이미지-제외-안정화-결과--2026-11-10)을 따릅니다.
+상세 경계는 [안정화 기록](development/LOCAL_DEVELOPMENT.md#이미지-제외-안정화-결과--2026-11-10)을 따릅니다.
 
 | 영역 | 구현 상태 | 실제 검수 경계 |
 | --- | --- | --- |
@@ -72,8 +72,8 @@
 - [ ] 브라우저·실 DB의 보호자/아동 전체 흐름과 실제 이미지 의미·안전성 검수.
 
 구현 및 검증 기록:
-[학습과 코스](../development/LEARNING_AND_RECORDS.md),
-[그림 생성/배경 제거](../development/CARD_MANAGEMENT.md#card-image-tools).
+[학습과 코스](development/LEARNING_AND_RECORDS.md),
+[그림 생성/배경 제거](development/CARD_MANAGEMENT.md#card-image-tools).
 기능 커밋은 배포 승인이나 실제 사용 검수 통과를 뜻하지 않습니다.
 
 ## 다음 권장 순서
@@ -103,7 +103,7 @@
 - [ ] 데모 비밀번호/개발 DB 설정 제거, 백업 복구 리허설·장애 연락·롤백 담당자 확정 (외부 배포 때).
 - [ ] 지원 브라우저 최소 버전·목표 동시 사용자·가용성·백업 주기/보존·RPO/RTO 확정.
 
-운영/보안 절차는 [문서 안내](../README.md)의 정책·운영 문서를 유지합니다.
+운영/보안 절차는 [문서 안내](README.md)의 정책·운영 문서를 유지합니다.
 이전 세부 요구사항·A/B 트랙 이력·미완료 게이트는 아래 원문에 보존했으며 위 최신 상태가 우선합니다.
 
 ## 과거 개별 검증 요약
@@ -133,34 +133,34 @@
 
 2026-10-28 설정 진입점은 **이름·프로필 사진 → 마이페이지**로 통합했다. 아동의 프로필·접근·
 음성·보호자 설정을 창에서 관리하고 보호자·담당자는 허용된 연결 사용자·운영 메뉴로 이동한다.
-검증 상태와 범위는 [마이페이지 구현 기록](../development/USER_INTERFACE.md#my-page-settings)을 따른다.
+검증 상태와 범위는 [마이페이지 구현 기록](development/USER_INTERFACE.md#my-page-settings)을 따른다.
 
 후속 UX 개편은 **활동 선택 → 카드 탐색·실물 입력 → 명시 말하기** 순서로 정리한다.
 홈의 세 활동·주제별 카드·USB 연결 유지와 말하기 우선 배치의 구현·검증 범위는
-[활동 중심 UX 기록](../development/USER_INTERFACE.md#activity-ux)에 남긴다. 실물 칩·3개 리더기·실제 음성 품질
+[활동 중심 UX 기록](development/USER_INTERFACE.md#activity-ux)에 남긴다. 실물 칩·3개 리더기·실제 음성 품질
 완료 게이트는 UI 개편과 별도로 유지한다.
 
 후속 요청으로 비로그인 첫 화면에 서비스 소개·기능·이용 순서·FAQ와 기존 로그인·가입 연결을
 추가한다. 로그인된 사용자는 앱으로 바로 진입한다. 구현·검증 범위는
-[랜딩페이지 기록](../development/USER_INTERFACE.md#landing-page)을 따르며 실물·배포 게이트를 변경하지 않는다.
+[랜딩페이지 기록](development/USER_INTERFACE.md#landing-page)을 따르며 실물·배포 게이트를 변경하지 않는다.
 
 새 `uxpilot-export-10-28-26 (1).pdf`의 활동 화면 UX를 반영했다. 말하기·연습 집중 보기,
 선택 문장 상단 고정, 관리자 칩 등록 단계·미리보기와 리포트 배치를 정리한다.
 **사용자 요청으로 이 후속 UX 변경의 검사·빌드는 미실행**이며 완료 게이트로 표시하지 않는다.
-범위와 사용자 확인 항목은 [새 참고 화면 UX 기록](../development/USER_INTERFACE.md#reference-ux)을 따른다.
+범위와 사용자 확인 항목은 [새 참고 화면 UX 기록](development/USER_INTERFACE.md#reference-ux)을 따른다.
 
-현재 최우선은 [실물 카드 입력 MVP TODO](../development/RFID_USB_INTEGRATION.md#hardware-mvp-plan-history)다. 기존 A/B 트랙과 완료 이력은
+현재 최우선은 [실물 카드 입력 MVP TODO](development/RFID_USB_INTEGRATION.md#hardware-mvp-plan-history)다. 기존 A/B 트랙과 완료 이력은
 후속 안정화·현장/운영 준비·확장 백로그로 보존하며 미완료 게이트를 임의로 닫지 않는다.
 
 2026-10-27 첨부 요청으로 환경을 **UNO R4 WiFi + RC522 3개 + Wi-Fi HTTP(S) + 기존 웹/API**로
 변경했다. 실물 카드의 위치 1·2·3을 유지하고 현재 상태를 웹에 표시한다. 태그 UID는 아동별
 앱 카드 ID에 연결하고 기존 문장 생성·AI·기기 TTS를 재사용한다. 이전 단일 리더기 USB 계획은
-이력으로 보존하며 [Wi-Fi 구현·실물 검수 문서](../development/RFID_WIFI_INTEGRATION.md)를 우선한다.
+이력으로 보존하며 [Wi-Fi 구현·실물 검수 문서](development/RFID_WIFI_INTEGRATION.md)를 우선한다.
 Arduino 자체 스피커·새 학습 게임·클라우드 배포는 이번 범위가 아니다.
 
 후속 요청으로 **PC는 USB 연결을 우선**한다. 브라우저 연결 버튼·기존 UID 진단 스케치 호환·USB JSON
 펌웨어·장치 로그·로그인 세션 기반 매핑 조회를 추가한다. Wi-Fi 키와 LAN API 개방은 USB에 필요 없다.
-검증 상태와 새 실물 게이트는 [USB 연동 기록](../development/RFID_USB_INTEGRATION.md)을 따른다.
+검증 상태와 새 실물 게이트는 [USB 연동 기록](development/RFID_USB_INTEGRATION.md)을 따른다.
 COM4의 0x82/리더기 응답은 확인했으며 실제 태그→웹→음성 검수와 새 USB 펌웨어 업로드는 미실행이다.
 USB 연동 전체 자동 검증은 881개·빌드·임시 환경 정리를 통과했다. 포트 목록·빠른 재연결 로그의
 후행 표시 보정과 좁은 재검증 범위는 USB 문서에 별도로 기록한다.
@@ -168,7 +168,7 @@ USB 연동 전체 자동 검증은 881개·빌드·임시 환경 정리를 통�
 관리자 사전 등록 요청으로 **RFID 칩 등록** 전용 페이지를 추가했다. 한 칩을 읽어 UID를 고정하고
 공용 그림카드 선택·미리보기·저장·다음 칩으로 진행한다. 공용 매핑은 전체 아동에게 적용하고 개인
 매핑을 우선한다. 공용 관리 API의 운영 권한·재인증·비공개 카드 차단·버전 충돌 검증을 포함하며,
-전체 자동 검증과 실물 등록 상태는 [관리자 칩 등록 기록](../development/RFID_USB_INTEGRATION.md#rfid-chip-registration)을 따른다.
+전체 자동 검증과 실물 등록 상태는 [관리자 칩 등록 기록](development/RFID_USB_INTEGRATION.md#rfid-chip-registration)을 따른다.
 관리자 공용 칩 등록 단계의 전체 검증은 890개·빌드·임시 환경 정리 통과다. 실제 칩을 대고 관리자
 페이지에서 저장하는 실물 검수는 미실행이며 자동 검사·커밋으로 현장 완료를 표시하지 않는다.
 
@@ -239,7 +239,7 @@ PECS MATE는 실물 PECS 카드가 늘어날수록 발생하는 휴대·분류·
 
 이 절은 새 기능 목록이 아니라 이미 확보된 기반을 기록한다.
 
-카드 사진·단어 제작 범위와 우선순위는 [카드 사진·단어 목록](../development/CARD_ASSETS.md#card-photo-word-list)에서 관리한다.
+카드 사진·단어 제작 범위와 우선순위는 [카드 사진·단어 목록](development/CARD_ASSETS.md#card-photo-word-list)에서 관리한다.
 
 ### 3.1 계정·권한
 
@@ -439,14 +439,14 @@ API 지표 증빙: `backend/app/services/api_metrics.py`가 개별 요청 없이
 계정에만 제공하고 재시작 시 초기화한다. `backend/tests/test_api_metrics.py`와
 `frontend/e2e/api-metrics.spec.js`에서 권한·개인정보 비노출·만료·동시 요청을 검증한다.
 장기 보관·다중 프로세스 집계·외부 통보는 이번 구현 범위에 포함하지 않는다.
-자세한 정의는 [API 지표](../development/OPERATIONS_METRICS.md#api-metrics)를 따른다.
+자세한 정의는 [API 지표](development/OPERATIONS_METRICS.md#api-metrics)를 따른다.
 
 TTS 지표 증빙: `backend/app/services/tts_metrics.py`와 `/api/admin/tts-metrics`가
 기존 클라이언트 보고만 집계하며 성공·실패·취소·결과 미수신과 유효 지연 표본을 구분한다.
 `tts_events.py`는 동일 요청 ID의 최초 완료 결과를 보존한다. 단위 검증은
 `backend/tests/test_tts_metrics.py`·`test_tts_events.py`, 실제 DB 검증은
 `frontend/e2e/tts-metrics.spec.js`에서 수행한다. 분모와 오프라인·기기 실측 한계는
-[TTS 지표](../development/OPERATIONS_METRICS.md#tts-metrics)에 기록한다.
+[TTS 지표](development/OPERATIONS_METRICS.md#tts-metrics)에 기록한다.
 
 오프라인 동기화 지표 증빙: `backend/app/services/offline_sync_metrics.py`와
 `/api/admin/offline-sync-metrics`가 서버에서 확인한 발화·학습의 신규·중복·실패·미처리
@@ -454,16 +454,16 @@ TTS 지표 증빙: `backend/app/services/tts_metrics.py`와 `/api/admin/tts-metr
 유지되며 재시도 건수만 헤더로 보낸다. 단위 검증은 `test_offline_sync_metrics.py`와
 `offline-sync.test.mjs`, 실제 DB·브라우저 검증은 `offline-sync-metrics.spec.js`에서
 수행한다. 서버 미도착·기기 저장 오류의 집계 한계는
-[오프라인 동기화 지표](../development/OPERATIONS_METRICS.md#offline-sync-metrics)에 명시한다.
+[오프라인 동기화 지표](development/OPERATIONS_METRICS.md#offline-sync-metrics)에 명시한다.
 
 운영 알림 증빙: `backend/app/services/operational_alerts.py`와 `/api/admin/alerts`가
 공용 카드 대기와 API·음성·동기화 반복 실패를 집계해 안내한다. `OperationalAlerts.jsx`는
 운영 계정에만 표시하고 조회 실패·이전 결과를 구분하며 검수 후 알림을 갱신한다.
 단위·컴포넌트 검증과 `frontend/e2e/operational-alerts.spec.js`에서 권한·임계값·조회
 실패·실제 카드 승인·좁은 화면의 숫자 비겹침을 확인한다. 초기 기준과 외부 통보가
-아닌 화면 안내라는 한계는 [운영 알림](../development/OPERATIONS_METRICS.md#operational-alerts)에 기록한다.
+아닌 화면 안내라는 한계는 [운영 알림](development/OPERATIONS_METRICS.md#operational-alerts)에 기록한다.
 
-장애 대응 문서 증빙: [장애 대응 절차와 연락 체계](../operations/INCIDENT_RESPONSE.md)에
+장애 대응 문서 증빙: [장애 대응 절차와 연락 체계](operations/INCIDENT_RESPONSE.md)에
 영향 기준 등급, 읽기 전용 점검, 대기 기록·요청 ID 보존, 역할별 호출·상향·복구 승인
 절차를 정리한다. 실제 담당자·대체자와 비공개 연락망은 미지정이며 연락 시험·장애
 모의훈련은 미완료다. 과거 문서 대조·읽기 전용 확인을 현장 파일럿 완료로
@@ -490,11 +490,11 @@ TTS 지표 증빙: `backend/app/services/tts_metrics.py`와 `/api/admin/tts-metr
 구현한다. 기본 조회 전용, 대상 DB·쓰기 중단·백업 참조 확인, 고정 잠금·분할·재개와
 미래/잘못된 버전 차단을 단위·임시 DB 통합 시험으로 검증한다. 기존 로컬 DB에는
 조회 전용 확인만 수행했고 일괄 적용하지 않았다. 실행 규칙·미구현 범위는
-[데이터 버전·마이그레이션](../development/DATA_SCHEMA_MIGRATIONS.md)을 따른다.
+[데이터 버전·마이그레이션](development/DATA_SCHEMA_MIGRATIONS.md)을 따른다.
 로컬 백업·복구 증빙: 호스트 CLI `backend/app/mongo_backup.py`로 gzip BSON 백업·
 체크섬 검사·새 UUID DB 복원·문서/옵션/인덱스 지문 비교와 검증 영수증을 구현한다.
 기본 계획 모드, 원본/기존 DB 복원 차단, 실패 격리를 단위·합성 DB 통합 시험으로
-검증한다. [백업·되돌리기 절차](../operations/MIGRATION_BACKUP_RECOVERY.md)에 따라
+검증한다. [백업·되돌리기 절차](operations/MIGRATION_BACKUP_RECOVERY.md)에 따라
 수동 전환 승인·개인정보 삭제/권한/UUID 정합성을 별도 확인한다. 실제 사용자 DB의
 백업·복원/전환은 하지 않았고 운영 암호화·보관·정기 복구 리허설은 A2-04에 남긴다.
 
@@ -505,7 +505,7 @@ UUID·오프라인 재전송·권한·객체 ID 교차 사용 차단, 본인 내
 감사 증빙: `backend/app/audit.py`에 기간 필수·기본 계획 모드의 보관 정리와 외부
 HMAC 체크포인트/검증을 구현한다. 사전 서명·백업 참조·쓰기 중단 확인, 삭제 전 의도·
 완료 후 결과 서명, 경계 시각·부분 실패·키/로그 변조와 개인정보 삭제를 시험한다.
-과거 권한 회수 로그가 정리돼도 데모 연결 상태를 되살리지 않는다. [감사 보관·무결성](../operations/AUDIT_RETENTION_INTEGRITY.md)의
+과거 권한 회수 로그가 정리돼도 데모 연결 상태를 되살리지 않는다. [감사 보관·무결성](operations/AUDIT_RETENTION_INTEGRITY.md)의
 탐지 범위·수동 절차를 따르며 실제 사용자 로그에는 서명/정리를 실행하지 않았다.
 운영 최종 기간 승인·정기 실행·키 관리·불변 보관·최소 권한·자동 경보는 A2에 남긴다.
 
@@ -513,7 +513,7 @@ HMAC 체크포인트/검증을 구현한다. 사전 서명·백업 참조·쓰�
 실패 재시도·동시 재연결·계정 전환 중단을 검증한다. `frontend/e2e/workflows.spec.js`에서
 실제 API로 205건 전송과 503 후 화면 재시도·서버 중복 제거를 확인한다.
 
-카드판 충돌 증빙: [동시 수정 정책](../policies/CORE_CARD_LOCK_POLICY.md#동시-수정)에 따라
+카드판 충돌 증빙: [동시 수정 정책](policies/CORE_CARD_LOCK_POLICY.md#동시-수정)에 따라
 `revision` 조건부 갱신과 409 응답을 사용한다. `backend/tests/test_board_layout.py`와
 `frontend/e2e/board-conflicts.spec.js`에서 최초 저장·기존 문서·동시 수정·초안 보존·재저장을 검증한다.
 
@@ -540,7 +540,7 @@ HMAC 체크포인트/검증을 구현한다. 사전 서명·백업 참조·쓰�
 교차 확인하고 EXIF·XMP·ICC·텍스트·불필요한 원본 파일명을 화면용·검사용 이미지에서 제거한다.
 방향·팔레트/RGB 색상 키/부분 투명도를 보존한다. 실제 메타데이터를 넣은 합성 이미지의
 출력 청크·안전성 전송·DB 저장·이미지 API·실패 무변경을 단위/임시 DB 통합 시험으로
-검증한다. [업로드 이미지 정규화](../development/IMAGE_STORAGE.md#image-upload-normalization)의 범위와
+검증한다. [업로드 이미지 정규화](development/IMAGE_STORAGE.md#image-upload-normalization)의 범위와
 한계를 따르며 기존 DB/백업 이미지는 일괄 변경하지 않았다. 나머지 보관·썸네일·용량 정책은 별도다.
 
 2026-10-22 사용자 결정: 클라우드 저장소를 추가하지 않고 현재 로컬 MongoDB에 원본을 보관한다.
@@ -554,7 +554,7 @@ HMAC 체크포인트/검증을 구현한다. 사전 서명·백업 참조·쓰�
 2026-10-22 구현 체크포인트: 위 미체크 5개 항목의 코드는 구현했으나 최종 전체 검증은
 완료하지 않아 체크 상태를 유지한다. 화면·썸네일 규격, 캐시 무효화, 고아 문서 정리,
 저장량 한도, 삭제 시각과 30일 백업 보존 연계는
-[로컬 이미지 저장 정책](../development/IMAGE_STORAGE.md#local-image-storage)을 따른다.
+[로컬 이미지 저장 정책](development/IMAGE_STORAGE.md#local-image-storage)을 따른다.
 최근 격리 Docker 검증에서 백엔드 365개·프런트엔드 컴포넌트 116개·MongoDB 72개는
 통과했지만 브라우저 39개 중 프로필 응답 기대값 2개가 실패했다. 새 `thumbnail_url` 필드를
 기대값에 반영했으며 수정 후 전체 재검증은 하지 않았다. 사용자 요청으로 추가 검증을
@@ -609,7 +609,7 @@ HTTP 통합 검사 14개 통과. 사용자 사진·기존 DB·백업은 변경�
 - [x] 계정 비활성화와 담당자 접근 만료 기능 (담당자 계정 전체 접근 기준)
 - [x] 중요 운영 작업의 재인증 또는 추가 인증 (담당자 계정 권한·접근 및 공용 콘텐츠 쓰기)
 
-2026-10-18 [운영 권한 관리](../operations/ACCOUNT_PERMISSION_MANAGEMENT.md)의 API·화면,
+2026-10-18 [운영 권한 관리](operations/ACCOUNT_PERMISSION_MANAGEMENT.md)의 API·화면,
 서버 설정 기반 책임자 분리, 버전 조건부 갱신·감사 의도/결과와 기존 세션 차단을 구현했다.
 운영 권한 변경은 책임자 비밀번호를 재확인하고 실패 제한을 적용한다. 실제 책임자 지정·운영
 브라우저 승인 검수와 별도의 추가 인증 수단은 미실행이며 기본 설정은
@@ -619,7 +619,7 @@ HTTP 통합 검사 14개 통과. 사용자 사진·기존 DB·백업은 변경�
 변경 시 기존 세션을 무효화하고 책임자 계정의 차단·만료 설정은 거절한다. 아동·보호자 계정은
 관리 대상에 포함하지 않으며 아동별 연결 만료·기관 변경 회수 절차(A2-03)는 별도로 남긴다.
 
-2026-10-19 [중요 운영 작업 재인증](../operations/OPERATION_REAUTHENTICATION.md)을 공용 카드
+2026-10-19 [중요 운영 작업 재인증](operations/OPERATION_REAUTHENTICATION.md)을 공용 카드
 승인·반려·활성 변경과 카테고리 쓰기까지 확대했다. 요청마다 비밀번호와 현재 계정 권한을
 검사하며 실패 제한을 공유한다. 확인 취소·오프라인·계정/화면 전환 시 입력은 폐기한다.
 MFA·개인정보 작업 전체의 추가 인증·실제 운영 승인을 완료했다는 뜻은 아니다.
@@ -640,7 +640,7 @@ MFA·개인정보 작업 전체의 추가 인증·실제 운영 승인을 완료
 - [ ] 파일 업로드 크기·빈도 제한과 악성 파일 방어
 - [ ] 보안 사고 대응과 계정 잠금 절차
 
-2026-10-20 [인증 MongoDB 구성](../operations/AUTHENTICATED_MONGODB.md)을 별도 Compose로 추가했다.
+2026-10-20 [인증 MongoDB 구성](operations/AUTHENTICATED_MONGODB.md)을 별도 Compose로 추가했다.
 DB별 `readWrite` 앱 사용자·root 자격 증명 미전달·파일 기반 설정과 시작 전 오류 차단을 구현했다.
 기존 무인증 개발 DB/볼륨은 유지한다. 임시 인증 스택에서 실제 권한 경계를 검사하며
 운영 자격 증명 발급·기존 데이터 이전·TLS·교체/복구 승인과 운영 전환은 별도로 남긴다.
@@ -733,12 +733,12 @@ TRACK B는 현재 완성 게이트를 대신하지 않는다. 각 기능은 기�
 
 2026-11-04 후속: 사진 한 장의 여러 실물 카드를 검출·원근 보정해 분리하고,
 이름 OCR·검토·선택 일괄 등록하는 화면을 보호자/담당자와 운영자에 추가했다.
-[현재 범위와 검증 기록](../development/CARD_MANAGEMENT.md#multi-card-scan)을 따른다.
+[현재 범위와 검증 기록](development/CARD_MANAGEMENT.md#multi-card-scan)을 따른다.
 이 기능은 과거 삭제한 여러 파일 일괄 업로드 화면의 복원이 아니다.
 합성 검출·모의 등록과 로컬 빌드는 확인했으며 실물 사진·한글 OCR·기기·DB 통합은 미검수다.
 아래 과거 체크 상태와 실행 수치는 역사적 이력이며 이번 실물 검수 완료를 뜻하지 않는다.
 
-기준 목록: [카드 사진·단어 목록](../development/CARD_ASSETS.md#card-photo-word-list)
+기준 목록: [카드 사진·단어 목록](development/CARD_ASSETS.md#card-photo-word-list)
 
 - [x] 여러 카드 사진 일괄 업로드 — 연결 아동 개인 카드, 한 번에 최대 20장
 - [x] 업로드 이미지 자동 자르기·회전·밝기 보정 — 선택형 중앙 자르기·90도 회전·밝기, 원본 보관 유지
@@ -750,7 +750,7 @@ TRACK B는 현재 완성 게이트를 대신하지 않는다. 각 기능은 기�
 - [x] 이미지 변경 시 카드 위치·문구·음성 유지 — 개인 카드 사진만 버전 조건부 교체
 - [x] 가져오기 실패 항목만 다시 처리 — 확인된 성공 제외, 통신·서버 오류의 불명확한 저장은 재전송 차단
 
-2026-10-23 첫 개발 단위: [개인 카드 사진 일괄 등록](../development/CARD_MANAGEMENT.md#bulk-card-import-history).
+2026-10-23 첫 개발 단위: [개인 카드 사진 일괄 등록](development/CARD_MANAGEMENT.md#bulk-card-import-history).
 기존 서버의 권한·동의·형식·한도 검사를 유지하며 개인 카드만 한 장씩 저장한다.
 고정 슬롯·기존 이미지·문구·음성은 변경하지 않는다. 프런트엔드 228개·빌드와 격리
 Chromium 일괄 등록/실패 항목 재시도 1개가 통과했다. 전체 자동 검증과 실제 기기 검수,
@@ -778,14 +778,14 @@ Chromium 일괄 등록/실패 항목 재시도 1개가 통과했다. 전체 자�
 
 완료 기준: 보호자가 기존 카드북 한 세트를 개별 등록보다 적은 단계로 옮기고 원래 위치를 유지한다.
 
-2026-10-23 [개인 카드 사진 교체](../development/CARD_MANAGEMENT.md#private-card-photo-replacement):
+2026-10-23 [개인 카드 사진 교체](development/CARD_MANAGEMENT.md#private-card-photo-replacement):
 연결 아동 관리 권한으로 원본·화면용·썸네일만 교체하고 카드 ID·문구·분류·보드·음성은
 유지한다. 공유/잠긴 카드와 오래된 사진 버전은 거절하며 응답 유실 뒤 자동 재전송하지 않는다.
 Node 96·React 153개와 빌드, Linux 백엔드 379개, 격리 MongoDB 이미지 API 21개,
 Chromium 일괄 등록·보정·순서·교체 4개 통과. 초기 검사의 합성 FileList와 BSON 시간 정밀도
 문제는 수정 후 재검증했다. 전체 `verify:full`·실제 태블릿·현장 검수는 미실행이다.
 
-2026-10-23 [핵심 카드 잠금](../policies/CORE_CARD_LOCK_POLICY.md): `board_manage` 권한으로
+2026-10-23 [핵심 카드 잠금](policies/CORE_CARD_LOCK_POLICY.md): `board_manage` 권한으로
 현재 저장된 슬롯의 카드를 선택·확인 후 잠그거나 해제한다. 이웃 변경으로 밀리는 위치와
 사진 교체도 서버에서 보호한다. 잠금 변경/사진 교체는 공유 쓰기 잠금, 슬롯 변경은 같은
 revision 조건부 저장으로 경쟁을 막는다. Node 96·React 162개와 빌드, Linux 백엔드 382개,
@@ -803,7 +803,7 @@ revision 조건부 저장으로 경쟁을 막는다. Node 96·React 162개와 �
 
 완료 기준: 하나의 아동 계정에서 여러 상황 보드를 사용할 수 있고 각 보드의 위치가 독립적으로 유지된다.
 
-2026-10-24 [상황별 카드판](../development/CARD_MANAGEMENT.md#situation-boards) 구현: 기본 보드와 최대
+2026-10-24 [상황별 카드판](development/CARD_MANAGEMENT.md#situation-boards) 구현: 기본 보드와 최대
 6개 상황을 같은 아동 계정에서 관리한다. 다른 아동의 사진/기록은 복사하지 않는다.
 모든 상황에서 핵심 잠금 위치를 지키며 생성·독립 편집·삭제는 같은 revision과 권한·감사를
 사용한다. 아동은 전환할 위치를 확인한 뒤에만 바꾸며 담은 문장·빠른/복구 표현은 유지한다.
@@ -819,7 +819,7 @@ revision 조건부 저장으로 경쟁을 막는다. Node 96·React 162개와 �
 - [x] 문장 생성·재생성 이력
 - [x] 학습 참여와 단어별 결과 기본 화면
 - [x] 의사소통과 학습 화면을 탭·권한·지표로 더 명확히 분리
-  - [기록 화면 분리](../development/LEARNING_AND_RECORDS.md#support-record-dashboard): 기록 탭·권한별 비활성화·집계 기준 안내,
+  - [기록 화면 분리](development/LEARNING_AND_RECORDS.md#support-record-dashboard): 기록 탭·권한별 비활성화·집계 기준 안내,
     대상·영역 전환 후 늦은 조회 결과 차단. 기존 연결 권한과 별도 저장소를 유지하며 실제 현장 검수는 별도다.
 - [x] 카드 선택 시각, 순서, 발화 여부
   - 카드별 선택 시각·중복·순서와 문장 ID에 연결된 재생 완료/오류/중지를 표시한다.
@@ -835,7 +835,7 @@ revision 조건부 저장으로 경쟁을 막는다. Node 96·React 162개와 �
 - [x] 기간별 CSV/JSON 내보내기
   - 영역별 기존 조회 권한을 확인하며 의사소통은 화면의 7일·30일·전체, 학습은 최근 30일을 내보낸다.
     API는 두 영역 모두 1~365일·전체를 지원한다. 최근 미리보기로 자르지 않고 10,000개 초과 시 오류로 안내한다.
-    [범위·안전 정책과 검증 상태](../development/LEARNING_AND_RECORDS.md#support-record-dashboard)를 따른다.
+    [범위·안전 정책과 검증 상태](development/LEARNING_AND_RECORDS.md#support-record-dashboard)를 따른다.
 - [x] 삭제 처리 결과 확인
   - 메모 삭제 상태와 개인정보 삭제 요청 번호·시각·항목별 건수·부분 실패·유지 항목·백업 한계를 표시한다.
     서버 삭제와 기기 임시 기록 삭제를 구분하며 지원 연결 해제 뒤의 열람 권한은 복원하지 않는다.
@@ -845,7 +845,7 @@ revision 조건부 저장으로 경쟁을 막는다. Node 96·React 162개와 �
 완료 기준: 보호자가 의사소통과 학습의 차이를 혼동하지 않고 필요한 지원 변화만 파악할 수 있다.
 
 2026-10-21 코드 구현 범위 완료. 전체 자동 검증 결과와 세부 한계는
-[지원 기록 대시보드](../development/LEARNING_AND_RECORDS.md#support-record-dashboard)에 기록한다.
+[지원 기록 대시보드](development/LEARNING_AND_RECORDS.md#support-record-dashboard)에 기록한다.
 실제 보호자·AAC 사용자·기기 검수 및 A0 현장/배포 게이트 완료로 대체하지 않는다.
 
 ### B1-04. 추천 통제와 탐색 보조
@@ -865,13 +865,13 @@ revision 조건부 저장으로 경쟁을 막는다. Node 96·React 162개와 �
 
 2026-10-21 코드 구현 범위 완료. `npm run verify:full`에서 694개 검사와 빌드·정리가 통과했다.
 계산 기준·연결 권한·개인정보 처리와 최종 검증 기록은
-[추천 통제·탐색 보조](../development/RECOMMENDATION_POLICY.md)에 기록한다.
+[추천 통제·탐색 보조](development/RECOMMENDATION_POLICY.md)에 기록한다.
 이미지 작업과 A0 실제 AAC 사용자·태블릿·현장·운영 배포 게이트는 별도 미완료 범위로 유지한다.
 
 ## 9. B2 — 교육·접근 방식 확장
 
 2026-10-24 사용자 요청으로 학습 콘텐츠 확장을 시작한다. A0 실기기·현장 및 운영 승인
-게이트는 계속 미완료로 유지한다. 먼저 [보호자 동의 관리 흐름](../development/USER_INTERFACE.md#guardian-consent-flow)을
+게이트는 계속 미완료로 유지한다. 먼저 [보호자 동의 관리 흐름](development/USER_INTERFACE.md#guardian-consent-flow)을
 분리했다. 아동의 강제 동의 화면을 없애고 서버 확정 동의와 편집 초안을 구분한다.
 동의가 없을 때 새 선택·발화·학습 결과를 저장하지 않으며 기본 말하기는 유지한다.
 프런트엔드 270개·빌드와 격리 Chromium 7개 통과. 실제 사용자 검수는 별도다.
@@ -880,7 +880,7 @@ revision 조건부 저장으로 경쟁을 막는다. Node 96·React 162개와 �
 
 - [x] 소리 듣고 카드 찾기 — 명시 재생·그림 보기·학습 전용 기록·재개·오프라인, 실제 기기 검수 별도
 - [x] 카드 순서로 문장 만들기 — 2~3장 예문 따라하기·재도전·선택 재개·오프라인, 실제 기기 검수 별도
-  - 2026-10-24 [예문 따라 만들기](../development/LEARNING_AND_RECORDS.md#sentence-order-learning): 고정 예문 10개와
+  - 2026-10-24 [예문 따라 만들기](development/LEARNING_AND_RECORDS.md#sentence-order-learning): 고정 예문 10개와
     학습 전용 콘텐츠 ID·카드 순서 결과를 추가하고 단어별 경험 집계에서는 제외했다.
     전체 `verify:full` 845개와 빌드·정리가 통과했다. 자유 문장 채점과 실제 아동 과업은 별도다.
 - [ ] 상황별 의사소통 연습
@@ -894,7 +894,7 @@ revision 조건부 저장으로 경쟁을 막는다. Node 96·React 162개와 �
 
 완료 기준: 새 학습 콘텐츠가 기존 학습 기록 체계를 사용하고 의사소통 기능과 분리된다.
 
-2026-10-24 [소리 카드 학습](../development/LEARNING_AND_RECORDS.md#sound-card-learning)의 첫 콘텐츠를 추가했다.
+2026-10-24 [소리 카드 학습](development/LEARNING_AND_RECORDS.md#sound-card-learning)의 첫 콘텐츠를 추가했다.
 기존 단어·그림 맞추기와 카테고리·보기/반복/재도전 설정을 유지한다. 문제 소리는
 의사소통 발화 이력이나 마지막 말에 넣지 않고 긴급 표현이 대체할 수 있다.
 학습 종류·v1 콘텐츠 버전을 재개/오프라인 결과에 보존하며 JSON/CSV에도 제공한다.

@@ -11,7 +11,8 @@
     "build": "vite build",
     "build:watch": "vite build --watch",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "vitest",
+    "test:card-speech": "node --test src/services/cardSpeech.test.mjs"
   },
   "dependencies": {
     "bootstrap": "^5.3.8",

@@ -5,7 +5,7 @@ import { koreanVoices, selectTtsVoice } from "../services/ttsVoice";
 import { createRequestId } from "../services/requestId";
 import { TTS_PRESETS, DEFAULT_TTS_SETTINGS, normalizeTtsSettings, RECOVERY_EXPRESSIONS, DEFAULT_ACCESSIBILITY } from "../config/appDefaults";
 
-import { createCoreSpeechCache } from "../services/coreSpeech";
+import { createPublishedCardSpeechCache } from "../services/publishedCardSpeech";
 import { createSpeechPlayback } from "../services/speechPlayback";
 
 import { pendingOfflineEvents, queueOfflineEvent } from "../services/offlineStore";
@@ -18,7 +18,7 @@ export function useSpeechControllerState() {
   const speechEventRef = useRef(null);
   const lastSpeechTapRef = useRef({ content: '', at: 0 });
   const [speechPlayback] = useState(() => createSpeechPlayback());
-  const [coreSpeechCache] = useState(() => createCoreSpeechCache());
+  const [coreSpeechCache] = useState(() => createPublishedCardSpeechCache());
   const [ttsVoices, setTtsVoices] = useState([]);
   const [ttsSettings, setTtsSettings] = useState(DEFAULT_TTS_SETTINGS);
   const [ttsSettingsBusy, setTtsSettingsBusy] = useState(false);
@@ -98,8 +98,7 @@ export default function useSpeechController({
     const runId = ++speechRunRef.current;
     const currentVoices = koreanVoices(window.speechSynthesis?.getVoices() || []);
     const voice = selectTtsVoice(currentVoices.length ? currentVoices : ttsVoices, ttsSettings.voiceName, offline);
-    const useServerVoice = !offline && !playback.audioOnly && import.meta.env.VITE_TTS_PROVIDER === 'qwen3-tts';
-    const coreAudioUrl = playback.speechOnly || useServerVoice ? null : coreSpeechCache.urlFor(content, { online: !offline });
+    const coreAudioUrl = playback.speechOnly ? null : coreSpeechCache.urlFor(content, { online: !offline, voice: ttsSettings.preset });
     setSpeechState({ status: 'starting', content });
     speechPlayback.speak({
       text: content, voice: playback.systemVoice ? null : voice,
@@ -138,7 +137,8 @@ export default function useSpeechController({
   function playLearningPrompt(card, callbacks) {
     const currentVoices = koreanVoices(window.speechSynthesis?.getVoices() || []);
     const voice = selectTtsVoice(currentVoices.length ? currentVoices : ttsVoices, ttsSettings.voiceName, offline);
-    if (ttsSettings.volume <= 0 || (offline && voice?.localService !== true)) {
+    const cardAudioUrl = coreSpeechCache.urlFor(card.label, { online: !offline, voice: ttsSettings.preset });
+    if (ttsSettings.volume <= 0 || (offline && !cardAudioUrl && voice?.localService !== true)) {
       callbacks.onError(ttsSettings.volume <= 0 ? '음량을 올린 뒤 다시 들어 주세요.' : '오프라인 문제 소리는 기기에 저장된 한국어 음성이 필요해요. 다른 연습은 계속 사용할 수 있어요.');
       return () => {};
     }
@@ -150,7 +150,8 @@ export default function useSpeechController({
     // Reuse the shared player so urgent/communication speech can always replace
     // a prompt. Prompts never become communication events or the last utterance.
     speechPlayback.speak({ text: card.label, voice, rate: ttsSettings.rate, pitch: ttsSettings.pitch, volume: ttsSettings.volume,
-      resolveAudio: !offline ? signal => requestSpeechAudio(card.label, ttsSettings.rate, signal, ttsSettings.preset) : null,
+      audioUrl: cardAudioUrl, preferAudio: Boolean(cardAudioUrl),
+      resolveAudio: !offline && !cardAudioUrl ? signal => requestSpeechAudio(card.label, ttsSettings.rate, signal, ttsSettings.preset) : null,
       allowSpeechFallback: offline,
       onStart: () => { if (isCurrent()) { setSpeechState({ status: 'playing', content: '학습 문제 음성' }); callbacks.onStart(); } },
       onPause: () => { if (isCurrent()) setSpeechState({ status: 'paused', content: '학습 문제 음성' }); },
@@ -228,12 +229,12 @@ export default function useSpeechController({
   return { finishSpeechEvent, speechFailureMessage, speakText, speakBoardSentence, playLearningPrompt, speakSelection, pauseSpeech, resumeSpeech, stopSpeech, updateTtsSettings, changeTtsPreset, saveTtsSettings, updateAccessibility, saveAccessibility };
 }
 
-export function useCoreSpeechPreparation({ user, coreSpeechCache, offline }) {
+export function useCoreSpeechPreparation({ user, coreSpeechCache, offline, ttsSettings }) {
   useEffect(() => {
     if (user?.role !== 'user') return;
-    // Prepare fallback audio in the background; playback failures still have their own alert.
-    coreSpeechCache.prepare({ online: !offline }).catch(() => {});
-  }, [user?.id, user?.role, offline]);
+    // Prepare the selected child voice without delaying login or autoplaying audio.
+    coreSpeechCache.prepare({ online: !offline, voice: ttsSettings?.preset || 'girl' }).catch(() => {});
+  }, [user?.id, user?.role, offline, coreSpeechCache, ttsSettings?.preset]);
 }
 
 export function useSpeechDeviceEvents({ setTtsVoices, finishSpeechEvent, speechEventRef, speechRunRef, speechPlayback, setSpeechState }) {

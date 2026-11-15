@@ -64,12 +64,15 @@ export function cachedSnapshot(userId) {
 }
 
 // Public, bundled phrases only; no user text or recordings belong in this store.
-export function cachedCoreSpeech() {
-  return operation('coreSpeech', 'readonly', store => store.get('bundle'));
+export function cachedCoreSpeech(voice) {
+  return operation('coreSpeech', 'readonly', store => store.get(voice ? `bundle:v2:${voice}` : 'bundle'));
 }
 
-export function cacheCoreSpeech(bundle) {
-  return operation('coreSpeech', 'readwrite', store => store.put(bundle, 'bundle'));
+export function cacheCoreSpeech(bundle, voice) {
+  return operation('coreSpeech', 'readwrite', store => {
+    if (voice) store.delete('bundle'); // Retire the old adult-voice bundle on replacement.
+    return store.put(bundle, voice ? `bundle:v2:${voice}` : 'bundle');
+  });
 }
 
 export function queueOfflineEvent(event) {

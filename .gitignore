@@ -2,6 +2,7 @@
 frontend/node_modules/
 frontend/dist/
 frontend/test-results/
+frontend/public/audio/core/v2/
 
 # Local MongoDB backups (private BSON, never commit)
 .local-backups/

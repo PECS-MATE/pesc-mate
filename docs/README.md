@@ -7,7 +7,7 @@
 | 목적 | 문서 |
 | --- | --- |
 | 프로젝트 소개·기본 실행·팀 | [프로젝트 README](../README.md) |
-| 지금 구현된 기능과 남은 검수 | [통합 TODO](planning/TODO.md) |
+| 지금 구현된 기능과 남은 검수 | [통합 TODO](TODO.md) |
 | Docker·태블릿·핫스팟·장애 확인 | [로컬 실행](development/LOCAL_DEVELOPMENT.md) |
 | 여자아이/남자아이 음성·0.90배·캐시·Qwen 실행 | [음성과 AI](development/SPEECH_AND_AI.md#현재-실행과-캐시) |
 | 최신 안정화 검사 범위와 미검증 항목 | [2026-11-12 안정화 기록](development/LOCAL_DEVELOPMENT.md#안정화-회귀-점검--2026-11-12) |
@@ -22,6 +22,7 @@
 | 문서 | 범위 |
 | --- | --- |
 | [화면과 계정 설정](development/USER_INTERFACE.md) | 아동·보호자 화면, 프로필, 접근 설정 |
+| [아이패드 홍보 시연](development/USER_INTERFACE.md#promo-ipad) | 촬영 프레임·자동 재생·검증 |
 | [카드 등록·OCR·A4 제작·공유](development/CARD_MANAGEMENT.md) | 기존 카드 등록, 편집·인쇄·공유 |
 | [카드 이미지 제작과 어휘](development/CARD_ASSETS.md) | 규격·프롬프트·제작 체크리스트·매핑 |
 | [학습과 기록](development/LEARNING_AND_RECORDS.md) | 학습 4종·맞춤 세트·30일 코스·복습 |
@@ -57,7 +58,7 @@
 
 ## 하드웨어
 
-프로젝트 목표·구현은 루트 README, 남은 작업·검수는 [TODO](planning/TODO.md)를 기준으로 합니다.
+프로젝트 목표·구현은 루트 README, 남은 작업·검수는 [TODO](TODO.md)를 기준으로 합니다.
 각 기능 안내서의 접힌 상세 기록은 당시 실패·미실행 상태까지 보존하며 현행 명령으로 간주하지 않습니다.
 
 - [하드웨어 전체](../hardware/README.md) · [USB 펌웨어](../hardware/arduino/rfid-usb-board/README.md)
@@ -65,6 +66,17 @@
 - 통합된 과거 계획: [보호자 UI](development/USER_INTERFACE.md#caregiver-ui-plan-history) · [MVP 이후](development/USER_INTERFACE.md#post-mvp-plan-history) · [하드웨어 최초 계획](development/RFID_USB_INTEGRATION.md#hardware-mvp-plan-history)
 
 ## 문서 관리 기준
+
+### 중복 문서와 폴더 정리 — 2026-11-15
+
+- 시연 페이지와 글자 카드 표시 안내를 [화면 안내](development/USER_INTERFACE.md)에 통합했다.
+- 별도 2026-11-13 QA 문서를 [검증 기록](development/REFACTORING_VERIFICATION.md#qa-2026-11-13)에 통합했다.
+- TODO를 `docs/TODO.md`로 옮기고 빈 `planning` 폴더를 제거했다.
+- 통합한 원문의 실패·미실행 이력은 보존했다. 기존 안내·정책·운영 문서는 유지한다.
+- 문서 검사 CLI가 없어 수동으로 로컬 파일 링크 214개를 검사했으며 누락은 없었다.
+  외부 URL 가용성과 앱 검수는 이 문서 검사 범위에 포함하지 않는다.
+- 줄바꿈 변환 중 문서 네 개가 일시적으로 비워져 Git 원본으로 복원하고 통합을 다시
+  적용했다. 원문 본문을 대조했으며 초기 CRLF 공백 검사 실패는 LF 저장 후 해소했다.
 
 ### 완료 프로젝트 README 정리 — 2026-11-15
 
