@@ -8,16 +8,18 @@
 .promo-sidebar nav button.active { background: var(--color-primary-action); color: var(--color-on-action); }
 .promo-example { margin-top: auto; color: var(--promo-muted); font-size: 12px; }
 .promo-workspace { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.promo-header { display: flex; justify-content: space-between; align-items: center; padding: 22px 36px; border-bottom: 1px solid var(--color-border); font-size: 17px; font-weight: 700; }
+.promo-header { flex: 0 0 66px; display: flex; flex-wrap: nowrap; justify-content: space-between; align-items: center; margin: 0; padding: 16px 32px; border-bottom: 1px solid var(--color-border); font-size: 17px; font-weight: 700; }
 .promo-profile { font-size: 14px; color: var(--promo-muted); }
 .promo-profile span { color: var(--color-primary-action); margin-left: 12px; }
-.promo-content { flex: 1; min-height: 0; padding: 30px 36px 16px; animation: promo-enter .5s ease both; }
+.promo-content { flex: 1; min-height: 0; margin: 0; padding: 24px 32px 16px; border: 0; border-radius: 0; box-shadow: none; animation: promo-enter .5s ease both; }
 .promo-content h1 { font-size: 29px; line-height: 1.4; margin: 8px 0 16px; letter-spacing: -.04em; }
 .promo-eyebrow { color: var(--color-primary-action); font-weight: 750; font-size: 15px; margin: 0; }
 .promo-description { color: var(--promo-muted); font-size: 18px; margin-bottom: 42px; }
 .promo-heading { display: flex; justify-content: space-between; align-items: center; }
 .promo-chip { background: var(--color-selected); padding: 10px 18px; border-radius: 30px; font-size: 14px; color: var(--color-primary-action); }
 .promo-demo .home-mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.promo-demo .home-screen { margin: 0; border: 0; border-radius: 0; }
+.promo-demo .home-activity-pictures { flex: 0 0 auto; display: grid; place-items: center; width: 150px; height: 150px; margin: 0; }
 .promo-demo .home-activity { min-height: 335px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 30px; border-color: var(--color-border); gap: 30px; }
 .promo-demo .home-activity strong { font-size: 32px; }
 .promo-demo .home-activity-picture { display: block; width: 150px; height: 150px; background-size: contain !important; background-repeat: no-repeat; }
@@ -34,9 +36,9 @@
 .promo-categories { display: flex; gap: 12px; margin: 22px 0 18px; font-size: 14px; }
 .promo-categories span { padding: 8px 15px; border-radius: 20px; background: var(--color-selected); }
 .promo-categories .active { background: var(--color-primary-action); color: var(--color-on-action); }
-.promo-card-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-.promo-card { position: relative; text-align: center; padding: 10px; border: 2px solid var(--color-border); border-radius: 18px; background: var(--color-surface); transition: border-color .3s, background .3s, transform .3s; }
-.promo-card .card-art { display: block; width: 100%; height: 113px; background-size: contain !important; background-repeat: no-repeat; }
+.promo-card-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.promo-card { position: relative; min-width: 0; text-align: center; padding: 8px; border: 2px solid var(--color-border); border-radius: 18px; background: var(--color-surface); transition: border-color .3s, background .3s, transform .3s; }
+.promo-card .card-art { display: block; width: 100%; height: 100px; background-size: contain !important; background-repeat: no-repeat; }
 .promo-card strong { display: block; margin-top: 8px; font-size: 19px; }
 .promo-card.selected { background: var(--color-selected); border-color: var(--color-primary-action); transform: translateY(-3px); }
 .promo-check { position: absolute; right: 8px; top: 8px; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--color-primary-action); color: var(--color-on-action); }
@@ -48,7 +50,7 @@
 .promo-closing img { width: 210px; height: 210px; object-fit: contain; margin-bottom: 20px; }
 .promo-closing h1 { font-size: 43px; line-height: 1.5; }
 .promo-closing > p:last-child { font-size: 19px; color: var(--promo-muted); }
-.promo-caption { position: relative; display: flex; gap: 16px; align-items: center; padding: 20px 36px 25px; font-size: 21px; font-weight: 700; border-top: 1px solid var(--color-border); }
+.promo-caption { flex: 0 0 76px; position: relative; display: flex; gap: 16px; align-items: center; padding: 18px 32px 22px; font-size: 21px; line-height: 1.4; font-weight: 700; border-top: 1px solid var(--color-border); }
 .promo-caption-number { color: var(--color-primary-action); font-size: 14px; }
 .promo-progress { position: absolute; bottom: 0; left: 0; width: 100%; height: 4px; background: var(--color-selected); }
 .promo-progress > span { display: block; height: 100%; background: var(--color-primary-action); transition: width .4s; }
@@ -57,3 +59,5 @@
 @keyframes promo-enter { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes promo-wave { from { opacity: .5; transform: scaleY(.7); } to { opacity: 1; transform: scaleY(1.1); } }
 @media (prefers-reduced-motion: reduce) { .promo-demo *, .promo-demo *::before, .promo-demo *::after { animation: none !important; transition: none !important; } }
+.promo-document { overflow: hidden; scrollbar-gutter: auto; }
+.promo-document body, .promo-document #root { height: 100%; }

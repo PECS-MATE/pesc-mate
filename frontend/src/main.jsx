@@ -11,10 +11,14 @@ import "./assets/activityUx.css";
 import "./assets/practiceUx.css";
 import "./assets/responsiveUx.css";
 import "./assets/speakingLibrary.css";
+import "./promo/promo-demo.css";
+
+const isPromoDemo = new URLSearchParams(window.location.search).get('promo') === 'demo';
+if (isPromoDemo) document.documentElement.classList.add('promo-document');
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    {new URLSearchParams(window.location.search).get('promo') === 'demo' ? <PromoDemo /> : <App />}
+    {isPromoDemo ? <PromoDemo /> : <App />}
   </React.StrictMode>,
 );
 

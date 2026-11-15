@@ -3,7 +3,6 @@ import HomeDashboard from '../HomeDashboard';
 import { CardArt, CardPicture } from '../components/CardVisuals';
 import UiIcon from '../UiIcon';
 import { STEP_MS, captions, nextStep, sceneAt, selectedCountAt } from './promo-timeline';
-import './promo-demo.css';
 
 // Scripted promotional examples; no account, learning record, or API writes.
 const cards = [
