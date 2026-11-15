@@ -125,7 +125,7 @@ flowchart LR
 | 권한 분리 | 서버에서 계정 소유자·지원 연결·기능별 권한 확인, 공용 기본 카드와 개인 카드 조회 경로 분리 |
 | 사진 보관 | 원본은 로컬 MongoDB에 보관하고 화면용 WebP·썸네일을 별도로 제공 |
 
-문장 생성과 음성 재생에는 사전 준비·반복 요청 재사용·캐시를 적용했습니다. 측정 조건과 결과는 [문장 생성 지연 기록](docs/development/SENTENCE_LATENCY.md), 캐시 보관 범위는 [음성과 AI](docs/development/SPEECH_AND_AI.md#현재-실행과-캐시)에 정리했습니다.
+문장 생성과 음성 재생에는 사전 준비·반복 요청 재사용·캐시를 적용했습니다. 실행 구성과 보관 범위는 [통합 안내](docs/PROJECT_GUIDE.md#음성과-문장-생성)에 정리했습니다.
 
 ### 디렉터리 구조
 
@@ -139,7 +139,7 @@ flowchart LR
 ├── hardware/                 Arduino 펌웨어·배선·기기 연결 안내
 ├── scripts/                  음성 준비 등 개발 도구
 ├── deployment/               MongoDB 배포 설정
-├── docs/                     개발·정책·운영·검증 기록
+├── docs/                     통합 사용·운영 안내와 커밋 규칙
 ├── compose.yaml              기본 PC 실행
 ├── compose.tablet.yaml       태블릿 LAN 접속
 ├── compose.qwen.yaml         선택형 Qwen 실행
@@ -210,15 +210,15 @@ docker compose -f compose.yaml -f compose.tablet.yaml up -d --build
 
 예를 들어 라우터가 192.168.137.1이면 `http://192.168.137.1:5173`입니다. 실제 표시된 주소를 사용합니다. iPad의 localhost는 PC가 아니라 iPad 자신입니다.
 
-태블릿 구성은 웹 포트만 LAN에 공개하고 API·DB 포트는 PC 내부에 유지합니다. 연결이 되지 않으면 [핫스팟·방화벽 확인 방법](docs/development/LOCAL_DEVELOPMENT.md#pc-모바일-핫스팟으로-ipad-연결)을 참고하세요. 기본 데모 계정이 있는 로컬 서버는 신뢰할 수 있는 사설망에서 사용합니다.
+태블릿 구성은 웹 포트만 LAN에 공개하고 API·DB 포트는 PC 내부에 유지합니다. 연결이 되지 않으면 [핫스팟·방화벽 확인 방법](docs/PROJECT_GUIDE.md#pc-핫스팟과-ipad)을 참고하세요. 기본 데모 계정이 있는 로컬 서버는 신뢰할 수 있는 사설망에서 사용합니다.
 
 ### 4. 선택형 AI·음성 설정
 
 | 기능 | 준비 |
 | --- | --- |
 | AI 문장 생성 | 호스트에 Ollama 설치 후 아래 모델 준비. Compose는 host.docker.internal:11434로 접근 |
-| Qwen 두 음색 | [음성 준비·실행 안내](docs/development/SPEECH_AND_AI.md#현재-실행과-캐시)에 따라 참조 생성 후 compose.qwen.yaml 포함 |
-| 이미지 생성·배경 제거 | [카드 등록 안내](docs/development/CARD_MANAGEMENT.md)의 공급자·토큰·로컬 모델 설정 |
+| Qwen 두 음색 | [음성 준비·실행 안내](docs/PROJECT_GUIDE.md#음성과-문장-생성)에 따라 참조 생성 후 compose.qwen.yaml 포함 |
+| 이미지 생성·배경 제거 | [카드 등록 안내](docs/PROJECT_GUIDE.md#말하기와-카드-제작)의 공급자·토큰·로컬 모델 설정 |
 
 ~~~powershell
 ollama pull qwen2.5:0.5b
@@ -232,7 +232,7 @@ Qwen 참조 파일은 Git에 포함하지 않습니다. Qwen을 사용 중이라
 docker compose -f compose.yaml -f compose.tablet.yaml down
 ~~~
 
-직접 개발과 회귀 검사 실행 방법은 [로컬 개발 안내](docs/development/LOCAL_DEVELOPMENT.md)를 참고하세요.
+직접 개발과 회귀 검사 실행 방법은 [로컬 개발 안내](docs/PROJECT_GUIDE.md#개별-개발-실행)를 참고하세요.
 
 ## 프로젝트 결과
 
@@ -246,7 +246,7 @@ docker compose -f compose.yaml -f compose.tablet.yaml down
 | 말하기와 연습 연결 | 빠른 표현·문장 생성·두 합성 음색과 연습 4종·맞춤 코스 제공 |
 | 로컬 기기 활용 | Docker 실행과 PC 모바일 핫스팟을 이용한 태블릿 접속 구성 |
 
-구현 과정과 검증 범위는 [리팩터링·검증 기록](docs/development/REFACTORING_VERIFICATION.md)에, 기능별 실행·운영 방법은 아래 관련 문서에 정리했습니다.
+기능별 사용·운영 방법과 확인 범위는 [통합 안내](docs/PROJECT_GUIDE.md)에, 날짜별 구현·검증 이력은 Git 커밋에 정리했습니다.
 
 ## 팀 소개
 
@@ -256,13 +256,8 @@ docker compose -f compose.yaml -f compose.tablet.yaml down
 
 | 문서 | 내용 |
 | --- | --- |
-| [문서 목차](docs/README.md) | 기능·정책·운영 안내 전체 |
-| [카드 등록·제작·공유](docs/development/CARD_MANAGEMENT.md) | OCR, 카테고리별 카드판, A4 편집, 전체 카드 인쇄 |
-| [음성과 AI](docs/development/SPEECH_AND_AI.md) | 음성 구성·준비·캐시 |
-| [USB 카드 태그](docs/development/RFID_USB_INTEGRATION.md) | 배선·포트 연결·칩 매핑·순서·동시 입력 |
-| [학습과 기록](docs/development/LEARNING_AND_RECORDS.md) | 연습 4종·맞춤 세트·코스·복습 |
-| [API 가이드](docs/development/API_GUIDE.md) | 인증·역할·요청 규약과 실행 서버 OpenAPI |
-| [개인정보 정책](docs/policies/PRIVACY_POLICY.md) | 동의·보존·내보내기·삭제 |
+| [프로젝트 통합 안내](docs/PROJECT_GUIDE.md) | 실행·태블릿·음성 생성·RFID·발표·개인정보·운영 |
+| [커밋 규칙](docs/development/COMMIT_CONVENTION.md) | 기능 단위 커밋과 검증 기록 |
 
 PECS MATE는 의사소통 보조·연습용 소프트웨어이며 임상 효과·진단 기능·공식 PECS 인증을 주장하지 않습니다.
 
