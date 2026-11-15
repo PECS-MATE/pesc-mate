@@ -1,0 +1,21 @@
+:root { color-scheme: light; --paper: #edf5f1; --ink: #223c35; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: system-ui, sans-serif; }
+.stage { position: relative; width: 100%; height: 100dvh; min-height: 240px; overflow: hidden; background: radial-gradient(ellipse at 50% 35%, #fff 0%, #edf5f1 60%, #d7e8e0 100%); }
+.tablet { position: absolute; left: 50%; top: calc((100% - var(--controls-space, 0px)) / 2); width: 1250px; height: 942px; padding: 25px; border-radius: 48px; background: #17191b; border: 3px solid #69706f; box-shadow: 0 2px 0 #c4ccca inset, 0 35px 65px #183b352b, 0 8px 18px #183b3520; transform: translate(-50%, -50%) scale(var(--scale, .7)); }
+.tablet::before { content: ''; position: absolute; width: 7px; height: 7px; background: #253143; border: 2px solid #080b10; border-radius: 50%; top: 50%; left: 9px; }
+.tablet::after { content: ''; position: absolute; width: 60px; height: 3px; background: #69706f; border-radius: 3px; right: 80px; top: -5px; }
+iframe { display: block; width: 1194px; height: 886px; border: 0; border-radius: 24px; background: white; }
+.toolbar { position: fixed; z-index: 2; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; align-items: center; justify-content: center; flex-wrap: wrap; width: max-content; max-width: calc(100% - 24px); gap: 10px; padding: 10px 14px; border: 1px solid #c5d4ce; border-radius: 18px; background: #ffffffed; box-shadow: 0 5px 25px #183b3514; }
+.toolbar strong { padding: 0 8px; font-size: 13px; letter-spacing: .06em; }
+button { padding: 10px 14px; border: 1px solid #c5d4ce; border-radius: 10px; background: white; color: var(--ink); font: inherit; font-size: 13px; cursor: pointer; }
+button:hover { background: #edf5f1; }
+button:focus-visible, a:focus-visible { outline: 3px solid #167e69; outline-offset: 4px; }
+.recording .toolbar { display: none; }
+.restore { display: none; position: fixed; z-index: 3; left: 12px; top: 12px; }
+.recording .restore:focus { display: block; }
+.recording .restore { display: block; opacity: 0; }
+.recording .restore:focus-visible { opacity: 1; }
+.plain .stage { background: #fff; }
+.status { position: fixed; top: 15px; left: 50%; transform: translateX(-50%); font-size: 14px; }
+@media (max-width: 540px) { .toolbar { gap: 6px; padding: 8px; } .toolbar strong { display: none; } button { padding: 10px; } }

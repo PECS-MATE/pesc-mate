@@ -23,6 +23,21 @@ PECS MATE의 기능을 아이패드 형태의 가로 프레임 안에서 자동 
 태블릿 내부 화면은 1194×886이며 브라우저 크기에 맞춰 프레임 전체를 축소한다.
 정지 이미지나 영상 파일을 자동 생성하는 페이지는 아니다.
 
+## 파일 구성
+
+| 경로 | 역할 |
+| --- | --- |
+| `frontend/public/promo-ipad.html` | 촬영 페이지 마크업과 공개 진입 주소 |
+| `frontend/public/promo/promo-ipad.css` | 아이패드 프레임·배경·촬영 도구 스타일 |
+| `frontend/public/promo/promo-ipad.js` | 프레임 크기 조절·재생 명령·촬영 도구 동작 |
+| `frontend/src/promo/promo-demo.jsx` | 시연 장면의 React 화면 |
+| `frontend/src/promo/promo-demo.css` | 시연 장면 내부 스타일 |
+| `frontend/src/promo/promo-timeline.js` | 장면 순서·자막·반복 주기 |
+| `scripts/check-promo-layout.mjs` | Chrome 레이아웃 회귀 검사 |
+
+촬영 페이지의 CSS·JavaScript는 원래 인라인 내용에서 들여쓰기만 정리해 분리했다.
+공개 주소 `/promo-ipad.html`과 기존 동작은 유지한다.
+
 ## 검증 기록
 
 - Node assert로 28.6초 타임라인, 카드 순차 선택, 연습 장면, 반복 초기화 확인: 통과.
@@ -52,7 +67,7 @@ PECS MATE의 기능을 아이패드 형태의 가로 프레임 안에서 자동 
 Chrome 경로가 다르면 `PROMO_CHROME_PATH` 환경 변수로 지정한다.
 설치·빌드 없이 실제 소스 CSS와 시연 장면의 대표 DOM을 로컬 HTTP로 제공한다.
 검사 파일은 계정이나 서버에 접속하지 않고, 90초 실행 기한을 사용한다.
-결과 JSON·스크린샷·Chrome 임시 프로필은 `.local-validation/promo-layout/`에 보존한다.
+결과 JSON·스크린샷·Chrome 임시 프로필은 `.local-validation/promo-layout/`에 생성된다.
 
 - 수정 전: 320×640, 768×1024, 1024×768, 1440×900, 1920×1080의
   네 장면 검사 20건 실패. 프레임 이탈·설정 도구 겹침 및 카드·자막 겹침 재현.
@@ -62,3 +77,12 @@ Chrome 경로가 다르면 `PROMO_CHROME_PATH` 환경 변수로 지정한다.
 - 대표 DOM 검사는 React 실행·자동 재생 전체 통합 검사를 대체하지 않는다.
   기존 JSX 파서 실패와 실제 앱 전체 시연 미실행 상태는 위 기록과 같다.
 - 빌드: 요청하지 않아 미실행.
+
+## 파일 정리 검증
+
+- 추출한 CSS·JavaScript가 기존 인라인 내용과 들여쓰기를 제외하고 동일함: 통과.
+- JavaScript 두 파일의 `node --check`, `git diff --check`: 통과.
+- 파일 분리 후 기존 Chrome 레이아웃·촬영 제어 회귀 검사 25건: 통과.
+- 사용 중인 Chrome 프로세스가 없음을 확인하고 이번 작업에서 생성한 임시 프로필
+  6개와 오래된 실패 스크린샷 12개를 삭제했다. 최신 스크린샷 8개와 결과 JSON은 보존했다.
+- React 자동 재생 전체 통합 검사와 빌드: 미실행. 기존 JSX 파서 환경 오류는 미해결.

@@ -33,10 +33,10 @@ const server = http.createServer(async (request, response) => {
   try {
     const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
     if (pathname === '/') { response.setHeader('Content-Type', 'text/html; charset=utf-8'); response.end(fixture(scene)); return; }
-    const relative = pathname === '/promo-ipad.html' ? 'public/promo-ipad.html' : pathname === '/pecsmate.png' ? 'public/pecsmate.png' : pathname.slice(1);
+    const relative = pathname === '/promo-ipad.html' || pathname === '/pecsmate.png' || pathname.startsWith('/promo/') ? `public${pathname}` : pathname.slice(1);
     const filename = path.resolve(root, 'frontend', relative);
     if (!filename.startsWith(path.join(root, 'frontend') + path.sep)) { response.writeHead(403).end(); return; }
-    response.setHeader('Content-Type', filename.endsWith('.css') ? 'text/css' : filename.endsWith('.png') ? 'image/png' : 'text/html; charset=utf-8');
+    response.setHeader('Content-Type', filename.endsWith('.css') ? 'text/css' : filename.endsWith('.js') ? 'text/javascript' : filename.endsWith('.png') ? 'image/png' : 'text/html; charset=utf-8');
     response.end(await fs.readFile(filename));
   } catch { response.writeHead(404).end(); }
 });
