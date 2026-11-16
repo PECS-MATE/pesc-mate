@@ -47,7 +47,7 @@ export default function useOfflineSession({
     return true;
   }
   async function syncPendingEvents(account = user, consent = activityConsentRef.current) {
-    if (!consent || !account || account.role !== 'user' || activeUserRef.current?.id !== account.id || !navigator.onLine) return;
+    if (!consent || !account || account.role !== 'user' || activeUserRef.current?.id !== account.id) return;
     const session = localStorage.getItem('pesc-mate-token');
     const isCurrent = () => Boolean(session) && activeUserRef.current?.id === account.id
       && localStorage.getItem('pesc-mate-token') === session;
@@ -85,10 +85,6 @@ export default function useOfflineSession({
     const isCurrentSession = () => Boolean(session) && localStorage.getItem('pesc-mate-token') === session;
     setError('');
     if (account?.role === 'user') setOutputMode(account.default_output_mode || 'natural');
-    if (account?.role === 'user' && !navigator.onLine) {
-      const snapshot = await cachedSnapshot(account.id).catch(() => null);
-      if (await applyOfflineSnapshot(account, snapshot)) return;
-    }
     try {
       if (['caregiver', 'support_staff'].includes(account?.role)) {
         clearSupportTargetData();
@@ -159,6 +155,8 @@ export default function useOfflineSession({
 
 export function useNetworkSessionEvents({ setOffline, syncPendingEvents, user, load, clearSupportTargetData, setTab, setError }) {
   useEffect(() => {
+    let disposed = false, checking = false;
+    let reachable;
     // This event owns its sync run; the parallel data refresh must not retry it again.
     const online = () => { setOffline(false); syncPendingEvents(user); if (user) load(user, { syncOffline: false }); };
     const offlineNow = () => {
@@ -169,7 +167,25 @@ export function useNetworkSessionEvents({ setOffline, syncPendingEvents, user, l
         setError('보호자·담당자용 사용자 정보는 오프라인에서 보관하지 않습니다. 다시 연결해 주세요.');
       }
     };
-    window.addEventListener('online', online); window.addEventListener('offline', offlineNow);
-    return () => { window.removeEventListener('online', online); window.removeEventListener('offline', offlineNow); };
+    // Internet connectivity hints do not describe access to a local hotspot server.
+    const checkServer = async () => {
+      if (checking) return;
+      checking = true;
+      try {
+        await request('/health', { timeoutMs: 5000 });
+        if (!disposed && reachable !== true) { reachable = true; online(); }
+      } catch {
+        if (!disposed && reachable !== false) { reachable = false; offlineNow(); }
+      } finally { checking = false; }
+    };
+    checkServer();
+    const timer = window.setInterval(checkServer, 15000);
+    window.addEventListener('online', checkServer); window.addEventListener('offline', checkServer);
+    window.addEventListener('focus', checkServer);
+    return () => {
+      disposed = true; window.clearInterval(timer);
+      window.removeEventListener('online', checkServer); window.removeEventListener('offline', checkServer);
+      window.removeEventListener('focus', checkServer);
+    };
   }, [user]);
 }
