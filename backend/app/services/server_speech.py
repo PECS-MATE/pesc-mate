@@ -14,6 +14,7 @@ from fastapi import HTTPException
 from app.services.speech_cache import SpeechCache
 from app.services.speech_runtime import speech_runtime
 from app.services.public_speech_cache import PublicSpeechCache
+from app.services.qwen_cloud_speech import synthesize as synthesize_qwen, configuration as qwen_configuration
 
 _gate = BoundedSemaphore(1)
 _waiting = BoundedSemaphore(4)
@@ -42,6 +43,8 @@ def synthesize_speech(text, rate, *, account_id=None, voice='girl'):
     # Authentication is still checked by the route before every cache lookup.
     # A model/voice change must bump this version, even at the same worker URL.
     version = os.environ.get('TTS_CACHE_VERSION', 'melotts-kr-v1')
+    if provider == 'qwen-api':
+        version = (version, *qwen_configuration())
     key = (str(account_id), base, provider, version, voice, text, rate) if account_id else None
     directory = os.environ.get('PUBLIC_SPEECH_CACHE_DIR', '')
     # Only the shipped catalog, never private uploads or generated sentences.
@@ -87,8 +90,11 @@ def synthesize_speech(text, rate, *, account_id=None, voice='girl'):
                     raise ValueError('timeout range')
             except ValueError:
                 timeout = 35
-            with urlopen(request, timeout=timeout) as response:
-                data = response.read(MAX_AUDIO_BYTES + 1)
+            if provider == 'qwen-api':
+                data = synthesize_qwen(text, voice, timeout)
+            else:
+                with urlopen(request, timeout=timeout) as response:
+                    data = response.read(MAX_AUDIO_BYTES + 1)
             if len(data) > MAX_AUDIO_BYTES:
                 raise ValueError('oversized audio')
             with wave.open(BytesIO(data), 'rb') as wav:

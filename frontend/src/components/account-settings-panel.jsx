@@ -43,7 +43,7 @@ export default function AccountSettingsPanel({
       </div></section> },
       { id: 'voice', label: '음성 설정', content: <section className="tts-settings">
           <h3>음성 설정</h3>
-          <p className="form-notice">{import.meta.env.VITE_TTS_PROVIDER === 'qwen3-tts' ? '기본 속도는 0.90배예요. 한 번 만든 기본 카드 음성은 저장해 다시 사용해요.' : '두 합성 음색은 Qwen 연결 시 사용할 수 있어요. 현재 서버는 단일 음색을 사용해요.'}</p>
+          <p className="form-notice">{import.meta.env.VITE_TTS_PROVIDER === 'qwen-api' ? 'Qwen API의 AI 음성을 사용해요. 여자·남자 선택은 서버에 설정된 음색으로 재생돼요.' : import.meta.env.VITE_TTS_PROVIDER === 'qwen3-tts' ? '기본 속도는 0.90배예요. 한 번 만든 기본 카드 음성은 저장해 다시 사용해요.' : '두 합성 음색은 Qwen 연결 시 사용할 수 있어요. 현재 서버는 단일 음색을 사용해요.'}</p>
           <div className="tts-settings-grid">
             <label>목소리<select value={ttsSettings.preset} onChange={event => changeTtsPreset(event.target.value)}>{Object.entries(TTS_PRESETS).map(([value, preset]) => <option key={value} value={value}>{preset.label}</option>)}</select></label>
             <label>속도 <output>{ttsSettings.rate.toFixed(2)}배</output><input type="range" min="0.5" max="1.5" step="0.05" value={ttsSettings.rate} onChange={event => updateTtsSettings({ rate: Number(event.target.value) })} /></label>

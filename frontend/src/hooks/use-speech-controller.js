@@ -98,7 +98,8 @@ export default function useSpeechController({
     const runId = ++speechRunRef.current;
     const currentVoices = koreanVoices(window.speechSynthesis?.getVoices() || []);
     const voice = selectTtsVoice(currentVoices.length ? currentVoices : ttsVoices, ttsSettings.voiceName, offline);
-    const coreAudioUrl = playback.speechOnly ? null : coreSpeechCache.urlFor(content, { online: !offline, voice: ttsSettings.preset });
+    const cloudSpeech = import.meta.env.VITE_TTS_PROVIDER === 'qwen-api' && !offline;
+    const coreAudioUrl = playback.speechOnly || cloudSpeech ? null : coreSpeechCache.urlFor(content, { online: !offline, voice: ttsSettings.preset });
     setSpeechState({ status: 'starting', content });
     speechPlayback.speak({
       text: content, voice: playback.systemVoice ? null : voice,
@@ -137,7 +138,7 @@ export default function useSpeechController({
   function playLearningPrompt(card, callbacks) {
     const currentVoices = koreanVoices(window.speechSynthesis?.getVoices() || []);
     const voice = selectTtsVoice(currentVoices.length ? currentVoices : ttsVoices, ttsSettings.voiceName, offline);
-    const cardAudioUrl = coreSpeechCache.urlFor(card.label, { online: !offline, voice: ttsSettings.preset });
+    const cardAudioUrl = import.meta.env.VITE_TTS_PROVIDER === 'qwen-api' && !offline ? null : coreSpeechCache.urlFor(card.label, { online: !offline, voice: ttsSettings.preset });
     if (ttsSettings.volume <= 0 || (offline && !cardAudioUrl && voice?.localService !== true)) {
       callbacks.onError(ttsSettings.volume <= 0 ? '음량을 올린 뒤 다시 들어 주세요.' : '오프라인 문제 소리는 기기에 저장된 한국어 음성이 필요해요. 다른 연습은 계속 사용할 수 있어요.');
       return () => {};
@@ -232,6 +233,7 @@ export default function useSpeechController({
 export function useCoreSpeechPreparation({ user, coreSpeechCache, offline, ttsSettings }) {
   useEffect(() => {
     if (user?.role !== 'user') return;
+    if (!offline && import.meta.env.VITE_TTS_PROVIDER === 'qwen-api') return;
     // Prepare the selected child voice without delaying login or autoplaying audio.
     coreSpeechCache.prepare({ online: !offline, voice: ttsSettings?.preset || 'girl' }).catch(() => {});
   }, [user?.id, user?.role, offline, coreSpeechCache, ttsSettings?.preset]);

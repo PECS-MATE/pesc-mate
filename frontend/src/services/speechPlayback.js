@@ -149,7 +149,7 @@ export function createSpeechPlayback({
       audio.src = run.options.audioUrl;
       audio.preload = 'auto';
       audio.volume = run.options.volume ?? 1;
-      audio.playbackRate = run.objectUrl ? 1 : run.options.rate ?? 1;
+      audio.playbackRate = run.objectUrl ? run.resolvedRate ?? 1 : run.options.rate ?? 1;
       audio.onplaying = () => playing(run, media);
       audio.onpause = () => paused(run, media);
       audio.onended = () => finish(run, media);
@@ -212,6 +212,7 @@ export function createSpeechPlayback({
       const blob = await run.options.resolveAudio(media.controller.signal);
       if (!active(run, media)) return;
       run.objectUrl = createUrl(blob);
+      run.resolvedRate = blob.playbackRate ?? 1;
       run.options = { ...run.options, audioUrl: run.objectUrl };
       startAudio(run);
     } catch (error) {

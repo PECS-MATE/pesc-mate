@@ -135,6 +135,8 @@ async function fetchSpeechAudio(text, rate, signal, token, voice) {
       || String.fromCharCode(...header.slice(8, 12)) !== 'WAVE') throw new Error('음성 서버의 응답 형식이 올바르지 않습니다.');
     if (signal?.aborted || localStorage.getItem(TOKEN_KEY) !== token) throw new DOMException('Cancelled', 'AbortError');
     const wav = blob.slice(0, blob.size, 'audio/wav');
+    const playbackRate = Number(response.headers.get('X-Speech-Playback-Rate') || 1);
+    wav.playbackRate = Number.isFinite(playbackRate) && playbackRate >= 0.5 && playbackRate <= 1.5 ? playbackRate : 1;
     return wav;
   } finally {
     clearTimeout(timer); signal?.removeEventListener('abort', cancel);

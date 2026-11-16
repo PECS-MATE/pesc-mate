@@ -3,6 +3,8 @@ import os
 
 
 def speech_runtime():
+    if os.environ.get('SPEECH_TTS_PROVIDER') == 'qwen-api':
+        return 'https://dashscope-intl.aliyuncs.com/api/v1', 'qwen-api'
     base = os.environ.get('SPEECH_TTS_URL', '').rstrip('/')
     if base:
         provider = os.environ.get('SPEECH_TTS_PROVIDER', 'melotts')

@@ -36,6 +36,14 @@ it('aborts a replaced request and ignores its late audio response', async () => 
   resolve(new Blob(['old'])); await Promise.resolve();
   expect(createUrl).not.toHaveBeenCalled(); expect(audios[0].src).toBe('new.wav');
 });
+it('applies cloud speech speed to normal-speed resolved audio', async () => {
+  const { controller, audios } = harness();
+  const blob = new Blob(['synthetic-wav']);
+  blob.playbackRate = .9;
+  controller.speak({ text: '물', rate: .9, resolveAudio: async () => blob });
+  await vi.waitFor(() => expect(audios[0].src).toBe('blob:synthetic'));
+  expect(audios[0].playbackRate).toBe(.9);
+});
 it('reports actual playing, pauses/resumes and revokes the resolved URL on stop', async () => {
   const { controller, audios, revokeUrl } = harness();
   const onStart = vi.fn(), onPause = vi.fn(), onResume = vi.fn(), onEnd = vi.fn();

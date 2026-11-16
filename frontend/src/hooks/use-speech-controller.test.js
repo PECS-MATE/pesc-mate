@@ -29,6 +29,15 @@ it('uses the selected child voice for urgent and recovery phrases', () => {
   controller.speakText('도와주세요', 'quick');
   expect(props.coreSpeechCache.urlFor).toHaveBeenCalledWith('도와주세요', { online: true, voice: 'boy' });
 });
+it('uses cloud speech online rather than a clip from a different provider', () => {
+  vi.stubEnv('VITE_TTS_PROVIDER', 'qwen-api');
+  const { props, controller } = harness();
+  controller.speakText('물', 'card', ['water']);
+  expect(props.coreSpeechCache.urlFor).not.toHaveBeenCalled();
+  expect(props.speechPlayback.speak).toHaveBeenCalledWith(expect.objectContaining({
+    audioUrl: null, resolveAudio: expect.any(Function),
+  }));
+});
 
 it('plays a stored learning card offline without requiring an installed device voice', () => {
   const { props, controller } = harness(true);

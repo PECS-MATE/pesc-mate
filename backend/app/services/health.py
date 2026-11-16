@@ -80,6 +80,11 @@ def _tts_check():
              'detail': 'not_configured', 'device_check': 'client_side'}
     if not base:
         return check
+    if provider == 'qwen-api':
+        configured = bool(os.environ.get('DASHSCOPE_API_KEY', '').strip())
+        check.update(status='ok' if configured else 'unavailable',
+                     detail='configured_not_verified' if configured else 'missing_api_key')
+        return check
     check['detail'] = 'unreachable'
     try:
         with urlopen(f'{base}/health', timeout=CHECK_TIMEOUT_SECONDS) as response:

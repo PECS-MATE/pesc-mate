@@ -6,6 +6,7 @@ from app.services.authentication import current_user
 from app.services.offline_events import sync_events
 from app.services.server_speech import synthesize_speech
 from app.services.tts_events import finish_event, start_event
+from app.services.speech_runtime import speech_runtime
 from app.services.card_submissions import approved_cards_for
 from app.schemas.communication import CommunicationSessionResponse, OfflineSyncRequest, OfflineSyncResponse, RegenerateSentenceRequest, SentenceRequest, ServerSpeechRequest, TtsEventRequest, TtsEventResponse, TtsEventResultRequest
 from app.api.dependencies import require_communicator, require_guardian_consent
@@ -31,7 +32,8 @@ def server_speech(request: ServerSpeechRequest, _user=Depends(current_user)):
     if not text:
         raise HTTPException(422, '읽을 문장을 입력해 주세요.')
     return Response(synthesize_speech(text, request.rate, account_id=_user['id'], voice=request.voice), media_type='audio/wav',
-                    headers={'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff'})
+                    headers={'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
+                             'X-Speech-Playback-Rate': str(request.rate if speech_runtime()[1] == 'qwen-api' else 1)})
 
 
 @router.post('/tts/events', response_model=TtsEventResponse, status_code=201, tags=['음성'])
