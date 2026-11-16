@@ -462,3 +462,28 @@ Qwen·음색 생성·인증 DB는 선택 프로필과 대상 서비스로 구분
 - 실행·중지 명령과 환경변수 예제를 새 방식으로 수정했다.
 - 실제 기동·전환·음성 합성·DB 접속·전체 앱 테스트·빌드는 미실행이다.
   외부 문서 URL의 자동 링크 검사는 미실행이며 로컬 참조를 직접 검사했다.
+
+
+### 프런트엔드 설치 중 ECONNRESET (2026-11-16)
+
+`npm ci`의 `ECONNRESET / network aborted`는 패키지 다운로드 연결이 중단된 오류다.
+`whatwg-encoding` deprecated 경고와 npm 새 버전 안내는 이 실패의 원인이 아니다.
+프런트엔드 `.npmrc`에서 네트워크 요청 재시도를 5회, 지수 증가 배수를 2로 설정했다.
+재시도 대기는 10~60초, 개별 요청 제한은 기존 기본값과 같은 300초다.
+Docker 설치 단계에 BuildKit npm 캐시와 `--prefer-offline --no-audit --no-fund`를 적용했다.
+잠금 파일과 패키지 버전은 변경하지 않았으며 SSL 검증·registry 주소도 유지한다.
+
+실패 후 프런트엔드만 다시 빌드·적용하려면 다음을 실행한다.
+
+```powershell
+docker compose build frontend
+docker compose up -d --no-deps frontend
+```
+
+캐시를 지우는 `--no-cache`는 붙이지 않는다. 연결이 계속 끊기면 npm registry 접근과
+Docker Desktop의 네트워크·프록시를 확인한다. 지속적인 연결 장애는 재시도 설정만으로 해결되지 않는다.
+
+검증: 실제 npm 설정 5개 값 확인. 로컬 registry에서 연결을 두 번 강제 종료한 뒤
+세 번째 요청 성공을 확인했다. 계속 종료하는 경우는 총 6회 요청 후 실패해 무한 재시도하지 않았다.
+probe의 대기 시간만 100~200ms로 줄였으며 실제 설치 설정은 10~60초다.
+`git diff --check` 통과. 실제 Docker 이미지 빌드·전체 `npm ci`·컨테이너 재시작과 앱 테스트는 미실행이다.
