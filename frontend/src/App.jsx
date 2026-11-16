@@ -440,6 +440,7 @@ function App() {
   const speechStatusLabel = ({ starting: '음성 준비 중', playing: '음성 재생 중', paused: '음성 일시 정지' })[speechState.status];
   const showPageHeading = user?.role !== 'user' || (tab === 'home' && !myPageOpen);
   const pageTitle = tab === 'account_permissions' && canManageAccounts ? '담당자의 운영 권한을 관리해요.'
+    : tab === 'rfid_check' && canManageContent ? '칩을 스캔해 연결된 공용 카드를 확인해요.'
     : tab === 'rfid_registration' && canManageContent ? '칩을 읽고 그림카드에 연결해요.'
     : tab === 'admin' && canManageContent
     ? '공용 카드를 관리해요.'
@@ -509,6 +510,7 @@ function App() {
         </div>}
         {canManageContent && <button aria-current={!myPageOpen && tab === 'admin' ? 'page' : undefined} className={!myPageOpen && tab === 'admin' ? 'active' : ''} onClick={() => setTab('admin')}><span aria-hidden="true"><UiIcon name="check-square" /></span>공용 콘텐츠 운영<i aria-label={`승인 대기 ${adminSubmissions.filter(item => item.status === 'pending').length}개`}>{adminSubmissions.filter(item => item.status === 'pending').length}</i></button>}
         {canManageContent && <button aria-current={!myPageOpen && tab === 'rfid_registration' ? 'page' : undefined} className={!myPageOpen && tab === 'rfid_registration' ? 'active' : ''} onClick={() => setTab('rfid_registration')}><span aria-hidden="true"><UiIcon name="tag" /></span>RFID 칩 등록</button>}
+        {canManageContent && <button aria-current={!myPageOpen && tab === 'rfid_check' ? 'page' : undefined} className={!myPageOpen && tab === 'rfid_check' ? 'active' : ''} onClick={() => setTab('rfid_check')}><span aria-hidden="true"><UiIcon name="reader" /></span>RFID 칩 연결 확인</button>}
         {canManageAccounts && <button aria-current={!myPageOpen && tab === 'account_permissions' ? 'page' : undefined} className={!myPageOpen && tab === 'account_permissions' ? 'active' : ''} onClick={() => setTab('account_permissions')}><span aria-hidden="true"><UiIcon name="key" /></span>운영 권한 관리</button>}
         </> : <>
         <button aria-current={!myPageOpen && tab === 'home' ? 'page' : undefined} className={!myPageOpen && tab === 'home' ? 'active' : ''} onClick={() => setTab('home')}><span aria-hidden="true"><UiIcon name="home" /></span>홈</button>

@@ -3,7 +3,7 @@ import { request, requestBlob } from './services/api';
 import UsbRfidReader from './UsbRfidReader';
 import UiIcon from './UiIcon';
 
-function CardPreview({ card, artStyle }) {
+export function CardPreview({ card, artStyle }) {
   const [url, setUrl] = useState('');
   const [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -26,6 +26,7 @@ export default function RfidChipRegistration({ accountId, artStyle }) {
   const [catalog, setCatalog] = useState({ cards: [], bindings: [] });
   const [uid, setUid] = useState(''), [cardId, setCardId] = useState('');
   const [search, setSearch] = useState(''), [filter, setFilter] = useState('');
+  const [choicePage, setChoicePage] = useState(0);
   const [armed, setArmed] = useState(true), [loading, setLoading] = useState(true), [saving, setSaving] = useState(false);
   const [error, setError] = useState(''), [notice, setNotice] = useState('');
   const epoch = useRef(0), capture = useRef(true);
@@ -42,7 +43,7 @@ export default function RfidChipRegistration({ accountId, artStyle }) {
   }
   useEffect(() => {
     const run = ++epoch.current;
-    capture.current = true; setArmed(true); setUid(''); setCardId(''); setNotice('');
+    capture.current = true; setArmed(true); setUid(''); setCardId(''); setSearch(''); setChoicePage(0); setNotice('');
     reload(run);
     return () => { ++epoch.current; capture.current = false; };
   }, [accountId, token]);
@@ -52,7 +53,7 @@ export default function RfidChipRegistration({ accountId, artStyle }) {
     capture.current = false; setArmed(false); setUid(value); setCardId(''); setNotice(''); setError('');
   }
   function nextChip() {
-    capture.current = true; setArmed(true); setUid(''); setCardId(''); setSearch(''); setNotice(''); setError('');
+    capture.current = true; setArmed(true); setUid(''); setCardId(''); setSearch(''); setChoicePage(0); setNotice(''); setError('');
   }
   async function change(targetUid, targetCardId, revision) {
     const run = epoch.current, wasArmed = capture.current;
@@ -72,7 +73,14 @@ export default function RfidChipRegistration({ accountId, artStyle }) {
       if (current(run)) setError(`${failure.message} 목록을 새로고침해 실제 등록 상태를 확인한 뒤 다시 시도해 주세요.`);
     } finally { if (current(run)) { setSaving(false); capture.current = wasArmed; } }
   }
-  const choices = catalog.cards.filter(row => `${row.label} ${row.category}`.includes(search.trim()));
+  const searchTerms = search.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  const mappedCardIds = new Set(catalog.bindings.map(row => row.card_id));
+  const choices = catalog.cards.filter(row => !mappedCardIds.has(row.id)
+    && searchTerms.every(term => `${row.label} ${row.category || ''}`.toLocaleLowerCase().includes(term)));
+  const pageSize = 8;
+  const pageCount = Math.max(1, Math.ceil(choices.length / pageSize));
+  const page = Math.min(choicePage, pageCount - 1);
+  const visibleChoices = choices.slice(page * pageSize, (page + 1) * pageSize);
   const registered = catalog.bindings.filter(row => `${row.uid} ${row.label || '사용 불가'}`.toLowerCase().includes(filter.trim().toLowerCase()));
 
   return <section className="chip-registration" aria-label="공용 RFID 칩 등록">
@@ -95,12 +103,21 @@ export default function RfidChipRegistration({ accountId, artStyle }) {
       </article>
       <form onSubmit={event => { event.preventDefault(); if (uid && card && !saving && !loading) change(uid, card.id, existing?.revision ?? null); }}>
         <h3>2. 그림카드 선택 및 저장</h3>
-        <label>카드 검색<input value={search} disabled={saving} onChange={event => setSearch(event.target.value)} placeholder="카드명 또는 분류" /></label>
-        <label>연결할 공용 그림카드<select required value={cardId} disabled={saving || loading || !uid} onChange={event => setCardId(event.target.value)}>
-          <option value="">카드를 선택해 주세요</option>
-          {choices.map(row => <option key={row.id} value={row.id}>{row.label} · {row.category}</option>)}
-          {card && !choices.some(row => row.id === card.id) && <option value={card.id}>{card.label} · {card.category}</option>}
-        </select></label>
+        <label>공용 카드 검색<input type="search" value={search} disabled={saving} onChange={event => { setSearch(event.target.value); setChoicePage(0); }} placeholder="카드명 또는 분류로 검색" aria-describedby="chip-card-search-help" /></label>
+        <p id="chip-card-search-help">아직 RFID 칩에 연결되지 않은 공용 카드만 표시합니다.{!uid && ' 칩을 먼저 인식하면 선택할 수 있습니다.'}</p>
+        <p role="status">{loading ? '공용 카드를 불러오는 중입니다…' : `검색 결과 ${choices.length}개`}</p>
+        <ul className="chip-card-choices" aria-label="연결할 공용 그림카드">
+          {visibleChoices.map(row => <li key={row.id}><button type="button" aria-pressed={cardId === row.id}
+            disabled={saving || loading || !uid} onClick={() => setCardId(row.id)}>
+            <strong>{row.label}</strong><small>{row.category}</small>{cardId === row.id && <span>선택됨</span>}
+          </button></li>)}
+        </ul>
+        {!loading && !choices.length && <p>검색 결과가 없습니다. 연결되지 않은 카드가 있는지 확인하거나 다른 카드명·분류로 검색해 주세요.</p>}
+        {pageCount > 1 && <nav className="chip-card-pagination" aria-label="공용 카드 검색 결과 페이지">
+          <button type="button" disabled={saving || page === 0} onClick={() => setChoicePage(page - 1)}>이전</button>
+          <span>{page + 1} / {pageCount} 페이지</span>
+          <button type="button" disabled={saving || page === pageCount - 1} onClick={() => setChoicePage(page + 1)}>다음</button>
+        </nav>}
         <div className="chip-preview-surface">{card ? <><CardPreview card={card} artStyle={artStyle} /><strong>{card.label}</strong><small>{card.category}</small></> : <p>칩을 읽고 연결할 그림카드를 선택하면<br />여기에서 미리 볼 수 있어요.</p>}</div>
         {uid && card && <p>저장할 연결: <code>{uid}</code> → <strong>{card.label}</strong></p>}
         <button className="primary" disabled={saving || loading || !uid || !card || existing?.card_id === cardId}>{saving ? '확인·저장 중…' : existing ? '칩 연결 변경' : '칩 등록 저장'}</button>
@@ -111,7 +128,7 @@ export default function RfidChipRegistration({ accountId, artStyle }) {
     <button type="button" disabled={saving || loading} onClick={() => reload()}>공용 칩 목록 새로고침</button>
     {loading ? <p role="status">공용 칩 목록을 불러오는 중입니다…</p> : <ul aria-label="등록된 공용 칩">{registered.slice(0, 50).map(row => <li key={row.uid}>
       <code>{row.uid}</code> → <strong>{row.label || '사용 불가 카드'}</strong>
-      <button type="button" disabled={saving} onClick={() => { capture.current = false; setArmed(false); setUid(row.uid); setCardId(row.available ? row.card_id : ''); setSearch(''); setNotice(''); }}>연결 수정</button>
+      <button type="button" disabled={saving} onClick={() => { capture.current = false; setArmed(false); setUid(row.uid); setCardId(row.available ? row.card_id : ''); setSearch(''); setChoicePage(0); setNotice(''); }}>연결 수정</button>
       <button type="button" disabled={saving} onClick={() => change(row.uid, null, row.revision)}>연결 해제</button>
     </li>)}</ul>}
     {!loading && !registered.length && <p>검색 조건에 맞는 등록 칩이 없습니다.</p>}

@@ -78,7 +78,8 @@ export default function AccountSettingsPanel({
       {!selectedUser && <button onClick={() => navigateFromMyPage(() => setTab('support_home'))}>지원 홈</button>}
       {(canManageContent || canManageAccounts) && <h3>운영 설정</h3>}
       {canManageContent && <><button onClick={() => navigateFromMyPage(() => setTab('admin'))}>공용 콘텐츠 운영</button>
-        <button onClick={() => navigateFromMyPage(() => setTab('rfid_registration'))}><span aria-hidden="true"><UiIcon name="tag" /></span>RFID 칩 등록</button></>}
+        <button onClick={() => navigateFromMyPage(() => setTab('rfid_registration'))}><span aria-hidden="true"><UiIcon name="tag" /></span>RFID 칩 등록</button>
+        <button onClick={() => navigateFromMyPage(() => setTab('rfid_check'))}><span aria-hidden="true"><UiIcon name="reader" /></span>RFID 칩 연결 확인</button></>}
       {canManageAccounts && <button onClick={() => navigateFromMyPage(() => setTab('account_permissions'))}>운영 권한 관리</button>}
     </section> }] : []),
   ];

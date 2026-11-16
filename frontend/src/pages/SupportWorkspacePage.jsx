@@ -32,6 +32,7 @@ import BoardOrganizationSuggestions from "../BoardOrganizationSuggestions";
 import RfidBoard from "../RfidBoard";
 
 import RfidChipRegistration from "../RfidChipRegistration";
+import RfidChipCheckPage from "../rfid-chip-check-page";
 
 import { CARD_META, TTS_PRESETS, RECOVERY_EXPRESSIONS, SUPPORT_PERMISSION_LABELS } from "../config/appDefaults";
 import { artStyle } from "../services/cardMedia";
@@ -39,7 +40,8 @@ import { artStyle } from "../services/cardMedia";
 // Pure page rendering. USB and audio controllers remain mounted in App.
 export default function SupportWorkspacePage({ tab, canManageContent, user, isSupporter, canManageBoard, selectedUser, isCaregiver, changeLinkedUser, linkedUsers, canManageCards, cardCategories, offline, setTab, openSupportSection, openLearning, canManageLearning, canReadRecords, canManageQuick, canManageVoice, selectedPermissions, setEditingSubmission, setCardFormError, setShowCardForm, cardFormBusy, cards, cardSubmissions, statsBusy, loadSupportCards, managedCardSearch, setManagedCardSearch, managedCardCategory, setManagedCardCategory, managedCardNotice, setError, visibleManagedCards, reviewBusy, submitDraft, showCardForm, editingSubmission, cardFormError, submitCard, learningProgress, learningBusy, supportSettingsNotice, learningSettings, saveLearningConfiguration, updateLearningSetting, boardConfigBusy, reloadBoardConfiguration, boardConflict, boardLayout, quickDraft, recoveryDraft, slotDraft, setQuickDraft, setRecoveryDraft, setSlotDraft, saveBoardConfiguration, cardPicture, setBoardLayout, boardLayoutAudit, caregiverSettingsDirty, ttsSettingsBusy, accessibilityBusy, ttsSettings, changeTtsPreset, updateTtsSettings, ttsSettingsSaved, saveTtsSettings, accessibility, updateAccessibility, accessibilitySaved, saveAccessibility, canManageAccounts, handleLogout, adminCategories, adminSubmissions, categoryError, categoryBusy, categoryEdits, setCategoryEdits, addCategory, saveCategory, reviewDrafts, setReviewDrafts, reviewCard, setAdminSubmissions, refreshAdminCards, period, changePeriod, stats, loaded, canWriteNotes, noteDrafts, setNoteDrafts, noteBusy, saveCaregiverNote, removeCaregiverNote }) {
 
-return (tab === 'rfid_registration' && canManageContent ? (<RfidChipRegistration key={user.id} accountId={user.id} artStyle={artStyle} />) : 
+return (tab === 'rfid_check' && canManageContent ? (<RfidChipCheckPage key={user.id} accountId={user.id} artStyle={artStyle} />) :
+tab === 'rfid_registration' && canManageContent ? (<RfidChipRegistration key={user.id} accountId={user.id} artStyle={artStyle} />) :
 tab === 'rfid' && isSupporter && canManageBoard && selectedUser ? (<div>
         <label>{isCaregiver ? '아이 선택' : 'RFID 관리 사용자'}<select value={selectedUser.id} onChange={event => changeLinkedUser(event.target.value)}>
           {linkedUsers.filter(person => person.permissions.includes('board_manage')).map(person => <option key={person.id} value={person.id}>{person.name}</option>)}

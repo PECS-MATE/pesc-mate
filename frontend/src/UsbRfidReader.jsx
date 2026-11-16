@@ -140,7 +140,7 @@ export default function UsbRfidReader({ targetId, variant = 'default', manager =
       } else { readerSafe = true; setUnsafe(false); }
       if (registration) {
         const chips = accepted.rows.filter(row => row.uid);
-        if (chips.length > 1) { setError('등록할 칩은 한 번에 하나만 리더기에 올려 주세요.'); return; }
+        if (chips.length > 1) { setError('칩은 한 번에 하나만 리더기에 올려 주세요.'); return; }
         if (chips.length === 1) { setError(''); log('tag_read'); handlers.current.onUid?.(chips[0].uid); }
         return; // Registration never fills a sentence queue or calls a child's mapping lookup.
       }
