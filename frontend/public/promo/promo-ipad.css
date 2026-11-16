@@ -31,11 +31,10 @@ iframe { display: block; width: 1194px; height: 886px; border: 0; border-radius:
 .image-heading b { font-size: 15px; color: var(--accent); }
 .card-panel > img { width: 100%; border: 1px solid #c8d9d2; border-radius: 18px; box-shadow: 0 18px 40px #183b3510; }
 .card-panel figcaption { font-size: 17px; color: #526d63; margin-top: 18px; text-align: center; }
-.visual[data-visual="rfid"] .rfid-panel { display: grid; grid-template-columns: 1.35fr 1fr; gap: 18px; align-items: center; height: 100%; }
+.visual[data-visual="rfid"] .rfid-panel { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; height: 100%; }
 .rfid-panel figure { margin: 0; min-width: 0; }
 .rfid-panel img { width: 100%; border-radius: 18px; object-fit: cover; }
-.prototype img { height: 360px; object-fit: contain; }
-.concept img { height: 290px; object-fit: contain; }
+.prototype img { height: 500px; object-fit: contain; }
 .rfid-panel figcaption { font-size: 17px; line-height: 1.7; margin-top: 15px; }
 .rfid-panel figcaption span { display: block; font-size: 14px; color: #526d63; }
 .visual[data-visual="journey"] .journey-panel { display: block; padding: 20px 30px; }
