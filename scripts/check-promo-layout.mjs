@@ -179,10 +179,26 @@ try {
       }
       console.log(`${result.issues.length ? 'FAIL' : 'PASS'} ${name}: ${result.issues.join('; ') || 'frame and scene fit'}`);
     }
+    const collapsed = await evaluate(`(() => {
+      const toggle = document.querySelector('#toolbar-toggle'), toolbar = document.querySelector('.toolbar');
+      const before = document.querySelector('.tablet').getBoundingClientRect().height;
+      toggle.focus(); toggle.click();
+      const box = document.querySelector('.tablet').getBoundingClientRect(), button = toggle.getBoundingClientRect();
+      const issues = [];
+      if (!toolbar.hidden || toggle.getAttribute('aria-expanded') !== 'false') issues.push('toolbar did not collapse');
+      if (box.bottom > button.top - 8 || box.top < 0 || box.height < before) issues.push('collapsed tablet fit failed');
+      if (button.left < 0 || button.right > innerWidth || button.bottom > innerHeight) issues.push('toggle outside viewport');
+      toggle.click();
+      if (toolbar.hidden || toggle.getAttribute('aria-expanded') !== 'true') issues.push('toolbar did not reopen');
+      return issues;
+    })()`);
+    if (collapsed.length) failures.push({ name: `${width}x${height}-toolbar-toggle`, issues: collapsed });
+    console.log(`${collapsed.length ? 'FAIL' : 'PASS'} ${width}x${height}-toolbar-toggle: ${collapsed.join('; ') || 'collapse, fit and restore'}`);
     const recording = await evaluate(`(() => {
       document.getElementById('recording').click();
       const box = document.querySelector('.tablet').getBoundingClientRect();
-      const fits = box.left >= 0 && box.right <= innerWidth + 1 && box.top >= 0 && box.bottom <= innerHeight + 1;
+      const toggleHidden = getComputedStyle(document.querySelector('#toolbar-toggle')).display === 'none';
+      const fits = toggleHidden && box.left >= 0 && box.right <= innerWidth + 1 && box.top >= 0 && box.bottom <= innerHeight + 1;
       const centered = Math.abs((box.top + box.bottom) / 2 - innerHeight / 2) <= 1;
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
       return { pass: fits && centered && !document.body.classList.contains('recording'), fits, centered, box: { left: box.left, top: box.top, right: box.right, bottom: box.bottom }, scrollY };

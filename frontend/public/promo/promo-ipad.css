@@ -63,7 +63,8 @@ button { padding: 9px 12px; border: 1px solid #c5d4ce; border-radius: 8px; backg
 button:hover { background: #edf5f1; }
 button:focus-visible, a:focus-visible { outline: 3px solid #167e69; outline-offset: 4px; }
 [hidden] { display: none !important; }
-.recording .toolbar { display: none; }
+.recording .toolbar, .recording #toolbar-toggle { display: none; }
+#toolbar-toggle { position: fixed; z-index: 3; right: 14px; bottom: 14px; min-height: 44px; background: #ffffffed; box-shadow: 0 5px 25px #183b3514; }
 .restore { display: none; position: fixed; z-index: 3; left: 12px; top: 12px; }
 .recording .restore { display: block; opacity: 0; }
 .recording .restore:focus-visible { opacity: 1; }

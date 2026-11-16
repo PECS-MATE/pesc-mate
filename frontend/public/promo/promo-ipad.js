@@ -6,6 +6,8 @@ const story = document.querySelector('.story');
 const visual = document.querySelector('.visual');
 const progress = document.querySelector('.chapter-progress > span');
 const play = document.querySelector('#play');
+const toolbar = document.querySelector('.toolbar');
+const toolbarToggle = document.querySelector('#toolbar-toggle');
 let demo = true;
 let tabletOnly = new URLSearchParams(location.search).get('view') === 'tablet';
 let playing = !matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -63,7 +65,9 @@ document.querySelector('#restart').addEventListener('click', () => tabletOnly ? 
 document.querySelector('#next').addEventListener('click', () => tabletOnly ? send('next') : jump(index + 1));
 document.querySelector('#previous').addEventListener('click', () => jump(index - 1));
 function fit() {
-  const controls = document.body.classList.contains('recording') ? 0 : document.querySelector('.toolbar').offsetHeight + 28;
+  const toggleBottom = toolbar.hidden ? 14 : toolbar.offsetHeight + 22;
+  toolbarToggle.style.bottom = `${toggleBottom}px`;
+  const controls = document.body.classList.contains('recording') ? 0 : toggleBottom + toolbarToggle.offsetHeight + 14;
   const stage = document.querySelector('.stage');
   stage.style.setProperty('--controls-space', `${controls}px`);
   stage.style.setProperty('--presentation-scale', Math.max(.01, Math.min((innerWidth - 24) / 1600, (innerHeight - controls - 24) / 900)));
@@ -97,7 +101,14 @@ addEventListener('message', event => {
   // React can mount after the iframe load event; its first state is our ready signal.
   else if (demo && (event.data.playing || event.data.step !== demoStepAt(chapters[index], elapsed))) syncCue(true);
 });
-function restore() { document.body.classList.remove('recording'); fit(); }
+function setToolbarVisible(visible) {
+  toolbar.hidden = !visible;
+  toolbarToggle.setAttribute('aria-expanded', String(visible));
+  toolbarToggle.textContent = visible ? '설정 숨기기 ▾' : '설정 표시 ▴';
+  fit();
+}
+toolbarToggle.addEventListener('click', () => setToolbarVisible(toolbar.hidden));
+function restore() { document.body.classList.remove('recording'); setToolbarVisible(true); }
 document.querySelector('#background').addEventListener('click', event => {
   const plain = document.body.classList.toggle('plain');
   event.currentTarget.setAttribute('aria-pressed', String(plain));
@@ -132,6 +143,7 @@ document.addEventListener('fullscreenchange', () => {
 });
 addEventListener('resize', fit);
 new ResizeObserver(fit).observe(document.querySelector('.toolbar'));
+new ResizeObserver(fit).observe(toolbarToggle);
 // One clock owns both chapter progress and the iframe's card-selection cues.
 setInterval(() => {
   const now = performance.now(); const delta = now - lastTick; lastTick = now;

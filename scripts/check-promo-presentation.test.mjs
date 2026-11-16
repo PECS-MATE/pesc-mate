@@ -57,3 +57,25 @@ test('reduced motion, manual chapters, recording, layout and app switching remai
   click('#mode'); assert.ok(!s.document.querySelector('#play').hidden); assert.equal(s.document.querySelector('iframe').getAttribute('src'), '/?promo=demo');
   s.dom.window.close();
 });
+
+
+test('toolbar can collapse without pausing and restores with its button or iframe Escape', () => {
+  const s = setup();
+  const toolbar = s.document.querySelector('.toolbar');
+  const toggle = s.document.querySelector('#toolbar-toggle');
+  toggle.focus(); toggle.click();
+  assert.ok(toolbar.hidden);
+  assert.equal(toggle.getAttribute('aria-expanded'), 'false');
+  assert.equal(s.document.activeElement, toggle);
+  s.advance(8000); assert.equal(s.document.body.dataset.chapter, '1');
+  toggle.click(); assert.ok(!toolbar.hidden);
+  assert.equal(toggle.getAttribute('aria-expanded'), 'true');
+  s.document.querySelector('#layout').click();
+  toggle.click(); assert.ok(toolbar.hidden);
+  const frame = s.document.querySelector('iframe');
+  frame.dispatchEvent(new s.window.Event('load'));
+  frame.contentDocument.dispatchEvent(new s.window.KeyboardEvent('keydown', { key: 'Escape' }));
+  assert.ok(!toolbar.hidden);
+  assert.ok(s.document.body.classList.contains('tablet-only'));
+  s.dom.window.close();
+});
