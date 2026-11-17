@@ -28,8 +28,8 @@ test('presentation waits for decoded demo images before starting its clock', () 
   s.signalReady(); s.advance(8000); assert.equal(s.document.body.dataset.chapter, '1');
   s.dom.window.close();
 });
-test('PDF presentation has seven chapters, a 75-second loop and ordered speaking cues', () => {
-  assert.equal(chapters.length, 7); assert.equal(totalDuration, 75000);
+test('PDF presentation has eight chapters, a 90-second loop and ordered speaking cues', () => {
+  assert.equal(chapters.length, 8); assert.equal(totalDuration, 90000);
   assert.deepEqual([0, 2000, 4500, 7000, 10000, 13000].map(ms => demoStepAt(chapters[2], ms)), [1, 2, 3, 4, 5, 6]);
   assert.match(chapters[5].note, /향후 계획/);
 });
@@ -40,8 +40,8 @@ test('presentation clock synchronizes cards, preserves pause position and loops 
   click('#play'); const count = s.messages.length; s.advance(20000);
   assert.equal(s.document.body.dataset.chapter, '2'); assert.equal(s.messages.length, count);
   click('#play'); s.advance(2500); assert.equal(s.messages.at(-1).step, 3);
-  click('#restart'); s.advance(75000); assert.equal(s.document.body.dataset.chapter, '0'); assert.equal(s.messages.at(-1).step, 0);
-  click('#previous'); assert.equal(s.document.body.dataset.chapter, '6'); assert.equal(s.document.querySelector('#play').textContent, '재생');
+  click('#restart'); s.advance(90000); assert.equal(s.document.body.dataset.chapter, '0'); assert.equal(s.messages.at(-1).step, 0);
+  click('#previous'); assert.equal(s.document.body.dataset.chapter, '7'); assert.equal(s.document.querySelector('#play').textContent, '재생');
   s.dom.window.close();
 });
 test('reduced motion, manual chapters, recording, layout and app switching remain controllable', () => {
@@ -55,6 +55,21 @@ test('reduced motion, manual chapters, recording, layout and app switching remai
   click('#layout'); assert.ok(!s.document.body.classList.contains('tablet-only'));
   click('#mode'); assert.ok(s.document.querySelector('#play').hidden); assert.equal(s.document.querySelector('iframe').getAttribute('src'), '/');
   click('#mode'); assert.ok(!s.document.querySelector('#play').hidden); assert.equal(s.document.querySelector('iframe').getAttribute('src'), '/?promo=demo');
+  s.dom.window.close();
+});
+
+test('architecture chapter displays editable system nodes and restores the regular layout', () => {
+  const s = setup(true);
+  s.document.querySelectorAll('.chapters button')[6].click();
+  assert.equal(s.document.body.dataset.visual, 'architecture');
+  assert.equal(s.document.querySelector('.visual').dataset.visual, 'architecture');
+  const panel = s.document.querySelector('.architecture-panel');
+  for (const label of ['React', 'FastAPI', 'MongoDB', 'Tesseract', 'Qwen3-TTS', 'OpenRouter', 'USB Serial']) assert.ok(panel.textContent.includes(label));
+  assert.equal(panel.querySelectorAll('.architecture-column').length, 4);
+  assert.ok(panel.querySelectorAll('svg use').length >= 7);
+  assert.equal(panel.querySelectorAll('img').length, 0);
+  s.document.querySelectorAll('.chapters button')[7].click();
+  assert.equal(s.document.body.dataset.visual, 'demo');
   s.dom.window.close();
 });
 

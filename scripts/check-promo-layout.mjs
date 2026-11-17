@@ -1,6 +1,7 @@
 // Browser layout regression harness. Serves source CSS and representative demo DOM;
 // no build, JSX compilation, account, or backend is needed.
 import fs from 'node:fs/promises';
+import { chapters } from '../frontend/public/promo/promo-presentation.js';
 import path from 'node:path';
 import http from 'node:http';
 import { spawn } from 'node:child_process';
@@ -90,11 +91,11 @@ try {
       await call('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
       if (!loaded) {
         await call('Page.navigate', { url: `${address}/promo-ipad.html` });
-        await waitFor(`document.querySelectorAll('.chapters button').length === 7 && document.querySelector('iframe')?.contentDocument?.querySelector('.promo-demo:not(.is-loading)')`);
+        await waitFor(`document.querySelectorAll('.chapters button').length === ${chapters.length} && document.querySelector('iframe')?.contentDocument?.querySelector('.promo-demo:not(.is-loading)')`);
         await waitFor(`[...document.querySelectorAll('.visual-panel img')].every(img => img.complete && img.naturalWidth > 0)`);
         loaded = true;
       }
-      for (let chapter = 0; chapter < 7; chapter++) {
+      for (let chapter = 0; chapter < chapters.length; chapter++) {
         await evaluate(`document.querySelectorAll('.chapters button')[${chapter}].click()`);
         await pause(500);
         const issues = await evaluate(`(() => {
@@ -108,6 +109,15 @@ try {
           if (story.right > visual.left || story.bottom > footer.top || visual.bottom > footer.top) issues.push('story, visual, or footer overlaps');
           for (const img of document.querySelectorAll('.visual-panel img')) if (!img.complete || !img.naturalWidth) issues.push('PDF image missing');
           if (document.documentElement.scrollWidth > innerWidth || document.documentElement.scrollHeight > innerHeight) issues.push('outer document overflows');
+          if (document.body.dataset.visual === 'architecture') {
+            const panel = document.querySelector('.architecture-panel').getBoundingClientRect();
+            const architectureFooter = document.querySelector('.architecture-footer').getBoundingClientRect();
+            for (const el of document.querySelectorAll('.architecture-node, .architecture-footer')) {
+              const box = el.getBoundingClientRect();
+              if (box.left < panel.left - 1 || box.right > panel.right + 1 || box.bottom > panel.bottom + 1 || el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1) issues.push('architecture node overflows');
+              if (el.classList.contains('architecture-node') && box.bottom > architectureFooter.top + .5) issues.push('architecture node overlaps footer');
+            }
+          }
           if (doc.documentElement.scrollWidth > iframe.clientWidth || doc.documentElement.scrollHeight > iframe.clientHeight) issues.push('React demo overflows');
           const caption = doc.querySelector('.promo-caption').getBoundingClientRect();
           if ([...doc.querySelector('.promo-content').children].some(el => el.getBoundingClientRect().bottom > caption.top + 1)) issues.push('React scene overlaps caption');

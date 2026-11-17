@@ -42,6 +42,7 @@ function render() {
     const tag = document.createElement('span'); tag.textContent = text; return tag;
   }));
   visual.dataset.visual = chapter.visual;
+  document.body.dataset.visual = chapter.visual;
   frame.tabIndex = chapter.visual === 'demo' || tabletOnly ? 0 : -1;
   buttons.forEach((button, n) => { if (n === index) button.setAttribute('aria-current', 'step'); else button.removeAttribute('aria-current'); });
   document.querySelector('.chapter-count').textContent = `${String(index + 1).padStart(2, '0')} / ${String(chapters.length).padStart(2, '0')}`;

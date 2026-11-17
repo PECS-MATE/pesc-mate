@@ -214,6 +214,38 @@ iframe {
     margin: 0;
 }
 
+body[data-visual="architecture"]:not(.tablet-only) .story { display: none; }
+body[data-visual="architecture"]:not(.tablet-only) .presentation-body { grid-template-columns: minmax(0, 1fr); }
+.visual[data-visual="architecture"] .architecture-panel { display: grid; height: 650px; grid-template-rows: 74px 1fr 58px; gap: 18px; }
+.tablet-only .visual[data-visual="architecture"] .architecture-panel { display: none; }
+.architecture-symbols { position: absolute; width: 0; height: 0; overflow: hidden; }
+.architecture-heading { display: flex; justify-content: space-between; align-items: center; }
+.architecture-heading p { margin: 0 0 8px; font-size: 16px; font-weight: 700; color: var(--accent); }
+.architecture-heading h2 { margin: 0; font-size: 36px; letter-spacing: -.04em; }
+.architecture-heading>span { color: #526d63; font-size: 17px; }
+.architecture-flow { display: grid; grid-template-columns: 270px 250px 280px minmax(0, 1fr); gap: 48px; min-height: 0; }
+.architecture-column { position: relative; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.architecture-column:not(:last-child)::after { content: '→'; position: absolute; right: -39px; top: 48%; color: var(--accent); font-size: 36px; }
+.architecture-column:nth-child(2)::after, .architecture-column:nth-child(3)::after { content: '↔'; }
+.architecture-column h3 { margin: 0; padding: 10px 0; border-bottom: 1px solid #b8d3c5; color: var(--accent); font-size: 19px; }
+.architecture-node { padding: 19px; border: 1px solid #b8d3c5; border-radius: 18px; background: #ffffffd9; }
+.architecture-node svg { width: 34px; height: 34px; color: var(--accent); fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; margin-bottom: 9px; flex-shrink: 0; }
+.architecture-node h4 { font-size: 24px; margin: 0 0 10px; letter-spacing: -.035em; }
+.architecture-node p { margin: 7px 0 0; font-size: 18px; line-height: 1.65; color: #52665e; word-break: keep-all; }
+.architecture-chip { display: inline-block; font-size: 15px; color: var(--accent); background: #e8f4ee; padding: 7px 10px; border-radius: 9px; margin-top: 9px; }
+.architecture-main { margin: auto 0; padding: 24px 20px; }
+.architecture-column:first-child .architecture-node { padding: 16px; }
+.architecture-column:first-child .architecture-node svg { width: 30px; height: 30px; }
+.architecture-main h4 { font-size: 30px; }
+.architecture-main p { margin-top: 19px; }
+.architecture-detail { border-top: 1px solid #c8d9d2; margin-top: 22px; padding-top: 17px; font-size: 16px; line-height: 1.65; color: #52665e; }
+.architecture-services .architecture-node { display: flex; align-items: flex-start; gap: 15px; padding: 18px; }
+.architecture-services .architecture-node h4 { font-size: 23px; margin-bottom: 5px; }
+.architecture-services .architecture-node p { font-size: 17px; }
+.architecture-footer { display: flex; align-items: center; gap: 20px; padding: 15px 20px; border-radius: 14px; background: #e0eee5; font-size: 18px; }
+.architecture-footer strong { color: var(--accent); flex-shrink: 0; }
+.architecture-footer small { margin-left: auto; font-size: 14px; color: #52665e; }
+
 .visual:not([data-visual="demo"]) .tablet,
 .visual:not([data-visual="demo"]) .demo-label {
     visibility: hidden;
