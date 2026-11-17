@@ -82,7 +82,7 @@ export default function AdminCardRegistration({ categories, disabled, onCreated 
               {categories.filter(item => item.active !== false).map(item => <option key={item.id} value={item.name}>{item.name}</option>)}
             </select></label>
             {mode === 'ai' && <>
-              <CardImageTools key="ai" label={label} file={file} admin initialOpen disabled={busy || disabled || photoBusy}
+              <CardImageTools key="ai" label={label} category={category} file={file} admin initialOpen disabled={busy || disabled || photoBusy}
                 onApply={image => { setFile(image); setRights(false); }} />
               <label className="admin-card-rights"><input type="checkbox" required checked={rights} onChange={e => setRights(e.target.checked)} />생성한 그림의 의미를 확인했으며 모두에게 공개할 수 있습니다.</label>
             </>}
@@ -93,7 +93,7 @@ export default function AdminCardRegistration({ categories, disabled, onCreated 
                 setLabel(value);
               }} />
               <small>JPG·PNG·WebP · 5MB 이하 · 가로·세로 128~4096px</small>
-              <CardImageTools label={label} file={file} admin disabled={busy || disabled || photoBusy}
+              <CardImageTools label={label} category={category} file={file} admin disabled={busy || disabled || photoBusy}
                 onApply={image => { setFile(image); setRights(false); }} />
               <label className="admin-card-rights"><input type="checkbox" required checked={rights} onChange={e => setRights(e.target.checked)} />모두에게 공개할 수 있는 사진입니다.</label>
             </>}

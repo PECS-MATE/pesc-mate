@@ -35,7 +35,7 @@ it('generates for the selected child and submits the reviewed image as a private
   await userEvent.click(await screen.findByRole('button', { name: '확인하고 적용' }));
   expect(await screen.findByAltText('등록할 AI 그림 카드')).toBeInTheDocument();
   expect(onSubmit).not.toHaveBeenCalled();
-  expect(JSON.parse(request.mock.calls[1][1].body)).toMatchObject({ user_id: 'child-two', scope: 'private' });
+  expect(JSON.parse(request.mock.calls[1][1].body)).toMatchObject({ user_id: 'child-two', scope: 'private', category: '음식' });
   await userEvent.click(screen.getByRole('button', { name: '카드 저장', exact: true }));
   expect(saved.visibility).toBe('private');
   expect(saved.image).toBeInstanceOf(File);

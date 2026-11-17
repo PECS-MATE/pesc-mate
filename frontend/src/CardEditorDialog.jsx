@@ -15,6 +15,7 @@ export default function CardEditorDialog({ editing, categories, targetName, targ
   const [visibility, setVisibility] = useState(privateOnly ? 'private' : editing?.visibility || 'private');
   const [image, setImage] = useState(null);
   const [toolLabel, setToolLabel] = useState(editing?.label || '');
+  const [toolCategory, setToolCategory] = useState(editing?.category || '');
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState('');
   const [imageMode, setImageMode] = useState('photo');
@@ -73,7 +74,7 @@ export default function CardEditorDialog({ editing, categories, targetName, targ
         <fieldset disabled={busy}>
           <legend className="visually-hidden">카드 정보</legend>
           <label>카드명<input name="label" required maxLength="30" placeholder="예: 연필" defaultValue={editing?.label || ''} onChange={e => setToolLabel(e.target.value)} /></label>
-          <label>카테고리<select name="category" required defaultValue={editing?.category || ''}>
+          <label>카테고리<select name="category" required defaultValue={editing?.category || ''} onChange={event => setToolCategory(event.target.value)}>
             <option value="" disabled>카테고리 선택</option>{categories.map(item => <option key={item.id} value={item.name}>{item.name}</option>)}
           </select></label>
           {privateOnly ? <input name="visibility" type="hidden" value="private" /> :
@@ -92,7 +93,7 @@ export default function CardEditorDialog({ editing, categories, targetName, targ
           if (input) { input.value = value; input.focus(); }
           setToolLabel(value);
         }} />}
-        {!editing && <CardImageTools key={imageMode} label={toolLabel} file={image} targetId={targetId} initialOpen={imageMode === 'ai'}
+        {!editing && <CardImageTools key={imageMode} label={toolLabel} category={toolCategory} file={image} targetId={targetId} initialOpen={imageMode === 'ai'}
           disabled={busy || photoBusy || ocrDisabled} onApply={file => { setImage(file); setPhotoError(''); }} />}
         {!editing && generatedPreview && <figure className="card-editor-generated-preview"><img src={generatedPreview} alt="등록할 AI 그림 카드" /><figcaption>확인한 그림입니다. 카드 저장을 누르면 등록됩니다.</figcaption></figure>}
         {!editing && imageMode === 'photo' && <p id={imageHelpId} className="form-notice">JPG·PNG·WebP, 5MB 이하, 가로·세로 128~4096px 이미지를 선택해 주세요.</p>}

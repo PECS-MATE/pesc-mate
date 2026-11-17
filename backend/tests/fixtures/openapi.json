@@ -1849,6 +1849,12 @@
             "maxLength": 300,
             "title": "Description",
             "default": ""
+          },
+          "category": {
+            "type": "string",
+            "maxLength": 30,
+            "title": "Category",
+            "default": ""
           }
         },
         "required": [

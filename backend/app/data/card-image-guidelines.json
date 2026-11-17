@@ -1,0 +1,391 @@
+{
+  "version": "card-image-guidelines-v2",
+  "source": "User-supplied PECS Mate production guide dated 2026-10-31 and subsequent corrections for 나 and 화장실; supplied 2026-11-18.",
+  "base": {
+    "id": "aac-common",
+    "rules": [
+      "Create exactly ONE square 1:1 AAC card depicting one concept; no collage, split panels or sequence.",
+      "Production target: 1024x1024 PNG in sRGB, opaque pure white #ffffff background. No cream, mint, gradients, decorative background or checkerboard.",
+      "Keep approximately 10% safety margin on all sides; central subject starts at 65–75% of image dimensions. Keep fingertips, tools and permitted arrows inside the margin.",
+      "No words, letters, sentences, numerals, brands, logos, watermarks, card frames, UI buttons, selection checks or mascot/animal/brand characters. Semantic symbols are allowed ONLY when explicitly required by the retrieved scene.",
+      "Preserve the natural identifying colors of objects; do not tint every object mint. UI colors are not a restriction on image colors.",
+      "Do not invent a cause, attacker, location, person or extra object. Do not equate refusal with anger or aggression. No blood, large wounds or frightening injury scenes.",
+      "Use no actual child face, address, institution name or contact details in shared cards. Do not invent an identifiable family member as a replacement for a real relative.",
+      "Create an independent depiction; do not reproduce another site’s copyrighted picture symbol. Do not alter existing card identity, wording or RFID mapping.",
+      "Keep objects/actions distinct: water versus drinking, rice versus eating, stop versus waiting versus a brief pause; satisfaction versus yes versus conversational confirmation."
+    ]
+  },
+  "profiles": [
+    {
+      "id": "photo",
+      "categories": [
+        "음식",
+        "음식과 음료",
+        "사물",
+        "물건"
+      ],
+      "keywords": [
+        "물컵",
+        "연필",
+        "물병"
+      ],
+      "rules": [
+        "Photographic object mode A: natural photo-like isolated subject with realistic shape, inherent color, proportions and material. No people or cartoon faces.",
+        "No cartoon outline, anthropomorphic eyes/mouth, exaggerated 3D toy styling, pedestal, tabletop, background props, decorative highlights or heavy shadow; use simple even lighting.",
+        "This is a generated photo-like proposal, not a real photograph of the child’s actual belongings."
+      ]
+    },
+    {
+      "id": "symbol",
+      "categories": [
+        "행동",
+        "동작",
+        "사람",
+        "장소",
+        "감정",
+        "몸 상태",
+        "신체",
+        "신체 부위",
+        "복구 표현"
+      ],
+      "keywords": [],
+      "rules": [
+        "Pictogram mode B: simple soft 2D people/body parts/objects, not a photograph or photorealistic 3D.",
+        "Use consistent dark outlines and simple natural flat colors; no gloss, gradients, texture, heavy shadow or decorative detail. Start with 8–12px outlines at 1024px, but prioritize the approved people-card style over arbitrary thickness.",
+        "Use body parts and minimal objects first. Add upper/full body or another person only when posture, expression or relationship requires it. Keep hands, fingers and joints natural; do not assume gender or specific appearance is necessary for meaning.",
+        "Keep a consistent people-pictogram style, skin-color treatment, proportions and plain clothing; reduce excessive wrinkles, nails and lip texture without losing contact and direction.",
+        "Show contact, direction and posture clearly in one still scene. Never replace an action with its object alone. Use a small confirmation/cancel mark, question mark or arrow only when the specific scene requires it."
+      ]
+    }
+  ],
+  "scenes": [
+    {
+      "id": "me",
+      "label": "나",
+      "style": "symbol",
+      "rules": [
+        "말하는 자기 자신. 얼굴과 머리는 생략하고 목 아래 상반신·팔·손만 표현한다. 성별을 암시하지 않는 무지 티셔츠를 입고 한 손으로 자신의 가슴 중앙을 분명히 가리킨다. 다른 사람이나 화면 밖을 가리키지 않는다."
+      ]
+    },
+    {
+      "id": "mom",
+      "label": "엄마",
+      "style": "symbol",
+      "rules": [
+        "친근한 성인 여성 한 명이 정면에서 손을 흔드는 일반 사람 그림. 특정 실제인의 얼굴을 사용하지 않으며 실제 엄마를 대신하는 가짜 인물이라고 설명하지 않는다."
+      ]
+    },
+    {
+      "id": "water",
+      "label": "물",
+      "style": "photo",
+      "rules": [
+        "투명한 무상표 컵 하나에 맑은 물. 컵과 물만 주인공이며 마시는 사람이나 수도꼭지는 없다."
+      ]
+    },
+    {
+      "id": "rice",
+      "label": "밥",
+      "style": "photo",
+      "rules": [
+        "단순한 밥그릇 하나에 흰 쌀밥. 반찬·수저·식탁 전체는 없다."
+      ]
+    },
+    {
+      "id": "apple",
+      "label": "사과",
+      "style": "photo",
+      "rules": [
+        "꼭지와 작은 잎이 있는 빨간 사과 한 개. 다른 과일·단면 조각·손·포장·주스는 없다."
+      ]
+    },
+    {
+      "id": "milk",
+      "label": "우유",
+      "style": "photo",
+      "rules": [
+        "투명한 컵의 흰 우유와 작은 무상표 우유 용기만 단순하게 배치. 글자와 로고는 없다."
+      ]
+    },
+    {
+      "id": "drink",
+      "label": "마시다",
+      "style": "symbol",
+      "rules": [
+        "입과 턱·컵을 잡은 손만 크게 표현. 45도 옆 구도로 기울어진 컵의 테두리가 입에 닿는 마시는 순간. 컵을 들고만 있지 않으며 눈·머리 전체·전신·식탁은 생략한다."
+      ]
+    },
+    {
+      "id": "eat",
+      "label": "먹다",
+      "style": "symbol",
+      "rules": [
+        "입·음식이 담긴 숟가락·숟가락을 잡은 손만 크게. 작은 음식이 입으로 들어가는 방향과 접촉을 분명히 하며 얼굴 전체와 식탁은 없다."
+      ]
+    },
+    {
+      "id": "go",
+      "label": "가다",
+      "style": "symbol",
+      "rules": [
+        "한쪽으로 걸어가는 아이 전신과 이동 방향의 짧은 화살표 하나. 특정 목적지나 차량은 없다."
+      ]
+    },
+    {
+      "id": "rest",
+      "label": "쉬다",
+      "style": "symbol",
+      "rules": [
+        "눈을 뜬 아이가 의자에 편안하게 기대어 쉰다. 잠자는 침대·화면 시청·장난감은 없다."
+      ]
+    },
+    {
+      "id": "play",
+      "label": "놀다",
+      "style": "symbol",
+      "rules": [
+        "아이가 단순한 블록을 직접 움직여 논다. 놀이기구나 여러 장난감은 없다."
+      ]
+    },
+    {
+      "id": "help",
+      "label": "도와주세요",
+      "style": "symbol",
+      "rules": [
+        "도움을 구하는 열린 손과 이를 받쳐 주려는 상대 손의 관계를 크게. 악수·하이파이브·재난 장면은 피한다. 관계에 필요한 경우에만 보조 인물 자세를 포함한다."
+      ]
+    },
+    {
+      "id": "toilet",
+      "label": "화장실",
+      "style": "symbol",
+      "rules": [
+        "최신 사용자 수정: 인물과 문을 제외하고 단순한 양변기 하나만 중앙에 크게 표현한다. 성별 기호를 쓰지 않는다."
+      ]
+    },
+    {
+      "id": "home",
+      "label": "집",
+      "style": "symbol",
+      "rules": [
+        "문과 창문이 보이는 단순한 집 한 채. 주소·글자·주변 풍경은 없다."
+      ]
+    },
+    {
+      "id": "happy",
+      "label": "좋아요",
+      "style": "symbol",
+      "rules": [
+        "좋거나 만족스러운 감정. 편안한 미소와 열린 자세. 동의 응답이나 물건 요청이 아니며 체크·엄지 동의 표시는 없다."
+      ]
+    },
+    {
+      "id": "hurt",
+      "label": "아파요",
+      "style": "symbol",
+      "rules": [
+        "몸을 감싸 통증을 표현. 특정 신체 부위를 강조하지 않으며 피나 큰 상처는 없다."
+      ]
+    },
+    {
+      "id": "no",
+      "label": "싫어요",
+      "style": "symbol",
+      "rules": [
+        "고개를 살짝 돌리거나 젓고 한 손바닥으로 원하지 않는다는 거절. 분노나 공격성으로만 표현하지 않는다."
+      ]
+    },
+    {
+      "id": "yes",
+      "label": "네",
+      "style": "symbol",
+      "rules": [
+        "부드럽게 고개를 끄덕이는 긍정 응답. 과장된 즐거움보다 응답 동작을 강조하며 좋아요·맞아요와 구분한다."
+      ]
+    },
+    {
+      "id": "stop",
+      "label": "그만",
+      "style": "symbol",
+      "rules": [
+        "정면의 큰 손바닥으로 활동 중단. 시계·반복 화살표는 없다. 색에만 의존하지 않는다."
+      ]
+    },
+    {
+      "id": "more",
+      "label": "더",
+      "style": "symbol",
+      "rules": [
+        "같은 단순한 물건 한 개 옆에 한 개가 추가되는 모습과 작은 더하기 기호. 기호만 단독으로 그리지 않는다."
+      ]
+    },
+    {
+      "id": "again",
+      "label": "다시",
+      "style": "symbol",
+      "rules": [
+        "단순한 동작 주위에 한 번 도는 반복 화살표 하나. 말풍선은 없어 다시 말하기와 구분한다."
+      ]
+    },
+    {
+      "id": "wait",
+      "label": "기다려 주세요",
+      "style": "symbol",
+      "rules": [
+        "부드럽게 손을 든 아이 옆에 단순한 모래시계. 강한 중단 동작이나 말풍선은 없다."
+      ]
+    },
+    {
+      "id": "unknown",
+      "label": "모르겠어요",
+      "style": "symbol",
+      "rules": [
+        "열린 두 손과 약간 든 어깨로 답을 모름을 표현. 실패·벌점·비난 표시는 없다."
+      ]
+    },
+    {
+      "id": "other",
+      "label": "다른 것",
+      "style": "symbol",
+      "rules": [
+        "앞의 단순한 물건 대신 옆의 다른 물건을 가리킨다. 선택 대상은 두 개뿐이며 교환 장면은 없다."
+      ]
+    },
+    {
+      "id": "head",
+      "label": "머리",
+      "style": "symbol",
+      "rules": [
+        "단순한 전신 또는 상반신 신체 도식에서 머리만 짙은 윤곽과 지시선으로 강조. 글자와 통증 기호는 없다."
+      ]
+    },
+    {
+      "id": "stomach",
+      "label": "배",
+      "style": "symbol",
+      "rules": [
+        "신체의 복부. 정면 신체 도식에서 복부를 손과 윤곽으로 가리킨다. 과일 배·음식·통증 장면은 없다."
+      ]
+    },
+    {
+      "id": "hand",
+      "label": "손",
+      "style": "symbol",
+      "rules": [
+        "자연스럽게 펼친 손 하나. 손가락 수와 관절을 정확히 표현하며 정지 표지나 시계는 없다."
+      ]
+    },
+    {
+      "id": "leg",
+      "label": "다리",
+      "style": "symbol",
+      "rules": [
+        "신체의 다리. 신체 도식에서 다리를 짙은 윤곽과 지시선으로 강조. 교량이나 걷는 동작은 없다."
+      ]
+    },
+    {
+      "id": "here_hurts",
+      "label": "여기가 아파요",
+      "style": "symbol",
+      "rules": [
+        "자신의 몸 한 지점을 직접 가리키는 동작과 아픈 표정. 일반 아파요와 구분하며 특정 부위로 의미를 고정하지 않는다."
+      ]
+    },
+    {
+      "id": "uncomfortable",
+      "label": "불편해요",
+      "style": "symbol",
+      "rules": [
+        "자세를 조심스럽게 바꾸며 불편한 표정. 다친 부위·피·특정 원인은 추가하지 않는다."
+      ]
+    },
+    {
+      "id": "scared",
+      "label": "무서워요",
+      "style": "symbol",
+      "rules": [
+        "어깨를 움츠리고 불안한 표정으로 두 손을 가슴 가까이에 둔다. 괴물·가해자·위험 원인은 없다."
+      ]
+    },
+    {
+      "id": "noisy",
+      "label": "시끄러워요",
+      "style": "symbol",
+      "rules": [
+        "양손으로 귀를 가리고 옆에 단순한 소리 물결선. 특정 사람을 비난하지 않는다."
+      ]
+    },
+    {
+      "id": "snack",
+      "label": "간식",
+      "style": "photo",
+      "rules": [
+        "작은 무상표 접시에 단순한 크래커 몇 개. 식사 한 상·상표 포장·사탕 더미는 없다."
+      ]
+    },
+    {
+      "id": "recovery:wrong_tap",
+      "label": "잘못 눌렀어요",
+      "style": "symbol",
+      "rules": [
+        "손가락이 방금 선택한 작은 그림카드와 이를 되돌리는 화살표. 일반 반복이 아닌 잘못된 선택 수정."
+      ]
+    },
+    {
+      "id": "recovery:not_that",
+      "label": "그 뜻이 아니에요",
+      "style": "symbol",
+      "rules": [
+        "고개를 젓고 자신의 말풍선 속 단순한 그림에 작은 취소 기호. 상대방 자체를 거절하지 않는다."
+      ]
+    },
+    {
+      "id": "recovery:hold_on",
+      "label": "잠깐만요",
+      "style": "symbol",
+      "rules": [
+        "한 손을 가볍게 들고 작은 시계. 강한 중단이 아닌 짧은 기다림."
+      ]
+    },
+    {
+      "id": "recovery:say_again",
+      "label": "다시 말할게요",
+      "style": "symbol",
+      "rules": [
+        "아이에게서 나온 말풍선 주위의 반복 화살표 하나. 자신이 다시 말하는 방향이며 상대에게 반복을 요구하지 않는다."
+      ]
+    },
+    {
+      "id": "recovery:please_wait",
+      "label": "제 말을 기다려 주세요",
+      "style": "symbol",
+      "rules": [
+        "말하려는 아이와 조용히 기다리는 상대 사이에 작은 시계. 대기 줄이나 일반 중단이 아니다."
+      ]
+    },
+    {
+      "id": "recovery:dont_understand",
+      "label": "질문을 잘 모르겠어요",
+      "style": "symbol",
+      "rules": [
+        "상대의 말풍선에 작은 물음표 하나. 아이가 이를 보며 양손을 가볍게 펼친다. 아이 자신이 질문하는 장면이 아니다."
+      ]
+    },
+    {
+      "id": "recovery:yes",
+      "label": "맞아요",
+      "style": "symbol",
+      "rules": [
+        "고개를 끄덕이고 확인 대화의 말풍선에 작은 확인 기호. 감정이 아닌 상대 확인에 대한 응답."
+      ]
+    },
+    {
+      "id": "recovery:no",
+      "label": "아니에요",
+      "style": "symbol",
+      "rules": [
+        "고개를 젓고 응답 말풍선 안에 작은 취소 기호. 물건을 밀어내는 싫어요와 구분."
+      ]
+    }
+  ]
+}

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { request } from './services/api';
 import './assets/cardImageTools.css';
 
-export default function CardImageTools({ label = '', file, targetId, admin = false, disabled = false, initialOpen = false, onApply }) {
+export default function CardImageTools({ label = '', category = '', file, targetId, admin = false, disabled = false, initialOpen = false, onApply }) {
   const [opened, setOpened] = useState(initialOpen), [config, setConfig] = useState(null);
   const [accepted, setAccepted] = useState(false), [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null), [message, setMessage] = useState('');
@@ -16,7 +16,7 @@ export default function CardImageTools({ label = '', file, targetId, admin = fal
   }, []);
   useEffect(() => {
     epoch.current += 1; setResult(null); setBusy(false); setMessage(''); setAccepted(false); setConfig(null);
-  }, [label, file, targetId, admin, disabled, token]);
+  }, [label, category, file, targetId, admin, disabled, token]);
   const current = run => mounted.current && run === epoch.current && !disabled
     && token === localStorage.getItem('pesc-mate-token');
   async function run(operation) {
@@ -30,7 +30,7 @@ export default function CardImageTools({ label = '', file, targetId, admin = fal
       } else if (operation === 'generate') {
         setAccepted(false);
         response = await request('/card-image-tools/generate', { method: 'POST', timeoutMs: 95000,
-          body: JSON.stringify({ label: label.trim(), description: description.trim(), external_accepted: accepted, scope,
+          body: JSON.stringify({ label: label.trim(), category, description: description.trim(), external_accepted: accepted, scope,
             expected_backend: config.generation_backend, expected_model: config.model, user_id: admin ? null : targetId }) });
       } else {
         const body = new FormData(); body.set('image', file, 'card-image'); body.set('scope', scope);
@@ -49,6 +49,7 @@ export default function CardImageTools({ label = '', file, targetId, admin = fal
     <summary>AI 카드 그림 만들기 · 배경 제거</summary>
     {opened && <>
       <p>카드 이름과 설명으로 새 그림을 만들고, 확인한 그림만 카드에 적용하세요.</p>
+      <p className="form-notice">기존 카드 제작 지침과 카드별 장면을 자동으로 참고합니다.</p>
       <button type="button" disabled={busy || disabled} onClick={() => run('status')}>사용 가능 여부 확인</button>
       {config && <>
         <p>{config.generation_provider} · {config.generation_ready ? `${config.model} · 설정됨` : '서버 토큰·모델·패키지 설정 필요'}</p>

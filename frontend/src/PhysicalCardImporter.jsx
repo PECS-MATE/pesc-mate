@@ -223,7 +223,7 @@ export default function PhysicalCardImporter({ admin = false, targetId, categori
           <fieldset disabled={disabled || Boolean(busy) || ['saved', 'uncertain'].includes(row.status)}><legend>{index + 1}번 카드 · {({ saved: '저장 완료', uncertain: '저장 확인 필요', failed: '등록 실패' })[row.status] || '확인 중'}</legend>
             <label className="physical-card-check"><input type="checkbox" checked={row.selected} onChange={e => editRow(index, { selected: e.target.checked })} />등록할 카드</label>
             <label>이름<input maxLength="30" value={row.label} onChange={e => editRow(index, { label: e.target.value })} /></label>
-            <CardImageTools label={row.label} file={row.file} targetId={targetId} admin={admin}
+            <CardImageTools label={row.label} category={row.category} file={row.file} targetId={targetId} admin={admin}
               disabled={disabled || Boolean(busy) || ['saved', 'uncertain'].includes(row.status)}
               onApply={(file, preview) => { editRow(index, { file, preview }); setRights(false); }} />
             <label>분류<select value={row.category} onChange={e => editRow(index, { category: e.target.value })}><option value="">분류 선택</option>{categories.filter(item => item.active !== false).map(item => <option key={item.id} value={item.name}>{item.name}</option>)}</select></label>
