@@ -1800,7 +1800,8 @@
           "expected_backend": {
             "enum": [
               "huggingface",
-              "gemini"
+              "gemini",
+              "openrouter"
             ],
             "title": "Expected Backend",
             "type": "string"

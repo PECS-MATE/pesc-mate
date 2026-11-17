@@ -26,7 +26,7 @@ class Generate(BaseModel):
     label: str = Field(min_length=1, max_length=30)
     description: str = Field(default='', max_length=300)
     external_accepted: bool = False
-    expected_backend: Literal['huggingface', 'gemini']
+    expected_backend: Literal['huggingface', 'gemini', 'openrouter']
     expected_model: str = Field(min_length=1, max_length=160)
     scope: Literal['private', 'shared'] = 'private'
     user_id: str | None = Field(default=None, max_length=64)

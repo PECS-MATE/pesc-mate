@@ -67,7 +67,7 @@ def generation_quota(reserve=False):
 
 
 def status():
-    backend = os.getenv('IMAGE_GENERATION_PROVIDER', 'gemini').strip().lower()
+    backend = os.getenv('IMAGE_GENERATION_PROVIDER', 'openrouter').strip().lower()
     if backend == 'huggingface':
         model = os.getenv('HF_IMAGE_MODEL', 'black-forest-labs/FLUX.1-schnell').strip()
         provider = os.getenv('HF_IMAGE_PROVIDER', 'fal-ai').strip()
@@ -79,6 +79,11 @@ def status():
         model = os.getenv('GEMINI_IMAGE_MODEL', 'gemini-2.5-flash-image').strip()
         ready = bool(os.getenv('GEMINI_API_KEY') and re.fullmatch(r'[a-zA-Z0-9._-]{1,100}', model))
         provider, name, recipient = 'google', 'Gemini', 'Google'
+    elif backend == 'openrouter':
+        model = os.getenv('OPENROUTER_IMAGE_MODEL', 'google/gemini-2.5-flash-image').strip()
+        ready = bool(os.getenv('OPENROUTER_API_KEY', '').strip() and
+                     re.fullmatch(r'google/[a-zA-Z0-9._-]*image[a-zA-Z0-9._-]*', model))
+        provider, name, recipient = 'google', 'Gemini · OpenRouter', 'OpenRouter 및 Google'
     else:
         model, provider, name, recipient, ready = '', '', '미설정', '외부 이미지 서비스', False
     return {'generation_ready': ready, 'generation_backend': backend,
@@ -139,6 +144,8 @@ def generate(label, accepted, description=''):
     generation_quota(reserve=True)
     if configuration['generation_backend'] == 'huggingface':
         return generate_huggingface(prompt, model, configuration['inference_provider'])
+    if configuration['generation_backend'] == 'openrouter':
+        return generate_openrouter(prompt, model)
     body = {'contents': [{'parts': [{'text': prompt}]}],
             'generationConfig': {'responseModalities': ['TEXT', 'IMAGE']}}
     req = Request(f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent',
@@ -162,6 +169,39 @@ def generate(label, accepted, description=''):
     except (TimeoutError, URLError, HTTPError, ValueError, KeyError, TypeError, AttributeError):
         # Never forward vendor bodies, credentials or prompts to clients/logs.
         raise HTTPException(502, '이미지를 생성하지 못했습니다. 모델·한도·결제 설정을 확인하세요. 재시도 시 비용이 발생할 수 있습니다.') from None
+
+
+def generate_openrouter(prompt, model):
+    request = Request('https://openrouter.ai/api/v1/images', method='POST',
+        data=json.dumps({'model': model, 'prompt': prompt, 'n': 1, 'aspect_ratio': '1:1',
+                         'provider': {'allow_fallbacks': False}}).encode(),
+        headers={'Content-Type': 'application/json',
+                 'Authorization': 'Bearer ' + os.environ['OPENROUTER_API_KEY'].strip()})
+    try:
+        with build_opener(NoRedirect()).open(request, timeout=80) as response:
+            raw = response.read(8 * 1024 * 1024 + 1)
+        if len(raw) > 8 * 1024 * 1024:
+            raise ValueError('oversized response')
+        result = json.loads(raw)
+        images = result.get('data') if isinstance(result, dict) else None
+        if not isinstance(images, list) or not images or not isinstance(images[0], dict):
+            raise ValueError('missing image')
+        image = images[0]
+        data = base64.b64decode(image['b64_json'], validate=True)
+        # Do not fetch arbitrary response URLs or expose provider errors.
+        return preview(data, image.get('media_type') or 'image/png', 'Gemini · OpenRouter / ' + model)
+    except HTTPError as exc:
+        if exc.code == 402:
+            message = 'OpenRouter 크레딧을 충전한 뒤 다시 생성해 주세요.'
+        elif exc.code in {401, 403}:
+            message = 'OpenRouter 키의 이미지 모델 사용 권한을 확인해 주세요.'
+        elif exc.code == 429:
+            message = '이미지 생성 요청이 많습니다. 잠시 후 다시 시도해 주세요.'
+        else:
+            message = '그림을 생성하지 못했습니다. OpenRouter 모델 상태를 확인해 주세요.'
+        raise HTTPException(502, message) from None
+    except (TimeoutError, URLError, HTTPError, ValueError, KeyError, TypeError, AttributeError):
+        raise HTTPException(502, '그림을 생성하지 못했습니다. OpenRouter 잔액과 모델을 확인해 주세요. 자동 재시도하지 않습니다.') from None
 
 
 def generate_huggingface(prompt, model, provider):

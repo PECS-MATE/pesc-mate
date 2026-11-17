@@ -78,6 +78,7 @@ def test_failed_paid_request_remains_counted_without_retry(db, monkeypatch):
 
 
 def test_no_key_or_consent_never_reserves_quota(db, monkeypatch):
+    monkeypatch.setenv('IMAGE_GENERATION_PROVIDER', 'gemini')
     monkeypatch.delenv('GEMINI_API_KEY', raising=False)
     for consent in (False, True):
         with pytest.raises(HTTPException):
@@ -91,3 +92,59 @@ def test_anonymous_generation_is_rejected_before_quota(client, db):
         'expected_model': 'gemini-2.5-flash-image', 'scope': 'shared', 'external_accepted': True})
     assert response.status_code == 401
     assert db.image_generation_usage.count_documents({}) == 0
+
+
+def test_openrouter_uses_existing_key_and_normalizes_one_image(db, monkeypatch, png_bytes):
+    monkeypatch.setenv('IMAGE_GENERATION_PROVIDER', 'openrouter')
+    monkeypatch.setenv('OPENROUTER_API_KEY', 'synthetic-openrouter-key')
+    calls = []
+    class Opener:
+        def open(self, request, timeout):
+            calls.append((request.full_url, json.loads(request.data), request.get_header('Authorization')))
+            return BytesIO(json.dumps({'data': [{'b64_json': base64.b64encode(png_bytes).decode(),
+                                                'media_type': 'image/png'}]}).encode())
+    monkeypatch.setattr(tools, 'build_opener', lambda *args: Opener())
+    assert tools.status()['generation_ready']
+    result = tools.generate('물컵', True)
+    assert result['data_url'].startswith('data:image/')
+    assert result['review_required']
+    endpoint, body, authorization = calls[0]
+    assert endpoint == 'https://openrouter.ai/api/v1/images'
+    assert body['model'] == 'google/gemini-2.5-flash-image'
+    assert body['n'] == 1 and body['aspect_ratio'] == '1:1'
+    assert authorization == 'Bearer synthetic-openrouter-key'
+    assert tools.generation_quota()['used'] == 1
+
+
+@pytest.mark.parametrize('payload', [{'data': []}, {'data': [{'url': 'http://localhost/private'}]},
+                                   {'data': [{'b64_json': 'not-base64'}]}])
+def test_openrouter_invalid_images_are_not_fetched_or_retried(db, monkeypatch, payload):
+    monkeypatch.setenv('IMAGE_GENERATION_PROVIDER', 'openrouter')
+    monkeypatch.setenv('OPENROUTER_API_KEY', 'synthetic-secret')
+    calls = []
+    class Opener:
+        def open(self, *args, **kwargs):
+            calls.append(1)
+            return BytesIO(json.dumps(payload).encode())
+    monkeypatch.setattr(tools, 'build_opener', lambda *args: Opener())
+    with pytest.raises(HTTPException) as error:
+        tools.generate('물', True)
+    assert error.value.status_code == 502 and len(calls) == 1
+    assert 'synthetic-secret' not in error.value.detail
+    assert tools.generation_quota()['used'] == 1
+
+
+def test_openrouter_credit_failure_has_actionable_message_without_retry(db, monkeypatch):
+    from urllib.error import HTTPError
+    monkeypatch.setenv('IMAGE_GENERATION_PROVIDER', 'openrouter')
+    monkeypatch.setenv('OPENROUTER_API_KEY', 'synthetic-secret')
+    calls = []
+    class Opener:
+        def open(self, *args, **kwargs):
+            calls.append(1)
+            raise HTTPError('https://openrouter.ai/api/v1/images', 402, 'Payment required', {}, None)
+    monkeypatch.setattr(tools, 'build_opener', lambda *args: Opener())
+    with pytest.raises(HTTPException) as error:
+        tools.generate('물', True)
+    assert '크레딧을 충전' in error.value.detail
+    assert len(calls) == 1
