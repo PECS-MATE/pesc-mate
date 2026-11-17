@@ -49,7 +49,7 @@ export default function CardImageTools({ label = '', category = '', file, target
     <summary>AI 카드 그림 만들기 · 배경 제거</summary>
     {opened && <>
       <p>카드 이름과 설명으로 새 그림을 만들고, 확인한 그림만 카드에 적용하세요.</p>
-      <p className="form-notice">기존 카드 제작 지침과 카드별 장면을 자동으로 참고합니다.</p>
+      <p className="form-notice">기본 제작 규칙을 적용합니다. 원하는 장면은 그림 설명에 입력하세요.</p>
       <button type="button" disabled={busy || disabled} onClick={() => run('status')}>사용 가능 여부 확인</button>
       {config && <>
         <p>{config.generation_provider} · {config.generation_ready ? `${config.model} · 설정됨` : '서버 토큰·모델·패키지 설정 필요'}</p>

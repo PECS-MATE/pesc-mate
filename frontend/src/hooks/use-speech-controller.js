@@ -99,13 +99,14 @@ export default function useSpeechController({
     const currentVoices = koreanVoices(window.speechSynthesis?.getVoices() || []);
     const voice = selectTtsVoice(currentVoices.length ? currentVoices : ttsVoices, ttsSettings.voiceName, offline);
     const cloudSpeech = import.meta.env.VITE_TTS_PROVIDER === 'qwen-api' && !offline;
-    const coreAudioUrl = playback.speechOnly || cloudSpeech ? null : coreSpeechCache.urlFor(content, { online: !offline, voice: ttsSettings.preset });
+    const generatedSentence = contentType === 'sentence' && !offline && !playback.speechOnly;
+    const coreAudioUrl = playback.speechOnly || cloudSpeech || generatedSentence ? null : coreSpeechCache.urlFor(content, { online: !offline, voice: ttsSettings.preset });
     setSpeechState({ status: 'starting', content });
     speechPlayback.speak({
       text: content, voice: playback.systemVoice ? null : voice,
       rate: ttsSettings.rate, pitch: ttsSettings.pitch, volume: ttsSettings.volume,
       audioUrl: coreAudioUrl,
-      preferAudio: !playback.speechOnly && (Boolean(coreAudioUrl) || playback.preferAudio || offline || !voice),
+      preferAudio: !playback.speechOnly && (generatedSentence || Boolean(coreAudioUrl) || playback.preferAudio || offline || !voice),
       resolveAudio: !offline && !coreAudioUrl && !playback.speechOnly && !playback.audioOnly
         ? signal => requestSpeechAudio(content, ttsSettings.rate, signal, ttsSettings.preset) : null,
       allowSpeechFallback: !playback.audioOnly && Boolean(offline || playback.speechOnly),

@@ -47,6 +47,8 @@ services:
       MONGODB_URI: mongodb://mongodb:27017
       MELO_TTS_URL: http://melotts:8090
       SPEECH_TTS_PROVIDER: "${SPEECH_TTS_PROVIDER:-melotts}"
+      SPEECH_TTS_URL: "${SPEECH_TTS_URL:-}"
+      SPEECH_TIMEOUT_SECONDS: "${SPEECH_TIMEOUT_SECONDS:-35}"
       DASHSCOPE_API_KEY: "${DASHSCOPE_API_KEY:-}"
       QWEN_API_MODEL: "${QWEN_API_MODEL:-qwen3-tts-flash}"
       QWEN_API_GIRL_VOICE: "${QWEN_API_GIRL_VOICE:-Cherry}"
@@ -129,6 +131,7 @@ services:
       VITE_API_BASE_URL: ""
       VITE_PROXY_TARGET: http://backend:8000
       VITE_TTS_PROVIDER: "${SPEECH_TTS_PROVIDER:-melotts}"
+      VITE_SPEECH_TIMEOUT_SECONDS: "${VITE_SPEECH_TIMEOUT_SECONDS:-125}"
       VITE_USE_POLLING: "true"
     depends_on:
       backend:

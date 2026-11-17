@@ -108,7 +108,7 @@ def test_openrouter_uses_existing_key_and_normalizes_one_image(db, monkeypatch, 
     result = tools.generate('물컵', True)
     assert result['data_url'].startswith('data:image/')
     assert result['review_required']
-    assert result['guideline_version'] == 'card-image-guidelines-v2'
+    assert result['guideline_version'] == 'card-image-guidelines-v3-rules-only'
     assert result['reference_ids'][0] == 'aac-common'
     endpoint, body, authorization = calls[0]
     assert endpoint == 'https://openrouter.ai/api/v1/images'

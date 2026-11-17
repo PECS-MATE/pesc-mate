@@ -1,6 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import useSpeechController, { useCoreSpeechPreparation } from './use-speech-controller';
+import * as api from '../services/api';
 
 afterEach(() => vi.unstubAllEnvs());
 function harness(offline = false) {
@@ -28,6 +29,20 @@ it('uses the selected child voice for urgent and recovery phrases', () => {
   const { props, controller } = harness();
   controller.speakText('도와주세요', 'quick');
   expect(props.coreSpeechCache.urlFor).toHaveBeenCalledWith('도와주세요', { online: true, voice: 'boy' });
+});
+
+it.each(['girl', 'boy'])('synthesizes a generated sentence using the selected local %s reference', async preset => {
+  vi.stubEnv('VITE_TTS_PROVIDER', 'qwen3-tts');
+  const fetchAudio = vi.spyOn(api, 'requestSpeechAudio').mockResolvedValue(new Blob(['synthetic']));
+  const { props, controller } = harness();
+  props.ttsSettings.preset = preset;
+  controller.speakText('물을 마시고 싶어요.', 'sentence', ['water', 'drink']);
+  const options = props.speechPlayback.speak.mock.calls[0][0];
+  expect(props.coreSpeechCache.urlFor).not.toHaveBeenCalled();
+  expect(options).toMatchObject({ preferAudio: true, audioUrl: null, allowSpeechFallback: false });
+  const signal = new AbortController().signal;
+  await options.resolveAudio(signal);
+  expect(fetchAudio).toHaveBeenCalledWith('물을 마시고 싶어요.', .9, signal, preset);
 });
 it('uses cloud speech online rather than a clip from a different provider', () => {
   vi.stubEnv('VITE_TTS_PROVIDER', 'qwen-api');
