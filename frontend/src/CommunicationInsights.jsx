@@ -16,7 +16,7 @@ export function SessionDetails({ record, cardPicture, fallbackCards }) {
     : record.cards.map(id => fallbackCards[id] || { id, label: id });
   return <div className="session-details">
     <strong>{record.regeneration_of ? `재생성 ${(record.generation_attempt || 2) - 1}회차` : '문장 생성'}
-      {record.generation_source === 'ollama' ? ' · 모델 생성' : record.generation_source === 'rule' ? ' · 규칙 기반' : ' · 생성 방식 기록 없음'}</strong>
+      {['ollama', 'openrouter'].includes(record.generation_source) ? ' · 모델 생성' : record.generation_source === 'rule' ? ' · 규칙 기반' : ' · 생성 방식 기록 없음'}</strong>
     {record.regeneration_of && <small>원본 기록 번호: {record.regeneration_of}</small>}
     <span>저장된 카드 순서</span>
     <ol className="session-card-order">{cards.map((card, index) => <li key={`${card.id}-${index}`}>

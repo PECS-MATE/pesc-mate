@@ -15,6 +15,7 @@ from app.services import database as database_module
 def forbid_external_services(monkeypatch):
     monkeypatch.setenv('DEMO_ACCOUNTS_ENABLED', 'false')
     monkeypatch.setenv('OLLAMA_ENABLED', 'false')
+    monkeypatch.setenv('SENTENCE_PROVIDER', 'ollama')
     def forbidden(*args, **kwargs):
         raise AssertionError('External service access is forbidden in the default suite')
     monkeypatch.setattr(database_module, 'client', forbidden)

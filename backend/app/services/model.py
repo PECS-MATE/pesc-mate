@@ -20,10 +20,18 @@ _warming = Event()
 
 
 def enabled():
+    if provider() == 'openrouter':
+        return bool(os.environ.get('OPENROUTER_API_KEY', '').strip())
     return os.environ.get('OLLAMA_ENABLED', 'false').lower() in {'1', 'true', 'yes', 'on'}
 
 
+def provider():
+    return os.environ.get('SENTENCE_PROVIDER', 'ollama').strip()
+
+
 def warmup_enabled():
+    if provider() == 'openrouter':
+        return False
     return os.environ.get('OLLAMA_WARMUP_ENABLED', 'true').lower() in {'1', 'true', 'yes', 'on'}
 
 
@@ -43,6 +51,11 @@ def _timeout(name, default):
 
 
 def _settings():
+    if provider() == 'openrouter':
+        return {
+            'model': os.environ.get('OPENROUTER_MODEL', 'qwen/qwen3-30b-a3b-instruct-2507'),
+            'num_predict': _integer_setting('OPENROUTER_MAX_TOKENS', 96, 32, 128),
+        }
     keep_alive = os.environ.get('OLLAMA_KEEP_ALIVE', '30m').strip()
     if re.fullmatch(r'-?\d+', keep_alive):
         keep_alive = int(keep_alive)
@@ -131,6 +144,8 @@ def generate_sentence(labels, fallback, *, metrics=None):
         _performance(metrics, started, 'warming_up' if _warming.is_set() else 'busy')
         return fallback, 'rule'
     try:
+        if provider() == 'openrouter':
+            return _generate_openrouter(labels, fallback, metrics, started)
         settings = _settings()
         payload = {
             'model': settings['model'], 'stream': False, 'think': False,
@@ -160,6 +175,45 @@ def generate_sentence(labels, fallback, *, metrics=None):
 
 def status():
     settings = _settings()
-    return {'enabled': enabled(), 'model': settings.pop('model'),
+    return {'enabled': enabled(), 'provider': provider(), 'model': settings.pop('model'),
             'policy_versions': policy_versions(), 'settings': settings,
             'warmup_enabled': warmup_enabled(), 'warming_up': _warming.is_set()}
+
+
+def _generate_openrouter(labels, fallback, metrics, started):
+    settings = _settings()
+    payload = {
+        'model': settings['model'], 'stream': False, 'temperature': 0.1,
+        'max_tokens': settings['num_predict'], 'reasoning': {'enabled': False},
+        'messages': [
+            {'role': 'system', 'content': system_prompt()},
+            {'role': 'user', 'content': _sentence_prompt(labels, fallback)},
+        ],
+        'provider': {'sort': 'latency', 'max_price': {'prompt': 0.5, 'completion': 1}},
+    }
+    request = Request('https://openrouter.ai/api/v1/chat/completions',
+                      data=json.dumps(payload, ensure_ascii=False).encode('utf-8'), method='POST',
+                      headers={'Content-Type': 'application/json',
+                               'Authorization': 'Bearer ' + os.environ['OPENROUTER_API_KEY'].strip()})
+    with urlopen(request, timeout=_timeout('OPENROUTER_TIMEOUT_SECONDS', 8)) as response:
+        body = response.read(65537)
+    if len(body) > 65536:
+        raise ValueError('Oversized model response')
+    result = json.loads(body)
+    choices = result.get('choices') if isinstance(result, dict) else None
+    if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
+        raise ValueError('Missing model response')
+    choice = choices[0]
+    message = choice.get('message')
+    if choice.get('finish_reason') != 'stop' or not isinstance(message, dict) or not isinstance(message.get('content'), str):
+        raise ValueError('Incomplete model response')
+    text = message['content'].strip().strip('"')
+    if not _valid_response(text, labels):
+        raise ValueError('Invalid model response')
+    _performance(metrics, started, 'generated')
+    usage = result.get('usage', {})
+    if metrics is not None and isinstance(usage, dict):
+        for source, target in (('prompt_tokens', 'input_tokens'), ('completion_tokens', 'output_tokens')):
+            if type(usage.get(source)) is int and usage[source] >= 0:
+                metrics[target] = usage[source]
+    return text, 'openrouter'

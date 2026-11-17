@@ -11,6 +11,7 @@ from pymongo.errors import PyMongoError
 
 from app.services.database import client
 from app.services.model import enabled as ollama_enabled
+from app.services.model import provider as sentence_provider
 from app.services.speech_runtime import speech_runtime
 
 CHECK_TIMEOUT_SECONDS = 2.0
@@ -35,6 +36,11 @@ def _model_name(name):
 
 def _ollama_check():
     check = {'status': 'disabled', 'required': False, 'detail': 'disabled', 'fallback': 'rule'}
+    if sentence_provider() == 'openrouter':
+        configured = ollama_enabled()
+        check.update(provider='openrouter', status='ok' if configured else 'unavailable',
+                     detail='configured_not_verified' if configured else 'missing_api_key')
+        return check
     if not ollama_enabled():
         return check
 

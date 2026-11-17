@@ -347,7 +347,7 @@ def _recent_ai_sentence(collection, user_id, card_ids, snapshots, versions, runt
         for row in rows:
             generation = row.get('generation') or {}
             if (row.get('cards') != card_ids or row.get('card_metadata', {}) != snapshots
-                    or row.get('generation_source') != 'ollama'
+                    or row.get('generation_source') != runtime.get('provider', 'ollama')
                     or generation.get('model') != runtime['model'] or generation.get('versions') != versions):
                 continue
             text = row.get('sentence')
@@ -389,7 +389,7 @@ def save_session(request, user_id, custom_cards=None, regeneration_of=None, gene
     reused = None if regeneration_of else _recent_ai_sentence(
         collection, user_id, card_ids, snapshots, versions, runtime, [card_index[key] for key in card_ids])
     if reused is not None:
-        result, generation_source = reused, 'ollama'
+        result, generation_source = reused, runtime.get('provider', 'ollama')
         performance.update(status='reused', elapsed_ms=round((perf_counter() - started) * 1000, 1))
     else:
         result, generation_source = generate_sentence(
@@ -398,7 +398,7 @@ def save_session(request, user_id, custom_cards=None, regeneration_of=None, gene
     validation = validate_semantics([card_index[key] for key in card_ids], result)
     safety = validate_safety(result)
     fallback_reasons = []
-    if generation_source == 'ollama' and (not validation['passed'] or not safety['passed']):
+    if generation_source in {'ollama', 'openrouter'} and (not validation['passed'] or not safety['passed']):
         fallback_reasons = validation['missing_card_ids'] + safety['flags']
         logger.warning('MODEL | FALLBACK | 문장 검증 실패 (%s)', ','.join(fallback_reasons))
         result, generation_source = fallback, 'rule'
@@ -410,7 +410,7 @@ def save_session(request, user_id, custom_cards=None, regeneration_of=None, gene
         generation = {
             'source': generation_source,
             'initial_source': initial_source,
-            'model': runtime['model'] if initial_source == 'ollama' else None,
+            'model': runtime['model'] if initial_source in {'ollama', 'openrouter'} else None,
             'versions': versions,
             'performance': performance,
             'validation': {
