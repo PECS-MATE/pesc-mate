@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import ManagedCardList from '../ManagedCardList';
 import '../assets/supportWorkspace.css';
 import { EmptyState } from "../Mascot";
 import { Avatar } from "../Profile";
@@ -41,6 +43,7 @@ import { artStyle } from "../services/cardMedia";
 // Pure page rendering. USB and audio controllers remain mounted in App.
 export default function SupportWorkspacePage({ tab, canManageContent, user, isSupporter, canManageBoard, selectedUser, isCaregiver, changeLinkedUser, linkedUsers, canManageCards, cardCategories, offline, setTab, openSupportSection, openLearning, canManageLearning, canReadRecords, canManageQuick, canManageVoice, selectedPermissions, setEditingSubmission, setCardFormError, setShowCardForm, cardFormBusy, cards, cardSubmissions, statsBusy, loadSupportCards, managedCardSearch, setManagedCardSearch, managedCardCategory, setManagedCardCategory, managedCardNotice, setError, visibleManagedCards, reviewBusy, submitDraft, showCardForm, editingSubmission, cardFormError, submitCard, learningProgress, learningBusy, supportSettingsNotice, learningSettings, saveLearningConfiguration, updateLearningSetting, boardConfigBusy, reloadBoardConfiguration, boardConflict, boardLayout, quickDraft, recoveryDraft, slotDraft, setQuickDraft, setRecoveryDraft, setSlotDraft, saveBoardConfiguration, cardPicture, setBoardLayout, boardLayoutAudit, caregiverSettingsDirty, ttsSettingsBusy, accessibilityBusy, ttsSettings, changeTtsPreset, updateTtsSettings, ttsSettingsSaved, saveTtsSettings, accessibility, updateAccessibility, accessibilitySaved, saveAccessibility, canManageAccounts, handleLogout, adminCategories, adminSubmissions, categoryError, categoryBusy, categoryEdits, setCategoryEdits, addCategory, saveCategory, reviewDrafts, setReviewDrafts, reviewCard, setAdminSubmissions, refreshAdminCards, period, changePeriod, stats, loaded, canWriteNotes, noteDrafts, setNoteDrafts, noteBusy, saveCaregiverNote, removeCaregiverNote }) {
 
+const [managedFocusRequest, setManagedFocusRequest] = useState(0);
 return (tab === 'rfid_check' && canManageContent ? (<RfidChipCheckPage key={user.id} accountId={user.id} artStyle={artStyle} />) :
 tab === 'rfid_registration' && canManageContent ? (<RfidChipRegistration key={user.id} accountId={user.id} artStyle={artStyle} />) :
 tab === 'rfid' && isSupporter && canManageBoard && selectedUser ? (<div>
@@ -87,20 +90,23 @@ tab === 'card_settings' && isSupporter && canManageCards ? (<section className="
         <label>분류<select value={managedCardCategory} onChange={event => setManagedCardCategory(event.target.value)}><option value="">모든 분류</option>{[...new Set(cardSubmissions.map(item => item.category))].map(name => <option key={name} value={name}>{name}</option>)}</select></label></div>}
       {isCaregiver && managedCardNotice?.targetId === selectedUser?.id && <div className="caregiver-save-result">
         <p role="status">{selectedUser.name}님의 ‘{managedCardNotice.label}’ 카드를 {managedCardNotice.draft ? '임시 저장했어요. 사용 시작 전에는 아이에게 표시되지 않아요.' : '저장했어요.'}</p>
-        <button type="button" onClick={() => { setManagedCardSearch(''); setManagedCardCategory(''); requestAnimationFrame(() => {
+        <button type="button" onClick={() => { setManagedCardSearch(''); setManagedCardCategory(''); setManagedFocusRequest(value => value + 1); requestAnimationFrame(() => {
           const target = document.getElementById(`managed-card-${managedCardNotice.id}`); target?.scrollIntoView({ block: 'center' }); target?.focus({ preventScroll: true });
         }); }}>등록한 카드 보기</button>
         {canManageBoard && <button type="button" onClick={() => openSupportSection('board_settings')}>카드판 관리로 이동</button>}
       </div>}
-      {cardSubmissions.some(item => item.visibility === 'private') && <section className="private-card-photos" aria-label="개인 카드 사진 교체 목록">
-        <h3>사진 교체</h3>
+      {cardSubmissions.some(item => item.visibility === 'private') && <details className="private-card-photos" aria-label="개인 카드 사진 교체 목록">
+        <summary>사진 교체</summary>
         <ul>{cardSubmissions.filter(item => item.visibility === 'private').map(item => <li key={`${user.id}:${selectedUser.id}:${item.id}`}>
           <span>{item.label}</span><CardPhotoReplacement card={item} targetId={selectedUser.id} disabled={offline || statsBusy || cardFormBusy}
             onReplaced={() => loadSupportCards(selectedUser)}
             onRefresh={() => loadSupportCards(selectedUser).catch(failure => setError(failure.message))} />
         </li>)}</ul>
-      </section>}
-      <div className="submission-list" id="managed-card-list"><h3>등록 카드</h3>{statsBusy ? <p role="status">카드를 불러오고 있어요.</p> : visibleManagedCards.length ? <ul>{visibleManagedCards.map(item => <li key={item.id} id={`managed-card-${item.id}`} tabIndex="-1"><span><strong>{item.label}</strong><small>{item.category}{!isCaregiver && <> · {item.sharing_notice || (item.visibility === 'private' ? '연결 사용자만 사용' : '공개 요청')}</>}</small></span><div className="submission-actions"><b className={`submission-status ${item.status}`}>{item.visibility === 'private' && item.status === 'approved' ? '사용 중' : ({ draft: '작성 중', pending: '승인 대기', approved: '공개 승인', rejected: '반려', inactive: '비활성' })[item.status] || item.status}</b>{['draft', 'rejected'].includes(item.status) && <button disabled={reviewBusy === item.id} onClick={() => { setEditingSubmission(item); setCardFormError(''); setShowCardForm(true); }}>수정</button>}{item.status === 'draft' && <button className="primary" disabled={reviewBusy === item.id} onClick={() => submitDraft(item)}>{item.visibility === 'private' ? '사용 시작' : '공개 승인 요청'}</button>}</div></li>)}</ul> : <div className="caregiver-card-empty"><UiIcon name="cards" size={44} /><strong>{cardSubmissions.length ? '검색 조건에 맞는 카드가 없어요.' : '등록된 개인 카드가 없습니다.'}</strong></div>}</div>
+      </details>}
+      <ManagedCardList key={`${selectedUser?.id}:${managedCardSearch}:${managedCardCategory}:${managedCardNotice?.id || ""}:${managedFocusRequest}`}
+        items={visibleManagedCards} total={cardSubmissions.length} loading={statsBusy} isCaregiver={isCaregiver}
+        focusId={managedCardNotice?.id} reviewBusy={reviewBusy} onSubmitDraft={submitDraft}
+        onEdit={item => { setEditingSubmission(item); setCardFormError(''); setShowCardForm(true); }} />
       {showCardForm && <CardEditorDialog key={`${selectedUser?.id}:${editingSubmission?.id || 'new-card'}`}
         editing={editingSubmission} categories={cardCategories} privateOnly targetName={selectedUser?.name}
         targetId={selectedUser?.id} ocrDisabled={offline || statsBusy}
