@@ -1,3 +1,4 @@
+import '../assets/supportWorkspace.css';
 import { EmptyState } from "../Mascot";
 import { Avatar } from "../Profile";
 
@@ -43,9 +44,9 @@ export default function SupportWorkspacePage({ tab, canManageContent, user, isSu
 return (tab === 'rfid_check' && canManageContent ? (<RfidChipCheckPage key={user.id} accountId={user.id} artStyle={artStyle} />) :
 tab === 'rfid_registration' && canManageContent ? (<RfidChipRegistration key={user.id} accountId={user.id} artStyle={artStyle} />) :
 tab === 'rfid' && isSupporter && canManageBoard && selectedUser ? (<div>
-        <label>{isCaregiver ? '아이 선택' : 'RFID 관리 사용자'}<select value={selectedUser.id} onChange={event => changeLinkedUser(event.target.value)}>
+        <div className="support-context-toolbar"><label className="user-picker">{isCaregiver ? '아이 선택' : 'RFID 관리 사용자'}<select value={selectedUser.id} onChange={event => changeLinkedUser(event.target.value)}>
           {linkedUsers.filter(person => person.permissions.includes('board_manage')).map(person => <option key={person.id} value={person.id}>{person.name}</option>)}
-        </select></label>
+        </select></label></div>
         <RfidBoard key={`rfid-${user.id}-${selectedUser.id}-${canManageCards}`} targetId={selectedUser.id} targetName={selectedUser.name} variant={isCaregiver ? 'caregiver' : 'default'} manager canMap={canManageCards} />
       </div>) : 
 tab === 'support_home' && isCaregiver ? (<A4SharingGallery key={`sharing-${user.id}`} accountId={user.id} categories={cardCategories} disabled={offline} />) : 
@@ -73,7 +74,9 @@ tab === 'support_home' && isSupporter ? (<section className="support-home">
       </section>) : 
 tab === 'card_settings' && isSupporter && canManageCards ? (<section className="card-catalog">
       <div className="caregiver-card-toolbar"><div className="catalog-toolbar"><div><h2>{selectedUser?.name}님의 개인 카드</h2></div><button className="primary" onClick={() => { setEditingSubmission(null); setCardFormError(''); setShowCardForm(true); }}><UiIcon name="plus" />개인 카드 등록</button></div>
+      <div className="support-context-toolbar">
       <label className="user-picker">{isCaregiver ? '아이 선택' : '관리 사용자'}<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)} disabled={cardFormBusy}>{linkedUsers.filter(person => person.permissions.includes('cards_manage')).map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label></div>
+      </div>
       {selectedUser && <PhysicalCardImporter key={`physical-${user.id}:${selectedUser.id}`} targetId={selectedUser.id}
         categories={cardCategories} existingCards={[...cards, ...cardSubmissions]} disabled={offline || statsBusy || cardFormBusy}
         onSaved={() => loadSupportCards(selectedUser)} />}
@@ -110,7 +113,9 @@ tab === 'learning_progress' && isSupporter && canManageLearning ? (<section clas
       {isCaregiver ? <div className="caregiver-record-scope"><p>연습 설정과 최근 30일 연습 기록을 별도로 확인해요.</p><details><summary>기록 해석 안내</summary><p>연습 참여와 단어별 결과이며 문장 저장·카드 사용과 합산하지 않아요. 실제 상황의 의사소통 능력 평가나 진단이 아니에요.</p></details></div> : <p className="record-scope-note">연습 참여 횟수와 단어별 연습 결과만 표시합니다. 문장 저장·카드 사용 횟수에는 합산하지 않으며, 의사소통 능력의 평가나 진단이 아닙니다.</p>}
       {learningProgress && selectedUser && <RecordExport key={`learning-${user.id}-${selectedUser.id}`}
         domain="learning" variant={isCaregiver ? 'caregiver' : 'default'} targetId={selectedUser.id} days={30} disabled={offline || learningBusy} />}
+      <div className="support-context-toolbar">
       <label className="user-picker">{isCaregiver ? '아이 선택' : '조회 사용자'}<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)} disabled={learningBusy}>{linkedUsers.filter(person => person.permissions.includes('learning_manage')).map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>
+      </div>
       {selectedUser && canManageCards && <LearningProgram key={`course-${user.id}:${selectedUser.id}`} manager
         accountId={user.id} targetId={selectedUser.id} disabled={offline || learningBusy} />}
       {learningBusy ? <p role="status">학습 기록을 불러오는 중입니다…</p> : learningProgress && <div className="learning-overview-grid">
@@ -120,8 +125,10 @@ tab === 'learning_progress' && isSupporter && canManageLearning ? (<section clas
     </section>) : 
 tab === 'board_settings' && isSupporter && (canManageQuick || canManageBoard) ? (<section className="board-settings-panel">
       <div className="panel-heading"><span aria-hidden="true"><UiIcon name="grid" /></span><div><h2>빠른 표현·카드판</h2></div></div>
+      <div className="support-context-toolbar">
       <label className="user-picker">{isCaregiver ? '아이 선택' : '설정 사용자'}<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)} disabled={statsBusy}>{linkedUsers.filter(person => person.permissions.some(permission => ['quick_speech_manage', 'board_manage'].includes(permission))).map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>
       <IconButton icon="refresh" label="저장된 카드판 다시 불러오기" disabled={offline || Boolean(boardConfigBusy) || statsBusy} onClick={() => { if (window.confirm('편집 내용을 버리고 저장된 카드판을 불러올까요?')) reloadBoardConfiguration(); }} />
+      </div>
       {boardConflict && <div className="error" role="alert" data-testid="board-conflict"><span>다른 기기에서 카드판을 변경했습니다. 현재 편집 내용은 화면에 남아 있으며 저장하지 않았습니다. 최신 구성을 불러오면 현재 편집 내용이 바뀝니다.</span><button type="button" disabled={Boolean(boardConfigBusy)} onClick={reloadBoardConfiguration}>최신 카드판 불러오기</button></div>}
       {boardLayout && boardLayout.user_id === selectedUser?.id && <fieldset className="board-config-workspace" aria-label="카드판 구성 편집" disabled={offline || Boolean(boardConfigBusy) || statsBusy || boardConflict}>
         <BoardConfiguration key={`board-editor-${user.id}-${selectedUser.id}`} layout={boardLayout} canManageQuick={canManageQuick} canManageBoard={canManageBoard}
@@ -146,7 +153,9 @@ tab === 'board_settings' && isSupporter && (canManageQuick || canManageBoard) ? 
     </section>) : 
 tab === 'support_settings' && isSupporter && canManageVoice ? (<section className="support-settings-panel">
       <div className="panel-heading"><span aria-hidden="true"><UiIcon name="accessibility" /></span><div><h2>{isCaregiver ? `${selectedUser?.name}님의 아이 설정` : '음성·접근 설정'}</h2><p className="muted">{selectedUser?.name} 사용자에게 적용할 설정입니다.</p></div></div>
+      <div className="support-context-toolbar">
       <label className="user-picker">{isCaregiver ? '아이 선택' : '설정 사용자'}<select value={selectedUser?.id || ''} onChange={event => changeLinkedUser(event.target.value)} disabled={statsBusy}>{linkedUsers.filter(person => person.permissions.includes('voice_access_manage')).map(person => <option key={person.id} value={person.id}>{person.name} ({person.username})</option>)}</select></label>
+      </div>
       {isCaregiver && supportSettingsNotice?.targetId === selectedUser?.id && <p role="status">{supportSettingsNotice.message}</p>}
       {isCaregiver && caregiverSettingsDirty && <p className="caregiver-unsaved" role="status">{selectedUser?.name}님의 변경 사항이 아직 저장되지 않았어요.</p>}
       <fieldset className="support-settings-fieldset" disabled={isCaregiver && (statsBusy || ttsSettingsBusy || accessibilityBusy)}><legend className="visually-hidden">아이 음성 및 화면 설정</legend>

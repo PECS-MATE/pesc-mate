@@ -1,0 +1,93 @@
+/* Keep account selection and its actions together at every workspace width. */
+.app .support-context-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  margin-bottom: 20px;
+}
+.app .support-context-toolbar > .user-picker,
+.app.caregiver-ui .support-context-toolbar > .user-picker {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px 12px;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+.app .support-context-toolbar .user-picker select,
+.app.caregiver-ui .support-context-toolbar .user-picker select {
+  flex: 1 1 160px;
+  width: 220px;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 44px;
+  margin: 0;
+  border-radius: 10px;
+  text-overflow: ellipsis;
+}
+.app .support-context-toolbar > .icon-action {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 8px;
+  border-radius: 10px;
+}
+
+/* Put the card heading, account selector and create action on intentional rows. */
+.app .caregiver-card-toolbar,
+.app.caregiver-ui .caregiver-card-toolbar {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(160px, 280px) auto;
+  align-items: center;
+  gap: 16px;
+}
+.app .caregiver-card-toolbar .catalog-toolbar { display: contents; }
+.app .caregiver-card-toolbar .catalog-toolbar > div { grid-column: 1; grid-row: 1; min-width: 0; }
+.app .caregiver-card-toolbar .catalog-toolbar > button { grid-column: 3; grid-row: 1; margin: 0; }
+.app .caregiver-card-toolbar > .user-picker,
+.app.caregiver-ui .caregiver-card-toolbar > .user-picker {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  width: auto;
+  margin: 0;
+}
+.app .caregiver-card-toolbar .user-picker select,
+.app .caregiver-report-toolbar .user-picker select {
+  min-width: 0;
+  max-width: 100%;
+}
+.app .caregiver-card-toolbar .user-picker select { flex: 1 1 140px; width: 180px; }
+.app .caregiver-report-toolbar { gap: 12px; }
+.app .caregiver-report-toolbar > .user-picker { min-width: 0; margin: 0; }
+.app .caregiver-report-toolbar > .period-filter { min-width: 0; flex-wrap: wrap; }
+
+@media (max-width: 1100px) {
+  .app .caregiver-card-toolbar,
+  .app.caregiver-ui .caregiver-card-toolbar { grid-template-columns: minmax(0, 1fr) auto; }
+  .app .caregiver-card-toolbar .catalog-toolbar > div { grid-column: 1 / -1; }
+  .app .caregiver-card-toolbar > .user-picker,
+  .app.caregiver-ui .caregiver-card-toolbar > .user-picker { grid-column: 1; grid-row: 2; }
+  .app .caregiver-card-toolbar .catalog-toolbar > button { grid-column: 2; grid-row: 2; }
+}
+@media (max-width: 480px) {
+  .app .support-context-toolbar { gap: 8px; }
+  .app .support-context-toolbar > .user-picker,
+  .app.caregiver-ui .support-context-toolbar > .user-picker { flex: 1 1 0; padding: 8px; }
+  .app .support-context-toolbar .user-picker select { width: 100%; }
+  .app .caregiver-card-toolbar,
+  .app.caregiver-ui .caregiver-card-toolbar { grid-template-columns: minmax(0, 1fr); }
+  .app .caregiver-card-toolbar > .user-picker,
+  .app.caregiver-ui .caregiver-card-toolbar > .user-picker { grid-column: 1; grid-row: 2; }
+  .app .caregiver-card-toolbar .catalog-toolbar > button { grid-column: 1; grid-row: 3; justify-self: start; }
+}
