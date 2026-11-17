@@ -26,7 +26,7 @@ export default function AdminCardRegistration({ categories, disabled, onCreated 
     let disposed = false;
     let url;
     setPreview('');
-    const image = mode === 'photo' ? Promise.resolve(file) : label.trim()
+    const image = mode !== 'text' ? Promise.resolve(file) : label.trim()
       ? textCardImage(label.trim()) : Promise.resolve(null);
     image.then(blob => {
       if (disposed || !blob) return;
@@ -41,7 +41,7 @@ export default function AdminCardRegistration({ categories, disabled, onCreated 
     if (busy || disabled || photoBusy) return;
     setBusy(true); setError(''); setNotice('');
     try {
-      if (mode === 'photo' && (!file || !rights)) throw new Error('사진과 공용 사용 권한을 확인해 주세요.');
+      if (mode !== 'text' && (!file || !rights)) throw new Error('그림과 공용 사용 권한을 확인해 주세요.');
       const data = new FormData();
       data.set('label', label.trim()); data.set('category', category);
       const image = mode === 'text' ? await textCardImage(label.trim()) : file;
@@ -70,6 +70,7 @@ export default function AdminCardRegistration({ categories, disabled, onCreated 
         <div className="admin-card-modes" role="group" aria-label="카드 종류">
           <button type="button" aria-pressed={mode === 'text'} onClick={() => { setMode('text'); setError(''); }}><UiIcon name="cards" />글자 카드</button>
           <button type="button" aria-pressed={mode === 'photo'} onClick={() => { setMode('photo'); setError(''); }}><UiIcon name="image" />사진 카드</button>
+          <button type="button" aria-pressed={mode === 'ai'} onClick={() => { setMode('ai'); setFile(null); setRights(false); setError(''); }}><UiIcon name="image" />AI 그림 카드</button>
         </div>
         <div className="admin-card-fields">
           <div className="admin-card-preview" aria-label="카드 미리보기">
@@ -80,6 +81,11 @@ export default function AdminCardRegistration({ categories, disabled, onCreated 
             <label>분류<select required value={category} onChange={e => setCategory(e.target.value)}><option value="" disabled>분류 선택</option>
               {categories.filter(item => item.active !== false).map(item => <option key={item.id} value={item.name}>{item.name}</option>)}
             </select></label>
+            {mode === 'ai' && <>
+              <CardImageTools key="ai" label={label} file={file} admin initialOpen disabled={busy || disabled || photoBusy}
+                onApply={image => { setFile(image); setRights(false); }} />
+              <label className="admin-card-rights"><input type="checkbox" required checked={rights} onChange={e => setRights(e.target.checked)} />생성한 그림의 의미를 확인했으며 모두에게 공개할 수 있습니다.</label>
+            </>}
             {mode === 'photo' && <>
               <CardPhotoPicker file={file} disabled={busy || disabled} onBusyChange={setPhotoBusy}
                 onChange={image => { setFile(image); setRights(false); setError(''); }} />
@@ -93,7 +99,7 @@ export default function AdminCardRegistration({ categories, disabled, onCreated 
             </>}
           </div>
         </div>
-        <footer><button className="primary" type="submit" disabled={photoBusy || (mode === 'photo' && !file) || !categories.some(item => item.active !== false)}><UiIcon name="plus" />{busy ? '등록 중…' : '저장하고 바로 사용'}</button></footer>
+        <footer><button className="primary" type="submit" disabled={photoBusy || (mode !== 'text' && !file) || !categories.some(item => item.active !== false)}><UiIcon name="plus" />{busy ? '등록 중…' : '저장하고 바로 사용'}</button></footer>
       </fieldset>
       {error && <p role="alert" className="error">{error}</p>}
       <p role="status">{notice}</p>

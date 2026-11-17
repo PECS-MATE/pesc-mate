@@ -24,6 +24,7 @@ def authorize(user, scope, target):
 
 class Generate(BaseModel):
     label: str = Field(min_length=1, max_length=30)
+    description: str = Field(default='', max_length=300)
     external_accepted: bool = False
     expected_backend: Literal['huggingface', 'gemini']
     expected_model: str = Field(min_length=1, max_length=160)
@@ -35,7 +36,7 @@ class Generate(BaseModel):
 def status(scope: Literal['private', 'shared'] = Query(default='private'),
            user_id: str | None = Query(default=None, max_length=64), user=Depends(current_user)):
     authorize(user, scope, user_id)
-    return JSONResponse(tools.status(), headers={'Cache-Control': 'no-store'})
+    return JSONResponse(tools.status() | {'quota': tools.generation_quota()}, headers={'Cache-Control': 'no-store'})
 
 
 @router.post('/generate')
@@ -47,7 +48,8 @@ def generate(body: Generate, user=Depends(current_user)):
     if (body.expected_backend, body.expected_model) != (configuration['generation_backend'], configuration['model']):
         raise HTTPException(409, '이미지 서비스 설정이 바뀌었습니다. 사용 가능 여부를 다시 확인해 주세요.')
     with tools.capacity(user['id']):
-        result = tools.generate(body.label.strip(), body.external_accepted)
+        result = tools.generate(body.label.strip(), body.external_accepted, body.description.strip())
+    result['quota'] = tools.generation_quota()
     authorize(user, body.scope, body.user_id)
     return JSONResponse(result, headers={'Cache-Control': 'no-store'})
 

@@ -1,5 +1,6 @@
-"""Opt-in image tools. No automatic billing, downloads, retries or persistence."""
+"""Opt-in image previews with persistent quota; no automatic retries or image saving."""
 import base64
+from datetime import datetime, timedelta, timezone
 from collections import OrderedDict
 from contextlib import contextmanager
 from importlib.util import find_spec
@@ -17,17 +18,56 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 
 from fastapi import HTTPException
+from pymongo import ReturnDocument
+from pymongo.errors import DuplicateKeyError, PyMongoError
 from PIL import Image
+from app.services.database import database
 from app.services.card_submissions import _normalize_image, MAX_IMAGE_BYTES
 
 _slots = BoundedSemaphore(1)
 _lock = Lock()
 _usage = OrderedDict()
-PROMPT_VERSION = 'aac-white-v1'
+PROMPT_VERSION = 'aac-white-v2'
+
+
+def daily_limit():
+    try:
+        return max(0, min(80, int(os.getenv('IMAGE_GENERATION_DAILY_LIMIT', '80'))))
+    except ValueError:
+        return 80
+
+
+def daily_identity():
+    # One shared counter per Korean calendar day, across processes and restarts.
+    return datetime.now(timezone(timedelta(hours=9))).strftime('%Y-%m-%d')
+
+
+def generation_quota(reserve=False):
+    limit = daily_limit()
+    try:
+        collection = database().image_generation_usage
+        identity = daily_identity()
+        if reserve:
+            if limit == 0:
+                raise HTTPException(429, '오늘의 그림 생성 한도에 도달했습니다.')
+            try:
+                collection.update_one({'_id': identity}, {'$setOnInsert': {'attempts': 0}}, upsert=True)
+            except DuplicateKeyError:
+                pass
+            row = collection.find_one_and_update({'_id': identity, 'attempts': {'$lt': limit}},
+                {'$inc': {'attempts': 1}}, return_document=ReturnDocument.AFTER)
+            if row is None:
+                raise HTTPException(429, '오늘의 그림 생성 한도에 도달했습니다.')
+        else:
+            row = collection.find_one({'_id': identity}) or {}
+        used = row.get('attempts', 0)
+        return {'date': identity, 'limit': limit, 'used': used, 'remaining': max(0, limit - used)}
+    except PyMongoError:
+        raise HTTPException(503, '생성 횟수를 확인할 수 없어 그림 생성을 중단했습니다.') from None
 
 
 def status():
-    backend = os.getenv('IMAGE_GENERATION_PROVIDER', 'huggingface').strip().lower()
+    backend = os.getenv('IMAGE_GENERATION_PROVIDER', 'gemini').strip().lower()
     if backend == 'huggingface':
         model = os.getenv('HF_IMAGE_MODEL', 'black-forest-labs/FLUX.1-schnell').strip()
         provider = os.getenv('HF_IMAGE_PROVIDER', 'fal-ai').strip()
@@ -36,7 +76,7 @@ def status():
                      provider in {'fal-ai', 'hf-inference', 'together'} and find_spec('huggingface_hub'))
         name, recipient = 'Hugging Face', 'Hugging Face 및 선택한 추론 제공업체'
     elif backend == 'gemini':
-        model = os.getenv('GEMINI_IMAGE_MODEL', '').strip()
+        model = os.getenv('GEMINI_IMAGE_MODEL', 'gemini-2.5-flash-image').strip()
         ready = bool(os.getenv('GEMINI_API_KEY') and re.fullmatch(r'[a-zA-Z0-9._-]{1,100}', model))
         provider, name, recipient = 'google', 'Gemini', 'Google'
     else:
@@ -81,7 +121,7 @@ class NoRedirect(HTTPRedirectHandler):
         return None
 
 
-def generate(label, accepted):
+def generate(label, accepted, description=''):
     if not accepted:
         raise HTTPException(422, '외부 전송과 API 비용 안내를 확인해 주세요.')
     configuration = status()
@@ -93,7 +133,10 @@ def generate(label, accepted):
               'generous margins, no letters, no labels, no frame, no watermark, no mascot. '
               'Objects: recognizable simple realistic object. Actions: simple flat illustration emphasizing '
               'the action with only necessary body parts, no gender assumptions. Avoid decorative details. '
-              'Concept: ' + json.dumps(label, ensure_ascii=False))
+              'Concept: ' + json.dumps({'label': label, 'description': description}, ensure_ascii=False))
+    # Reserve before contacting the provider. Failed/time-out requests may still be billed;
+    # never refund automatically or retry a paid request.
+    generation_quota(reserve=True)
     if configuration['generation_backend'] == 'huggingface':
         return generate_huggingface(prompt, model, configuration['inference_provider'])
     body = {'contents': [{'parts': [{'text': prompt}]}],

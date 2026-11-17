@@ -1842,6 +1842,12 @@
               }
             ],
             "title": "User Id"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 300,
+            "title": "Description",
+            "default": ""
           }
         },
         "required": [
