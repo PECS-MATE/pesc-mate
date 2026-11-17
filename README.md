@@ -255,6 +255,11 @@ docker compose down
 | 문서 | 내용 |
 | --- | --- |
 | [프로젝트 통합 안내](docs/PROJECT_GUIDE.md) | 실행·태블릿·음성 생성·RFID·발표·개인정보·운영 |
+| [3분 이내 발표 대본](docs/presentation-rehearsal.md) | 약 2분 40초 대본·시연 순서·실패 시 대체 멘트 |
+| [발표 예상 질문과 답변](docs/presentation-qa.md) | 사용 대상·AI·RFID·비용·개인정보·검증 범위 |
+| [발표 기술 질문 대비](docs/presentation-technical-qa.md) | 구성·USB 통신·AI 검증·캐시·인증·오류 대응 |
+| [발표 DB 질문 대비](docs/presentation-db-qa.md) | MongoDB 선택·데이터 구조·인덱스·동시 수정·백업 |
+| [Gemini 카드 그림 생성](docs/gemini-card-images.md) | AI 그림 카드 사용·키 설정·하루 30회 제한 |
 | [커밋 규칙](docs/development/COMMIT_CONVENTION.md) | 기능 단위 커밋과 검증 기록 |
 
 PECS MATE는 의사소통 보조·연습용 소프트웨어이며 임상 효과·진단 기능·공식 PECS 인증을 주장하지 않습니다.
