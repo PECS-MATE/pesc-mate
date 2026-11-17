@@ -408,6 +408,8 @@ body::before, body::after { display: none; }
 .topbar .status.offline { color: var(--color-warning); border-color: var(--color-warning); background: var(--color-warning-surface); }
 .offline-notice { margin: -12px 0 18px; padding: 12px 14px; border: 1px solid var(--color-warning); border-radius: 12px; color: var(--color-warning); background: var(--color-warning-surface); font-weight: 700; line-height: 1.5; }
 .topbar-statuses { display: grid; justify-items: end; gap: 9px; }
+.connection-hint { display: inline-flex; align-items: center; gap: 8px; color: var(--color-text-secondary); font-size: .8rem; }
+.connection-hint button { min-height: 32px; padding: 4px 8px; border: 0; background: transparent; color: inherit; font: inherit; text-decoration: underline; text-underline-offset: 3px; }
 .builtin-card-print { margin-block: 16px; }
 .builtin-print-layout { display: grid; gap: 6px; width: min(100%, 300px); margin-bottom: 8px; }
 .builtin-print-layout select { width: 100%; min-width: 0; }

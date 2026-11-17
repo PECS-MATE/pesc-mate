@@ -164,7 +164,6 @@ export function useNetworkSessionEvents({ setOffline, syncPendingEvents, user, l
       if (['caregiver', 'support_staff'].includes(user?.role)) {
         clearSupportTargetData();
         setTab(user?.account_permissions?.includes('content_manage') ? 'admin' : 'support_home');
-        setError('보호자·담당자용 사용자 정보는 오프라인에서 보관하지 않습니다. 다시 연결해 주세요.');
       }
     };
     // Internet connectivity hints do not describe access to a local hotspot server.

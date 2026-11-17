@@ -14,7 +14,7 @@ it('renders the authentication flow and reports a failed login without retaining
   await userEvent.click(screen.getByRole('button', { name: '로그인', exact: true }));
   expect(await screen.findByText('합성 로그인 거부')).toBeInTheDocument();
   expect(localStorage.getItem('pesc-mate-token')).toBeNull();
-  expect(fetch.mock.calls[0][0]).toBe('/api/auth/login');
+  expect(fetch.mock.calls.some(([url, options]) => url === '/api/auth/login' && options.method === 'POST')).toBe(true);
 });
 it('clears a rejected restored session and returns to authentication', async () => {
   localStorage.setItem('pesc-mate-token', 'expired-synthetic');

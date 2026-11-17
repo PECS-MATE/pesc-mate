@@ -6,9 +6,9 @@ import { useNetworkSessionEvents } from './use-offline-session';
 vi.mock('../services/api', () => ({ request: vi.fn(), setToken: vi.fn() }));
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.clearAllMocks(); });
 
-function harness() {
+function harness(user = { id: 'synthetic', role: 'user' }) {
   const props = {
-    user: { id: 'synthetic', role: 'user' }, setOffline: vi.fn(),
+    user, setOffline: vi.fn(),
     syncPendingEvents: vi.fn(), load: vi.fn(), clearSupportTargetData: vi.fn(),
     setTab: vi.fn(), setError: vi.fn(),
   };
@@ -44,4 +44,13 @@ it('ignores a pending server check after unmount', async () => {
   h.unmount();
   await act(async () => resolve({ status: 'ok' }));
   expect(h.setOffline).not.toHaveBeenCalled();
+});
+
+it('clears private support data without adding a duplicate global offline warning', async () => {
+  request.mockRejectedValue(new TypeError('Failed to fetch'));
+  const h = harness({ id: 'synthetic-support', role: 'support_staff', account_permissions: ['content_manage'] });
+  await waitFor(() => expect(h.setOffline).toHaveBeenCalledWith(true));
+  expect(h.clearSupportTargetData).toHaveBeenCalledOnce();
+  expect(h.setTab).toHaveBeenCalledWith('admin');
+  expect(h.setError).not.toHaveBeenCalled();
 });

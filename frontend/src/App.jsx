@@ -28,7 +28,6 @@ import { useRef, useState } from "react";
 
 import SentenceStrip from "./SentenceStrip";
 import { availableSentenceExamples } from "./services/sentenceLearning";
-import { localKoreanVoices as installedKoreanVoices } from "./services/ttsVoice";
 
 import { DEFAULT_QUICK_EXPRESSIONS, RECOVERY_EXPRESSIONS } from "./config/appDefaults";
 import { hydrateImages } from "./services/cardMedia";
@@ -432,7 +431,6 @@ function App() {
   const canManageQuick = selectedPermissions.includes('quick_speech_manage');
   const canManageBoard = selectedPermissions.includes('board_manage');
   const canManageLearning = selectedPermissions.includes('learning_manage');
-  const localKoreanVoices = installedKoreanVoices(ttsVoices);
   const usbConnected = usbStatus.state === 'connected' && usbStatus.fresh;
   const usbConnectionLabel = usbStatus.state === 'connected'
     ? usbStatus.fresh ? '기기 연결됨' : '기기 응답 대기'
@@ -532,7 +530,7 @@ function App() {
         onClick={() => toggleSidebar(false)}><UiIcon name="menu" /></button></div>}
       <div>
       {!myPageOpen && profileNotice && <p role="status">{profileNotice}</p>}
-      <header className={`topbar${showPageHeading ? '' : ' topbar-controls-only'}`} >{showPageHeading && <div><p className="eyebrow">오늘은 {todayLabel}</p><h1>{pageTitle}</h1></div>}<div className="topbar-statuses">{user.role !== 'user' && <span className={`status${offline ? ' offline' : ''}`}><b className={!offline && loaded ? 'online' : ''}></b>{offline ? '오프라인 사용 중' : '연결 대기'}</span>}<span className="visually-hidden" role="status">{speechActive ? speechStatusLabel : ''}</span></div></header>
+      <header className={`topbar${showPageHeading ? '' : ' topbar-controls-only'}`} >{showPageHeading && <div><p className="eyebrow">오늘은 {todayLabel}</p><h1>{pageTitle}</h1></div>}<div className="topbar-statuses">{offline && <div className="connection-hint"><span role="status">연결 확인 중</span><button type="button" disabled={busy || generating} onClick={() => load(user)}>다시 연결</button></div>}<span className="visually-hidden" role="status">{speechActive ? speechStatusLabel : ''}</span></div></header>
       {user.role === 'user' && tab === 'cards' && <>
       <section className="board" ref={boardRef}><div className="section-title"><h2 tabIndex="-1">나의 문장 <small>{board.length}/12</small></h2><div className="sentence-toolbar" role="group" aria-label="문장 도구">
         <button type="button" aria-label="고른 카드 모두 비우기" title="고른 카드 모두 비우기" disabled={!board.length || busy} onClick={() => { if (window.confirm('선택한 카드를 모두 지울까요?')) { rememberBoardFocus(0, 'remove'); updateBoard([]); } }}><UiIcon name="trash" size={24} /></button>
@@ -544,7 +542,6 @@ function App() {
       </section>
       </>}
       {canManageContent && <OperationalAlerts key={user.id} refreshKey={adminSubmissions} onReview={() => setTab('admin')} />}
-      {offline && <p className="offline-notice" role="status">인터넷 연결 없이 저장된 카드를 사용 중입니다. 즉시 발화와 선택 카드 그대로 발화는 계속 사용할 수 있습니다.{localKoreanVoices.length ? ` 기기에 저장된 한국어 음성 ${localKoreanVoices.length}개를 확인했습니다.` : ' 한국어 음성이 재생되지 않으면 기기 설정에서 음성 데이터를 설치해 주세요.'}{pendingSyncCount ? ` 재연결 후 동기화할 이력 ${pendingSyncCount}건이 있습니다.` : ''}</p>}
       {user.role === 'user' && privacy.guardian_consent && !offline && (pendingSyncCount > 0 || syncState === 'failed') && <div className="offline-notice" data-testid="sync-status"><span role="status">{syncState === 'syncing' ? `기기에 저장한 기록 ${pendingSyncCount}건을 동기화하고 있어요.` : syncState === 'failed' ? `저장한 기록을 모두 전송하지 못했어요. 남은 ${pendingSyncCount}건은 기기에 보관됩니다.` : `동기화할 기록 ${pendingSyncCount}건이 기기에 있습니다.`}</span> <button type="button" disabled={syncState === 'syncing'} onClick={() => syncPendingEvents(user)}>기록 동기화 다시 시도</button></div>}
       {loaded && user.role === 'user' && <UsbRfidReader key={`rfid-${user.id}`} targetId={user.id} cards={cards} autoAppend
         connectionTarget={usbSidebarTarget} onStatus={setUsbStatus} onReadError={setError}
