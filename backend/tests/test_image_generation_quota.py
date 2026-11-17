@@ -26,8 +26,8 @@ def test_quota_is_shared_atomic_and_resets_on_next_korean_day(db, monkeypatch):
     assert tools.generation_quota()['remaining'] == 3
 
 
-@pytest.mark.parametrize('configured,expected', [('500', 80), ('invalid', 80), ('0', 0), ('-1', 0)])
-def test_daily_limit_never_exceeds_eighty(monkeypatch, configured, expected):
+@pytest.mark.parametrize('configured,expected', [('500', 30), ('invalid', 30), ('0', 0), ('-1', 0)])
+def test_daily_limit_never_exceeds_thirty(monkeypatch, configured, expected):
     monkeypatch.setenv('IMAGE_GENERATION_DAILY_LIMIT', configured)
     assert tools.daily_limit() == expected
 

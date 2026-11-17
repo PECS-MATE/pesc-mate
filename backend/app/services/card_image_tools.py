@@ -32,9 +32,9 @@ PROMPT_VERSION = 'aac-white-v2'
 
 def daily_limit():
     try:
-        return max(0, min(80, int(os.getenv('IMAGE_GENERATION_DAILY_LIMIT', '80'))))
+        return max(0, min(30, int(os.getenv('IMAGE_GENERATION_DAILY_LIMIT', '30'))))
     except ValueError:
-        return 80
+        return 30
 
 
 def daily_identity():
