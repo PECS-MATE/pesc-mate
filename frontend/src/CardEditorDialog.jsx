@@ -17,6 +17,15 @@ export default function CardEditorDialog({ editing, categories, targetName, targ
   const [toolLabel, setToolLabel] = useState(editing?.label || '');
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState('');
+  const [imageMode, setImageMode] = useState('photo');
+  const [generatedPreview, setGeneratedPreview] = useState('');
+
+  useEffect(() => {
+    if (!image || imageMode !== 'ai') { setGeneratedPreview(''); return; }
+    const url = URL.createObjectURL(image);
+    setGeneratedPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [image, imageMode]);
 
   useEffect(() => {
     const modal = dialog.current;
@@ -54,7 +63,7 @@ export default function CardEditorDialog({ editing, categories, targetName, targ
       <p id={descriptionId}>{privateOnly ? `${targetName}님만 사용하는 카드를 등록합니다.` : '카드 정보를 입력하고 사용할 범위를 골라 주세요.'}</p></header>
     <form className="card-editor-form" onSubmit={event => {
       if (busy || photoBusy) { event.preventDefault(); return; }
-      if (!editing && !image) { event.preventDefault(); setPhotoError('카드를 촬영하거나 사진을 선택해 주세요.'); return; }
+      if (!editing && !image) { event.preventDefault(); setPhotoError(imageMode === 'ai' ? '그림을 생성한 뒤 확인하고 적용해 주세요.' : '카드를 촬영하거나 사진을 선택해 주세요.'); return; }
       onSubmit(event, image);
     }}>
       <div className="card-editor-body">
@@ -71,17 +80,22 @@ export default function CardEditorDialog({ editing, categories, targetName, targ
             <label>공개 범위<select name="visibility" value={visibility} onChange={event => setVisibility(event.target.value)}>
               <option value="private">나만 사용</option><option value="shared">승인 후 모두에게 공개</option>
             </select></label>}
-          {!editing && <CardPhotoPicker file={image} disabled={busy} onBusyChange={setPhotoBusy}
+          {!editing && targetId && <div className="card-editor-image-modes" role="group" aria-label="카드 그림 준비 방법">
+            <button type="button" aria-pressed={imageMode === 'photo'} disabled={photoBusy} onClick={() => { setImageMode('photo'); setImage(null); setPhotoError(''); }}>사진 카드</button>
+            <button type="button" aria-pressed={imageMode === 'ai'} disabled={photoBusy || ocrDisabled} onClick={() => { setImageMode('ai'); setImage(null); setPhotoError(''); }}>AI 그림 카드</button>
+          </div>}
+          {!editing && imageMode === 'photo' && <CardPhotoPicker file={image} disabled={busy} onBusyChange={setPhotoBusy}
             onChange={file => { setImage(file); setPhotoError(''); }} />}
         </fieldset>
-        {!editing && <CardOcrAssist file={image} targetId={targetId} disabled={busy || photoBusy || ocrDisabled} onApply={value => {
+        {!editing && imageMode === 'photo' && <CardOcrAssist file={image} targetId={targetId} disabled={busy || photoBusy || ocrDisabled} onApply={value => {
           const input = dialog.current?.querySelector('input[name="label"]');
           if (input) { input.value = value; input.focus(); }
           setToolLabel(value);
         }} />}
-        {!editing && <CardImageTools label={toolLabel} file={image} targetId={targetId}
+        {!editing && <CardImageTools key={imageMode} label={toolLabel} file={image} targetId={targetId} initialOpen={imageMode === 'ai'}
           disabled={busy || photoBusy || ocrDisabled} onApply={file => { setImage(file); setPhotoError(''); }} />}
-        {!editing && <p id={imageHelpId} className="form-notice">JPG·PNG·WebP, 5MB 이하, 가로·세로 128~4096px 이미지를 선택해 주세요.</p>}
+        {!editing && generatedPreview && <figure className="card-editor-generated-preview"><img src={generatedPreview} alt="등록할 AI 그림 카드" /><figcaption>확인한 그림입니다. 카드 저장을 누르면 등록됩니다.</figcaption></figure>}
+        {!editing && imageMode === 'photo' && <p id={imageHelpId} className="form-notice">JPG·PNG·WebP, 5MB 이하, 가로·세로 128~4096px 이미지를 선택해 주세요.</p>}
         <p className="form-notice">{privateOnly ? '연결 사용자만 사용할 수 있으며 공개 승인 목록에는 표시되지 않습니다.'
           : visibility === 'shared' ? '공개 요청은 운영 담당자 승인 후 모든 사용자에게 표시됩니다.' : '저장하면 나만 사용할 수 있으며 운영 담당자에게 공유되지 않습니다.'}</p>
       </div>

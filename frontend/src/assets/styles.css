@@ -696,6 +696,11 @@ footer { color: var(--color-text-secondary); }
 .card-editor-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 20px 24px; }
 .card-editor-required { margin: 0 0 16px; color: var(--ui-muted); font-size: .875rem; }
 .card-editor-body fieldset { display: grid; gap: 16px; min-width: 0; padding: 0; margin: 0; border: 0; }
+.card-editor-image-modes { display: flex; flex-wrap: wrap; gap: 8px; }
+.card-editor-image-modes button[aria-pressed="true"] { background: var(--color-selected); border-color: var(--color-primary-action); color: var(--color-primary-action); }
+.card-editor-generated-preview { margin: 12px 0; }
+.card-editor-generated-preview img { display: block; width: min(100%, 220px); aspect-ratio: 1; object-fit: contain; border: 1px solid var(--color-border); border-radius: 12px; background: white; }
+.card-editor-generated-preview figcaption { margin-top: 8px; font-size: .875rem; color: var(--color-text-secondary); }
 .card-editor-body label { display: grid; gap: 7px; color: var(--ui-text); font-weight: 700; }
 .card-editor-body input, .card-editor-body select, .card-editor-body textarea { width: 100%; min-width: 0; min-height: 44px; margin: 0; font: inherit; }
 .card-editor-body textarea { resize: vertical; }
