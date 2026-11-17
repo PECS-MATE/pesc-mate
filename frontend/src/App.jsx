@@ -186,7 +186,7 @@ function App() {
     setSupportPermissionDrafts,
     setUser,
   });
-  const { finishSpeechEvent, speechFailureMessage, speakText, speakBoardSentence, playLearningPrompt, speakSelection, pauseSpeech, resumeSpeech, stopSpeech, updateTtsSettings, changeTtsPreset, saveTtsSettings, updateAccessibility, saveAccessibility } = useSpeechController({
+  const { finishSpeechEvent, speechFailureMessage, speakText, speakBoardSentence, playLearningPrompt, speakSelection, stopSpeech, updateTtsSettings, changeTtsPreset, saveTtsSettings, updateAccessibility, saveAccessibility } = useSpeechController({
     persistActivity: (...args) => persistActivity(...args),
     activityConsentRef,
     activeUserRef,
@@ -532,7 +532,7 @@ function App() {
         onClick={() => toggleSidebar(false)}><UiIcon name="menu" /></button></div>}
       <div>
       {!myPageOpen && profileNotice && <p role="status">{profileNotice}</p>}
-      <header className={`topbar${showPageHeading ? '' : ' topbar-controls-only'}`} >{showPageHeading && <div><p className="eyebrow">오늘은 {todayLabel}</p><h1>{pageTitle}</h1></div>}<div className="topbar-statuses">{user.role !== 'user' && <span className={`status${offline ? ' offline' : ''}`}><b className={!offline && loaded ? 'online' : ''}></b>{offline ? '오프라인 사용 중' : '연결 대기'}</span>}<span className="visually-hidden" role="status">{speechActive ? speechStatusLabel : ''}</span>{speechActive && <div className="speech-player" role="group" aria-label="음성 재생 제어">{speechState.status === 'playing' && <button type="button" onClick={pauseSpeech}>일시 정지</button>}{speechState.status === 'paused' && <button type="button" onClick={resumeSpeech}>재개</button>}<button type="button" onClick={stopSpeech}>중지</button></div>}</div></header>
+      <header className={`topbar${showPageHeading ? '' : ' topbar-controls-only'}`} >{showPageHeading && <div><p className="eyebrow">오늘은 {todayLabel}</p><h1>{pageTitle}</h1></div>}<div className="topbar-statuses">{user.role !== 'user' && <span className={`status${offline ? ' offline' : ''}`}><b className={!offline && loaded ? 'online' : ''}></b>{offline ? '오프라인 사용 중' : '연결 대기'}</span>}<span className="visually-hidden" role="status">{speechActive ? speechStatusLabel : ''}</span></div></header>
       {user.role === 'user' && tab === 'cards' && <>
       <section className="board" ref={boardRef}><div className="section-title"><h2 tabIndex="-1">나의 문장 <small>{board.length}/12</small></h2><div className="sentence-toolbar" role="group" aria-label="문장 도구">
         <button type="button" aria-label="고른 카드 모두 비우기" title="고른 카드 모두 비우기" disabled={!board.length || busy} onClick={() => { if (window.confirm('선택한 카드를 모두 지울까요?')) { rememberBoardFocus(0, 'remove'); updateBoard([]); } }}><UiIcon name="trash" size={24} /></button>
