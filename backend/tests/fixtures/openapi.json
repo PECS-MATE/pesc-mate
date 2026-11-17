@@ -894,6 +894,17 @@
             "title": "Id",
             "type": "string"
           },
+          "image_filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Filename"
+          },
           "image_index": {
             "anyOf": [
               {
@@ -1797,6 +1808,18 @@
       },
       "Generate": {
         "properties": {
+          "category": {
+            "default": "",
+            "maxLength": 30,
+            "title": "Category",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Description",
+            "type": "string"
+          },
           "expected_backend": {
             "enum": [
               "huggingface",
@@ -1843,18 +1866,6 @@
               }
             ],
             "title": "User Id"
-          },
-          "description": {
-            "type": "string",
-            "maxLength": 300,
-            "title": "Description",
-            "default": ""
-          },
-          "category": {
-            "type": "string",
-            "maxLength": 30,
-            "title": "Category",
-            "default": ""
           }
         },
         "required": [
@@ -3397,6 +3408,17 @@
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "image_filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Filename"
           },
           "image_index": {
             "anyOf": [

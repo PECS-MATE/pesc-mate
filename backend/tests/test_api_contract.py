@@ -14,7 +14,7 @@ BASELINE = Path(__file__).with_name('fixtures') / 'openapi.json'
 
 def test_openapi_contract_matches_baseline():
     actual = json.loads(json.dumps(app.openapi()))
-    assert actual == json.loads(BASELINE.read_text())
+    assert actual == json.loads(BASELINE.read_text(encoding='utf-8'))
     operations = [operation['operationId'] for path in actual['paths'].values()
                   for method, operation in path.items() if method in {'get', 'post', 'put', 'patch', 'delete'}]
     assert len(operations) == len(set(operations))
@@ -57,20 +57,26 @@ def test_tts_binary_default_voice_rate_and_headers(client, monkeypatch):
     assert client.post('/api/tts/speech', json={'text': '  '}).status_code == 422
 
 
-def test_image_conditional_request_reauthorizes_and_preserves_headers(client, monkeypatch, png_bytes):
+@pytest.mark.parametrize('origin', [None, 'http://localhost:5173'])
+def test_image_conditional_request_reauthorizes_and_preserves_headers(client, monkeypatch, png_bytes, origin):
     authenticated()
     calls = []
     def image(submission_id, user, variant):
         calls.append((submission_id, user['id'], variant))
         return png_bytes, 'image/png'
     monkeypatch.setattr(cards_api, 'image_for', image)
-    first = client.get('/api/cards/submissions/synthetic/image')
+    headers = {'Origin': origin} if origin else {}
+    first = client.get('/api/cards/submissions/synthetic/image', headers=headers)
     etag = '"' + sha256(png_bytes).hexdigest() + '"'
     assert first.status_code == 200 and first.content == png_bytes
-    assert first.headers['etag'] == etag and first.headers['vary'] == 'Authorization, Origin'
+    expected_vary = 'Authorization, Origin' if origin else 'Authorization'
+    assert first.headers['etag'] == etag and first.headers['vary'] == expected_vary
+    if origin:
+        assert first.headers['access-control-allow-origin'] == origin
     assert first.headers['cache-control'] == 'private, no-cache'
-    second = client.get('/api/cards/submissions/synthetic/image', headers={'If-None-Match': etag})
+    second = client.get('/api/cards/submissions/synthetic/image', headers={**headers, 'If-None-Match': etag})
     assert second.status_code == 304 and not second.content
+    assert second.headers['vary'] == expected_vary
     assert len(calls) == 2
 
 
