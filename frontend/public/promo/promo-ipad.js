@@ -26,7 +26,6 @@ const buttons = chapters.map((chapter, chapterIndex) => {
   document.querySelector('.chapters').append(button);
   return button;
 });
-document.querySelector('.loop-duration').textContent = `${totalDuration / 1000}초`;
 function syncCue(force = false) {
   if (!demo || tabletOnly) return;
   const cue = demoStepAt(chapters[index], elapsed);
@@ -104,7 +103,7 @@ addEventListener('message', event => {
 function setToolbarVisible(visible) {
   toolbar.hidden = !visible;
   toolbarToggle.setAttribute('aria-expanded', String(visible));
-  toolbarToggle.textContent = visible ? '설정 숨기기 ▾' : '설정 표시 ▴';
+  toolbarToggle.textContent = visible ? '⚙️ ▾' : '⚙️ ▴';
   fit();
 }
 toolbarToggle.addEventListener('click', () => setToolbarVisible(toolbar.hidden));
