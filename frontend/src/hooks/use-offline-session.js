@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { request, setToken } from "../services/api";
 import { loadBoard } from "../services/boardStorage";
 
@@ -19,8 +19,9 @@ export function useOfflineSessionState() {
 }
 
 export default function useOfflineSession({
-  setPendingSyncCount, setCards, setCardCategories, setStats, setCardSubmissions, setBoard, setTtsSettings, setAccessibility, setAccessibilitySaved, setOutputMode, loaded, setTab, setPrivacy, setPrivacyCaregivers, setPrivacyAudit, setTtsSettingsSaved, setBoardLayout, setLoaded, setOffline, restoreLearningSession, user, activityConsentRef, activeUserRef, setSyncState, offlineSync, setLearningGame, setLearningProgress, learningSettings, setError, clearSupportTargetData, setLinkedUsers, setSelectedUser, setAdminSubmissions, setAdminCategories, setCategoryEdits, dashboardPath, setSupportPermissionDrafts, setUser
+  setPendingSyncCount, setCards, setCardCategories, setStats, setCardSubmissions, setBoard, setTtsSettings, setAccessibility, setAccessibilitySaved, setOutputMode, loaded, setTab, setPrivacy, setPrivacyCaregivers, setPrivacyAudit, setTtsSettingsSaved, setBoardLayout, setLoaded, setOffline, restoreLearningSession, user, activityConsentRef, activeUserRef, setSyncState, offlineSync, setLearningGame, setLearningProgress, learningSettings, setError, clearSupportTargetData, setLinkedUsers, setSelectedUser, selectedUserRef, setAdminSubmissions, setAdminCategories, setCategoryEdits, dashboardPath, setSupportPermissionDrafts, setUser
 }) {
+  const loadRevision = useRef(0);
   async function updatePendingSyncCount(accountId) {
     const [events, attempts] = await Promise.all([
       pendingOfflineEvents(accountId).catch(() => []),
@@ -81,13 +82,13 @@ export default function useOfflineSession({
     })).catch(() => {});
   }
   async function load(account = user, { syncOffline = true } = {}) {
+    const revision = ++loadRevision.current;
     const session = localStorage.getItem('pesc-mate-token');
-    const isCurrentSession = () => Boolean(session) && localStorage.getItem('pesc-mate-token') === session;
+    const isCurrentSession = () => revision === loadRevision.current && Boolean(session) && localStorage.getItem('pesc-mate-token') === session;
     setError('');
     if (account?.role === 'user') setOutputMode(account.default_output_mode || 'natural');
     try {
       if (['caregiver', 'support_staff'].includes(account?.role)) {
-        clearSupportTargetData();
         const canOperateContent = account?.account_permissions?.includes('content_manage');
         const [people, submissions, categories, activeCategories] = await Promise.all([
           request('/care/linked-users'),
@@ -96,7 +97,8 @@ export default function useOfflineSession({
           request('/categories'),
         ]);
         if (!isCurrentSession()) return;
-        const target = people[0] || null;
+        const previousTarget = selectedUserRef?.current;
+        const target = people.find(person => person.id === previousTarget?.id) || people[0] || null;
         const targetCards = target?.permissions.includes('cards_manage')
           ? await request(`/cards/submissions?user_id=${encodeURIComponent(target.id)}`)
           : [];
@@ -105,14 +107,16 @@ export default function useOfflineSession({
           [...targetImages, ...adminImages].forEach(item => { if (item.image_src) URL.revokeObjectURL(item.image_src); });
           return;
         }
+        if (previousTarget && previousTarget.id !== target?.id) clearSupportTargetData();
         setLinkedUsers(people); setSelectedUser(target); setCards([]); setCardCategories(activeCategories);
         setCardSubmissions(targetImages);
         setAdminSubmissions(adminImages);
         setAdminCategories(categories);
         setCategoryEdits(Object.fromEntries(categories.map(item => [item.id, { name: item.name, display_order: item.display_order }])));
-        setTab(people.length ? 'support_home' : canOperateContent ? 'admin' : 'support_home');
-        setStats(null); setLoaded(true);
-        return;
+        if (!loaded || (previousTarget && previousTarget.id !== target?.id)) setTab(people.length ? 'support_home' : canOperateContent ? 'admin' : 'support_home');
+        if (!loaded) setStats(null);
+        setLoaded(true); setOffline(false);
+        return true;
       }
       const [rawCards, rawCategories, dashboard, submissions, voiceSettings, accessibilitySettings, privacySettings, caregivers, privacyHistory, layout] = await Promise.all([request('/cards'), request('/categories'), request(dashboardPath()), request('/cards/submissions'), request('/tts/settings'), request('/accessibility/settings'), request('/privacy/settings'), request('/support/links'), request('/privacy/audit'), request('/board/layout')]);
       if (privacySettings.deletion_status === 'completed' && !privacySettings.guardian_consent) {
@@ -145,34 +149,38 @@ export default function useOfflineSession({
       else if (account?.role === 'user' && await applyOfflineSnapshot(account, await cachedSnapshot(account.id).catch(() => null))) {
         setError('');
       } else {
-        if (['caregiver', 'support_staff'].includes(account?.role)) clearSupportTargetData();
+        if (['caregiver', 'support_staff'].includes(account?.role)) {
+          if (e.status === 403) clearSupportTargetData();
+          else if (!e.status || e.status >= 500) setOffline(true);
+        }
         setError(e.message || '서버에 연결하지 못했습니다.');
       }
+      return false;
     }
   }
   return { updatePendingSyncCount, applyOfflineSnapshot, syncPendingEvents, primeOfflineAssets, load };
 }
 
-export function useNetworkSessionEvents({ setOffline, syncPendingEvents, user, load, clearSupportTargetData, setTab, setError }) {
+export function useNetworkSessionEvents({ setOffline, syncPendingEvents, user, load }) {
+  const latest = useRef();
+  latest.current = { setOffline, syncPendingEvents, load };
   useEffect(() => {
     let disposed = false, checking = false;
     let reachable;
     // This event owns its sync run; the parallel data refresh must not retry it again.
-    const online = () => { setOffline(false); syncPendingEvents(user); if (user) load(user, { syncOffline: false }); };
-    const offlineNow = () => {
-      setOffline(true);
-      if (['caregiver', 'support_staff'].includes(user?.role)) {
-        clearSupportTargetData();
-        setTab(user?.account_permissions?.includes('content_manage') ? 'admin' : 'support_home');
-      }
+    const online = async () => {
+      latest.current.setOffline(false);
+      latest.current.syncPendingEvents(user);
+      if (user && await latest.current.load(user, { syncOffline: false }) === false && !disposed) reachable = undefined;
     };
+    const offlineNow = () => { latest.current.setOffline(true); };
     // Internet connectivity hints do not describe access to a local hotspot server.
     const checkServer = async () => {
       if (checking) return;
       checking = true;
       try {
         await request('/health', { timeoutMs: 5000 });
-        if (!disposed && reachable !== true) { reachable = true; online(); }
+        if (!disposed && reachable !== true) { reachable = true; await online(); }
       } catch {
         if (!disposed && reachable !== false) { reachable = false; offlineNow(); }
       } finally { checking = false; }

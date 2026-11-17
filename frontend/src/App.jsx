@@ -178,6 +178,7 @@ function App() {
     clearSupportTargetData: (...args) => clearSupportTargetData(...args),
     setLinkedUsers,
     setSelectedUser,
+    selectedUserRef,
     setAdminSubmissions,
     setAdminCategories,
     setCategoryEdits,

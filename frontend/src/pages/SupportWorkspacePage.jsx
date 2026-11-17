@@ -51,7 +51,7 @@ tab === 'rfid' && isSupporter && canManageBoard && selectedUser ? (<div>
       </div>) : 
 tab === 'support_home' && isCaregiver ? (<A4SharingGallery key={`sharing-${user.id}`} accountId={user.id} categories={cardCategories} disabled={offline} />) : 
 tab === 'caregiver_manage' && isCaregiver ? (<CaregiverHome accountId={user.username || user.id} users={linkedUsers}
-        target={selectedUser} offline={offline} onSelect={changeLinkedUser}
+        target={selectedUser} offline={offline} pending={!loaded || offline} onSelect={changeLinkedUser}
         onOpen={next => next === 'rfid' ? setTab('rfid') : openSupportSection(next)} onPractice={() => openLearning(selectedUser)}>
         {selectedUser && canManageLearning && canReadRecords && <PracticeSuggestionsPanel key={`${user.id}:${selectedUser.id}`} variant="caregiver" accountId={user.id} target={selectedUser} onDirectSelect={() => openLearning(selectedUser)} />}
       </CaregiverHome>) : 
