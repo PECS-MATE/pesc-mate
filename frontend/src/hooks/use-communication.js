@@ -83,11 +83,20 @@ export default function useCommunication({
     if (busy || speechState.status !== 'idle' || offline || myPageOpen || (compactSidebar && !sidebarCollapsed)
         || !['home', 'cards'].includes(tab) || document.visibilityState === 'hidden') return false;
     const currentBoard = boardCardsRef.current;
-    if (currentBoard.length + selection.length > 12) {
+    // Repeated placements and tags mapped to one card must not repeat a
+    // concept already in the current sentence.
+    const seen = new Set(currentBoard.map(card => card.id));
+    const additions = selection.filter(card => {
+      if (seen.has(card.id)) return false;
+      seen.add(card.id);
+      return true;
+    });
+    if (!additions.length) return true;
+    if (currentBoard.length + additions.length > 12) {
       setError('문장은 최대 12장입니다. 현재 문장을 정리한 뒤 카드를 다시 대주세요.');
       return false;
     }
-    const next = [...currentBoard, ...selection.map(card => ({ ...card, selected_at: card.selected_at || new Date().toISOString() }))];
+    const next = [...currentBoard, ...additions.map(card => ({ ...card, selected_at: card.selected_at || new Date().toISOString() }))];
     setError(''); updateBoard(next, { source: 'rfid' }); setTab('cards');
     if (autoSpeak) {
       if (privacy.guardian_consent && !offline) {

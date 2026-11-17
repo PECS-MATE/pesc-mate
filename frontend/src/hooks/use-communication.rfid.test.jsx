@@ -25,6 +25,19 @@ function harness(overrides = {}) {
   return { ...hook, ...dependencies };
 }
 const water = { id: 'water', label: '물' }, drink = { id: 'drink', label: '마시다' };
+it('deduplicates RFID batches and repeated placements without repeating speech', () => {
+  const h = harness();
+  act(() => h.result.current.controls.appendRfidSelection([water, water, drink], { autoSpeak: true }));
+  expect(h.result.current.state.board.map(card => card.id)).toEqual(['water', 'drink']);
+  const requestId = h.result.current.state.requestId;
+  act(() => h.result.current.controls.appendRfidSelection([water, drink], { autoSpeak: true }));
+  expect(h.result.current.state.board.map(card => card.id)).toEqual(['water', 'drink']);
+  expect(h.result.current.state.requestId).toBe(requestId);
+  expect(h.speakText).toHaveBeenCalledTimes(1);
+  act(() => h.result.current.controls.updateBoard([]));
+  act(() => h.result.current.controls.appendRfidSelection([water]));
+  expect(h.result.current.state.board.map(card => card.id)).toEqual(['water']);
+});
 it('only updates the board for one tag and preserves its detection timestamp', () => {
   const h = harness();
   act(() => h.result.current.controls.appendRfidSelection([{ ...water, selected_at: '2026-01-01T00:00:00Z' }]));
@@ -51,7 +64,7 @@ it('does not partially append or auto speak when the board would exceed twelve c
   const h = harness();
   act(() => h.result.current.state.setBoard(Array(11).fill(water)));
   let accepted;
-  act(() => { accepted = h.result.current.controls.appendRfidSelection([water, drink], { autoSpeak: true }); });
+  act(() => { accepted = h.result.current.controls.appendRfidSelection([drink, { id: 'rice', label: '밥' }], { autoSpeak: true }); });
   expect(accepted).toBe(false); expect(h.result.current.state.board).toHaveLength(11);
   expect(h.speakText).not.toHaveBeenCalled(); expect(h.setError).toHaveBeenCalled();
 });
