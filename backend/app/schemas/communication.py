@@ -107,4 +107,4 @@ class CommunicationSessionResponse(BaseModel):
 class ServerSpeechRequest(BaseModel):
     text: str = Field(min_length=1, max_length=300)
     voice: Literal['girl', 'boy'] = 'girl'
-    rate: float = Field(default=0.9, ge=0.5, le=1.5, allow_inf_nan=False)
+    rate: float = Field(default=1.0, ge=0.5, le=1.5, allow_inf_nan=False)

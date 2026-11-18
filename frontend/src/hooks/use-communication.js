@@ -91,7 +91,10 @@ export default function useCommunication({
       seen.add(card.id);
       return true;
     });
-    if (!additions.length) return true;
+    if (!additions.length) {
+      if (autoSpeak && selection.length === 1) speakText(selection[0].label, 'card', [selection[0].id]);
+      return true;
+    }
     if (currentBoard.length + additions.length > 12) {
       setError('문장은 최대 12장입니다. 현재 문장을 정리한 뒤 카드를 다시 대주세요.');
       return false;
@@ -99,7 +102,9 @@ export default function useCommunication({
     const next = [...currentBoard, ...additions.map(card => ({ ...card, selected_at: card.selected_at || new Date().toISOString() }))];
     setError(''); updateBoard(next, { source: 'rfid' }); setTab('cards');
     if (autoSpeak) {
-      if (privacy.guardian_consent && !offline) {
+      if (selection.length === 1) {
+        speakText(selection[0].label, 'card', [selection[0].id]);
+      } else if (privacy.guardian_consent && !offline) {
         queuedAutoSpeech.current = { userId: user.id, token: localStorage.getItem('pesc-mate-token'),
           selection: JSON.stringify(next.map(card => [card.id, card.selected_at])) };
       } else speakText(next.map(card => card.label).join(' '), 'sentence', next.map(card => card.id), '', { freshSelection: true });

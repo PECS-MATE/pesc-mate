@@ -44,6 +44,15 @@ it('only updates the board for one tag and preserves its detection timestamp', (
   expect(h.result.current.state.board).toEqual([{ ...water, selected_at: '2026-01-01T00:00:00Z' }]);
   expect(h.speakText).not.toHaveBeenCalled();
 });
+it('speaks a single tagged card immediately and repeats it on retag without duplicating the board', () => {
+  const h = harness({ privacy: { guardian_consent: true } });
+  act(() => h.result.current.controls.appendRfidSelection([water], { autoSpeak: true }));
+  expect(h.speakText).toHaveBeenCalledExactlyOnceWith('물', 'card', ['water']);
+  expect(h.speakBoardSentence).not.toHaveBeenCalled();
+  act(() => h.result.current.controls.appendRfidSelection([water], { autoSpeak: true }));
+  expect(h.speakText).toHaveBeenCalledTimes(2);
+  expect(h.result.current.state.board.map(card => card.id)).toEqual(['water']);
+});
 it('speaks the complete next board once without using the previous render selection', () => {
   const h = harness();
   act(() => h.result.current.state.setBoard([{ id: 'me', label: '나' }]));
@@ -122,7 +131,7 @@ it('waits for a superseded inference to finish then generates only the latest qu
   const h = harness({ privacy: { guardian_consent: true } });
   act(() => h.result.current.controls.appendRfidSelection([water, drink], { autoSpeak: true }));
   await waitFor(() => expect(completions).toHaveLength(1));
-  act(() => h.result.current.controls.appendRfidSelection([{ id: 'me', label: '나' }], { autoSpeak: true }));
+  act(() => h.result.current.controls.appendRfidSelection([{ id: 'me', label: '나' }, water], { autoSpeak: true }));
   expect(completions).toHaveLength(1);
   await act(async () => completions[0]({ id: 'old', sentence: '물을 마셔요.' }));
   await waitFor(() => expect(completions).toHaveLength(2));

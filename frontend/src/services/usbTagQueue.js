@@ -39,8 +39,8 @@ export function createUsbTagQueue({
     if (!pending) return;
     const batch = pending; pending = null;
     // Only different readers constitute a simultaneous placement.
-    batch.autoSpeak = new Set(batch.rows.map(row => row.reader_id)).size > 1;
-    if (batch.autoSpeak) batch.rows.sort((a, b) => a.reader_id - b.reader_id);
+    batch.autoSpeak = true;
+    if (new Set(batch.rows.map(row => row.reader_id)).size > 1) batch.rows.sort((a, b) => a.reader_id - b.reader_id);
     queue.push(batch);
     void drain();
   }

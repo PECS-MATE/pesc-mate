@@ -48,7 +48,7 @@ def test_account_boundary_order_and_explicit_regeneration_do_not_reuse(consented
 def test_stale_or_invalid_ai_is_not_reused(consented, ai, monkeypatch, change):
     first = communication.save_session(attempt(), 'one')
     updates = {
-        'expired': {'created_at': datetime.now(timezone.utc) - timedelta(minutes=10)},
+        'expired': {'created_at': datetime.now(timezone.utc) - timedelta(minutes=31)},
         'model': {'generation.model': 'different-model'},
         'policy': {'generation.versions': {}},
         'unsafe': {'sentence': '물 마시다 전화번호는 010-0000-0000'},
@@ -58,6 +58,17 @@ def test_stale_or_invalid_ai_is_not_reused(consented, ai, monkeypatch, change):
     consented.communication_sessions.update_one({'_id': first['id']}, {'$set': updates[change]})
     communication.save_session(attempt(), 'one')
     assert len(ai) == 2
+
+
+def test_sentence_is_reused_after_five_minutes(consented, ai):
+    first = communication.save_session(attempt(), 'one')
+    consented.communication_sessions.update_one(
+        {'_id': first['id']},
+        {'$set': {'created_at': datetime.now(timezone.utc) - timedelta(minutes=10)}},
+    )
+    second = communication.save_session(attempt(), 'one')
+    assert len(ai) == 1
+    assert second['generation']['performance']['status'] == 'reused'
 
 
 def test_changed_custom_card_metadata_is_not_reused(consented, ai):

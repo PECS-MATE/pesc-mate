@@ -31,7 +31,7 @@ services:
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
       interval: 30s
-      timeout: 3s
+      timeout: 30s
       retries: 10
     logging:
       driver: "none"
@@ -54,6 +54,7 @@ services:
       QWEN_API_GIRL_VOICE: "${QWEN_API_GIRL_VOICE:-Cherry}"
       QWEN_API_BOY_VOICE: "${QWEN_API_BOY_VOICE:-Ethan}"
       TTS_CACHE_VERSION: "${TTS_CACHE_VERSION:-melotts-kr-v1}"
+      PUBLIC_SPEECH_CACHE_DIR: /var/cache/pecsmate/public-speech
       MONGODB_DATABASE: pesc_mate
       DEMO_ACCOUNTS_ENABLED: "true"
       ACCOUNT_PERMISSION_MANAGER_IDS: "${ACCOUNT_PERMISSION_MANAGER_IDS:-}"
@@ -102,6 +103,7 @@ services:
       - "${RFID_BIND_ADDRESS:-127.0.0.1}:8000:8000"
     volumes:
       - ./backend/app:/app/app
+      - public_speech_cache:/var/cache/pecsmate/public-speech
     depends_on:
       melotts:
         condition: service_started

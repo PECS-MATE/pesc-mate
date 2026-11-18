@@ -331,7 +331,7 @@ def sentence(ids, card_index=None):
     return ' · '.join(cards[key]['label'] for key in ids)
 
 
-AI_REUSE_SECONDS = 300
+AI_REUSE_SECONDS = 1800
 AI_REUSE_CANDIDATES = 32
 
 

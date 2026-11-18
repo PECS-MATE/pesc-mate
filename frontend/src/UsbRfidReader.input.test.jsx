@@ -38,12 +38,12 @@ async function input(readers) {
     boot_id: 'synthetic', event_id: ++event, reader_count: readers.length, readers })));
 }
 async function waitWindow() { await act(async () => vi.advanceTimersByTimeAsync(150)); }
-it('unlocks audio from connect click and appends one healthy reader without auto speech', async () => {
+it('unlocks audio from connect click and speaks one healthy reader', async () => {
   const h = await mount(); expect(h.onActivateAudio).toHaveBeenCalledTimes(1);
   await input([error(1), row(2, 'AABBCCDD'), error(3)]); await waitWindow();
   expect(h.onAppend).toHaveBeenCalledTimes(1);
   expect(h.onAppend.mock.calls[0][0].map(c => c.id)).toEqual(['water']);
-  expect(h.onAppend.mock.calls[0][1]).toEqual({ autoSpeak: false });
+  expect(h.onAppend.mock.calls[0][1]).toEqual({ autoSpeak: true });
 });
 it('appends three simultaneous cards once in reader order with automatic speech intent', async () => {
   const h = await mount();
@@ -60,7 +60,7 @@ it('keeps separate presentations in tag order and accepts a retag', async () => 
   await input([row(1), row(2), row(3, '11223344')]);
   await input([row(1, '55667788'), row(2), row(3, '11223344')]); await waitWindow();
   expect(h.onAppend.mock.calls.map(([selected]) => selected[0].id)).toEqual(['drink', 'me', 'me']);
-  expect(h.onAppend.mock.calls.every(([, metadata]) => !metadata.autoSpeak)).toBe(true);
+  expect(h.onAppend.mock.calls.every(([, metadata]) => metadata.autoSpeak)).toBe(true);
 });
 it('does not auto speak an incomplete group with an unmapped UID', async () => {
   const onReadError = vi.fn();

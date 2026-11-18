@@ -52,12 +52,12 @@ export const CARD_META = Object.fromEntries([
 ].map(([id, label]) => [id, { id, label }]));
 
 export const TTS_PRESETS = {
-  girl: { label: '여자아이', rate: 0.9, pitch: 1.25 },
-  boy: { label: '남자아이', rate: 0.9, pitch: 1.15 },
+  girl: { label: '여자아이', rate: 1, pitch: 1.25 },
+  boy: { label: '남자아이', rate: 1, pitch: 1.15 },
 };
 
 export const DEFAULT_TTS_SETTINGS = {
-  preset: 'girl', voiceName: '', rate: 0.9, pitch: 1.25, volume: 1,
+  preset: 'girl', voiceName: '', rate: 1, pitch: 1.25, volume: 1,
 };
 
 export function normalizeTtsSettings(settings = {}) {

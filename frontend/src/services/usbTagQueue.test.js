@@ -15,7 +15,7 @@ it('uses tag order for separate placements, not physical position', async () => 
   h.input.accept(presentation([row(3)]), 'scope'); await vi.advanceTimersByTimeAsync(150);
   h.input.accept(presentation([row(1), row(3)]), 'scope'); await vi.advanceTimersByTimeAsync(150);
   expect(h.onBatch.mock.calls.map(([, batch]) => batch.rows.map(r => r.reader_id))).toEqual([[3], [1]]);
-  expect(h.onBatch.mock.calls.every(([, batch]) => !batch.autoSpeak)).toBe(true);
+  expect(h.onBatch.mock.calls.every(([, batch]) => batch.autoSpeak)).toBe(true);
 });
 it('groups readers within the fixed window and orders a simultaneous group by reader number', async () => {
   const h = harness(); h.input.accept(presentation([row(3)]), 'scope');
@@ -39,7 +39,7 @@ it('never treats two rapid presentations on the same reader as simultaneous', as
   h.input.accept({ mode: 'queue', rows: [row(1, 'AABBCCDD')] }, 'scope');
   await vi.advanceTimersByTimeAsync(150);
   expect(h.onBatch).toHaveBeenCalledTimes(2);
-  expect(h.onBatch.mock.calls.every(([, batch]) => !batch.autoSpeak)).toBe(true);
+  expect(h.onBatch.mock.calls.every(([, batch]) => batch.autoSpeak)).toBe(true);
 });
 it('serializes lookup and keeps later groups when a network response is delayed', async () => {
   let finish;
@@ -72,7 +72,7 @@ it('keeps healthy readers when other positions report ERROR', async () => {
   const h = harness(); h.input.accept(presentation([row(2), { reader_id: 1, status: 'ERROR', uid: null }]), 'scope');
   await vi.advanceTimersByTimeAsync(150);
   expect(h.onBatch.mock.calls[0][1].rows.map(r => r.reader_id)).toEqual([2]);
-  expect(h.onBatch.mock.calls[0][1].autoSpeak).toBe(false);
+  expect(h.onBatch.mock.calls[0][1].autoSpeak).toBe(true);
 });
 
 it('rejects an overflowing group atomically without speaking a partial sentence', async () => {
